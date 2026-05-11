@@ -254,10 +254,13 @@ body{
     <div class="form-group">
       <button class="btn-orange" onclick="generateOutput()">📊 產生報表</button>
     </div>
+    <div class="form-group" style="padding-top:0">
+      <button class="btn-secondary" onclick="exportCSV()" style="border-color:var(--accent);color:var(--accent)">📊 匯出 Excel（CSV）</button>
+    </div>
   </div>
 
   <div id="output-area" style="display:none">
-    <div class="warn-box">💡 長按下方圖片可儲存到相簿，或截圖給老闆</div>
+    <div class="warn-box">📸 請直接截圖</div>
     <div id="output-content" style="background:#fff;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)"></div>
   </div>
 
@@ -856,6 +859,68 @@ function generateOutput(){
   document.getElementById('output-content').innerHTML = html;
   document.getElementById('output-area').style.display = 'block';
   document.getElementById('output-area').scrollIntoView({behavior:'smooth'});
+}
+
+// ── CSV EXPORT ──
+function exportCSV(){
+  if(!records.length){ alert('沒有紀錄可以匯出'); return; }
+  const type = document.getElementById('output-type').value;
+  const today = todayStr();
+
+  let recs;
+  let filename;
+  if(type==='today'){
+    recs = records.filter(r=>r.date===today);
+    filename = `工資記錄_${today}.csv`;
+  } else {
+    recs = records.filter(r=>r.date&&r.date.startsWith(currentMonth));
+    filename = `工資記錄_${currentMonth}.csv`;
+  }
+
+  if(!recs.length){ alert('沒有紀錄可以匯出'); return; }
+
+  // Build CSV
+  const BOM = '\uFEFF'; // UTF-8 BOM for Excel
+  const headers = ['日期','案場名稱','設計師','會員等級','櫃號','類型','寬度(cm)','配件明細','工資小計(元)'];
+
+  const rows = recs.map(rec=>{
+    const lv = parseInt(rec.level)||0;
+    const levelName = ['好宅會員','商會會員','合夥人'][lv];
+    const recRate = (code)=> WAGE_RATES[code]?WAGE_RATES[code][lv]:0;
+    const base = (parseFloat(rec.width)||0) * recRate(rec.type);
+    const accLines = Object.entries(rec.acc||{}).map(([code,qty])=>{
+      const d = ACC_DEFS.find(a=>a.code===code);
+      const r = recRate(code);
+      return `${d?d.label:code}×${qty}=$${Math.round(qty*r)}`;
+    }).join('；');
+    const wage = calcRecordWage(rec);
+    return [
+      rec.date||'',
+      rec.site||'',
+      rec.designer||'',
+      levelName,
+      (rec.cabinet||'')+'號櫃',
+      CAB_TYPE_LABELS[rec.type]||rec.type,
+      rec.width||'',
+      accLines||'無',
+      Math.round(wage)
+    ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+
+  // Add total row
+  const grandTotal = recs.reduce((s,r)=>s+calcRecordWage(r),0);
+  rows.push(`"","","","","","","","合計","${Math.round(grandTotal)}"`);
+
+  const csv = BOM + headers.map(h=>`"${h}"`).join(',') + '\n' + rows.join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
 }
 
 function renderAll(){ renderToday(); }
