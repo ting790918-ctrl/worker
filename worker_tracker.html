@@ -161,11 +161,10 @@ body{
 <!-- HEADER -->
 <header class="app-header">
   <div class="header-top">
-    <div>
+    <div onclick="openSettings()" style="cursor:pointer">
       <div class="app-title">💰 師傅工資記錄</div>
-      <div class="worker-name-display" id="worker-name-display">請先設定師傅姓名</div>
+      <div class="worker-name-display" id="worker-name-display">請先設定師傅姓名 ✏️</div>
     </div>
-    <button class="btn-settings" onclick="openSettings()">⚙️</button>
   </div>
 </header>
 
@@ -285,6 +284,21 @@ body{
 
       <div class="form-row" style="margin-bottom:14px">
         <div>
+          <label class="form-label">設計師</label>
+          <input class="form-input" id="rec-designer" placeholder="例：黃設計師">
+        </div>
+        <div>
+          <label class="form-label">會員等級</label>
+          <select class="form-select" id="rec-level">
+            <option value="0">好宅會員</option>
+            <option value="1">商會會員</option>
+            <option value="2">合夥人</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-bottom:14px">
+        <div>
           <label class="form-label">櫃號</label>
           <input class="form-input" id="rec-cabinet" placeholder="例：01">
         </div>
@@ -341,14 +355,7 @@ body{
         <label class="form-label">師傅姓名</label>
         <input class="form-input" id="setting-name" placeholder="請輸入你的姓名">
       </div>
-      <div>
-        <label class="form-label">會員等級</label>
-        <select class="form-select" id="setting-level">
-          <option value="0">好宅會員</option>
-          <option value="1">商會會員（9折）</option>
-          <option value="2">合夥人（8折）</option>
-        </select>
-      </div>
+
       <button class="btn-primary" onclick="saveSettings()">儲存設定</button>
     </div>
   </div>
@@ -454,11 +461,13 @@ let editingId = null;
 function getRate(code){ return WAGE_RATES[code]?WAGE_RATES[code][level]:0; }
 
 function calcRecordWage(rec){
-  const base = (parseFloat(rec.width)||0) * getRate(rec.type);
+  const lv = parseInt(rec.level)||0;
+  const recRate = (code)=> WAGE_RATES[code]?WAGE_RATES[code][lv]:0;
+  const base = (parseFloat(rec.width)||0) * recRate(rec.type);
   const accWage = Object.entries(rec.acc||{}).reduce((sum,[code,qty])=>{
     qty = parseFloat(qty)||0;
     if(!qty) return sum;
-    return sum + qty * getRate(code);
+    return sum + qty * recRate(code);
   }, 0);
   return base + accWage;
 }
@@ -485,7 +494,7 @@ function init(){
 
 function updateWorkerDisplay(){
   document.getElementById('worker-name-display').textContent =
-    workerName ? `${workerName}　${LEVEL_NAMES[level]}` : '請先設定師傅姓名';
+    workerName ? workerName + ' ✏️' : '請先設定師傅姓名 ✏️';
 }
 
 // ── TABS ──
@@ -501,15 +510,12 @@ function switchTab(tab){
 // ── SETTINGS ──
 function openSettings(){
   document.getElementById('setting-name').value = workerName;
-  document.getElementById('setting-level').value = level;
   document.getElementById('settings-overlay').classList.add('open');
 }
 function closeSettings(){ document.getElementById('settings-overlay').classList.remove('open'); }
 function saveSettings(){
   workerName = document.getElementById('setting-name').value.trim();
-  level = parseInt(document.getElementById('setting-level').value)||0;
   localStorage.setItem('w_name', workerName);
-  localStorage.setItem('w_level', level);
   updateWorkerDisplay();
   closeSettings();
   renderAll();
@@ -538,12 +544,14 @@ function buildAccList(){
 function updateWagePreview(){
   const type = document.getElementById('rec-type').value;
   const width = parseFloat(document.getElementById('rec-width').value)||0;
-  const base = width * getRate(type);
+  const lv = parseInt(document.getElementById('rec-level')?.value)||0;
+  const previewRate = (code)=> WAGE_RATES[code]?WAGE_RATES[code][lv]:0;
+  const base = width * previewRate(type);
   let accTotal = 0;
   ACC_DEFS.forEach(d=>{
     if(!d.code) return;
     const qty = parseFloat(document.getElementById('acc-'+d.code)?.value)||0;
-    if(qty) accTotal += qty * getRate(d.code);
+    if(qty) accTotal += qty * previewRate(d.code);
   });
   const total = base + accTotal;
   document.getElementById('rec-wage-preview').textContent =
@@ -557,6 +565,8 @@ function openAddModal(){
   document.getElementById('modal-title-text').textContent = '新增組裝紀錄';
   document.getElementById('rec-site').value = '';
   document.getElementById('rec-cabinet').value = '';
+  document.getElementById('rec-designer').value = '';
+  document.getElementById('rec-level').value = '0';
   document.getElementById('rec-date').value = todayStr();
   document.getElementById('rec-type').value = 'F2';
   document.getElementById('rec-width').value = '';
@@ -566,6 +576,25 @@ function openAddModal(){
   document.getElementById('site-suggestions').innerHTML = sites.map(s=>`<option value="${s}">`).join('');
   updateWagePreview();
   document.getElementById('add-modal').classList.add('open');
+  setTimeout(()=>{ document.querySelector('#add-modal .modal').scrollTop=0; },50);
+}
+
+function openNextCabModal(site, designer, recLv){
+  editingId = null;
+  document.getElementById('modal-title-text').textContent = '新增下一個櫃';
+  document.getElementById('rec-site').value = site;
+  document.getElementById('rec-designer').value = designer||'';
+  document.getElementById('rec-level').value = recLv!==undefined?recLv:'0';
+  document.getElementById('rec-cabinet').value = '';
+  document.getElementById('rec-date').value = todayStr();
+  document.getElementById('rec-type').value = 'F2';
+  document.getElementById('rec-width').value = '';
+  ACC_DEFS.forEach(d=>{ if(d.code){ const el=document.getElementById('acc-'+d.code); if(el) el.value=''; }});
+  const sites = [...new Set(records.map(r=>r.site))];
+  document.getElementById('site-suggestions').innerHTML = sites.map(s=>`<option value="${s}">`).join('');
+  updateWagePreview();
+  document.getElementById('add-modal').classList.add('open');
+  setTimeout(()=>{ document.querySelector('#add-modal .modal').scrollTop=0; },50);
 }
 
 function openEditModal(id){
@@ -575,6 +604,8 @@ function openEditModal(id){
   document.getElementById('modal-title-text').textContent = '編輯紀錄';
   document.getElementById('rec-site').value = rec.site||'';
   document.getElementById('rec-cabinet').value = rec.cabinet||'';
+  document.getElementById('rec-designer').value = rec.designer||'';
+  document.getElementById('rec-level').value = rec.level||'0';
   document.getElementById('rec-date').value = rec.date||todayStr();
   document.getElementById('rec-type').value = rec.type||'F2';
   document.getElementById('rec-width').value = rec.width||'';
@@ -592,6 +623,8 @@ function closeAddModal(){ document.getElementById('add-modal').classList.remove(
 function saveRecord(){
   const site = document.getElementById('rec-site').value.trim();
   const cabinet = document.getElementById('rec-cabinet').value.trim();
+  const designer = document.getElementById('rec-designer').value.trim();
+  const recLevel = parseInt(document.getElementById('rec-level').value)||0;
   const date = document.getElementById('rec-date').value || todayStr();
   const type = document.getElementById('rec-type').value;
   const width = parseFloat(document.getElementById('rec-width').value)||0;
@@ -607,9 +640,9 @@ function saveRecord(){
 
   if(editingId){
     const idx = records.findIndex(r=>r.id===editingId);
-    if(idx>=0) records[idx] = {...records[idx], site, cabinet, date, type, width, acc};
+    if(idx>=0) records[idx] = {...records[idx], site, cabinet, designer, level:recLevel, date, type, width, acc};
   } else {
-    records.push({ id: Date.now()+'', site, cabinet, date, type, width, acc });
+    records.push({ id: Date.now()+'', site, cabinet, designer, level:recLevel, date, type, width, acc });
   }
 
   localStorage.setItem('w_records', JSON.stringify(records));
@@ -618,7 +651,6 @@ function saveRecord(){
 }
 
 function deleteRecord(id){
-  if(!confirm('確定刪除這筆紀錄？')) return;
   records = records.filter(r=>r.id!==id);
   localStorage.setItem('w_records', JSON.stringify(records));
   renderAll();
@@ -645,20 +677,41 @@ function renderToday(){
     list.appendChild(empty);
     return;
   }
-  list.innerHTML = todayRecs.map(rec=>{
-    const wage = calcRecordWage(rec);
-    const accCount = Object.keys(rec.acc||{}).length;
-    return `<div class="record-item">
-      <div class="record-dot"></div>
-      <div class="record-info">
-        <div class="record-title">${rec.site}　${rec.cabinet||''}號櫃</div>
-        <div class="record-sub">${CAB_TYPE_LABELS[rec.type]||rec.type}　${rec.width}cm${accCount>0?`　配件${accCount}項`:''}</div>
-        <div class="record-actions">
-          <button class="btn-sm btn-sm-green" onclick="openEditModal('${rec.id}')">編輯</button>
-          <button class="btn-sm btn-sm-red" onclick="deleteRecord('${rec.id}')">刪除</button>
+  // Group by site
+  const bySite = {};
+  todayRecs.forEach(r=>{ if(!bySite[r.site])bySite[r.site]=[]; bySite[r.site].push(r); });
+
+  list.innerHTML = Object.entries(bySite).map(([site, siteRecs])=>{
+    const siteDesigner = siteRecs[0].designer||'';
+    const siteTotal = siteRecs.reduce((s,r)=>s+calcRecordWage(r),0);
+    const items = siteRecs.map(rec=>{
+      const wage = calcRecordWage(rec);
+      const accCount = Object.keys(rec.acc||{}).length;
+      return `<div class="record-item">
+        <div class="record-dot"></div>
+        <div class="record-info">
+          <div class="record-title">${rec.cabinet||''}號櫃${rec.designer?'　<span style="font-size:12px;color:var(--text3)">設計師：'+rec.designer+'</span>':''}</div>
+          <div class="record-sub">${CAB_TYPE_LABELS[rec.type]||rec.type}　${rec.width}cm${accCount>0?`　配件${accCount}項`:''}　<span style="color:var(--blue)">${['好宅','商會','合夥人'][rec.level||0]}</span></div>
+          <div class="record-actions">
+            <button class="btn-sm btn-sm-green" onclick="openEditModal('${rec.id}')">編輯</button>
+            <button class="btn-sm btn-sm-red" onclick="deleteRecord('${rec.id}')">刪除</button>
+          </div>
+        </div>
+        <div class="record-amount">${formatMoney(wage)}</div>
+      </div>`;
+    }).join('');
+    return `<div style="border-bottom:2px solid var(--border)">
+      <div style="padding:10px 16px;background:var(--surface2);display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:var(--font-size-base);font-weight:600">${site}</div>
+          ${siteDesigner?`<div style="font-size:12px;color:var(--text3)">設計師：${siteDesigner}</div>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-size:var(--font-size-sm);font-weight:600;color:var(--accent)">${formatMoney(siteTotal)}</div>
+          <button class="btn-sm btn-sm-orange" onclick="openNextCabModal('${site}','${siteDesigner}','${siteRecs[0].level||0}')">＋ 下一櫃</button>
         </div>
       </div>
-      <div class="record-amount">${formatMoney(wage)}</div>
+      ${items}
     </div>`;
   }).join('');
 }
@@ -694,7 +747,7 @@ function renderHistory(){
         <div class="record-dot"></div>
         <div class="record-info">
           <div class="record-title">${rec.site}　${rec.cabinet||''}號櫃</div>
-          <div class="record-sub">${CAB_TYPE_LABELS[rec.type]||rec.type}　${rec.width}cm${accCount>0?`　配件${accCount}項`:''}</div>
+          <div class="record-sub">${CAB_TYPE_LABELS[rec.type]||rec.type}　${rec.width}cm${accCount>0?`　配件${accCount}項`:''}　<span style="color:var(--blue)">${['好宅','商會','合夥人'][rec.level||0]}</span></div>
           <div class="record-actions">
             <button class="btn-sm btn-sm-green" onclick="openEditModal('${rec.id}')">編輯</button>
             <button class="btn-sm btn-sm-red" onclick="deleteRecord('${rec.id}')">刪除</button>
@@ -744,7 +797,7 @@ function generateOutput(){
   if(!recs.length){ alert('沒有紀錄可以輸出'); return; }
 
   const grandTotal = recs.reduce((s,r)=>s+calcRecordWage(r),0);
-  const effectiveTotal = grandTotal>0&&grandTotal<10000?10000:grandTotal;
+  const effectiveTotal = grandTotal;
 
   // Group by date then site
   const byDate = {};
@@ -768,7 +821,7 @@ function generateOutput(){
           </div>
           <div style="font-size:15px;font-weight:600;color:#2c5f2e">${formatMoney(wage)}</div>
         </div>
-        <div style="font-size:12px;color:#9e9891">${CAB_TYPE_LABELS[rec.type]}　${rec.width}cm × $${getRate(rec.type)} = ${formatMoney((rec.width||0)*getRate(rec.type))}</div>
+        <div style="font-size:12px;color:#9e9891">${CAB_TYPE_LABELS[rec.type]}　${rec.width}cm × $${WAGE_RATES[rec.type]?WAGE_RATES[rec.type][rec.level||0]:0}（${['好宅','商會','合夥人'][rec.level||0]}）= ${formatMoney((rec.width||0)*(WAGE_RATES[rec.type]?WAGE_RATES[rec.type][rec.level||0]:0))}</div>
         ${accLines}
       </div>`;
     }).join('');
@@ -780,8 +833,7 @@ function generateOutput(){
     </div>`;
   }).join('');
 
-  const warnHTML = grandTotal>0&&grandTotal<10000
-    ? `<div style="background:#fef0e6;border:1px solid #f0c49a;border-radius:6px;padding:10px 12px;margin:12px 0;font-size:12px;color:#b84d00">⚠️ 工資合計 ${formatMoney(grandTotal)}，未滿一萬，補至 $10,000</div>` : '';
+  const warnHTML = '';
 
   const html = `<div style="font-family:'PingFang TC','Microsoft JhengHei',sans-serif;padding:20px;background:#fff">
     <div style="text-align:center;margin-bottom:16px">
@@ -792,7 +844,7 @@ function generateOutput(){
     <div style="background:#2c5f2e;color:#fff;border-radius:10px;padding:16px;text-align:center;margin-bottom:16px">
       <div style="font-size:12px;opacity:.85;margin-bottom:4px">合計工資</div>
       <div style="font-size:36px;font-weight:300;letter-spacing:-1px">${formatMoney(effectiveTotal)}</div>
-      ${grandTotal<10000&&grandTotal>0?'<div style="font-size:11px;opacity:.75">（未滿萬元，以一萬計）</div>':''}
+  
     </div>
     ${warnHTML}
     ${detailHTML}
