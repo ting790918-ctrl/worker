@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>師傅工資記錄</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#F5F3EF;--surface:#FFF;--surface2:#F0EDE8;
+  --border:#E2DDD6;--border2:#CFC9C0;
+  --text:#1A1814;--text2:#6B6560;--text3:#9E9891;
+  --accent:#2C5F2E;--accent-light:#EAF0EA;
+  --orange:#B84D00;--orange-light:#FEF0E6;
+  --red:#C0392B;--red-light:#FDECEA;
+  --blue:#1B4F8A;--blue-light:#EBF0F8;
+  --radius:12px;--radius-sm:8px;
+  --font-size-base:17px;
+  --font-size-sm:15px;
+  --font-size-xs:13px;
+  --font-size-lg:20px;
+  --font-size-xl:28px;
+}
+html{font-size:var(--font-size-base)}
+body{
+  font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── HEADER ── */
+.app-header{
+  background:var(--accent);color:#fff;
+  padding:env(safe-area-inset-top,16px) 16px 14px;
+  position:sticky;top:0;z-index:100;
+}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.app-title{font-size:var(--font-size-lg);font-weight:700}
+.worker-name-display{font-size:var(--font-size-xs);opacity:.85;margin-top:2px}
+.btn-settings{background:rgba(255,255,255,.2);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* ── TABS ── */
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:64px;z-index:99}
+.tab{flex:1;padding:12px 4px;text-align:center;font-size:var(--font-size-sm);color:var(--text3);border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;font-family:inherit;font-weight:500}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ── CONTENT ── */
+.page{display:none;padding:16px;padding-bottom:100px}
+.page.active{display:block}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:14px;overflow:hidden}
+.card-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:var(--font-size-base);font-weight:600}
+.card-sub{font-size:var(--font-size-xs);color:var(--text3);margin-top:2px}
+
+/* ── SUMMARY BARS ── */
+.today-total{background:var(--accent);color:#fff;border-radius:var(--radius);padding:20px 16px;margin-bottom:14px;text-align:center}
+.today-label{font-size:var(--font-size-sm);opacity:.85;margin-bottom:4px}
+.today-amount{font-size:44px;font-weight:300;letter-spacing:-2px;line-height:1}
+.today-unit{font-size:var(--font-size-sm);opacity:.75;margin-top:4px}
+.today-sub{display:flex;gap:10px;margin-top:14px}
+.today-sub-item{flex:1;background:rgba(255,255,255,.15);border-radius:var(--radius-sm);padding:10px;text-align:center}
+.today-sub-label{font-size:11px;opacity:.8;margin-bottom:3px}
+.today-sub-val{font-size:var(--font-size-lg);font-weight:600}
+
+.month-total{background:var(--orange);color:#fff;border-radius:var(--radius);padding:16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.month-total-l .lbl{font-size:var(--font-size-xs);opacity:.85;margin-bottom:2px}
+.month-total-l .val{font-size:32px;font-weight:300;letter-spacing:-1px}
+.month-total-l .u{font-size:var(--font-size-xs);opacity:.75}
+
+/* ── FORM ── */
+.form-group{padding:14px 16px;border-bottom:1px solid var(--border)}
+.form-group:last-child{border-bottom:none}
+.form-label{font-size:var(--font-size-sm);font-weight:500;color:var(--text2);margin-bottom:8px;display:block}
+.form-input{width:100%;height:48px;padding:0 14px;border:1.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:var(--font-size-base);font-family:inherit;-webkit-appearance:none;appearance:none}
+.form-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(44,95,46,.12)}
+.form-select{width:100%;height:48px;padding:0 14px;border:1.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:var(--font-size-base);font-family:inherit;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%239E9891'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.form-select:focus{outline:none;border-color:var(--accent)}
+.form-hint{font-size:12px;color:var(--text3);margin-top:5px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+/* ── BUTTONS ── */
+.btn-primary{width:100%;height:52px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:var(--font-size-base);font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s}
+.btn-primary:active{opacity:.85}
+.btn-secondary{width:100%;height:48px;background:var(--surface2);color:var(--text);border:1.5px solid var(--border2);border-radius:var(--radius-sm);font-size:var(--font-size-base);font-weight:500;cursor:pointer;font-family:inherit}
+.btn-orange{width:100%;height:52px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius-sm);font-size:var(--font-size-base);font-weight:600;cursor:pointer;font-family:inherit}
+.btn-sm{padding:8px 16px;border-radius:var(--radius-sm);font-size:var(--font-size-sm);font-weight:500;cursor:pointer;font-family:inherit;border:none}
+.btn-sm-green{background:var(--accent-light);color:var(--accent);border:1px solid #B8D4B8}
+.btn-sm-red{background:var(--red-light);color:var(--red);border:1px solid #EABAB4}
+.btn-sm-orange{background:var(--orange-light);color:var(--orange);border:1px solid #F0C49A}
+
+/* ── RECORD LIST ── */
+.record-item{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px}
+.record-item:last-child{border-bottom:none}
+.record-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:6px}
+.record-info{flex:1;min-width:0}
+.record-title{font-size:var(--font-size-base);font-weight:500;margin-bottom:2px}
+.record-sub{font-size:var(--font-size-xs);color:var(--text3)}
+.record-amount{font-size:var(--font-size-lg);font-weight:600;color:var(--accent);flex-shrink:0}
+.record-actions{display:flex;gap:6px;margin-top:8px}
+
+/* ── DATE GROUP ── */
+.date-group{margin-bottom:10px}
+.date-label{font-size:var(--font-size-xs);font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;padding:8px 0 6px;display:flex;align-items:center;gap:8px}
+.date-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.date-subtotal{font-size:var(--font-size-xs);color:var(--orange);font-weight:600}
+
+/* ── SITE PILL ── */
+.site-pill{display:inline-flex;align-items:center;gap:5px;background:var(--blue-light);color:var(--blue);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:500;margin-bottom:10px}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:0 0 env(safe-area-inset-bottom,20px);width:100%;max-height:92vh;overflow-y:auto}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 0}
+.modal-header{padding:16px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:var(--font-size-lg);font-weight:600}
+.modal-close{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:none;font-size:18px;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:16px}
+
+/* ── WAGE ACC LIST ── */
+.acc-section-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:10px 0 6px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.acc-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.acc-item:last-child{border-bottom:none}
+.acc-label{font-size:var(--font-size-sm);color:var(--text);flex:1;padding-right:10px;line-height:1.3}
+.acc-price{font-size:11px;color:var(--text3)}
+.acc-input{width:80px;height:40px;padding:0 10px;border:1.5px solid var(--border2);border-radius:var(--radius-sm);font-size:var(--font-size-base);text-align:right;font-family:inherit;background:var(--surface);color:var(--text);-webkit-appearance:none}
+.acc-input:focus{outline:none;border-color:var(--accent)}
+
+/* ── SETTINGS ── */
+.settings-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:flex-end}
+.settings-overlay.open{display:flex}
+.settings-panel{background:var(--surface);border-radius:20px 20px 0 0;padding:0 0 env(safe-area-inset-bottom,24px);width:100%}
+
+/* ── OUTPUT ── */
+.output-card{background:var(--surface);border-radius:var(--radius);padding:20px;font-size:14px;line-height:1.8}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:.4}
+.empty-text{font-size:var(--font-size-sm)}
+
+/* ── FAB ── */
+.fab{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);right:20px;width:60px;height:60px;background:var(--accent);border-radius:50%;border:none;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 4px 16px rgba(44,95,46,.4);z-index:90;display:flex;align-items:center;justify-content:center}
+
+.warn-box{background:var(--orange-light);border:1px solid #F0C49A;border-radius:var(--radius-sm);padding:12px 14px;font-size:var(--font-size-sm);color:var(--orange);margin-bottom:12px}
+
+/* month selector */
+.month-selector{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:14px}
+.month-nav{width:40px;height:40px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.month-display{font-size:var(--font-size-lg);font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="header-top">
+    <div>
+      <div class="app-title">💰 師傅工資記錄</div>
+      <div class="worker-name-display" id="worker-name-display">請先設定師傅姓名</div>
+    </div>
+    <button class="btn-settings" onclick="openSettings()">⚙️</button>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('today')">今日工資</button>
+  <button class="tab" onclick="switchTab('history')">月結記錄</button>
+  <button class="tab" onclick="switchTab('output')">輸出報表</button>
+</div>
+
+<!-- ── PAGE: TODAY ── -->
+<div class="page active" id="page-today">
+
+  <div class="today-total" id="today-total-card">
+    <div class="today-label" id="today-date-label">今日</div>
+    <div class="today-amount" id="today-amount">$0</div>
+    <div class="today-unit">元</div>
+    <div class="today-sub">
+      <div class="today-sub-item">
+        <div class="today-sub-label">筆數</div>
+        <div class="today-sub-val" id="today-count">0</div>
+      </div>
+      <div class="today-sub-item">
+        <div class="today-sub-label">案場</div>
+        <div class="today-sub-val" id="today-sites">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="today-records-card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">今日明細</div>
+      </div>
+    </div>
+    <div id="today-records-list">
+      <div class="empty" id="today-empty">
+        <div class="empty-icon">🔨</div>
+        <div class="empty-text">今天還沒有紀錄<br>點下方 ＋ 新增組裝紀錄</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── PAGE: HISTORY ── -->
+<div class="page" id="page-history">
+
+  <div class="month-selector">
+    <button class="month-nav" onclick="changeMonth(-1)">‹</button>
+    <div class="month-display" id="month-display">2026年5月</div>
+    <button class="month-nav" onclick="changeMonth(1)">›</button>
+  </div>
+
+  <div class="month-total" id="month-total-card">
+    <div class="month-total-l">
+      <div class="lbl">本月累計工資</div>
+      <div class="val" id="month-amount">$0</div>
+      <div class="u">元</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:11px;opacity:.8;margin-bottom:2px">紀錄筆數</div>
+      <div style="font-size:24px;font-weight:600" id="month-count">0</div>
+    </div>
+  </div>
+
+  <div id="history-list">
+    <div class="empty">
+      <div class="empty-icon">📋</div>
+      <div class="empty-text">本月還沒有紀錄</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── PAGE: OUTPUT ── -->
+<div class="page" id="page-output">
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="form-group">
+      <label class="form-label">輸出類型</label>
+      <select class="form-select" id="output-type">
+        <option value="today">今日工資報表</option>
+        <option value="month">本月累計報表</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <button class="btn-orange" onclick="generateOutput()">📊 產生報表</button>
+    </div>
+  </div>
+
+  <div id="output-area" style="display:none">
+    <div class="warn-box">💡 長按下方圖片可儲存到相簿，或截圖給老闆</div>
+    <div id="output-content" style="background:#fff;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)"></div>
+  </div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openAddModal()">＋</button>
+
+<!-- ── MODAL: ADD RECORD ── -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title-text">新增組裝紀錄</div>
+      <button class="modal-close" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-group" style="padding:0 0 14px">
+        <label class="form-label">案場名稱</label>
+        <input class="form-input" id="rec-site" list="site-suggestions" placeholder="例：板橋長江路">
+        <datalist id="site-suggestions"></datalist>
+      </div>
+
+      <div class="form-row" style="margin-bottom:14px">
+        <div>
+          <label class="form-label">櫃號</label>
+          <input class="form-input" id="rec-cabinet" placeholder="例：01">
+        </div>
+        <div>
+          <label class="form-label">日期</label>
+          <input class="form-input" type="date" id="rec-date">
+        </div>
+      </div>
+
+      <div class="form-group" style="padding:0 0 14px">
+        <label class="form-label">櫃體類型</label>
+        <select class="form-select" id="rec-type">
+          <option value="F2">高櫃 H≥100cm</option>
+          <option value="F3">矮櫃 H≤99cm</option>
+          <option value="F4">吊櫃 H≤99cm</option>
+          <option value="F5">懸吊抽屜結構</option>
+          <option value="F6">疊櫃 H≤65cm</option>
+          <option value="F7">特殊設計 H≥100cm</option>
+          <option value="F8">特殊設計 H≤99cm</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="padding:0 0 14px">
+        <label class="form-label">櫃體寬度 (cm)</label>
+        <input class="form-input" type="number" id="rec-width" placeholder="例：80" inputmode="decimal">
+        <div class="form-hint" id="rec-wage-preview">填入寬度後自動計算工資</div>
+      </div>
+
+      <!-- ACCESSORIES -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:var(--font-size-sm);font-weight:600;margin-bottom:10px;color:var(--text2)">配件數量（選填，不用填0）</div>
+        <div id="acc-list"></div>
+      </div>
+
+      <div style="padding-bottom:8px">
+        <div style="font-size:var(--font-size-lg);font-weight:600;color:var(--accent);margin-bottom:14px;text-align:center" id="rec-total-preview">工資：$0</div>
+        <button class="btn-primary" onclick="saveRecord()">儲存紀錄</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: SETTINGS ── -->
+<div class="settings-overlay" id="settings-overlay">
+  <div class="settings-panel">
+    <div class="modal-handle"></div>
+    <div class="modal-header" style="padding:16px">
+      <div class="modal-title">設定</div>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div style="padding:0 16px 24px;display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label class="form-label">師傅姓名</label>
+        <input class="form-input" id="setting-name" placeholder="請輸入你的姓名">
+      </div>
+      <div>
+        <label class="form-label">會員等級</label>
+        <select class="form-select" id="setting-level">
+          <option value="0">好宅會員</option>
+          <option value="1">商會會員（9折）</option>
+          <option value="2">合夥人（8折）</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="saveSettings()">儲存設定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── WAGE RATES ──
+const WAGE_RATES = {
+  F2:[21.25,19.125,17], F3:[15,13.5,12], F4:[15,13.5,12],
+  F5:[15,13.5,12], F6:[12.5,11.25,10], F7:[40,36,32], F8:[33.75,30.375,27],
+  F10:[8.75,7.875,7], F11:[7.5,6.75,6], F12:[6.25,5.625,5],
+  F13:[125,112.5,100], F14:[225,202.5,180], F15:[187.5,168.75,150],
+  F16:[250,225,200], F17:[75,67.5,60], F18:[337.5,303.75,270],
+  F19:[337.5,303.75,270], F20:[150,135,120], F21:[212.5,191.25,170],
+  F22:[6.25,5.625,5], F23:[62.5,56.25,50], F24:[125,112.5,100],
+  F25:[6.25,5.625,5], F27:[312.5,281.25,250],
+  F29:[3.75,3.375,3], F30:[750,675,600],
+  F31:[212.5,191.25,170], F32:[150,135,120], F33:[37.5,33.75,30],
+  F34:[8.75,7.875,7], F35:[6.25,5.625,5], F36:[6.25,5.625,5],
+  F37:[11.25,10.125,9], F38:[8.75,7.875,7], F39:[8.75,7.875,7],
+  F43:[3.75,3.375,3], F46:[625,562.5,500], F47:[125,112.5,100],
+  F48:[187.5,168.75,150], F49:[3.75,3.375,3],
+  F51:[375,337.5,300], F52:[1000,900,800], F53:[375,337.5,300],
+  F54:[3.75,3.375,3], F56:[437.5,393.75,350], F57:[312.5,281.25,250],
+  F58:[625,562.5,500], F59:[337.5,303.75,270], F60:[87.5,78.75,70],
+  F61:[437.5,393.75,350], F62:[437.5,393.75,350], F63:[375,337.5,300],
+  F64:[337.5,303.75,270], F66:[625,562.5,500], F67:[812.5,731.25,650],
+  F68:[3,2,1], F69:[4375,3937.5,3500], F70:[1875,1687.5,1500],
+};
+
+const ACC_DEFS = [
+  {sec:'櫃體配件'},
+  {code:'F13',label:'木抽屜/拉籃/拉盤/格抽',unit:'組'},
+  {code:'F14',label:'自組木抽屜',unit:'組'},
+  {code:'F15',label:'進口BLUM木抽屜',unit:'組'},
+  {code:'F16',label:'鋁型抽屜',unit:'組'},
+  {code:'F17',label:'鋁型抽屜內組件',unit:'件'},
+  {code:'F18',label:'側拉籃',unit:'組'},
+  {code:'F19',label:'旋轉鏡',unit:'片'},
+  {code:'F20',label:'明鏡平貼固定',unit:'片'},
+  {code:'F21',label:'安裝鎖頭',unit:'個'},
+  {code:'F22',label:'隱藏層板',unit:'cm寬'},
+  {code:'F23',label:'各式五金小配件',unit:'個'},
+  {code:'F24',label:'其他五金(G腿)',unit:'支'},
+  {code:'F25',label:'層板安裝',unit:'cm寬'},
+  {sec:'封板類'},
+  {code:'F27',label:'補邊封板',unit:'處'},
+  {code:'F28',label:'造型補邊封板',unit:'元',isEstimate:true},
+  {code:'F29',label:'擋板',unit:'cm寬'},
+  {code:'F30',label:'滑軌洞洞板',unit:'式'},
+  {code:'F31',label:'假門/落側 H<100',unit:'片'},
+  {code:'F32',label:'假門/落側 H≤65',unit:'片'},
+  {code:'F33',label:'美背',unit:'才'},
+  {code:'F34',label:'直封壁板 H≤240',unit:'cm'},
+  {code:'F35',label:'直封壁板 H≤160',unit:'cm'},
+  {code:'F36',label:'直封壁板 H≤80',unit:'cm'},
+  {code:'F37',label:'墊出壁板 H≤240',unit:'cm'},
+  {code:'F38',label:'墊出壁板 H≤160',unit:'cm'},
+  {code:'F39',label:'墊出壁板 H≤80',unit:'cm'},
+  {code:'F40',label:'造型壁板',unit:'元',isEstimate:true},
+  {code:'F41',label:'其他封板',unit:'元',isEstimate:true},
+  {code:'F43',label:'畫框',unit:'cm周長'},
+  {sec:'修改類'},
+  {code:'F46',label:'櫃體修改',unit:'櫃'},
+  {code:'F47',label:'活格固格修改',unit:'片'},
+  {code:'F48',label:'改門/改抽屜',unit:'片'},
+  {code:'F49',label:'現場貼皮/封邊',unit:'cm長'},
+  {sec:'廚具類'},
+  {code:'F51',label:'油煙機/烘碗機',unit:'台'},
+  {code:'F52',label:'洗碗機',unit:'台'},
+  {code:'F53',label:'水龍頭',unit:'支'},
+  {code:'F54',label:'檯面安裝',unit:'cm長'},
+  {sec:'水電類'},
+  {code:'F56',label:'拉線（含面板）',unit:'處'},
+  {code:'F57',label:'拉線（不含面板）',unit:'處'},
+  {code:'F58',label:'LED燈條',unit:'組'},
+  {code:'F59',label:'炊燈/燈管',unit:'組'},
+  {code:'F60',label:'出線孔/維修孔',unit:'處'},
+  {code:'F61',label:'開電箱孔',unit:'處'},
+  {code:'F62',label:'總電源箱蓋移動',unit:'組'},
+  {code:'F63',label:'三角凡爾',unit:'組'},
+  {code:'F64',label:'洗溝藏線',unit:'處'},
+  {sec:'其他'},
+  {code:'F66',label:'垃圾清理費',unit:'包'},
+  {code:'F67',label:'五金螺絲',unit:'式'},
+  {code:'F68',label:'矽利康',unit:'cm'},
+  {code:'F69',label:'另補工資',unit:'工'},
+  {code:'F70',label:'補板車資',unit:'車'},
+];
+
+const CAB_TYPE_LABELS = {
+  F2:'高櫃',F3:'矮櫃',F4:'吊櫃',F5:'懸吊抽屜',F6:'疊櫃',F7:'特殊設計(高)',F8:'特殊設計(矮)'
+};
+const LEVEL_NAMES = ['好宅會員','商會會員','合夥人'];
+
+// ── STATE ──
+let workerName = localStorage.getItem('w_name')||'';
+let level = parseInt(localStorage.getItem('w_level'))||0;
+let records = JSON.parse(localStorage.getItem('w_records')||'[]');
+let currentMonth = new Date().toISOString().slice(0,7); // YYYY-MM
+let editingId = null;
+
+function getRate(code){ return WAGE_RATES[code]?WAGE_RATES[code][level]:0; }
+
+function calcRecordWage(rec){
+  const base = (parseFloat(rec.width)||0) * getRate(rec.type);
+  const accWage = Object.entries(rec.acc||{}).reduce((sum,[code,qty])=>{
+    qty = parseFloat(qty)||0;
+    if(!qty) return sum;
+    return sum + qty * getRate(code);
+  }, 0);
+  return base + accWage;
+}
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function formatDate(d){
+  const dt = new Date(d+'T00:00:00');
+  return `${dt.getMonth()+1}/${dt.getDate()}（${['日','一','二','三','四','五','六'][dt.getDay()]}）`;
+}
+
+function formatMoney(n){ return '$'+Math.round(n).toLocaleString(); }
+
+// ── INIT ──
+function init(){
+  updateWorkerDisplay();
+  buildAccList();
+  document.getElementById('rec-date').value = todayStr();
+  renderAll();
+  // update wage preview on input
+  document.getElementById('rec-width').addEventListener('input', updateWagePreview);
+  document.getElementById('rec-type').addEventListener('change', updateWagePreview);
+}
+
+function updateWorkerDisplay(){
+  document.getElementById('worker-name-display').textContent =
+    workerName ? `${workerName}　${LEVEL_NAMES[level]}` : '請先設定師傅姓名';
+}
+
+// ── TABS ──
+function switchTab(tab){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  event.target.classList.add('active');
+  if(tab==='history') renderHistory();
+  if(tab==='output') document.getElementById('output-area').style.display='none';
+}
+
+// ── SETTINGS ──
+function openSettings(){
+  document.getElementById('setting-name').value = workerName;
+  document.getElementById('setting-level').value = level;
+  document.getElementById('settings-overlay').classList.add('open');
+}
+function closeSettings(){ document.getElementById('settings-overlay').classList.remove('open'); }
+function saveSettings(){
+  workerName = document.getElementById('setting-name').value.trim();
+  level = parseInt(document.getElementById('setting-level').value)||0;
+  localStorage.setItem('w_name', workerName);
+  localStorage.setItem('w_level', level);
+  updateWorkerDisplay();
+  closeSettings();
+  renderAll();
+}
+
+// ── BUILD ACC LIST ──
+function buildAccList(){
+  const container = document.getElementById('acc-list');
+  let html = '';
+  ACC_DEFS.forEach(d=>{
+    if(d.sec){
+      html+=`<div class="acc-section-title">${d.sec}</div>`;
+      return;
+    }
+    const r = getRate(d.code);
+    html+=`<div class="acc-item">
+      <div class="acc-label">${d.label}<br><span class="acc-price">${d.isEstimate?'直接填金額':'$'+r+'/'+d.unit}</span></div>
+      <input class="acc-input" type="number" min="0" inputmode="decimal" placeholder="0"
+        id="acc-${d.code}" onchange="updateWagePreview()">
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+// ── WAGE PREVIEW ──
+function updateWagePreview(){
+  const type = document.getElementById('rec-type').value;
+  const width = parseFloat(document.getElementById('rec-width').value)||0;
+  const base = width * getRate(type);
+  let accTotal = 0;
+  ACC_DEFS.forEach(d=>{
+    if(!d.code) return;
+    const qty = parseFloat(document.getElementById('acc-'+d.code)?.value)||0;
+    if(qty) accTotal += qty * getRate(d.code);
+  });
+  const total = base + accTotal;
+  document.getElementById('rec-wage-preview').textContent =
+    width>0 ? `${width}cm × $${getRate(type)} = ${formatMoney(base)}${accTotal>0?' + 配件 '+formatMoney(accTotal):''}` : '填入寬度後自動計算工資';
+  document.getElementById('rec-total-preview').textContent = `工資：${formatMoney(total)}`;
+}
+
+// ── ADD MODAL ──
+function openAddModal(){
+  editingId = null;
+  document.getElementById('modal-title-text').textContent = '新增組裝紀錄';
+  document.getElementById('rec-site').value = '';
+  document.getElementById('rec-cabinet').value = '';
+  document.getElementById('rec-date').value = todayStr();
+  document.getElementById('rec-type').value = 'F2';
+  document.getElementById('rec-width').value = '';
+  ACC_DEFS.forEach(d=>{ if(d.code){ const el=document.getElementById('acc-'+d.code); if(el) el.value=''; }});
+  // populate site suggestions
+  const sites = [...new Set(records.map(r=>r.site))];
+  document.getElementById('site-suggestions').innerHTML = sites.map(s=>`<option value="${s}">`).join('');
+  updateWagePreview();
+  document.getElementById('add-modal').classList.add('open');
+}
+
+function openEditModal(id){
+  const rec = records.find(r=>r.id===id);
+  if(!rec) return;
+  editingId = id;
+  document.getElementById('modal-title-text').textContent = '編輯紀錄';
+  document.getElementById('rec-site').value = rec.site||'';
+  document.getElementById('rec-cabinet').value = rec.cabinet||'';
+  document.getElementById('rec-date').value = rec.date||todayStr();
+  document.getElementById('rec-type').value = rec.type||'F2';
+  document.getElementById('rec-width').value = rec.width||'';
+  ACC_DEFS.forEach(d=>{
+    if(!d.code) return;
+    const el=document.getElementById('acc-'+d.code);
+    if(el) el.value = (rec.acc&&rec.acc[d.code])||'';
+  });
+  updateWagePreview();
+  document.getElementById('add-modal').classList.add('open');
+}
+
+function closeAddModal(){ document.getElementById('add-modal').classList.remove('open'); }
+
+function saveRecord(){
+  const site = document.getElementById('rec-site').value.trim();
+  const cabinet = document.getElementById('rec-cabinet').value.trim();
+  const date = document.getElementById('rec-date').value || todayStr();
+  const type = document.getElementById('rec-type').value;
+  const width = parseFloat(document.getElementById('rec-width').value)||0;
+  if(!site){ alert('請填寫案場名稱'); return; }
+  if(!width){ alert('請填寫櫃體寬度'); return; }
+
+  const acc = {};
+  ACC_DEFS.forEach(d=>{
+    if(!d.code) return;
+    const qty = parseFloat(document.getElementById('acc-'+d.code)?.value)||0;
+    if(qty) acc[d.code] = qty;
+  });
+
+  if(editingId){
+    const idx = records.findIndex(r=>r.id===editingId);
+    if(idx>=0) records[idx] = {...records[idx], site, cabinet, date, type, width, acc};
+  } else {
+    records.push({ id: Date.now()+'', site, cabinet, date, type, width, acc });
+  }
+
+  localStorage.setItem('w_records', JSON.stringify(records));
+  closeAddModal();
+  renderAll();
+}
+
+function deleteRecord(id){
+  if(!confirm('確定刪除這筆紀錄？')) return;
+  records = records.filter(r=>r.id!==id);
+  localStorage.setItem('w_records', JSON.stringify(records));
+  renderAll();
+}
+
+// ── RENDER TODAY ──
+function renderToday(){
+  const today = todayStr();
+  const todayRecs = records.filter(r=>r.date===today);
+  const total = todayRecs.reduce((s,r)=>s+calcRecordWage(r),0);
+  const sites = new Set(todayRecs.map(r=>r.site)).size;
+
+  document.getElementById('today-date-label').textContent =
+    `${new Date().getMonth()+1}月${new Date().getDate()}日（今日）`;
+  document.getElementById('today-amount').textContent = formatMoney(total);
+  document.getElementById('today-count').textContent = todayRecs.length;
+  document.getElementById('today-sites').textContent = sites;
+
+  const list = document.getElementById('today-records-list');
+  const empty = document.getElementById('today-empty');
+
+  if(!todayRecs.length){
+    list.innerHTML = '';
+    list.appendChild(empty);
+    return;
+  }
+  list.innerHTML = todayRecs.map(rec=>{
+    const wage = calcRecordWage(rec);
+    const accCount = Object.keys(rec.acc||{}).length;
+    return `<div class="record-item">
+      <div class="record-dot"></div>
+      <div class="record-info">
+        <div class="record-title">${rec.site}　${rec.cabinet||''}號櫃</div>
+        <div class="record-sub">${CAB_TYPE_LABELS[rec.type]||rec.type}　${rec.width}cm${accCount>0?`　配件${accCount}項`:''}</div>
+        <div class="record-actions">
+          <button class="btn-sm btn-sm-green" onclick="openEditModal('${rec.id}')">編輯</button>
+          <button class="btn-sm btn-sm-red" onclick="deleteRecord('${rec.id}')">刪除</button>
+        </div>
+      </div>
+      <div class="record-amount">${formatMoney(wage)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER HISTORY ──
+function renderHistory(){
+  const [year,month] = currentMonth.split('-').map(Number);
+  document.getElementById('month-display').textContent = `${year}年${month}月`;
+
+  const monthRecs = records.filter(r=>r.date&&r.date.startsWith(currentMonth));
+  const total = monthRecs.reduce((s,r)=>s+calcRecordWage(r),0);
+  document.getElementById('month-amount').textContent = formatMoney(total);
+  document.getElementById('month-count').textContent = monthRecs.length;
+
+  const list = document.getElementById('history-list');
+  if(!monthRecs.length){
+    list.innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">本月還沒有紀錄</div></div>`;
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  monthRecs.forEach(r=>{ if(!byDate[r.date])byDate[r.date]=[]; byDate[r.date].push(r); });
+  const dates = Object.keys(byDate).sort().reverse();
+
+  list.innerHTML = dates.map(date=>{
+    const recs = byDate[date];
+    const dayTotal = recs.reduce((s,r)=>s+calcRecordWage(r),0);
+    const items = recs.map(rec=>{
+      const wage = calcRecordWage(rec);
+      const accCount = Object.keys(rec.acc||{}).length;
+      return `<div class="record-item">
+        <div class="record-dot"></div>
+        <div class="record-info">
+          <div class="record-title">${rec.site}　${rec.cabinet||''}號櫃</div>
+          <div class="record-sub">${CAB_TYPE_LABELS[rec.type]||rec.type}　${rec.width}cm${accCount>0?`　配件${accCount}項`:''}</div>
+          <div class="record-actions">
+            <button class="btn-sm btn-sm-green" onclick="openEditModal('${rec.id}')">編輯</button>
+            <button class="btn-sm btn-sm-red" onclick="deleteRecord('${rec.id}')">刪除</button>
+          </div>
+        </div>
+        <div class="record-amount">${formatMoney(wage)}</div>
+      </div>`;
+    }).join('');
+    return `<div class="date-group">
+      <div class="date-label">${formatDate(date)}<span class="date-subtotal">${formatMoney(dayTotal)}</span></div>
+      <div class="card" style="margin:0">${items}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── MONTH NAV ──
+function changeMonth(dir){
+  const [y,m] = currentMonth.split('-').map(Number);
+  const dt = new Date(y, m-1+dir, 1);
+  const newMonth = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+  // limit to 6 months ago
+  const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth()-6);
+  const minMonth = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth()+1).padStart(2,'0')}`;
+  const nowMonth = new Date().toISOString().slice(0,7);
+  if(newMonth < minMonth || newMonth > nowMonth) return;
+  currentMonth = newMonth;
+  renderHistory();
+}
+
+// ── OUTPUT ──
+function generateOutput(){
+  const type = document.getElementById('output-type').value;
+  const today = todayStr();
+  const [year,month] = (type==='month'?currentMonth:today.slice(0,7)).split('-').map(Number);
+
+  let recs, title, subtitle;
+  if(type==='today'){
+    recs = records.filter(r=>r.date===today);
+    title = '今日工資報表';
+    subtitle = `${year}年${month}月${new Date().getDate()}日`;
+  } else {
+    recs = records.filter(r=>r.date&&r.date.startsWith(currentMonth));
+    title = '月累計工資報表';
+    subtitle = `${year}年${month}月`;
+  }
+
+  if(!recs.length){ alert('沒有紀錄可以輸出'); return; }
+
+  const grandTotal = recs.reduce((s,r)=>s+calcRecordWage(r),0);
+  const effectiveTotal = grandTotal>0&&grandTotal<10000?10000:grandTotal;
+
+  // Group by date then site
+  const byDate = {};
+  recs.forEach(r=>{ if(!byDate[r.date])byDate[r.date]=[]; byDate[r.date].push(r); });
+  const dates = Object.keys(byDate).sort();
+
+  let detailHTML = dates.map(date=>{
+    const dayRecs = byDate[date];
+    const dayTotal = dayRecs.reduce((s,r)=>s+calcRecordWage(r),0);
+    const rows = dayRecs.map(rec=>{
+      const wage = calcRecordWage(rec);
+      const accLines = Object.entries(rec.acc||{}).map(([code,qty])=>{
+        const r=getRate(code);
+        const d=ACC_DEFS.find(a=>a.code===code);
+        return `<div style="font-size:11px;color:#6b6560;padding-left:8px">• ${d?d.label:code} × ${qty} = ${formatMoney(qty*r)}</div>`;
+      }).join('');
+      return `<div style="padding:8px 0;border-bottom:1px solid #e2ddd6">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <span style="font-size:14px;font-weight:500">${rec.site}　${rec.cabinet||''}號櫃</span>
+          </div>
+          <div style="font-size:15px;font-weight:600;color:#2c5f2e">${formatMoney(wage)}</div>
+        </div>
+        <div style="font-size:12px;color:#9e9891">${CAB_TYPE_LABELS[rec.type]}　${rec.width}cm × $${getRate(rec.type)} = ${formatMoney((rec.width||0)*getRate(rec.type))}</div>
+        ${accLines}
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:14px">
+      <div style="background:#f0ede8;padding:7px 12px;border-radius:6px;display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px">
+        <span>${formatDate(date)}</span><span style="color:#b84d00">${formatMoney(dayTotal)}</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  const warnHTML = grandTotal>0&&grandTotal<10000
+    ? `<div style="background:#fef0e6;border:1px solid #f0c49a;border-radius:6px;padding:10px 12px;margin:12px 0;font-size:12px;color:#b84d00">⚠️ 工資合計 ${formatMoney(grandTotal)}，未滿一萬，補至 $10,000</div>` : '';
+
+  const html = `<div style="font-family:'PingFang TC','Microsoft JhengHei',sans-serif;padding:20px;background:#fff">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:11px;color:#9e9891;margin-bottom:4px">${LEVEL_NAMES[level]}</div>
+      <div style="font-size:22px;font-weight:700">${workerName||'師傅'} ${title}</div>
+      <div style="font-size:14px;color:#6b6560">${subtitle}</div>
+    </div>
+    <div style="background:#2c5f2e;color:#fff;border-radius:10px;padding:16px;text-align:center;margin-bottom:16px">
+      <div style="font-size:12px;opacity:.85;margin-bottom:4px">合計工資</div>
+      <div style="font-size:36px;font-weight:300;letter-spacing:-1px">${formatMoney(effectiveTotal)}</div>
+      ${grandTotal<10000&&grandTotal>0?'<div style="font-size:11px;opacity:.75">（未滿萬元，以一萬計）</div>':''}
+    </div>
+    ${warnHTML}
+    ${detailHTML}
+    <div style="text-align:center;font-size:11px;color:#c0c0c0;margin-top:16px;padding-top:12px;border-top:1px solid #e2ddd6">
+      師傅工資記錄　${new Date().toLocaleDateString('zh-TW')}
+    </div>
+  </div>`;
+
+  document.getElementById('output-content').innerHTML = html;
+  document.getElementById('output-area').style.display = 'block';
+  document.getElementById('output-area').scrollIntoView({behavior:'smooth'});
+}
+
+function renderAll(){ renderToday(); }
+
+init();
+</script>
+</body>
+</html>
