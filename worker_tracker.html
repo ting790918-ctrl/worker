@@ -656,7 +656,8 @@ function saveRecord(){
 function deleteRecord(id){
   records = records.filter(r=>r.id!==id);
   localStorage.setItem('w_records', JSON.stringify(records));
-  renderAll();
+  renderToday();
+  renderHistory();
 }
 
 // ── RENDER TODAY ──
@@ -696,8 +697,8 @@ function renderToday(){
           <div class="record-title">${rec.cabinet||''}號櫃${rec.designer?'　<span style="font-size:12px;color:var(--text3)">設計師：'+rec.designer+'</span>':''}</div>
           <div class="record-sub">${CAB_TYPE_LABELS[rec.type]||rec.type}　${rec.width}cm${accCount>0?`　配件${accCount}項`:''}　<span style="color:var(--blue)">${['好宅','商會','合夥人'][rec.level||0]}</span></div>
           <div class="record-actions">
-            <button class="btn-sm btn-sm-green" onclick="openEditModal('${rec.id}')">編輯</button>
-            <button class="btn-sm btn-sm-red" onclick="deleteRecord('${rec.id}')">刪除</button>
+            <button class="btn-sm btn-sm-green" data-edit="${rec.id}" onclick="openEditModal(this.dataset.edit)">編輯</button>
+            <button class="btn-sm btn-sm-red" data-del="${rec.id}" onclick="deleteRecord(this.dataset.del)">刪除</button>
           </div>
         </div>
         <div class="record-amount">${formatMoney(wage)}</div>
@@ -711,7 +712,7 @@ function renderToday(){
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <div style="font-size:var(--font-size-sm);font-weight:600;color:var(--accent)">${formatMoney(siteTotal)}</div>
-          <button class="btn-sm btn-sm-orange" onclick="openNextCabModal('${site}','${siteDesigner}','${siteRecs[0].level||0}')">＋ 下一櫃</button>
+          <button class="btn-sm btn-sm-orange" data-site="${site.replace(/'/g,\"\\'\"')}" data-designer="${(siteDesigner||'').replace(/'/g,\"\\'\"')}" data-level="${siteRecs[0].level||0}" onclick="openNextCabModal(this.dataset.site,this.dataset.designer,this.dataset.level)">＋ 下一櫃</button>
         </div>
       </div>
       ${items}
@@ -752,8 +753,8 @@ function renderHistory(){
           <div class="record-title">${rec.site}　${rec.cabinet||''}號櫃</div>
           <div class="record-sub">${CAB_TYPE_LABELS[rec.type]||rec.type}　${rec.width}cm${accCount>0?`　配件${accCount}項`:''}　<span style="color:var(--blue)">${['好宅','商會','合夥人'][rec.level||0]}</span></div>
           <div class="record-actions">
-            <button class="btn-sm btn-sm-green" onclick="openEditModal('${rec.id}')">編輯</button>
-            <button class="btn-sm btn-sm-red" onclick="deleteRecord('${rec.id}')">刪除</button>
+            <button class="btn-sm btn-sm-green" data-edit="${rec.id}" onclick="openEditModal(this.dataset.edit)">編輯</button>
+            <button class="btn-sm btn-sm-red" data-del="${rec.id}" onclick="deleteRecord(this.dataset.del)">刪除</button>
           </div>
         </div>
         <div class="record-amount">${formatMoney(wage)}</div>
@@ -923,7 +924,7 @@ function exportCSV(){
   setTimeout(()=>URL.revokeObjectURL(url), 5000);
 }
 
-function renderAll(){ renderToday(); }
+function renderAll(){ renderToday(); renderHistory(); }
 
 init();
 </script>
