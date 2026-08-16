@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b31</title>
+<title>PlanPad · 平面圖工具 b32</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -155,7 +155,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b31</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b32</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <div class="spacer"></div>
     <button class="tbtn" id="undo" title="上一步 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
@@ -389,6 +389,13 @@
   // What the drawing pass is allowed to print. Always true on screen; the export
   // dialog flips these off to produce a clean plan without numbers or room labels.
   const showOpt = { dims:true, rooms:true, notes:true, photos:true };
+  // Labels are sized in SCREEN pixels. An export renders the geometry at 2–3x, so
+  // 12px text lands on a sheet three times wider and reads about a third the size
+  // it does on the tablet. TS scales the text — and the boxes drawn around it —
+  // during export only; on screen it is always 1.
+  const EXPORT_TEXT_SCALE = 1.8;
+  let TS = 1;
+  const fpx = (n)=> n*TS;
   const TOOL_HINT = {
     select:'選取工具：灰色圓點＝牆已接合，紅色空心圈＝該端沒接到東西（不會形成空間）。點牆體選取後，圓形握把＝拉伸端點，方形握把＝整面牆平行推移',
     wall:'畫牆：按住拖曳＝畫線。只要牆體看起來有貼在一起（牆身有重疊），放開後就會自動接合並形成空間；輕點數字不拖曳＝改尺寸，會出現移動方向箭頭',
@@ -1765,7 +1772,7 @@
       const mx=(ax+bx)/2, my=(ay+by)/2;
       const len=dist(d.x1,d.y1,d.x2,d.y2);
       ctx.save(); ctx.translate(mx,my); let ra=ang; if(ra>Math.PI/2||ra<-Math.PI/2)ra+=Math.PI; ctx.rotate(ra);
-      ctx.font='600 12px -apple-system,system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+      ctx.font=`600 ${fpx(12)}px -apple-system,system-ui,sans-serif`; ctx.textAlign='center'; ctx.textBaseline='bottom';
       const txt=fmtLen(len);
       const tw=ctx.measureText(txt).width;
       ctx.fillStyle='#FBFBFC'; ctx.fillRect(-tw/2-3,-16,tw+6,15);
@@ -1787,7 +1794,7 @@
     for(const t of state.texts){
       const [sx,sy]=toScreen(t.x,t.y);
       ctx.fillStyle='#24282E';
-      ctx.font=`500 ${t.size*view.scale*3}px -apple-system,system-ui,sans-serif`;
+      ctx.font=`500 ${fpx(t.size*view.scale*3)}px -apple-system,system-ui,sans-serif`;
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
       ctx.fillText(t.text,sx,sy);
     }
@@ -2004,7 +2011,7 @@
     function line(x1,y1,x2,y2){ const A=toScreen(x1,y1),B=toScreen(x2,y2); ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke(); }
     function tick(x,y){ const A=toScreen(x,y); ctx.beginPath(); ctx.moveTo(A[0],A[1]-3); ctx.lineTo(A[0],A[1]+3); ctx.stroke(); }
     function tick2(x,y){ const A=toScreen(x,y); ctx.beginPath(); ctx.moveTo(A[0]-3,A[1]); ctx.lineTo(A[0]+3,A[1]); ctx.stroke(); }
-    function dimText(wx,wy,txt,ang){ const [mx,my]=toScreen(wx,wy); ctx.save(); ctx.translate(mx,my); ctx.rotate(ang); ctx.font='700 12px -apple-system,system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; const tw=ctx.measureText(txt).width; ctx.fillStyle='#FBFBFC'; ctx.fillRect(-tw/2-4,-9,tw+8,18); ctx.fillStyle='#2A2E33'; ctx.fillText(txt,0,0); ctx.restore(); }
+    function dimText(wx,wy,txt,ang){ const [mx,my]=toScreen(wx,wy); ctx.save(); ctx.translate(mx,my); ctx.rotate(ang); ctx.font=`700 ${fpx(12)}px -apple-system,system-ui,sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; const tw=ctx.measureText(txt).width; ctx.fillStyle='#FBFBFC'; ctx.fillRect(-tw/2-4*TS,-9*TS,tw+8*TS,18*TS); ctx.fillStyle='#2A2E33'; ctx.fillText(txt,0,0); ctx.restore(); }
   }
 
   // draft (while drag-drawing): {kind:'wall'|'dim', a:{x,y}, cur:{x,y}}
@@ -2178,24 +2185,24 @@
   // into a wall of floating boxes.
   function plainLabel(txt,mx,my,ang,color,size){
     ctx.save();
-    ctx.font=`700 ${size}px -apple-system,system-ui,sans-serif`;
+    ctx.font=`700 ${fpx(size)}px -apple-system,system-ui,sans-serif`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
     const tw=ctx.measureText(txt).width;
     ctx.translate(mx,my); if(ang) ctx.rotate(ang);
     ctx.lineJoin='round'; ctx.miterLimit=2;
-    ctx.lineWidth=3.5; ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.strokeText(txt,0,0);
+    ctx.lineWidth=3.5*TS; ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.strokeText(txt,0,0);
     ctx.fillStyle=color; ctx.fillText(txt,0,0);
     ctx.restore();
     return tw;
   }
   function boxedLabel(txt,mx,my,ang,size){
     ctx.save();
-    ctx.font=`700 ${size}px -apple-system,system-ui,sans-serif`;
+    ctx.font=`700 ${fpx(size)}px -apple-system,system-ui,sans-serif`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
     const tw=ctx.measureText(txt).width;
     ctx.translate(mx,my); if(ang) ctx.rotate(ang);
     ctx.fillStyle='#FFFFFF'; ctx.strokeStyle='#9AA3AB'; ctx.lineWidth=1;
-    roundRect(-tw/2-7,-11,tw+14,22,4); ctx.fill(); ctx.stroke();
+    roundRect(-tw/2-7*TS,-11*TS,tw+14*TS,22*TS,4*TS); ctx.fill(); ctx.stroke();
     ctx.fillStyle='#22262B'; ctx.fillText(txt,0,0);
     ctx.restore();
     return tw;
@@ -2262,7 +2269,7 @@
         let mx=0,my=0,placed=false;
         const txt0=fmtLen(r.lens[i]);
         let ang0=Math.atan2(uy,ux); if(ang0>Math.PI/2||ang0<-Math.PI/2)ang0+=Math.PI;
-        ctx.save(); ctx.font='700 12px -apple-system,system-ui,sans-serif';
+        ctx.save(); ctx.font=`700 ${fpx(12)}px -apple-system,system-ui,sans-serif`;
         const tw0=ctx.measureText(txt0).width; ctx.restore();
         const hwT=Math.max(tw0/2+9,14);
         outer: for(const push of [16,32,50]){
@@ -2307,7 +2314,7 @@
           const oxw=omidx - nx*(14/view.scale), oyw=omidy - ny*(14/view.scale);
           const [ox,oy]=toScreen(oxw,oyw);
           const otxt=fmtLen(outerLen);
-          ctx.save(); ctx.font='700 11px -apple-system,system-ui,sans-serif';
+          ctx.save(); ctx.font=`700 ${fpx(11)}px -apple-system,system-ui,sans-serif`;
           const otw0=ctx.measureText(otxt).width; ctx.restore();
 
           // Rather than vanish when something is in the way (which made these blink
@@ -2335,12 +2342,12 @@
       const [cx,cy]=toScreen(r.center.x,r.center.y);
       ctx.textAlign='center'; ctx.textBaseline='middle';
       const nm=r.name||'未命名';
-      ctx.font='600 13px -apple-system,system-ui,sans-serif'; ctx.fillStyle=r.name?'#2A2E33':'#8A9199';
-      ctx.fillText(nm, cx, cy-9);
+      ctx.font=`600 ${fpx(13)}px -apple-system,system-ui,sans-serif`; ctx.fillStyle=r.name?'#2A2E33':'#8A9199';
+      ctx.fillText(nm, cx, cy-9*TS);
       const nmw=ctx.measureText(nm).width;
       hitLabels.push({kind:'name', rect:[cx-nmw/2-6,cy-9-10,nmw+12,20], room:r});
-      ctx.font='600 12px -apple-system,system-ui,sans-serif'; ctx.fillStyle='#5B646E';
-      ctx.fillText(fmtArea(r.area), cx, cy+9);
+      ctx.font=`600 ${fpx(12)}px -apple-system,system-ui,sans-serif`; ctx.fillStyle='#5B646E';
+      ctx.fillText(fmtArea(r.area), cx, cy+9*TS);
     }
   }
   function hitLabel(px,py){ for(let i=hitLabels.length-1;i>=0;i--){ const l=hitLabels[i], r=l.rect; if(px>=r[0]&&px<=r[0]+r[2]&&py>=r[1]&&py<=r[1]+r[3]) return l; } return null; }
@@ -3402,7 +3409,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b31';
+  const BUILD='b32';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -3684,6 +3691,7 @@
     const sDims=showOpt.dims, sRooms=showOpt.rooms, sNotes=showOpt.notes, sPhotos=showOpt.photos;
     hitLabels=[]; placedLabels=[];
     const sSel=ui.selected; ui.selected=null;   // no selection chrome in an export
+    const sTS=TS; TS = (o.textScale!==undefined ? o.textScale : EXPORT_TEXT_SCALE);
     if(o.dims!==undefined) showOpt.dims=!!o.dims;
     if(o.rooms!==undefined) showOpt.rooms=!!o.rooms;
     if(o.notes!==undefined) showOpt.notes=!!o.notes;
@@ -3696,7 +3704,7 @@
     drawDims(); drawTexts();
     drawNotes(); drawInk();
     ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid;
-    hitLabels=sHits; placedLabels=sPlaced; ui.selected=sSel;
+    hitLabels=sHits; placedLabels=sPlaced; ui.selected=sSel; TS=sTS;
     showOpt.dims=sDims; showOpt.rooms=sRooms; showOpt.notes=sNotes; showOpt.photos=sPhotos;
     return {oc,cw,ch};
   }
@@ -4118,7 +4126,7 @@
       if(n.text){
         ctx.fillStyle='#3A3F45'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
         const fs=Math.max(9,Math.min(15,bh*0.13));
-        ctx.font=`500 ${fs}px -apple-system,system-ui,sans-serif`;
+        ctx.font=`500 ${fpx(fs)}px -apple-system,system-ui,sans-serif`;
         for(const line of String(n.text).split('\n')){
           if(ty>y1-4) break;
           ctx.fillText(line, x0+7, ty); ty+=fs*1.35;
