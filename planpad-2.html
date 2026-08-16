@@ -143,7 +143,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b19</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b21</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <div class="spacer"></div>
     <button class="tbtn" id="undo" title="上一步 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
@@ -187,6 +187,8 @@
       <div class="tool" data-tool="beam" title="樑 (B)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="18" height="4" fill="currentColor" opacity="0.3"/><rect x="3" y="10" width="18" height="4"/></svg><span class="lbl">樑</span></div>
       <div class="rail-sep"></div>
       <div class="tool" data-tool="dim" title="標尺寸 (M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 9v6M21 9v6"/></svg><span class="lbl">尺寸</span></div>
+      <div class="tool" data-tool="ink" title="手寫 (I)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l3.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11z"/><path d="M14 5l3 3"/></svg><span class="lbl">手寫</span></div>
+      <div class="tool" data-tool="note" title="引線註記 (A)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="4" cy="20" r="1.6" fill="currentColor"/><path d="M5 19l6-6"/><rect x="11" y="4" width="10" height="9" rx="1.5"/></svg><span class="lbl">註記</span></div>
       <div class="tool" data-tool="text" title="文字 (T)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 6h14M12 6v13M9 19h6"/></svg><span class="lbl">文字</span></div>
     </div>
 
@@ -225,6 +227,13 @@
         <div class="row"><label>自訂牆厚</label>
           <div class="field"><input type="number" id="thickCustom" min="1" step="1"><span class="unit" id="thickUnit">cm</span></div>
         </div>
+      </div>
+      <div class="psec">
+        <div class="ptitle">手寫設定</div>
+        <div class="row"><label>顏色</label><div class="seg" id="inkColorSeg"><button data-c="#C0392B" class="on">紅</button><button data-c="#24282E">黑</button><button data-c="#1E6FA8">藍</button><button data-c="#1F8A5B">綠</button></div></div>
+        <div class="row"><label>粗細</label><div class="seg" id="inkWidthSeg"><button data-w="0.7">細</button><button data-w="1.2" class="on">中</button><button data-w="2.2">粗</button></div></div>
+        <div class="row"><label>模式</label><div class="seg" id="inkModeSeg"><button data-e="0" class="on">書寫</button><button data-e="1">刪筆畫</button></div></div>
+        <div class="row"><button class="chip" id="inkClear">清除所有手寫</button></div>
       </div>
       <div class="psec">
         <div class="ptitle">畫門設定</div>
@@ -302,6 +311,24 @@
     <div class="modal-title" id="mTitle">匯出</div>
     <div class="mrow pdfonly"><span>紙張</span><div class="seg" id="mPaper"><button data-v="a4" class="on">A4</button><button data-v="a3">A3</button></div></div>
     <div class="mrow pdfonly"><span>方向</span><div class="seg" id="mOrient"><button data-v="l" class="on">橫式</button><button data-v="p">直式</button></div></div>
+    <div class="mrow pdfonly"><span>圖框</span>
+      <div style="display:flex;gap:6px;align-items:center;flex:1 1 auto;min-width:0">
+        <select id="mFrame" style="flex:1 1 auto;min-width:0;height:32px;border:1px solid var(--line);border-radius:8px;font-size:13px;padding:0 6px;background:#fff"></select>
+        <button class="tbtn" id="mFrameAdd" style="flex:0 0 auto">匯入…</button>
+      </div>
+    </div>
+    <div class="pdfonly" id="mFrameEdit" style="display:none;margin:-6px 0 14px;padding:10px;background:#F5F7F9;border-radius:9px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6">繪圖區邊界（mm）— 平面圖會畫在圖框內的這塊範圍裡，底部通常留多一點給標題欄。</div>
+      <div style="display:flex;gap:6px">
+        <label style="flex:1;font-size:11px;color:var(--muted)">左<input type="number" id="mMarginL" min="0" step="1" style="width:100%;height:30px;border:1px solid var(--line);border-radius:7px;text-align:center;font-size:13px"></label>
+        <label style="flex:1;font-size:11px;color:var(--muted)">右<input type="number" id="mMarginR" min="0" step="1" style="width:100%;height:30px;border:1px solid var(--line);border-radius:7px;text-align:center;font-size:13px"></label>
+        <label style="flex:1;font-size:11px;color:var(--muted)">上<input type="number" id="mMarginT" min="0" step="1" style="width:100%;height:30px;border:1px solid var(--line);border-radius:7px;text-align:center;font-size:13px"></label>
+        <label style="flex:1;font-size:11px;color:var(--muted)">下<input type="number" id="mMarginB" min="0" step="1" style="width:100%;height:30px;border:1px solid var(--line);border-radius:7px;text-align:center;font-size:13px"></label>
+      </div>
+      <button class="tbtn" id="mFrameDel" style="margin-top:10px;width:100%;color:var(--danger);border-color:#F0D6D2">刪除這個圖框</button>
+    </div>
+    <input type="file" id="frameInput" accept="image/*,.svg" style="display:none">
+<input type="file" id="photoInput" accept="image/*" multiple style="display:none">
     <div class="mrow pdfonly"><span>比例</span><div class="seg" id="mScale"><button data-v="fit" class="on">適應</button><button data-v="50">1:50</button><button data-v="100">1:100</button><button data-v="150">1:150</button><button data-v="200">1:200</button></div></div>
     <div class="mrow"><span>尺寸標註</span><div class="seg" id="mDims"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow"><span>空間名稱 / 坪數</span><div class="seg" id="mRooms"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
@@ -320,6 +347,8 @@
     openings: [],   // {id,type:'door'|'window',sub,wallId,pos,width,height,sill,proj,flipH,flipV}
     dims: [],       // {id,x1,y1,x2,y2,off}
     texts: [],      // {id,x,y,text,size}
+    ink: [],        // free handwriting — {id,c,w,pts:[x,y,...]} in world cm
+    notes: [],      // {id,ax,ay,x,y,w,h,text,ink:[],photos:[id]}
     columns: [],    // rectangular blocks — {id,x,y,w,h,rot,kind:'col'|'shaft'}
                     // a 管道間 is geometrically identical to a column (place, drag,
                     // rotate, resize, distance-to-wall), so it shares the array and
@@ -337,6 +366,8 @@
     colW: 65, colH: 65,                        // column defaults (cm)
     shaftW: 60, shaftH: 60,                    // pipe shaft defaults (cm)
     doorSub: 'swing', winSub: 'fixed',         // which kind the next tap creates
+    inkColor: '#C0392B', inkWidth: 1.2,        // pen colour / stroke width (cm)
+    inkErase: false,                           // tap-a-stroke-to-delete mode
     beamW: 30, beamH: 60,                       // beam defaults (cm)
     selected: null,   // {kind,id}
   };
@@ -349,6 +380,8 @@
     door:'放門：點在牆上放置。右側「畫門設定」可先選門／推拉門／門洞，放好後也能隨時改',
     window:'放窗：點在牆上放置。右側「畫窗設定」可先選窗／落地窗／外凸窗，落地窗離地固定為 0',
     shaft:'放管道間：點一下放置。選取後可改長寬與旋轉，也能點四邊的離牆距離直接輸入',
+    ink:'手寫：用 Apple Pencil 或手指直接寫。用過筆之後手指就只負責平移縮放，手掌靠上去不會畫到。右側可換顏色粗細，或切成「點一下刪一筆」',
+    note:'引線註記：點在要指的位置，會拉出一條引線和一個註記框。框裡可以手寫、打字、或加現場照片。拖框可移動，右下角可調大小',
     dim:'標尺寸：按住一點拖到另一點放開，自動量出距離',
     text:'文字：點一下放置文字',
     column:'放柱子：點一下放置。選取後可點四邊的離牆距離直接輸入，打 0 就貼牆',
@@ -375,7 +408,7 @@
 
   // ================= History =================
   const history=[]; let hi=-1;
-  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,roomNames:state.roomNames,ceilingH:state.ceilingH,_seq:state._seq}); }
+  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,roomNames:state.roomNames,ceilingH:state.ceilingH,_seq:state._seq}); }
   function pushHistory(){
     cleanupStrayWalls();
     healJunctions();
@@ -455,7 +488,8 @@
   function autosave(){
     try{
       if(!state.walls.length && !state.columns.length && !state.beams.length
-         && !state.texts.length && !state.dims.length) return;
+         && !state.texts.length && !state.dims.length
+         && !state.ink.length && !state.notes.length) return;
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
         t:Date.now(), name:(document.getElementById('fname')||{}).value||'', data:JSON.parse(snapshot())
       }));
@@ -482,7 +516,7 @@
       flashHint('已復原上次的平面圖');
     }catch(err){ uiAlert('復原失敗：'+err.message); }
   }
-  function restore(js){ const o=JSON.parse(js); state.walls=o.walls; state.openings=o.openings; state.dims=o.dims; state.texts=o.texts; state.columns=o.columns||[]; state.beams=o.beams||[]; state.roomNames=o.roomNames||{}; state.ceilingH=o.ceilingH||280; state._seq=o._seq; ui.selected=null; draft=null; typedNum=''; hideLenBox(); recomputeRooms(); refreshProp(); draw(); }
+  function restore(js){ const o=JSON.parse(js); state.walls=o.walls; state.openings=o.openings; state.dims=o.dims; state.texts=o.texts; state.columns=o.columns||[]; state.beams=o.beams||[]; state.ink=o.ink||[]; state.notes=o.notes||[]; setTimeout(photoPreloadAll,0); state.roomNames=o.roomNames||{}; state.ceilingH=o.ceilingH||280; state._seq=o._seq; ui.selected=null; draft=null; typedNum=''; hideLenBox(); recomputeRooms(); refreshProp(); draw(); }
   function undo(){ if(hi>0){ hi--; restore(history[hi]); updateUndo(); } }
   function redo(){ if(hi<history.length-1){ hi++; restore(history[hi]); updateUndo(); } }
   function updateUndo(){ document.getElementById('undo').style.opacity=hi>0?1:.4; document.getElementById('redo').style.opacity=hi<history.length-1?1:.4; }
@@ -1449,6 +1483,13 @@
 
   // ================= Hit testing =================
   function hitTest(wx,wy){
+    // notes sit above the plan, so they answer first
+    for(let i=state.notes.length-1;i>=0;i--){
+      const n=state.notes[i], r=noteRect(n), g=10/view.scale;
+      if(Math.abs(wx-r.x1)<g && Math.abs(wy-r.y1)<g) return {kind:'note',id:n.id,which:'resize'};
+      if(Math.hypot(wx-n.ax,wy-n.ay) < 12/view.scale) return {kind:'note',id:n.id,which:'anchor'};
+      if(noteHit(n,wx,wy)) return {kind:'note',id:n.id,which:'box'};
+    }
     const thr=10/view.scale;
     // texts
     for(let i=state.texts.length-1;i>=0;i--){ const t=state.texts[i]; const w=(t.text.length*t.size*0.6); if(wx>t.x-4 && wx<t.x+w+4 && wy>t.y-t.size && wy<t.y+4) return {kind:'text',id:t.id}; }
@@ -1935,6 +1976,8 @@
 
   // draft (while drag-drawing): {kind:'wall'|'dim', a:{x,y}, cur:{x,y}}
   let draft=null;
+  let inkDraft=null;      // stroke being laid down right now
+  let inkPenSeen=false;   // once a stylus is used, ignore fingers while inking
   function drawDraft(){
     if(!draft||!draft.a||!draft.cur) return;
     if(draft.kind==='wall'){
@@ -1970,6 +2013,8 @@
     drawWallLabels();
     drawDims();
     drawTexts();
+    drawNotes();
+    drawInk();
     drawGuides();
     drawDraft();
     drawSelection();
@@ -2493,6 +2538,19 @@
     else if(ui.tool==='text'){ placeText(wx,wy); }
     else if(ui.tool==='column'){ placeColumn(wx,wy); }
     else if(ui.tool==='beam'){ const r=computeBeamEnd(null,wx,wy); draft={kind:'beam',a:{x:r.x,y:r.y},a0:{x:r.x,y:r.y},cur:{x:r.x,y:r.y},pointerId:e.pointerId,pointerType:e.pointerType}; typedNum=''; }
+    else if(ui.tool==='ink'){
+      if(e.pointerType==='pen') inkPenSeen=true;
+      // once a stylus has been used, a finger is a hand resting on the glass or a
+      // pan gesture — never a stroke. No palm-rejection heuristics needed.
+      if(inkPenSeen && e.pointerType!=='pen'){ panStart={px,py,ox:view.ox,oy:view.oy}; return; }
+      if(ui.inkErase){ eraseInkAt(wx,wy); return; }
+      inkDraft=inkStroke(ui.inkColor, ui.inkWidth);
+      inkDraft.pts.push(wx,wy);
+      inkDraft.pointerId=e.pointerId;
+      inkDraft.target=noteAt(wx,wy);          // writing inside a note box belongs to it
+      draw();
+    }
+    else if(ui.tool==='note'){ placeNote(wx,wy); }
   });
 
   stage.addEventListener('pointermove',e=>{
@@ -2506,6 +2564,15 @@
 
     if(panStart && pointers.size<2){ view.ox=panStart.ox+(px-panStart.px); view.oy=panStart.oy+(py-panStart.py); draw(); return; }
 
+    if(inkDraft && inkDraft.pointerId===e.pointerId){
+      const n=inkDraft.pts.length;
+      // drop points closer than half a pixel: the pen fires far faster than the
+      // shape changes, and every extra point is weight in the saved project
+      if(n<2 || Math.hypot(wx-inkDraft.pts[n-2], wy-inkDraft.pts[n-1]) > 0.5/view.scale){
+        inkDraft.pts.push(wx,wy); draw();
+      }
+      return;
+    }
     if(dragging){ if(dbgOn) dbg(`  dragging hit=${dragging.hit.kind}${dragging.hit.which?'('+dragging.hit.which+')':''} id=${dragging.hit.id}`); doDrag(wx,wy,px,py); return; }
 
     // drag-drawing preview (wall / dim) — only the finger that owns this draft may drive it
@@ -2549,6 +2616,14 @@
     pointers.delete(e.pointerId);
     if(pointers.size<2){ pinch=null; }
     if(panStart){ panStart=null; }
+    if(inkDraft && inkDraft.pointerId===e.pointerId){
+      const st=inkDraft; inkDraft=null;
+      st.pts=simplify(st.pts, 0.35);
+      delete st.pointerId;
+      const target=st.target; delete st.target;
+      if(st.pts.length>=2){ (target ? (target.ink=target.ink||[]) : state.ink).push(st); pushHistory(); }
+      draw(); return;
+    }
     if(dragging){
       // let go of a stretched endpoint right next to a neighbour and it snaps
       // onto it for real — so the loop closes and the space appears
@@ -2788,6 +2863,7 @@
     if(hit.kind==='wallEndpoint'){ const w=state.walls.find(v=>v.id===hit.id); return {...w}; }
     if(hit.kind==='wallSide'){ const w=state.walls.find(v=>v.id===hit.id); return {...w}; }
     if(hit.kind==='beamEndpoint'){ const b=state.beams.find(v=>v.id===hit.id); return {...b}; }
+    if(hit.kind==='note'){ const n=state.notes.find(v=>v.id===hit.id); return {...n}; }
   }
   function doDrag(wx,wy){
     const {hit,start,orig}=dragging; const dx=wx-start[0], dy=wy-start[1];
@@ -2799,6 +2875,13 @@
     else if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); const w=state.walls.find(v=>v.id===o.wallId); const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,pr.t)); }
     else if(hit.kind==='dim'){ const d=state.dims.find(v=>v.id===hit.id); d.x1=orig.x1+dx;d.y1=orig.y1+dy;d.x2=orig.x2+dx;d.y2=orig.y2+dy; }
     else if(hit.kind==='text'){ const t=state.texts.find(v=>v.id===hit.id); t.x=orig.x+dx;t.y=orig.y+dy; }
+    else if(hit.kind==='note'){
+      const n=state.notes.find(v=>v.id===hit.id);
+      if(hit.which==='anchor'){ n.ax=orig.ax+dx; n.ay=orig.ay+dy; }
+      else if(hit.which==='resize'){ n.w=Math.max(NOTE_MIN_W,orig.w+dx); n.h=Math.max(NOTE_MIN_H,orig.h+dy); }
+      // moving the box carries its handwriting along, so a note never comes apart
+      else { moveNote(n,(orig.x+dx)-n.x,(orig.y+dy)-n.y); }
+    }
     else if(hit.kind==='column'){ const c=state.columns.find(v=>v.id===hit.id); let nx=orig.x+dx,ny=orig.y+dy; if(ui.snap){nx=Math.round(nx/ui.gridSize)*ui.gridSize;ny=Math.round(ny/ui.gridSize)*ui.gridSize;} c.x=nx;c.y=ny; }
     else if(hit.kind==='beam'){ const b=state.beams.find(v=>v.id===hit.id); let ddx=dx,ddy=dy; if(ui.snap){const g=ui.gridSize; ddx=Math.round((orig.x1+dx)/g)*g-orig.x1; ddy=Math.round((orig.y1+dy)/g)*g-orig.y1;} b.x1=orig.x1+ddx;b.y1=orig.y1+ddy;b.x2=orig.x2+ddx;b.y2=orig.y2+ddy; }
     else if(hit.kind==='wallEndpoint'){
@@ -2905,6 +2988,48 @@
       const fh=document.getElementById('pFlipH'); if(fh) fh.onclick=()=>{ o.flipH=!o.flipH; pushHistory(); draw(); };
       document.getElementById('pDel').onclick=deleteSelected;
     }
+    else if(s.kind==='note'){ const n=state.notes.find(v=>v.id===s.id);
+      const nPhoto=(n.photos||[]).length, nInk=(n.ink||[]).length;
+      propBody.innerHTML=`
+      <div class="row" style="align-items:flex-start"><label>文字</label>
+        <textarea id="pNtext" rows="3" style="flex:1 1 auto;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;resize:vertical">${(n.text||'').replace(/</g,'&lt;')}</textarea></div>
+      <div class="row"><label>手寫</label><span style="font-size:12px;color:var(--muted)">${nInk?nInk+' 筆（用「手寫」工具在框裡寫）':'選「手寫」工具在框裡寫'}</span></div>
+      <div class="row"><label>照片</label><span style="font-size:12px;color:var(--muted)">${nPhoto?nPhoto+' 張':'尚未加入'}</span></div>
+      <div class="row" style="gap:6px"><button class="chip" id="pNshoot" style="flex:1">拍照</button><button class="chip" id="pNpick" style="flex:1">從相簿選</button></div>
+      <div id="pNthumbs" style="display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 12px"></div>
+      <div class="row"><label>框大小</label><span style="font-size:12px;color:var(--muted)">拖右下角可調整</span></div>
+      <button class="del-btn" id="pDel">刪除註記</button>`;
+      document.getElementById('pNtext').onchange=ev=>{ n.text=ev.target.value; pushHistory(); draw(); };
+      const thumbBox=document.getElementById('pNthumbs');
+      for(const pid of (n.photos||[])){
+        photoLoadThumb(pid);
+        const cell=document.createElement('div');
+        cell.style.cssText='position:relative;width:56px;height:44px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#EEF1F3';
+        const im=document.createElement('img');
+        im.style.cssText='width:100%;height:100%;object-fit:cover;display:block';
+        photoGet(pid).then(b=>{ if(b) im.src=URL.createObjectURL(b); }).catch(()=>{});
+        im.onclick=()=>photoOpenViewer(pid);
+        const x=document.createElement('button');
+        x.textContent='×';
+        x.style.cssText='position:absolute;top:0;right:0;width:18px;height:18px;line-height:16px;border:0;background:rgba(20,26,32,.6);color:#fff;font-size:13px;padding:0';
+        x.onclick=async ()=>{
+          if(!await uiConfirm('刪除這張照片？',{okText:'刪除',danger:true})) return;
+          n.photos=n.photos.filter(v=>v!==pid); photoDelete(pid); thumbs.delete(pid);
+          pushHistory(); refreshProp(); draw();
+        };
+        cell.appendChild(im); cell.appendChild(x); thumbBox.appendChild(cell);
+      }
+      const pick=(capture)=>{
+        const inp=document.getElementById('photoInput');
+        // capture="environment" makes iOS open the camera straight away instead of
+        // the picker — on site that saves two taps every single time
+        if(capture) inp.setAttribute('capture','environment'); else inp.removeAttribute('capture');
+        inp.dataset.note=n.id; inp.click();
+      };
+      document.getElementById('pNshoot').onclick=()=>pick(true);
+      document.getElementById('pNpick').onclick=()=>pick(false);
+      document.getElementById('pDel').onclick=deleteSelected;
+    }
     else if(s.kind==='dim'){ const d=state.dims.find(v=>v.id===s.id);
       propBody.innerHTML=`
       <div class="row"><label>量測長度</label><span style="font-size:13px;color:var(--muted)">${fmtLen(dist(d.x1,d.y1,d.x2,d.y2))}</span></div>
@@ -2969,6 +3094,11 @@
   function deleteSelected(){
     const s=ui.selected; if(!s) return;
     if(s.kind==='wall'){ state.walls=state.walls.filter(w=>w.id!==s.id); state.openings=state.openings.filter(o=>o.wallId!==s.id); }
+    else if(s.kind==='note'){
+      const n=state.notes.find(v=>v.id===s.id);
+      if(n) for(const pid of (n.photos||[])) photoDelete(pid);
+      state.notes=state.notes.filter(v=>v.id!==s.id);
+    }
     else if(s.kind==='opening') state.openings=state.openings.filter(o=>o.id!==s.id);
     else if(s.kind==='dim') state.dims=state.dims.filter(d=>d.id!==s.id);
     else if(s.kind==='text') state.texts=state.texts.filter(t=>t.id!==s.id);
@@ -3005,7 +3135,11 @@
   document.getElementById('zout').onclick=()=>zoomAt(1/1.15);
   function zoomAt(f){ const cx=W/2,cy=H/2; const[wx,wy]=toWorld(cx,cy); view.scale=Math.max(0.03,Math.min(6,view.scale*f)); view.ox=cx-wx*view.scale; view.oy=cy-wy*view.scale; updateZoom(); draw(); }
   document.getElementById('fit').onclick=fitAll;
-  function bounds(){ if(!state.walls.length&&!state.dims.length&&!state.texts.length) return null; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; const acc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}; for(const w of state.walls){acc(w.x1,w.y1);acc(w.x2,w.y2);} for(const d of state.dims){acc(d.x1,d.y1);acc(d.x2,d.y2);} for(const t of state.texts){acc(t.x,t.y);} return {x0,y0,x1,y1}; }
+  function bounds(){ if(!state.walls.length&&!state.dims.length&&!state.texts.length&&!state.ink.length&&!state.notes.length) return null; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; const acc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}; for(const w of state.walls){acc(w.x1,w.y1);acc(w.x2,w.y2);} for(const d of state.dims){acc(d.x1,d.y1);acc(d.x2,d.y2);} for(const t of state.texts){acc(t.x,t.y);}
+    for(const s2 of state.ink){ const b=strokeBBox(s2); acc(b.x0,b.y0); acc(b.x1,b.y1); }
+    for(const n of state.notes){ acc(n.ax,n.ay); acc(n.x,n.y); acc(n.x+n.w,n.y+n.h);
+      for(const s2 of (n.ink||[])){ const b=strokeBBox(s2); acc(b.x0,b.y0); acc(b.x1,b.y1); } }
+    return {x0,y0,x1,y1}; }
   function fitAll(){ const b=bounds(); if(!b){ view.scale=0.7; view.ox=W/2; view.oy=H/2; updateZoom(); draw(); return; } const pad=60; const bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0); const s=Math.min((W-pad*2)/bw,(H-pad*2)/bh); view.scale=Math.max(0.03,Math.min(3,s)); view.ox=W/2-(b.x0+bw/2)*view.scale; view.oy=H/2-(b.y0+bh/2)*view.scale; updateZoom(); draw(); }
 
   // ================= Right panel controls =================
@@ -3029,6 +3163,28 @@
     document.querySelectorAll('#winSubSeg button').forEach(x=>x.classList.toggle('on',x===b));
     setTool('window');
   });
+  document.querySelectorAll('#inkColorSeg button').forEach(b=>b.onclick=()=>{
+    ui.inkColor=b.dataset.c;
+    document.querySelectorAll('#inkColorSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    setTool('ink');
+  });
+  document.querySelectorAll('#inkWidthSeg button').forEach(b=>b.onclick=()=>{
+    ui.inkWidth=parseFloat(b.dataset.w);
+    document.querySelectorAll('#inkWidthSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    setTool('ink');
+  });
+  document.querySelectorAll('#inkModeSeg button').forEach(b=>b.onclick=()=>{
+    ui.inkErase=b.dataset.e==='1';
+    document.querySelectorAll('#inkModeSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    setTool('ink');
+  });
+  document.getElementById('inkClear').onclick=async ()=>{
+    const total=state.ink.length + state.notes.reduce((a,n)=>a+(n.ink||[]).length,0);
+    if(!total){ flashHint('目前沒有手寫內容'); return; }
+    if(!await uiConfirm('清除全部 '+total+' 筆手寫？\n（可用「上一步」還原）',{okText:'清除',danger:true})) return;
+    state.ink=[]; for(const n of state.notes) n.ink=[];
+    pushHistory(); draw();
+  };
   document.getElementById('shaftW').oninput=ev=>{ ui.shaftW=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); };
   document.getElementById('shaftH').oninput=ev=>{ ui.shaftH=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); };
   document.getElementById('colW').oninput=e=>{ const v=parseFloat(e.target.value); if(v>0) ui.colW=fromDisp(v); };
@@ -3051,7 +3207,7 @@
     if(e.key==='Escape'){ draft=null; typedNum=''; hideLenBox(); ui.selected=null; refreshProp(); draw(); return; }
     if(e.key==='Delete'||e.key==='Backspace'){ if(ui.selected){ deleteSelected(); return; } }
     if(e.key===' '||e.code==='Space'){ e.preventDefault(); setTool('select'); return; }
-    const map={v:'select',w:'wall',d:'door',n:'window',m:'dim',t:'text',p:'shaft'};
+    const map={v:'select',w:'wall',d:'door',n:'window',m:'dim',t:'text',p:'shaft',i:'ink',a:'note'};
     if(map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]);
   });
 
@@ -3108,7 +3264,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b19';
+  const BUILD='b21';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -3256,7 +3412,7 @@
 
   // ---- export options modal (shared by PNG / PDF / DXF) ----
   const pdfModal=document.getElementById('pdfModal');
-  const pdfOpt={paper:'a4',orient:'l',scale:'fit',dims:true,rooms:true};
+  const pdfOpt={paper:'a4',orient:'l',scale:'fit',dims:true,rooms:true,frame:'builtin'};
   let exportKind='pdf';
   function openExportModal(kind){
     exportKind=kind;
@@ -3265,6 +3421,7 @@
     document.querySelectorAll('#pdfModal .pdfonly').forEach(el=>el.style.display = kind==='pdf' ? '' : 'none');
     document.querySelectorAll('#pdfModal .dxfonly').forEach(el=>el.style.display = kind==='dxf' ? '' : 'none');
     document.getElementById('mEmbedWarn').style.display = (EMBEDDED && !shareUsable()) ? '' : 'none';
+    frameRefreshUI();
     pdfModal.classList.add('open');
   }
   function closePdfModal(){ pdfModal.classList.remove('open'); }
@@ -3272,6 +3429,24 @@
   function bindToggle(id,key){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{ pdfOpt[key]=b.dataset.v==='1'; document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); }); }
   bindSeg('mPaper','paper'); bindSeg('mOrient','orient'); bindSeg('mScale','scale');
   bindToggle('mDims','dims'); bindToggle('mRooms','rooms');
+  document.getElementById('mFrame').onchange=ev=>{ pdfOpt.frame=ev.target.value; frameRefreshUI(); };
+  document.getElementById('mFrameAdd').onclick=()=>document.getElementById('frameInput').click();
+  document.getElementById('mFrameDel').onclick=()=>frameDelete();
+  ['L','R','T','B'].forEach(k=>{ const el=document.getElementById('mMargin'+k); if(el) el.onchange=frameSaveMargins; });
+  document.getElementById('photoInput').addEventListener('change',async ev=>{
+    const files=[...(ev.target.files||[])]; const nid=+ev.target.dataset.note;
+    ev.target.value='';
+    const n=state.notes.find(v=>v.id===nid);
+    if(!n||!files.length) return;
+    for(const f of files){
+      try{ await photoAttach(n,f); }
+      catch(err){ uiAlert('照片加入失敗：'+err.message); break; }
+    }
+  });
+  document.getElementById('frameInput').addEventListener('change',ev=>{
+    const f=ev.target.files[0]; ev.target.value='';
+    if(f) frameAdd(f).catch(err=>uiAlert('圖框匯入失敗：'+err.message));
+  });
   document.getElementById('mCancel').onclick=closePdfModal;
   document.getElementById('mExport').onclick=()=>{
     closePdfModal();
@@ -3291,6 +3466,16 @@
     const landscape=opt.orient==='l';
     const pdf=new jsPDF({orientation:landscape?'l':'p',unit:'mm',format:opt.paper});
     const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+    const custom=frameCurrent();
+    let availW, availH, ox, oy;
+    if(custom){
+      // the imported sheet is laid full-bleed; the plan goes inside its margins
+      pdf.addImage(custom.data, 'JPEG', 0,0, pw,ph);
+      const mg=custom.margins;
+      ox=mg.l; oy=mg.t;
+      availW=Math.max(10, pw-mg.l-mg.r);
+      availH=Math.max(10, ph-mg.t-mg.b);
+    } else {
     const m=8; pdf.setDrawColor(36,40,46); pdf.setLineWidth(0.6); pdf.rect(m,m,pw-2*m,ph-2*m);
     // title block
     const tbw=76, tbh=24, tbx=pw-m-tbw, tby=ph-m-tbh;
@@ -3305,7 +3490,8 @@
     pdf.text(scaleTxt,tbx+tbw/2+2,tby+9.5);
     pdf.text(new Date().toISOString().slice(0,10),tbx+2,tby+21);
     // drawable area (inside frame, above title block)
-    const availW=pw-2*m-6, availH=ph-2*m-tbh-8;
+    availW=pw-2*m-6; availH=ph-2*m-tbh-8; ox=m+3; oy=m+3;
+    }
     const ar=cw/ch; let iw,ih;
     if(opt.scale==='fit'){
       iw=availW; ih=iw/ar; if(ih>availH){ ih=availH; iw=ih*ar; }
@@ -3314,7 +3500,7 @@
       iw = cw*10/(RS*S); ih = ch*10/(RS*S);      // px -> mm at 1:S
       if(iw>availW || ih>availH){ uiAlert('此比例在所選紙張放不下，已改用「適應頁面」。建議換成 A3 或較小的比例。'); iw=availW; ih=iw/ar; if(ih>availH){ ih=availH; iw=ih*ar; } }
     }
-    const ix=m+3+(availW-iw)/2, iy=m+3+(availH-ih)/2;
+    const ix=ox+(availW-iw)/2, iy=oy+(availH-ih)/2;
     pdf.addImage(img,'PNG',ix,iy,iw,ih);
     // NOT pdf.save(): jsPDF's own save() builds an object URL and clicks a hidden
     // anchor, which bypasses everything this app knows about saving on iOS — that
@@ -3338,6 +3524,7 @@
     const sHits=hitLabels, sPlaced=placedLabels;
     const sDims=showOpt.dims, sRooms=showOpt.rooms;
     hitLabels=[]; placedLabels=[];
+    const sSel=ui.selected; ui.selected=null;   // no selection chrome in an export
     if(o.dims!==undefined) showOpt.dims=!!o.dims;
     if(o.rooms!==undefined) showOpt.rooms=!!o.rooms;
     ctx=g; view.scale=scale; view.ox=pad-b.x0*scale; view.oy=pad-b.y0*scale; W=cw; H=ch; ui.grid=false;
@@ -3346,10 +3533,364 @@
     // no room dimensions and no name/坪數 even though the screen showed them
     drawRoomsInfo(); drawWallLabels();
     drawDims(); drawTexts();
+    drawNotes(); drawInk();
     ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid;
-    hitLabels=sHits; placedLabels=sPlaced;
+    hitLabels=sHits; placedLabels=sPlaced; ui.selected=sSel;
     showOpt.dims=sDims; showOpt.rooms=sRooms;
     return {oc,cw,ch};
+  }
+
+  // ================= photo store =================
+  // Photos go to IndexedDB, not localStorage: localStorage holds about 5MB total
+  // and a single iPad photo is 3–4MB, so two shots would break saving entirely.
+  // Everything is downscaled on the way in — a site photo exists to show WHERE a
+  // pipe is, and 1600px at q0.8 (~300KB) is far more than that needs.
+  const PHOTO_DB='planpad-photos', PHOTO_STORE='photos', PHOTO_MAX_PX=1600;
+  let photoDB=null;
+  function photoOpen(){
+    if(photoDB) return Promise.resolve(photoDB);
+    return new Promise((res,rej)=>{
+      if(!window.indexedDB) return rej(new Error('這個瀏覽器不支援照片儲存'));
+      const rq=indexedDB.open(PHOTO_DB,1);
+      rq.onupgradeneeded=()=>{ rq.result.createObjectStore(PHOTO_STORE); };
+      rq.onsuccess=()=>{ photoDB=rq.result; res(photoDB); };
+      rq.onerror=()=>rej(rq.error||new Error('無法開啟照片資料庫'));
+    });
+  }
+  function photoPut(id,blob){
+    return photoOpen().then(db=>new Promise((res,rej)=>{
+      const tx=db.transaction(PHOTO_STORE,'readwrite');
+      tx.objectStore(PHOTO_STORE).put(blob,id);
+      tx.oncomplete=()=>res(id); tx.onerror=()=>rej(tx.error);
+    }));
+  }
+  function photoGet(id){
+    return photoOpen().then(db=>new Promise((res,rej)=>{
+      const tx=db.transaction(PHOTO_STORE,'readonly');
+      const rq=tx.objectStore(PHOTO_STORE).get(id);
+      rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>rej(rq.error);
+    }));
+  }
+  function photoDelete(id){
+    return photoOpen().then(db=>new Promise(res=>{
+      const tx=db.transaction(PHOTO_STORE,'readwrite');
+      tx.objectStore(PHOTO_STORE).delete(id);
+      tx.oncomplete=()=>res(); tx.onerror=()=>res();
+    })).catch(()=>{});
+  }
+  // thumbnails are held in memory so the canvas can paint them synchronously
+  const thumbs=new Map();
+  function photoThumb(id){ const t=thumbs.get(id); return (t&&t.img)?t.img:null; }
+  function photoLoadThumb(id){
+    if(thumbs.has(id)) return;
+    thumbs.set(id,{img:null});
+    photoGet(id).then(blob=>{
+      if(!blob) return;
+      const im=new Image();
+      im.onload=()=>{ thumbs.set(id,{img:im}); draw(); };
+      im.src=URL.createObjectURL(blob);
+    }).catch(()=>{});
+  }
+  function photoShrink(file){
+    return new Promise((res,rej)=>{
+      const fr=new FileReader();
+      fr.onerror=()=>rej(new Error('照片讀取失敗'));
+      fr.onload=()=>{
+        const im=new Image();
+        im.onerror=()=>rej(new Error('這不是能辨識的照片'));
+        im.onload=()=>{
+          let w=im.naturalWidth||PHOTO_MAX_PX, h=im.naturalHeight||PHOTO_MAX_PX;
+          const k=Math.min(1, PHOTO_MAX_PX/Math.max(w,h));
+          w=Math.max(1,Math.round(w*k)); h=Math.max(1,Math.round(h*k));
+          const c=document.createElement('canvas'); c.width=w; c.height=h;
+          c.getContext('2d').drawImage(im,0,0,w,h);
+          if(c.toBlob) c.toBlob(b=>b?res(b):rej(new Error('照片壓縮失敗')),'image/jpeg',0.8);
+          else res(dataURLtoBlob(c.toDataURL('image/jpeg',0.8)));
+        };
+        im.src=String(fr.result);
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+  async function photoAttach(note,file){
+    const blob=await photoShrink(file);
+    const id='ph'+Date.now()+Math.floor(Math.random()*10000);
+    await photoPut(id,blob);
+    note.photos=note.photos||[]; note.photos.push(id);
+    photoLoadThumb(id);
+    pushHistory(); refreshProp(); draw();
+    flashHint('已加入照片（'+Math.round(blob.size/1024)+' KB）');
+    return id;
+  }
+  function photoPreloadAll(){
+    for(const n of state.notes) for(const id of (n.photos||[])) photoLoadThumb(id);
+  }
+  async function photoOpenViewer(id){
+    let blob=null; try{ blob=await photoGet(id); }catch(_){}
+    if(!blob){ uiAlert('找不到這張照片，可能已經被清除了。'); return; }
+    const url=URL.createObjectURL(blob);
+    const back=document.createElement('div');
+    back.style.cssText='position:fixed;inset:0;background:rgba(10,14,18,.92);z-index:3000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px;';
+    const im=document.createElement('img');
+    im.src=url; im.style.cssText='max-width:96%;max-height:80%;border-radius:10px;';
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:10px;';
+    const mk=(t,fn,primary)=>{ const b=document.createElement('button'); b.textContent=t;
+      b.style.cssText='height:40px;padding:0 18px;border-radius:9px;border:1px solid rgba(255,255,255,.3);font-size:14px;background:'+(primary?'#275C7A':'transparent')+';color:#fff;';
+      b.onclick=fn; row.appendChild(b); return b; };
+    mk('儲存 / 分享',()=>download('現場照片.jpg',blob),true);
+    mk('關閉',()=>{ back.remove(); URL.revokeObjectURL(url); });
+    back.appendChild(im); back.appendChild(row);
+    back.addEventListener('click',e=>{ if(e.target===back){ back.remove(); URL.revokeObjectURL(url); } });
+    document.body.appendChild(back);
+  }
+
+  // ================= site notes: handwriting, leaders, photos =================
+  // Built for standing in an unfinished flat with a tablet: typing is too slow, so
+  // strokes are the primary input. They are stored as VECTOR polylines in world
+  // centimetres — a page of notes costs a few KB, stays sharp at any zoom, and
+  // keeps sitting on the wall it describes when the plan is panned or scaled.
+  const INK_COLORS=[['#C0392B','紅'],['#24282E','黑'],['#1E6FA8','藍'],['#1F8A5B','綠']];
+  function inkStroke(color,width){ return {id:uid(), c:color, w:width, pts:[]}; }
+  function strokeBBox(s){
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    for(let i=0;i<s.pts.length;i+=2){ const x=s.pts[i],y=s.pts[i+1];
+      if(x<x0)x0=x; if(y<y0)y0=y; if(x>x1)x1=x; if(y>y1)y1=y; }
+    return {x0,y0,x1,y1};
+  }
+  function strokeNear(s,wx,wy,tol){
+    for(let i=0;i<s.pts.length-2;i+=2){
+      const p=projPointToSeg(wx,wy,s.pts[i],s.pts[i+1],s.pts[i+2],s.pts[i+3]);
+      if(p.d<=tol) return true;
+    }
+    if(s.pts.length===2) return Math.hypot(s.pts[0]-wx,s.pts[1]-wy)<=tol;
+    return false;
+  }
+  // Ramer–Douglas–Peucker: a pen emits far more points than the shape needs, and
+  // thinning them keeps saved projects small without any visible change
+  function simplify(pts,eps){
+    if(pts.length<=6) return pts;
+    const keep=new Array(pts.length/2).fill(false);
+    keep[0]=keep[pts.length/2-1]=true;
+    const stack=[[0,pts.length/2-1]];
+    while(stack.length){
+      const [a,b]=stack.pop(); if(b-a<2) continue;
+      let worst=-1, wi=-1;
+      for(let i=a+1;i<b;i++){
+        const p=projPointToSeg(pts[i*2],pts[i*2+1],pts[a*2],pts[a*2+1],pts[b*2],pts[b*2+1]);
+        if(p.d>worst){ worst=p.d; wi=i; }
+      }
+      if(worst>eps){ keep[wi]=true; stack.push([a,wi],[wi,b]); }
+    }
+    const out=[];
+    for(let i=0;i<keep.length;i++) if(keep[i]){ out.push(pts[i*2],pts[i*2+1]); }
+    return out;
+  }
+  function drawInkStroke(s){
+    if(s.pts.length<2) return;
+    ctx.strokeStyle=s.c||'#C0392B';
+    ctx.lineWidth=Math.max(1,(s.w||1.2)*view.scale);
+    ctx.lineJoin='round'; ctx.lineCap='round'; ctx.setLineDash([]);
+    ctx.beginPath();
+    const a=toScreen(s.pts[0],s.pts[1]); ctx.moveTo(a[0],a[1]);
+    if(s.pts.length===2){ ctx.lineTo(a[0]+0.1,a[1]+0.1); }
+    for(let i=2;i<s.pts.length;i+=2){ const p=toScreen(s.pts[i],s.pts[i+1]); ctx.lineTo(p[0],p[1]); }
+    ctx.stroke();
+  }
+  function drawInk(){
+    for(const s of state.ink) drawInkStroke(s);
+    for(const n of state.notes) for(const s of (n.ink||[])) drawInkStroke(s);
+    if(inkDraft) drawInkStroke(inkDraft);
+  }
+
+  // ---- notes: an anchor on the plan, a leader, and a box you write in ----
+  const NOTE_MIN_W=140, NOTE_MIN_H=90;                 // cm
+  function noteRect(n){ return {x0:n.x, y0:n.y, x1:n.x+n.w, y1:n.y+n.h}; }
+  function noteHit(n,wx,wy){
+    const r=noteRect(n);
+    return wx>=r.x0-2 && wx<=r.x1+2 && wy>=r.y0-2 && wy<=r.y1+2;
+  }
+  function noteAt(wx,wy){
+    for(let i=state.notes.length-1;i>=0;i--) if(noteHit(state.notes[i],wx,wy)) return state.notes[i];
+    return null;
+  }
+  function eraseInkAt(wx,wy){
+    const tol=Math.max(3, 12/view.scale);
+    for(let i=state.ink.length-1;i>=0;i--){
+      if(strokeNear(state.ink[i],wx,wy,tol)){ state.ink.splice(i,1); pushHistory(); draw(); return true; }
+    }
+    for(const n of state.notes){
+      const arr=n.ink||[];
+      for(let i=arr.length-1;i>=0;i--){
+        if(strokeNear(arr[i],wx,wy,tol)){ arr.splice(i,1); pushHistory(); draw(); return true; }
+      }
+    }
+    flashHint('沒有點到筆畫');
+    return false;
+  }
+  function placeNote(wx,wy){
+    const n={id:uid(), ax:wx, ay:wy, x:wx+60, y:wy-120, w:190, h:120,
+             text:'', ink:[], photos:[]};
+    state.notes.push(n);
+    ui.selected={kind:'note',id:n.id};
+    refreshProp(); pushHistory(); draw();
+    return n;
+  }
+  function moveNote(n,dx,dy){
+    n.x+=dx; n.y+=dy;
+    for(const s of (n.ink||[])) for(let i=0;i<s.pts.length;i+=2){ s.pts[i]+=dx; s.pts[i+1]+=dy; }
+  }
+  function drawNotes(){
+    for(const n of state.notes){
+      const sel = ui.selected && ui.selected.kind==='note' && ui.selected.id===n.id;
+      const [ax,ay]=toScreen(n.ax,n.ay);
+      const r=noteRect(n);
+      // leader runs from the anchor to whichever corner of the box faces it
+      const cx=Math.max(r.x0,Math.min(r.x1,n.ax)), cy=Math.max(r.y0,Math.min(r.y1,n.ay));
+      const [bx,by]=toScreen(cx,cy);
+      ctx.strokeStyle=sel?'#275C7A':'#8A9199'; ctx.lineWidth=sel?1.8:1.2; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+      ctx.fillStyle=sel?'#275C7A':'#8A9199';
+      ctx.beginPath(); ctx.arc(ax,ay,sel?5:4,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#FFFFFF'; ctx.beginPath(); ctx.arc(ax,ay,sel?2:1.6,0,Math.PI*2); ctx.fill();
+
+      const [x0,y0]=toScreen(r.x0,r.y0), [x1,y1]=toScreen(r.x1,r.y1);
+      const bw=x1-x0, bh=y1-y0;
+      ctx.fillStyle='rgba(255,252,240,.94)';
+      ctx.strokeStyle=sel?'#275C7A':'#D8CDB0'; ctx.lineWidth=sel?2:1.2;
+      ctx.beginPath(); ctx.rect(x0,y0,bw,bh); ctx.fill(); ctx.stroke();
+
+      let ty=y0+16;
+      if(n.text){
+        ctx.fillStyle='#3A3F45'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+        const fs=Math.max(9,Math.min(15,bh*0.13));
+        ctx.font=`500 ${fs}px -apple-system,system-ui,sans-serif`;
+        for(const line of String(n.text).split('\n')){
+          if(ty>y1-4) break;
+          ctx.fillText(line, x0+7, ty); ty+=fs*1.35;
+        }
+      }
+      if(n.photos && n.photos.length){
+        const th=Math.min(38, bh*0.42);
+        let px2=x0+7, py2=y1-th-6;
+        for(const pid of n.photos.slice(0,4)){
+          const im=photoThumb(pid);
+          if(im){ ctx.drawImage(im,px2,py2,th*1.33,th); }
+          else { ctx.fillStyle='#E6E8EB'; ctx.fillRect(px2,py2,th*1.33,th); }
+          ctx.strokeStyle='#C6CCD2'; ctx.lineWidth=1; ctx.strokeRect(px2,py2,th*1.33,th);
+          px2+=th*1.33+4;
+          if(px2>x1-th) break;
+        }
+        if(n.photos.length>4){
+          ctx.fillStyle='#5B646E'; ctx.font='600 10px -apple-system,system-ui,sans-serif';
+          ctx.textAlign='right'; ctx.fillText('+'+(n.photos.length-4), x1-6, y1-8);
+        }
+      }
+      if(sel){
+        const [hx,hy]=toScreen(r.x1,r.y1);
+        ctx.fillStyle='#275C7A'; ctx.fillRect(hx-6,hy-6,12,12);
+        ctx.fillStyle='#fff'; ctx.fillRect(hx-4,hy-4,8,8);
+      }
+    }
+  }
+
+  // ================= custom title blocks (圖框) =================
+  // A studio's own 圖框 is a fixed sheet layout: border, title block, logo. We put
+  // it on the page as a full-bleed image and drop the plan inside a margin the
+  // user defines once, which works whatever the frame was originally drawn in.
+  // SVG is stored as text (tiny, stays sharp at any paper size); raster images are
+  // downscaled to a print-sensible size first, because a 4000px PNG as a data URL
+  // would blow past the browser's storage limit on its own.
+  const FRAME_KEY='planpad.frames.v1';
+  const FRAME_MAX_PX=3600;          // ~300dpi on A3's long edge
+  function framesRead(){
+    try{ const r=localStorage.getItem(FRAME_KEY); const o=r?JSON.parse(r):null; return (o&&typeof o==='object')?o:{}; }
+    catch(_){ return {}; }
+  }
+  function framesWrite(all){
+    try{ localStorage.setItem(FRAME_KEY, JSON.stringify(all)); return true; }
+    catch(_){ uiAlert('圖框存不下來，可能是檔案太大或儲存空間已滿。\n建議改用 SVG，或把圖片解析度調低一點。'); return false; }
+  }
+  // Everything is rasterised on the way in, SVG included: jsPDF cannot embed an
+  // SVG, and silently producing a PDF with a blank frame would be worse than not
+  // supporting it. At FRAME_MAX_PX across A3 that is roughly 300dpi, which is
+  // more than a title block needs.
+  function frameImport(file){
+    return new Promise((resolve,reject)=>{
+      if(!file) return reject(new Error('沒有選到檔案'));
+      const isSvg=/svg/i.test(file.type)||/\.svg$/i.test(file.name);
+      const fr=new FileReader();
+      fr.onerror=()=>reject(new Error('檔案讀取失敗'));
+      fr.onload=()=>{
+        let src=String(fr.result), hintW=0, hintH=0;
+        if(isSvg){
+          const vb=src.match(/viewBox\s*=\s*"\s*[\d.\-]+\s+[\d.\-]+\s+([\d.]+)\s+([\d.]+)\s*"/);
+          if(vb){ hintW=+vb[1]; hintH=+vb[2]; }
+          src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(src)));
+        }
+        const im=new Image();
+        im.onerror=()=>reject(new Error(isSvg?'這個 SVG 沒辦法轉成圖片，請改存成 PNG 再試':'這不是能辨識的圖片檔'));
+        im.onload=()=>{
+          let w=im.naturalWidth||hintW||1189, h=im.naturalHeight||hintH||841;
+          // an SVG often reports tiny intrinsic pixels — scale it up for print
+          if(isSvg && Math.max(w,h)<1500){ const up=FRAME_MAX_PX/Math.max(w,h); w=Math.round(w*up); h=Math.round(h*up); }
+          const k=Math.min(1, FRAME_MAX_PX/Math.max(w,h));
+          w=Math.max(1,Math.round(w*k)); h=Math.max(1,Math.round(h*k));
+          const c=document.createElement('canvas'); c.width=w; c.height=h;
+          const g=c.getContext('2d'); g.fillStyle='#FFFFFF'; g.fillRect(0,0,w,h); g.drawImage(im,0,0,w,h);
+          let data;
+          try{ data=c.toDataURL('image/jpeg',0.9); }catch(err){ return reject(new Error('圖片轉換失敗：'+err.message)); }
+          resolve({kind:'img', data, w, h});
+        };
+        im.src=src;
+      };
+      if(isSvg) fr.readAsText(file); else fr.readAsDataURL(file);
+    });
+  }
+  async function frameAdd(file){
+    const f=await frameImport(file);
+    const name=(file.name||'圖框').replace(/\.[^.]+$/,'');
+    const all=framesRead();
+    const id='f'+Date.now()+Math.floor(Math.random()*1000);
+    // margins are where the PLAN may sit inside the sheet; 20mm all round with a
+    // deeper bottom is the usual shape once a title block is in the corner
+    all[id]={name, t:Date.now(), kind:f.kind, data:f.data, w:f.w, h:f.h,
+             margins:{l:15,r:15,t:15,b:35}};
+    if(!framesWrite(all)) return null;
+    pdfOpt.frame=id; frameRefreshUI();
+    flashHint('已匯入圖框「'+name+'」');
+    return id;
+  }
+  function frameCurrent(){ return pdfOpt.frame==='builtin' ? null : (framesRead()[pdfOpt.frame]||null); }
+  function frameRefreshUI(){
+    const sel=document.getElementById('mFrame'); if(!sel) return;
+    const all=framesRead();
+    sel.innerHTML='<option value="builtin">內建圖框</option>'
+      + Object.keys(all).sort((a,b)=>all[b].t-all[a].t)
+          .map(id=>`<option value="${id}">${all[id].name}</option>`).join('');
+    if(!all[pdfOpt.frame]) pdfOpt.frame='builtin';
+    sel.value=pdfOpt.frame;
+    const f=frameCurrent();
+    document.getElementById('mFrameEdit').style.display = f ? '' : 'none';
+    if(f){
+      for(const k of ['l','r','t','b']){
+        const el=document.getElementById('mMargin'+k.toUpperCase());
+        if(el) el.value=f.margins[k];
+      }
+    }
+  }
+  function frameSaveMargins(){
+    const all=framesRead(), f=all[pdfOpt.frame]; if(!f) return;
+    for(const k of ['l','r','t','b']){
+      const el=document.getElementById('mMargin'+k.toUpperCase());
+      const v=parseFloat(el&&el.value);
+      if(isFinite(v)&&v>=0&&v<200) f.margins[k]=v;
+    }
+    framesWrite(all);
+  }
+  async function frameDelete(){
+    const all=framesRead(), f=all[pdfOpt.frame]; if(!f) return;
+    if(!await uiConfirm('確定刪除圖框「'+f.name+'」？',{okText:'刪除',danger:true})) return;
+    delete all[pdfOpt.frame]; framesWrite(all); pdfOpt.frame='builtin'; frameRefreshUI();
   }
 
   // ================= DXF export =================
@@ -3360,7 +3901,7 @@
   // Written as DXF R12 (the most widely accepted flavour) in pure ASCII: any
   // non-ASCII character is emitted as the \U+XXXX escape that AutoCAD decodes back
   // into the original glyph, so 主臥 survives without any codepage guessing.
-  const DXF_LAYERS=[['WALL',7],['COLUMN',8],['SHAFT',9],['BEAM',30],['OPENING',5],['DIM',1],['ROOM',3],['TEXT',2]];
+  const DXF_LAYERS=[['WALL',7],['COLUMN',8],['SHAFT',9],['BEAM',30],['OPENING',5],['DIM',1],['ROOM',3],['TEXT',2],['INK',6],['NOTE',4]];
   function dxfAscii(str){
     let out='';
     for(const ch of String(str)){
@@ -3457,6 +3998,17 @@
       }
     }
     for(const t of state.texts) text('TEXT',t.x,t.y,Math.max(1,toDisp(t.size)),t.text||'',false,0);
+    // handwriting travels as plain polylines, so it survives into CAD
+    const inkOut=(arr,lay)=>{ for(const st of arr){ for(let i=0;i<st.pts.length-2;i+=2)
+      line(lay, st.pts[i],st.pts[i+1], st.pts[i+2],st.pts[i+3]); } };
+    inkOut(state.ink,'INK');
+    for(const n of state.notes){
+      line('NOTE', n.ax,n.ay, Math.max(n.x,Math.min(n.x+n.w,n.ax)), Math.max(n.y,Math.min(n.y+n.h,n.ay)));
+      poly('NOTE',[{x:n.x,y:n.y},{x:n.x+n.w,y:n.y},{x:n.x+n.w,y:n.y+n.h},{x:n.x,y:n.y+n.h}]);
+      if(n.text) text('NOTE', n.x+4, n.y+th*1.2, th, String(n.text).split('\n')[0], false, 0);
+      if((n.photos||[]).length) text('NOTE', n.x+4, n.y+n.h-th*0.4, th*0.8, '照片 x'+n.photos.length, false, 0);
+      inkOut(n.ink||[],'INK');
+    }
 
     put(0,'ENDSEC',0,'EOF');
     return L.join('\r\n')+'\r\n';
@@ -3497,8 +4049,8 @@
     // and having every dimension silently switch to cm is disorienting and invites
     // reading a number wrong by a factor of ten
     return {walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,
-            columns:state.columns,beams:state.beams,roomNames:state.roomNames,
-            ceilingH:state.ceilingH,_seq:state._seq, unit:ui.unit};
+            columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,
+            roomNames:state.roomNames, ceilingH:state.ceilingH,_seq:state._seq, unit:ui.unit};
   }
   // applies a unit without touching geometry (internal storage is always cm)
   function applyUnit(u){
@@ -3518,7 +4070,8 @@
   async function projSaveAs(name){
     name=(name||'').trim();
     if(!name){ await uiAlert('請先輸入專案名稱。'); return false; }
-    if(!state.walls.length && !state.columns.length && !state.beams.length){
+    if(!state.walls.length && !state.columns.length && !state.beams.length
+       && !state.ink.length && !state.notes.length){
       await uiAlert('目前是空白的平面圖，沒有東西可以儲存。'); return false;
     }
     const all=projRead();
@@ -3604,13 +4157,14 @@
   function markSaved(){ try{ savedSig=snapshot(); }catch(_){ savedSig=''; } }
   function isDirty(){
     if(!state.walls.length && !state.columns.length && !state.beams.length
-       && !state.texts.length && !state.dims.length) return false;   // blank canvas
+       && !state.texts.length && !state.dims.length
+       && !state.ink.length && !state.notes.length) return false;   // blank canvas
     try{ return snapshot()!==savedSig; }catch(_){ return true; }
   }
   function blankPlan(){
     state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
-    state.columns=[]; state.beams=[]; state.roomNames={};
-    ui.selected=null; draft=null; typedNum=''; hideLenBox();
+    state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.roomNames={};
+    ui.selected=null; draft=null; inkDraft=null; typedNum=''; hideLenBox();
     document.getElementById('fname').value='未命名平面圖';
     recomputeRooms(); refreshProp();
     history.length=0; history.push(snapshot()); hi=0; updateUndo();
