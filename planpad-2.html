@@ -15,6 +15,11 @@
     --shadow:0 1px 3px rgba(20,30,40,.08),0 4px 16px rgba(20,30,40,.06);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  /* A palm resting on the glass while writing was starting a native text
+     selection and painting the whole page blue. Nothing here is meant to be
+     selected by dragging — only the real text fields are. */
+  html,body{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
+  input,textarea,select,[contenteditable]{-webkit-user-select:text; user-select:text;}
   html,body{margin:0; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC",system-ui,sans-serif; color:var(--text); background:var(--canvas-bg);}
   #app{display:flex; flex-direction:column; height:100%;}
 
@@ -143,7 +148,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b21</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b23</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <div class="spacer"></div>
     <button class="tbtn" id="undo" title="上一步 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
@@ -188,6 +193,7 @@
       <div class="rail-sep"></div>
       <div class="tool" data-tool="dim" title="標尺寸 (M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 9v6M21 9v6"/></svg><span class="lbl">尺寸</span></div>
       <div class="tool" data-tool="ink" title="手寫 (I)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l3.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11z"/><path d="M14 5l3 3"/></svg><span class="lbl">手寫</span></div>
+      <div class="tool" data-tool="photo" title="現場照片 (O)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.2-2h7.6L17 7h2.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="12.5" r="3.2"/></svg><span class="lbl">照片</span></div>
       <div class="tool" data-tool="note" title="引線註記 (A)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="4" cy="20" r="1.6" fill="currentColor"/><path d="M5 19l6-6"/><rect x="11" y="4" width="10" height="9" rx="1.5"/></svg><span class="lbl">註記</span></div>
       <div class="tool" data-tool="text" title="文字 (T)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 6h14M12 6v13M9 19h6"/></svg><span class="lbl">文字</span></div>
     </div>
@@ -231,8 +237,8 @@
       <div class="psec">
         <div class="ptitle">手寫設定</div>
         <div class="row"><label>顏色</label><div class="seg" id="inkColorSeg"><button data-c="#C0392B" class="on">紅</button><button data-c="#24282E">黑</button><button data-c="#1E6FA8">藍</button><button data-c="#1F8A5B">綠</button></div></div>
-        <div class="row"><label>粗細</label><div class="seg" id="inkWidthSeg"><button data-w="0.7">細</button><button data-w="1.2" class="on">中</button><button data-w="2.2">粗</button></div></div>
-        <div class="row"><label>模式</label><div class="seg" id="inkModeSeg"><button data-e="0" class="on">書寫</button><button data-e="1">刪筆畫</button></div></div>
+        <div class="row"><label>粗細</label><div class="seg" id="inkWidthSeg" title="也決定橡皮擦大小"><button data-w="0.7">細</button><button data-w="1.2" class="on">中</button><button data-w="2.2">粗</button></div></div>
+        <div class="row"><label>模式</label><div class="seg" id="inkModeSeg"><button data-e="0" class="on">書寫</button><button data-e="1">橡皮擦</button></div></div>
         <div class="row"><button class="chip" id="inkClear">清除所有手寫</button></div>
       </div>
       <div class="psec">
@@ -380,7 +386,8 @@
     door:'放門：點在牆上放置。右側「畫門設定」可先選門／推拉門／門洞，放好後也能隨時改',
     window:'放窗：點在牆上放置。右側「畫窗設定」可先選窗／落地窗／外凸窗，落地窗離地固定為 0',
     shaft:'放管道間：點一下放置。選取後可改長寬與旋轉，也能點四邊的離牆距離直接輸入',
-    ink:'手寫：用 Apple Pencil 或手指直接寫。用過筆之後手指就只負責平移縮放，手掌靠上去不會畫到。右側可換顏色粗細，或切成「點一下刪一筆」',
+    ink:'手寫：用 Apple Pencil 或手指直接寫。用過筆之後手指就只負責平移縮放，手掌靠上去不會畫到。右側可換顏色粗細，或切到「橡皮擦」按住擦掉寫錯的地方（擦一半也可以）',
+    photo:'現場照片：點在要記錄的位置，相機會直接打開。拍完就是一張釘在那裡的小圖，點它可以放大看。可以拖動、也可以補文字',
     note:'引線註記：點在要指的位置，會拉出一條引線和一個註記框。框裡可以手寫、打字、或加現場照片。拖框可移動，右下角可調大小',
     dim:'標尺寸：按住一點拖到另一點放開，自動量出距離',
     text:'文字：點一下放置文字',
@@ -1485,8 +1492,8 @@
   function hitTest(wx,wy){
     // notes sit above the plan, so they answer first
     for(let i=state.notes.length-1;i>=0;i--){
-      const n=state.notes[i], r=noteRect(n), g=10/view.scale;
-      if(Math.abs(wx-r.x1)<g && Math.abs(wy-r.y1)<g) return {kind:'note',id:n.id,which:'resize'};
+      const n=state.notes[i], r=isPin(n)?pinWorldRect(n):noteRect(n), g=10/view.scale;
+      if(!isPin(n) && Math.abs(wx-r.x1)<g && Math.abs(wy-r.y1)<g) return {kind:'note',id:n.id,which:'resize'};
       if(Math.hypot(wx-n.ax,wy-n.ay) < 12/view.scale) return {kind:'note',id:n.id,which:'anchor'};
       if(noteHit(n,wx,wy)) return {kind:'note',id:n.id,which:'box'};
     }
@@ -1977,6 +1984,7 @@
   // draft (while drag-drawing): {kind:'wall'|'dim', a:{x,y}, cur:{x,y}}
   let draft=null;
   let inkDraft=null;      // stroke being laid down right now
+  let eraser=null;        // eraser being dragged
   let inkPenSeen=false;   // once a stylus is used, ignore fingers while inking
   function drawDraft(){
     if(!draft||!draft.a||!draft.cur) return;
@@ -2543,7 +2551,11 @@
       // once a stylus has been used, a finger is a hand resting on the glass or a
       // pan gesture — never a stroke. No palm-rejection heuristics needed.
       if(inkPenSeen && e.pointerType!=='pen'){ panStart={px,py,ox:view.ox,oy:view.oy}; return; }
-      if(ui.inkErase){ eraseInkAt(wx,wy); return; }
+      if(ui.inkErase){
+        const r=eraserRadius();
+        eraser={x:wx,y:wy,r,pointerId:e.pointerId,changed:eraseInkArea(wx,wy,r)};
+        draw(); return;
+      }
       inkDraft=inkStroke(ui.inkColor, ui.inkWidth);
       inkDraft.pts.push(wx,wy);
       inkDraft.pointerId=e.pointerId;
@@ -2551,6 +2563,7 @@
       draw();
     }
     else if(ui.tool==='note'){ placeNote(wx,wy); }
+    else if(ui.tool==='photo'){ placePhotoPin(wx,wy); }
   });
 
   stage.addEventListener('pointermove',e=>{
@@ -2564,6 +2577,11 @@
 
     if(panStart && pointers.size<2){ view.ox=panStart.ox+(px-panStart.px); view.oy=panStart.oy+(py-panStart.py); draw(); return; }
 
+    if(eraser && eraser.pointerId===e.pointerId){
+      eraser.x=wx; eraser.y=wy;
+      if(eraseInkArea(wx,wy,eraser.r)) eraser.changed=true;
+      draw(); return;
+    }
     if(inkDraft && inkDraft.pointerId===e.pointerId){
       const n=inkDraft.pts.length;
       // drop points closer than half a pixel: the pen fires far faster than the
@@ -2616,6 +2634,11 @@
     pointers.delete(e.pointerId);
     if(pointers.size<2){ pinch=null; }
     if(panStart){ panStart=null; }
+    if(eraser && eraser.pointerId===e.pointerId){
+      const had=eraser.changed; eraser=null;
+      if(had) pushHistory(); else flashHint('沒有擦到筆畫');
+      draw(); return;
+    }
     if(inkDraft && inkDraft.pointerId===e.pointerId){
       const st=inkDraft; inkDraft=null;
       st.pts=simplify(st.pts, 0.35);
@@ -2631,6 +2654,14 @@
         const w=state.walls.find(v=>v.id===dragging.hit.id); if(w) weldWall(w);
       }
       if(dragging.moved) pushHistory();
+      else if(dragging.hit.kind==='note'){
+        // a tap, not a drag: open whatever photo sits under the finger
+        const n=state.notes.find(v=>v.id===dragging.hit.id);
+        if(n){
+          if(isPin(n)){ if((n.photos||[])[0]) photoOpenViewer(n.photos[0]); }
+          else { const pid=noteThumbAt(n, ...evtPos(e)); if(pid) photoOpenViewer(pid); }
+        }
+      }
       dragging=null;
     }
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> UP IGNORED, not draft owner`); return; }
@@ -2990,7 +3021,15 @@
     }
     else if(s.kind==='note'){ const n=state.notes.find(v=>v.id===s.id);
       const nPhoto=(n.photos||[]).length, nInk=(n.ink||[]).length;
-      propBody.innerHTML=`
+      const pin=isPin(n);
+      propBody.innerHTML= pin ? `
+      <div class="row"><label>照片</label><span style="font-size:12px;color:var(--muted)">${nPhoto?nPhoto+' 張（點畫布上的縮圖可放大）':'尚未加入'}</span></div>
+      <div class="row" style="gap:6px"><button class="chip" id="pNshoot" style="flex:1">再拍一張</button><button class="chip" id="pNpick" style="flex:1">從相簿選</button></div>
+      <div id="pNthumbs" style="display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 12px"></div>
+      <div class="row" style="align-items:flex-start"><label>說明</label>
+        <textarea id="pNtext" rows="2" placeholder="選填" style="flex:1 1 auto;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;resize:vertical">${(n.text||'').replace(/</g,'&lt;')}</textarea></div>
+      <div class="row"><label>縮圖寬度</label><div class="field"><input type="number" id="pNw" value="${Math.round(toDisp(n.w||PIN_DEF_W))}" step="10"><span class="unit">${U}</span></div></div>
+      <button class="del-btn" id="pDel">刪除照片</button>` : `
       <div class="row" style="align-items:flex-start"><label>文字</label>
         <textarea id="pNtext" rows="3" style="flex:1 1 auto;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;resize:vertical">${(n.text||'').replace(/</g,'&lt;')}</textarea></div>
       <div class="row"><label>手寫</label><span style="font-size:12px;color:var(--muted)">${nInk?nInk+' 筆（用「手寫」工具在框裡寫）':'選「手寫」工具在框裡寫'}</span></div>
@@ -2999,6 +3038,8 @@
       <div id="pNthumbs" style="display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 12px"></div>
       <div class="row"><label>框大小</label><span style="font-size:12px;color:var(--muted)">拖右下角可調整</span></div>
       <button class="del-btn" id="pDel">刪除註記</button>`;
+      const pw=document.getElementById('pNw');
+      if(pw) pw.onchange=ev=>{ n.w=Math.max(20,fromDisp(parseFloat(ev.target.value)||PIN_DEF_W)); pushHistory(); draw(); };
       document.getElementById('pNtext').onchange=ev=>{ n.text=ev.target.value; pushHistory(); draw(); };
       const thumbBox=document.getElementById('pNthumbs');
       for(const pid of (n.photos||[])){
@@ -3207,7 +3248,7 @@
     if(e.key==='Escape'){ draft=null; typedNum=''; hideLenBox(); ui.selected=null; refreshProp(); draw(); return; }
     if(e.key==='Delete'||e.key==='Backspace'){ if(ui.selected){ deleteSelected(); return; } }
     if(e.key===' '||e.code==='Space'){ e.preventDefault(); setTool('select'); return; }
-    const map={v:'select',w:'wall',d:'door',n:'window',m:'dim',t:'text',p:'shaft',i:'ink',a:'note'};
+    const map={v:'select',w:'wall',d:'door',n:'window',m:'dim',t:'text',p:'shaft',i:'ink',a:'note',o:'photo'};
     if(map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]);
   });
 
@@ -3264,7 +3305,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b21';
+  const BUILD='b23';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -3434,14 +3475,24 @@
   document.getElementById('mFrameDel').onclick=()=>frameDelete();
   ['L','R','T','B'].forEach(k=>{ const el=document.getElementById('mMargin'+k); if(el) el.onchange=frameSaveMargins; });
   document.getElementById('photoInput').addEventListener('change',async ev=>{
-    const files=[...(ev.target.files||[])]; const nid=+ev.target.dataset.note;
-    ev.target.value='';
+    const files=[...(ev.target.files||[])];
+    const nid=+ev.target.dataset.note, wasPin=ev.target.dataset.pin==='1';
+    ev.target.value=''; delete ev.target.dataset.pin;
     const n=state.notes.find(v=>v.id===nid);
-    if(!n||!files.length) return;
+    if(!n) return;
+    if(!files.length){
+      // dismissed the camera — don't leave an empty pin stranded on the plan
+      if(wasPin && !(n.photos||[]).length){
+        state.notes=state.notes.filter(v=>v.id!==nid);
+        ui.selected=null; refreshProp(); draw();
+      }
+      return;
+    }
     for(const f of files){
       try{ await photoAttach(n,f); }
       catch(err){ uiAlert('照片加入失敗：'+err.message); break; }
     }
+    if(wasPin) pushHistory();
   });
   document.getElementById('frameInput').addEventListener('change',ev=>{
     const f=ev.target.files[0]; ev.target.value='';
@@ -3700,18 +3751,143 @@
     for(const s of state.ink) drawInkStroke(s);
     for(const n of state.notes) for(const s of (n.ink||[])) drawInkStroke(s);
     if(inkDraft) drawInkStroke(inkDraft);
+    if(eraser){
+      const [ex,ey]=toScreen(eraser.x,eraser.y);
+      const rp=eraser.r*view.scale;
+      ctx.setLineDash([]); ctx.fillStyle='rgba(192,57,43,.10)';
+      ctx.beginPath(); ctx.arc(ex,ey,rp,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#C0392B'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+  }
+
+  function drawPin(n,ax,ay,sel){
+    const R=pinScreenRect(n);
+    const cx=R.x+R.w/2, cy=R.y+R.h/2;
+    ctx.setLineDash([]);
+    ctx.strokeStyle=sel?'#275C7A':'#8A9199'; ctx.lineWidth=sel?1.8:1.2;
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(cx,cy); ctx.stroke();
+    ctx.fillStyle=sel?'#275C7A':'#8A9199';
+    ctx.beginPath(); ctx.arc(ax,ay,sel?5:4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#FFFFFF'; ctx.beginPath(); ctx.arc(ax,ay,sel?2:1.6,0,Math.PI*2); ctx.fill();
+
+    ctx.fillStyle='#FFFFFF'; ctx.fillRect(R.x-3,R.y-3,R.w+6,R.h+6);
+    const im=photoThumb((n.photos||[])[0]);
+    if(im){ ctx.drawImage(im,R.x,R.y,R.w,R.h); }
+    else {
+      ctx.fillStyle='#E9EDF0'; ctx.fillRect(R.x,R.y,R.w,R.h);
+      ctx.fillStyle='#8A9199'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.font='600 10px -apple-system,system-ui,sans-serif';
+      ctx.fillText('照片', cx, cy);
+    }
+    ctx.strokeStyle=sel?'#275C7A':'#9AA1A8'; ctx.lineWidth=sel?2.5:1.5;
+    ctx.strokeRect(R.x-3,R.y-3,R.w+6,R.h+6);
+    if((n.photos||[]).length>1){
+      const b=String(n.photos.length);
+      ctx.fillStyle='rgba(20,26,32,.75)';
+      ctx.fillRect(R.x+R.w-20,R.y+R.h-15,17,12);
+      ctx.fillStyle='#fff'; ctx.font='600 9px -apple-system,system-ui,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(b, R.x+R.w-11.5, R.y+R.h-9);
+    }
+    if(n.text){
+      ctx.fillStyle='#3A3F45'; ctx.font='500 11px -apple-system,system-ui,sans-serif';
+      ctx.textAlign='left'; ctx.textBaseline='top';
+      ctx.fillText(String(n.text).split('\n')[0].slice(0,14), R.x, R.y+R.h+6);
+    }
   }
 
   // ---- notes: an anchor on the plan, a leader, and a box you write in ----
   const NOTE_MIN_W=140, NOTE_MIN_H=90;                 // cm
+  // A pin is a note whose whole content is one photo: no box, no text required.
+  // Its thumbnail has a real world size so exports scale correctly, but it never
+  // draws smaller than PIN_MIN_PX on screen — otherwise zooming out to see the
+  // whole floor would shrink every photo into an untappable dot.
+  const PIN_DEF_W=120, PIN_MIN_PX=34, PIN_RATIO=0.75;   // cm, px, h/w
+  function isPin(n){ return n.mode==='pin'; }
+  function pinScreenRect(n){
+    const [sx,sy]=toScreen(n.x,n.y);
+    const w=Math.max(PIN_MIN_PX, (n.w||PIN_DEF_W)*view.scale);
+    return {x:sx, y:sy, w, h:w*PIN_RATIO};
+  }
+  function pinWorldRect(n){
+    const r=pinScreenRect(n);
+    return {x0:n.x, y0:n.y, x1:n.x+r.w/view.scale, y1:n.y+r.h/view.scale};
+  }
   function noteRect(n){ return {x0:n.x, y0:n.y, x1:n.x+n.w, y1:n.y+n.h}; }
   function noteHit(n,wx,wy){
-    const r=noteRect(n);
+    const r=isPin(n)?pinWorldRect(n):noteRect(n);
     return wx>=r.x0-2 && wx<=r.x1+2 && wy>=r.y0-2 && wy<=r.y1+2;
+  }
+  function placePhotoPin(wx,wy){
+    const n={id:uid(), mode:'pin', ax:wx, ay:wy, x:wx+40, y:wy-110,
+             w:PIN_DEF_W, text:'', ink:[], photos:[]};
+    state.notes.push(n);
+    ui.selected={kind:'note',id:n.id};
+    // straight into the camera: on site, "tap the wall, shoot, done" is the
+    // whole point — an empty pin is removed again if the picker is dismissed
+    const inp=document.getElementById('photoInput');
+    inp.setAttribute('capture','environment');
+    inp.dataset.note=n.id; inp.dataset.pin='1';
+    refreshProp(); draw();
+    inp.click();
+    return n;
+  }
+  // which photo thumbnail inside a box note is under this screen point
+  function noteThumbAt(n,sx,sy){
+    if(!n.photos || !n.photos.length || isPin(n)) return null;
+    const r=noteRect(n);
+    const [x0,y0]=toScreen(r.x0,r.y0), [x1,y1]=toScreen(r.x1,r.y1);
+    const bh=y1-y0, th=Math.min(38,bh*0.42);
+    let px=x0+7; const py=y1-th-6;
+    for(const pid of n.photos.slice(0,4)){
+      if(sx>=px && sx<=px+th*1.33 && sy>=py && sy<=py+th) return pid;
+      px+=th*1.33+4; if(px>x1-th) break;
+    }
+    return null;
   }
   function noteAt(wx,wy){
     for(let i=state.notes.length-1;i>=0;i--) if(noteHit(state.notes[i],wx,wy)) return state.notes[i];
     return null;
+  }
+  // Simplification leaves points far apart, so a plain point test would let the
+  // eraser pass straight through the middle of a long straight stroke. Resample
+  // first, rub out, then re-simplify what survives.
+  function densify(pts,step){
+    if(pts.length<4) return pts.slice();
+    const out=[pts[0],pts[1]];
+    for(let i=2;i<pts.length;i+=2){
+      const x0=out[out.length-2], y0=out[out.length-1], x1=pts[i], y1=pts[i+1];
+      const d=Math.hypot(x1-x0,y1-y0), n=Math.max(1,Math.ceil(d/step));
+      for(let j=1;j<=n;j++) out.push(x0+(x1-x0)*j/n, y0+(y1-y0)*j/n);
+    }
+    return out;
+  }
+  function eraserRadius(){ return (ui.inkWidth<=0.7?9:ui.inkWidth>=2.2?26:16)/view.scale; }
+  function eraseInkArea(wx,wy,r){
+    let changed=false;
+    const rub=(arr)=>{
+      for(let k=arr.length-1;k>=0;k--){
+        const st=arr[k], bb=strokeBBox(st);
+        if(wx<bb.x0-r || wx>bb.x1+r || wy<bb.y0-r || wy>bb.y1+r) continue;
+        const pts=densify(st.pts, Math.max(0.5,r/2));
+        const segs=[]; let cur=[]; let touched=false;
+        for(let i=0;i<pts.length;i+=2){
+          if(Math.hypot(pts[i]-wx, pts[i+1]-wy)<=r){ touched=true; if(cur.length>=4) segs.push(cur); cur=[]; }
+          else cur.push(pts[i],pts[i+1]);
+        }
+        if(cur.length>=4) segs.push(cur);
+        if(!touched) continue;
+        changed=true;
+        arr.splice(k,1);
+        // whatever is left of the stroke stays as separate pieces
+        for(let i=segs.length-1;i>=0;i--){
+          arr.splice(k,0,{id:uid(), c:st.c, w:st.w, pts:simplify(segs[i],0.35)});
+        }
+      }
+    };
+    rub(state.ink);
+    for(const n of state.notes) rub(n.ink||[]);
+    return changed;
   }
   function eraseInkAt(wx,wy){
     const tol=Math.max(3, 12/view.scale);
@@ -3743,6 +3919,7 @@
     for(const n of state.notes){
       const sel = ui.selected && ui.selected.kind==='note' && ui.selected.id===n.id;
       const [ax,ay]=toScreen(n.ax,n.ay);
+      if(isPin(n)){ drawPin(n,ax,ay,sel); continue; }
       const r=noteRect(n);
       // leader runs from the anchor to whichever corner of the box faces it
       const cx=Math.max(r.x0,Math.min(r.x1,n.ax)), cy=Math.max(r.y0,Math.min(r.y1,n.ay));
@@ -4202,6 +4379,13 @@
   projModal.addEventListener('click',e=>{ if(e.target===projModal) closeProjModal(); });
 
   // ================= Boot =================
+  // belt and braces: Safari can still start a selection from a element that has
+  // no user-select rule of its own (SVG icons, canvas), so refuse it outright
+  // anywhere that is not an actual input
+  document.addEventListener('selectstart',e=>{
+    const t=e.target, tag=(t&&t.tagName)||'';
+    if(tag!=='INPUT' && tag!=='TEXTAREA' && !(t&&t.isContentEditable)) e.preventDefault();
+  });
   window.addEventListener('resize',resize);
   document.getElementById('undo').onclick=undo;
   document.getElementById('redo').onclick=redo;
