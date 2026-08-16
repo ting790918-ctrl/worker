@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b25</title>
+<title>PlanPad · 平面圖工具 b26</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -155,7 +155,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b25</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b26</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <div class="spacer"></div>
     <button class="tbtn" id="undo" title="上一步 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
@@ -3366,7 +3366,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b25';
+  const BUILD='b26';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -3387,7 +3387,11 @@
     try{ canShare = !!(file && navigator.canShare && navigator.canShare({files:[file]})); }catch(_){}
     if(canShare){
       try{
-        const pr=navigator.share({files:[file], title:name});
+        // FILES ONLY. Passing `title` alongside `files` makes several share
+        // targets — LINE among them — treat the payload as text and drop the
+        // attachment: the recipient gets the bare string "未命名平面圖.png"
+        // instead of the drawing. The filename already travels with the File.
+        const pr=navigator.share({files:[file]});
         if(pr && pr.then){
           pr.then(()=>flashHint('已送出「'+name+'」，選「儲存到檔案」即可'))
             .catch(err=>{ if(!err || err.name!=='AbortError') showSaveFallback(name,blob); });
@@ -3405,8 +3409,11 @@
   function showSaveFallback(name,blob){
     // deliberately avoids URL.createObjectURL: it is unavailable or blocked in some
     // sandboxed contexts, and this dialog is the LAST resort — it must not throw
-    const isImg=/^image\//.test(blob.type||'');
-    const isText=/json|dxf|text|xml/i.test(blob.type||'') || /\.(json|dxf|txt|svg)$/i.test(name);
+    // NOT a loose `image/` prefix test: DXF's registered type is image/vnd.dxf,
+    // which would send a CAD file down the "long-press the picture" path
+    const isImg=/^image\/(png|jpe?g|gif|webp|heic|heif|bmp)$/i.test(blob.type||'')
+             || /\.(png|jpe?g|gif|webp|heic)$/i.test(name);
+    const isText=!isImg && (/json|dxf|text|xml|svg/i.test(blob.type||'') || /\.(json|dxf|txt|svg)$/i.test(name));
     const back=document.createElement('div');
     back.style.cssText='position:fixed;inset:0;background:rgba(20,26,32,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
     const card=document.createElement('div');
@@ -3459,7 +3466,7 @@
 
       let p;
       try{
-        p = (f && navigator.share) ? navigator.share({files:[f], title:name}) : Promise.reject(new Error('no share'));
+        p = (f && navigator.share) ? navigator.share({files:[f]}) : Promise.reject(new Error('no share'));
       }catch(err){ p = Promise.reject(err); }
       if(!p || !p.then) p = Promise.reject(new Error('no share'));
 
@@ -4292,7 +4299,9 @@
     return L.join('\r\n')+'\r\n';
   }
   function exportDXF(opt){
-    download(fname()+'.dxf', new Blob([buildDXF(opt)],{type:'application/dxf'}));
+    // image/vnd.dxf is the registered type; the invented 'application/dxf' can make
+    // canShare() refuse the file outright on iOS
+    download(fname()+'.dxf', new Blob([buildDXF(opt)],{type:'image/vnd.dxf'}));
   }
 
   // ================= project library =================
