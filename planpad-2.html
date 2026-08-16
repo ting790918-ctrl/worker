@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b23</title>
+<title>PlanPad · 平面圖工具 b25</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -108,7 +108,14 @@
 
   .panel-toggle{display:none;}
   #dbgBtn.on{background:#C0392B; border-color:#C0392B; color:#fff;}
-  #debugPanel{position:fixed; left:6px; bottom:32px; width:340px; max-height:180px; overflow-y:auto; background:rgba(20,26,32,.92); color:#7CFFB2; font:10px/1.4 ui-monospace,Menlo,monospace; padding:6px 8px; border-radius:6px; z-index:999; pointer-events:none; white-space:pre-wrap; display:none;}
+  #debugPanel{position:fixed; left:6px; bottom:32px; width:340px; max-height:200px; background:rgba(20,26,32,.92); color:#7CFFB2; font:10px/1.4 ui-monospace,Menlo,monospace; border-radius:6px; z-index:999; pointer-events:none; display:none; overflow:hidden;}
+  #dbgText{padding:4px 8px 6px; max-height:150px; overflow-y:auto; white-space:pre-wrap;}
+  /* the log stays click-through so you can draw under it; only these two buttons
+     take taps, which is what made copying possible at all */
+  #dbgBar{display:flex; align-items:center; gap:6px; padding:5px 6px 4px 8px; border-bottom:1px solid rgba(255,255,255,.14);}
+  #dbgTitle{flex:1 1 auto; color:#9AA1A8; font-size:10px;}
+  #dbgBar button{pointer-events:auto; background:rgba(255,255,255,.14); border:0; color:#DDE3E8; font-size:10px; padding:3px 9px; border-radius:5px; font-family:inherit;}
+  #dbgBar button:active{background:rgba(255,255,255,.3);}
   #debugPanel.show{display:block;}
   .modal-mask{position:fixed; inset:0; background:rgba(20,26,32,.4); display:none; align-items:center; justify-content:center; z-index:100;}
   .modal-mask.open{display:flex;}
@@ -148,7 +155,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b23</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b25</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <div class="spacer"></div>
     <button class="tbtn" id="undo" title="上一步 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
@@ -288,7 +295,7 @@
     </div>
   </div>
 
-  <div id="debugPanel"></div>
+  <div id="debugPanel"><div id="dbgBar"><span id="dbgTitle">除錯記錄</span><button id="dbgClear">清除</button><button id="dbgCopy">複製</button></div><div id="dbgText"></div></div>
   <!-- STATUS -->
   <div id="status">
     <span id="coord">X 0　Y 0</span>
@@ -334,7 +341,7 @@
       <button class="tbtn" id="mFrameDel" style="margin-top:10px;width:100%;color:var(--danger);border-color:#F0D6D2">刪除這個圖框</button>
     </div>
     <input type="file" id="frameInput" accept="image/*,.svg" style="display:none">
-<input type="file" id="photoInput" accept="image/*" multiple style="display:none">
+<input type="file" id="photoInput" accept="image/*" style="display:none">
     <div class="mrow pdfonly"><span>比例</span><div class="seg" id="mScale"><button data-v="fit" class="on">適應</button><button data-v="50">1:50</button><button data-v="100">1:100</button><button data-v="150">1:150</button><button data-v="200">1:200</button></div></div>
     <div class="mrow"><span>尺寸標註</span><div class="seg" id="mDims"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow"><span>空間名稱 / 坪數</span><div class="seg" id="mRooms"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
@@ -2449,18 +2456,71 @@
   // pointer event sequence — down/move/up/cancel, pointerId, draft state —
   // instead of us having to guess what happened from the visuals alone) ----
   const dbgPanel=document.getElementById('debugPanel');
+  const dbgText=document.getElementById('dbgText');
   const dbgBtn=document.getElementById('dbgBtn');
   const dbgLog=[];
   let dbgOn=false;
+  // The panel is deliberately click-through so you can keep drawing under it, but
+  // that also made the log impossible to select — while the error messages were
+  // telling people to "copy the log". Keep the panel透明 to touches and give the
+  // copy action its own button, and keep far more history than fits on screen.
+  const DBG_KEEP=400, DBG_SHOW=28;
   function dbg(msg){
     if(!dbgOn) return;
     const t=(performance.now()/1000).toFixed(2);
     dbgLog.push(`${t}s ${msg}`);
-    if(dbgLog.length>28) dbgLog.shift();
-    dbgPanel.textContent=dbgLog.join('\n');
+    if(dbgLog.length>DBG_KEEP) dbgLog.shift();
+    dbgText.textContent=dbgLog.slice(-DBG_SHOW).join('\n');
   }
-  function toggleDebug(){ dbgOn=!dbgOn; dbgPanel.classList.toggle('show',dbgOn); dbgBtn.classList.toggle('on',dbgOn); if(dbgOn){ dbgLog.length=0; dbg('— 除錯記錄開啟 —'); } }
+  function dbgReport(){
+    // context first: most reports are unanswerable without knowing the build and
+    // which browser it came from
+    const n=state;
+    return [
+      'PlanPad '+BUILD,
+      'UA: '+navigator.userAgent,
+      '畫面: '+W+'x'+H+' dpr'+(window.devicePixelRatio||1)+(EMBEDDED?' (內嵌瀏覽器)':' (獨立)'),
+      '分享面板: '+(shareUsable()?'可用':'不可用')+' / IndexedDB: '+(window.indexedDB?'有':'無'),
+      '單位: '+ui.unit+' 工具: '+ui.tool+' 縮放: '+Math.round(view.scale*100)+'%',
+      '內容: 牆'+n.walls.length+' 門窗'+n.openings.length+' 柱'+n.columns.length
+        +' 樑'+n.beams.length+' 手寫'+n.ink.length+' 註記'+n.notes.length
+        +' 照片'+n.notes.reduce((a,x)=>a+((x.photos||[]).length),0),
+      '',
+      ...dbgLog
+    ].join('\n');
+  }
+  async function dbgCopy(){
+    const txt=dbgReport();
+    try{
+      await navigator.clipboard.writeText(txt);
+      flashHint('已複製除錯記錄，直接貼給開發者即可');
+    }catch(_){
+      // clipboard refused (no permission, or an insecure context): show the text
+      // in something selectable rather than leaving the button dead
+      const back=document.createElement('div');
+      back.className='dlg-mask';
+      const card=document.createElement('div'); card.className='dlg'; card.style.width='520px';
+      card.innerHTML='<div class="dlg-title">除錯記錄</div><div class="dlg-body" style="margin-bottom:10px">無法自動複製，請全選下面的文字複製。</div>';
+      const ta=document.createElement('textarea');
+      ta.value=txt; ta.readOnly=true;
+      ta.style.cssText='width:100%;height:240px;font:10px/1.5 ui-monospace,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;';
+      const row=document.createElement('div'); row.className='dlg-btns';
+      const ok=document.createElement('button'); ok.className='tbtn primary'; ok.textContent='關閉';
+      ok.onclick=()=>back.remove(); row.appendChild(ok);
+      card.appendChild(ta); card.appendChild(row); back.appendChild(card);
+      document.body.appendChild(back);
+      ta.focus(); ta.select();
+    }
+  }
+  function toggleDebug(){
+    dbgOn=!dbgOn;
+    dbgPanel.classList.toggle('show',dbgOn);
+    dbgBtn.classList.toggle('on',dbgOn);
+    if(dbgOn){ dbgLog.length=0; dbg('— 除錯記錄開啟 —'); }
+  }
   dbgBtn.addEventListener('click',toggleDebug);
+  document.getElementById('dbgCopy').addEventListener('click',e=>{ e.stopPropagation(); dbgCopy(); });
+  document.getElementById('dbgClear').addEventListener('click',e=>{ e.stopPropagation(); dbgLog.length=0; dbg('— 已清除 —'); });
 
   stage.addEventListener('pointerdown',e=>{
     dbg(`DOWN id=${e.pointerId} type=${e.pointerType} pointers.size(before)=${pointers.size} draft=${draft?draft.kind+'(pid='+draft.pointerId+',type='+draft.pointerType+')':'null'}`);
@@ -3064,7 +3124,8 @@
         const inp=document.getElementById('photoInput');
         // capture="environment" makes iOS open the camera straight away instead of
         // the picker — on site that saves two taps every single time
-        if(capture) inp.setAttribute('capture','environment'); else inp.removeAttribute('capture');
+        if(capture){ inp.setAttribute('capture','environment'); inp.removeAttribute('multiple'); }
+        else { inp.removeAttribute('capture'); inp.setAttribute('multiple',''); }
         inp.dataset.note=n.id; inp.click();
       };
       document.getElementById('pNshoot').onclick=()=>pick(true);
@@ -3305,7 +3366,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b23';
+  const BUILD='b25';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -3316,7 +3377,7 @@
   function reportExportError(what,err){
     const msg=(err && (err.message||err.name)) || String(err);
     try{ dbg('export FAILED ('+what+') build '+BUILD+': '+msg); }catch(_){}
-    uiAlert(what+'失敗。\n\n'+msg+'\n\n如果一直發生，請按右上角 🐞 把記錄複製給開發者。','匯出沒有成功');
+    uiAlert(what+'失敗。\n\n'+msg+'\n\n如果一直發生，請按右上角 🐞 開啟記錄，再按面板上的「複製」傳給開發者。','匯出沒有成功');
   }
   function download(name,blob){
     const type=blob.type||'application/octet-stream';
@@ -3598,24 +3659,42 @@
   // pipe is, and 1600px at q0.8 (~300KB) is far more than that needs.
   const PHOTO_DB='planpad-photos', PHOTO_STORE='photos', PHOTO_MAX_PX=1600;
   let photoDB=null;
-  function photoOpen(){
-    if(photoDB) return Promise.resolve(photoDB);
+  // Safari can leave indexedDB.open() and image decoding pending forever without
+  // ever firing success or error. Awaiting one of those is indistinguishable from
+  // a dead button: nothing happens, nothing is reported. Every step is therefore
+  // raced against a deadline and named, so a stall becomes a message that says
+  // exactly which stage stalled.
+  function withDeadline(p, ms, what){
     return new Promise((res,rej)=>{
-      if(!window.indexedDB) return rej(new Error('這個瀏覽器不支援照片儲存'));
-      const rq=indexedDB.open(PHOTO_DB,1);
-      rq.onupgradeneeded=()=>{ rq.result.createObjectStore(PHOTO_STORE); };
-      rq.onsuccess=()=>{ photoDB=rq.result; res(photoDB); };
-      rq.onerror=()=>rej(rq.error||new Error('無法開啟照片資料庫'));
+      let done=false;
+      const t=setTimeout(()=>{ if(!done){ done=true; rej(new Error(what+'沒有回應（超過 '+(ms/1000)+' 秒）')); } }, ms);
+      p.then(v=>{ if(!done){ done=true; clearTimeout(t); res(v); } },
+             e=>{ if(!done){ done=true; clearTimeout(t); rej(e); } });
     });
   }
+  function photoOpen(){
+    if(photoDB) return Promise.resolve(photoDB);
+    return withDeadline(new Promise((res,rej)=>{
+      if(!window.indexedDB) return rej(new Error('這個瀏覽器不支援照片儲存（IndexedDB 無法使用，可能是私密瀏覽）'));
+      let rq;
+      try{ rq=indexedDB.open(PHOTO_DB,1); }catch(err){ return rej(new Error('無法開啟照片資料庫：'+err.message)); }
+      rq.onupgradeneeded=()=>{ try{ rq.result.createObjectStore(PHOTO_STORE); }catch(_){} };
+      rq.onsuccess=()=>{ photoDB=rq.result; res(photoDB); };
+      rq.onerror=()=>rej(rq.error||new Error('無法開啟照片資料庫'));
+      rq.onblocked=()=>rej(new Error('照片資料庫被其他分頁佔用，請關掉其他開著 PlanPad 的分頁'));
+    }), 8000, '照片資料庫');
+  }
   function photoPut(id,blob){
-    return photoOpen().then(db=>new Promise((res,rej)=>{
+    return photoOpen().then(db=>withDeadline(new Promise((res,rej)=>{
       const tx=db.transaction(PHOTO_STORE,'readwrite');
       tx.objectStore(PHOTO_STORE).put(blob,id);
-      tx.oncomplete=()=>res(id); tx.onerror=()=>rej(tx.error);
-    }));
+      tx.oncomplete=()=>res(id);
+      tx.onerror=()=>rej(tx.error||new Error('寫入失敗'));
+      tx.onabort=()=>rej(tx.error||new Error('寫入被中止，可能是儲存空間不足'));
+    }), 10000, '照片寫入'));
   }
   function photoGet(id){
+    if(memPhotos.has(id)) return Promise.resolve(memPhotos.get(id));
     return photoOpen().then(db=>new Promise((res,rej)=>{
       const tx=db.transaction(PHOTO_STORE,'readonly');
       const rq=tx.objectStore(PHOTO_STORE).get(id);
@@ -3629,6 +3708,12 @@
       tx.oncomplete=()=>res(); tx.onerror=()=>res();
     })).catch(()=>{});
   }
+  // If IndexedDB is unavailable (private browsing, a wedged Safari database), the
+  // photo still belongs on the plan for THIS session — losing it outright while the
+  // user is standing on site is the worst outcome. It is held in memory and the
+  // user is told plainly that it will not survive a reload.
+  const memPhotos=new Map();
+  let photoDBWarned=false;
   // thumbnails are held in memory so the canvas can paint them synchronously
   const thumbs=new Map();
   function photoThumb(id){ const t=thumbs.get(id); return (t&&t.img)?t.img:null; }
@@ -3643,30 +3728,46 @@
     }).catch(()=>{});
   }
   function photoShrink(file){
-    return new Promise((res,rej)=>{
+    return withDeadline(new Promise((res,rej)=>{
       const fr=new FileReader();
       fr.onerror=()=>rej(new Error('照片讀取失敗'));
       fr.onload=()=>{
         const im=new Image();
-        im.onerror=()=>rej(new Error('這不是能辨識的照片'));
+        im.onerror=()=>rej(new Error('無法解讀這個影像格式（'+(file.type||'未知')+'）'));
         im.onload=()=>{
           let w=im.naturalWidth||PHOTO_MAX_PX, h=im.naturalHeight||PHOTO_MAX_PX;
           const k=Math.min(1, PHOTO_MAX_PX/Math.max(w,h));
           w=Math.max(1,Math.round(w*k)); h=Math.max(1,Math.round(h*k));
           const c=document.createElement('canvas'); c.width=w; c.height=h;
           c.getContext('2d').drawImage(im,0,0,w,h);
-          if(c.toBlob) c.toBlob(b=>b?res(b):rej(new Error('照片壓縮失敗')),'image/jpeg',0.8);
-          else res(dataURLtoBlob(c.toDataURL('image/jpeg',0.8)));
+          try{
+            if(c.toBlob) c.toBlob(b=>b?res(b):rej(new Error('照片壓縮失敗')),'image/jpeg',0.8);
+            else res(dataURLtoBlob(c.toDataURL('image/jpeg',0.8)));
+          }catch(err){ rej(new Error('照片壓縮失敗：'+err.message)); }
         };
         im.src=String(fr.result);
       };
       fr.readAsDataURL(file);
-    });
+    }), 20000, '照片處理');
   }
   async function photoAttach(note,file){
+    dbg('photo: 開始處理 '+(file.name||'?')+' '+(file.type||'?')+' '+Math.round((file.size||0)/1024)+'KB');
+    flashHint('照片處理中…');
     const blob=await photoShrink(file);
+    dbg('photo: 壓縮完成 '+Math.round(blob.size/1024)+'KB');
     const id='ph'+Date.now()+Math.floor(Math.random()*10000);
-    await photoPut(id,blob);
+    try{
+      await photoPut(id,blob);
+      dbg('photo: 已寫入 '+id);
+    }catch(err){
+      dbg('photo: 寫入失敗，改放記憶體 — '+err.message);
+      memPhotos.set(id,blob);
+      if(!photoDBWarned){
+        photoDBWarned=true;
+        uiAlert('照片先暫存在記憶體裡，重新整理後會不見。\n\n原因：'+err.message
+          +'\n\n如果你在用私密瀏覽，換成一般分頁就會正常。','照片無法永久儲存');
+      }
+    }
     note.photos=note.photos||[]; note.photos.push(id);
     photoLoadThumb(id);
     pushHistory(); refreshProp(); draw();
@@ -3826,7 +3927,7 @@
     // straight into the camera: on site, "tap the wall, shoot, done" is the
     // whole point — an empty pin is removed again if the picker is dismissed
     const inp=document.getElementById('photoInput');
-    inp.setAttribute('capture','environment');
+    inp.setAttribute('capture','environment'); inp.removeAttribute('multiple');
     inp.dataset.note=n.id; inp.dataset.pin='1';
     refreshProp(); draw();
     inp.click();
