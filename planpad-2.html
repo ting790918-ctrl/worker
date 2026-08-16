@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b27</title>
+<title>PlanPad · 平面圖工具 b31</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -155,7 +155,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b27</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b31</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <div class="spacer"></div>
     <button class="tbtn" id="undo" title="上一步 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
@@ -345,6 +345,8 @@
     <div class="mrow pdfonly"><span>比例</span><div class="seg" id="mScale"><button data-v="fit" class="on">適應</button><button data-v="50">1:50</button><button data-v="100">1:100</button><button data-v="150">1:150</button><button data-v="200">1:200</button></div></div>
     <div class="mrow"><span>尺寸標註</span><div class="seg" id="mDims"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow"><span>空間名稱 / 坪數</span><div class="seg" id="mRooms"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
+    <div class="mrow"><span>文字與註記</span><div class="seg" id="mNotes"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
+    <div class="mrow"><span>現場照片</span><div class="seg" id="mPhotos"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow" id="mEmbedWarn" style="display:none"><span style="font-size:11.5px;line-height:1.6;color:#8A5B2E;background:#FFF6E8;border:1px solid #F0D9B5;border-radius:8px;padding:9px 10px;display:block;width:100%">目前在其他 App 的內嵌瀏覽器中，iOS 不允許網頁存檔或叫出分享選單。PNG 可以長按預覽圖存到相簿，PDF／DXF 則要在 Safari 開啟才存得下來。</span></div>
     <div class="mrow dxfonly" style="display:none"><span style="font-size:11px;color:var(--muted);line-height:1.5">DXF 為 CAD 通用交換格式，AutoCAD／BricsCAD／SketchUp 皆可直接開啟，開啟後另存即為 .dwg。牆、柱、樑、門窗、標註各自分層。</span></div>
     <div class="modal-btns"><button class="tbtn" id="mCancel">取消</button><button class="tbtn primary" id="mExport">匯出</button></div>
@@ -386,7 +388,7 @@
   };
   // What the drawing pass is allowed to print. Always true on screen; the export
   // dialog flips these off to produce a clean plan without numbers or room labels.
-  const showOpt = { dims:true, rooms:true };
+  const showOpt = { dims:true, rooms:true, notes:true, photos:true };
   const TOOL_HINT = {
     select:'選取工具：灰色圓點＝牆已接合，紅色空心圈＝該端沒接到東西（不會形成空間）。點牆體選取後，圓形握把＝拉伸端點，方形握把＝整面牆平行推移',
     wall:'畫牆：按住拖曳＝畫線。只要牆體看起來有貼在一起（牆身有重疊），放開後就會自動接合並形成空間；輕點數字不拖曳＝改尺寸，會出現移動方向箭頭',
@@ -1781,6 +1783,7 @@
   }
 
   function drawTexts(){
+    if(!showOpt.notes) return;
     for(const t of state.texts){
       const [sx,sy]=toScreen(t.x,t.y);
       ctx.fillStyle='#24282E';
@@ -3046,6 +3049,11 @@
 
   // ================= Property panel =================
   function refreshProp(){
+    // Rebuilding the panel replaces the DOM, so doing it while someone is typing
+    // throws away both the caret and the characters typed since the last change
+    // event — which is exactly why note text "打出來沒反應 還會消失".
+    const ae=document.activeElement;
+    if(ae && propBody.contains(ae) && (ae.tagName==='TEXTAREA' || ae.tagName==='INPUT')) return;
     const s=ui.selected; const U=ui.unit;
     if(!s){ propBody.innerHTML='<div class="empty">選一個物件來編輯它的尺寸與屬性，或從左邊工具列選一個工具開始畫。</div>'; return; }
     if(s.kind==='wall'){ const w=state.walls.find(v=>v.id===s.id);
@@ -3116,7 +3124,11 @@
       <button class="del-btn" id="pDel">刪除註記</button>`;
       const pw=document.getElementById('pNw');
       if(pw) pw.onchange=ev=>{ n.w=Math.max(20,fromDisp(parseFloat(ev.target.value)||PIN_DEF_W)); pushHistory(); draw(); };
-      document.getElementById('pNtext').onchange=ev=>{ n.text=ev.target.value; pushHistory(); draw(); };
+      const nt=document.getElementById('pNtext');
+      // oninput, not onchange: the change event only fires on blur, and tapping
+      // the canvas to dismiss the keyboard could re-render the panel first
+      nt.oninput=ev=>{ n.text=ev.target.value; draw(); };
+      nt.onblur=ev=>{ if(n.text!==ev.target.value) n.text=ev.target.value; pushHistory(); draw(); };
       const thumbBox=document.getElementById('pNthumbs');
       for(const pid of (n.photos||[])){
         photoLoadThumb(pid);
@@ -3390,7 +3402,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b27';
+  const BUILD='b31';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -3537,7 +3549,7 @@
   }
 
   function exportPNG(){
-    const {oc}=renderExport(2,{dims:pdfOpt.dims,rooms:pdfOpt.rooms});
+    const {oc}=renderExport(2,{dims:pdfOpt.dims,rooms:pdfOpt.rooms,notes:pdfOpt.notes,photos:pdfOpt.photos});
     // toBlob is async, which drops us out of the user gesture and makes iOS
     // refuse the share sheet — build the blob synchronously instead.
     download(fname()+'.png', dataURLtoBlob(oc.toDataURL('image/png')));
@@ -3545,7 +3557,7 @@
 
   // ---- export options modal (shared by PNG / PDF / DXF) ----
   const pdfModal=document.getElementById('pdfModal');
-  const pdfOpt={paper:'a4',orient:'l',scale:'fit',dims:true,rooms:true,frame:'builtin'};
+  const pdfOpt={paper:'a4',orient:'l',scale:'fit',dims:true,rooms:true,notes:true,photos:true,frame:'builtin'};
   let exportKind='pdf';
   function openExportModal(kind){
     exportKind=kind;
@@ -3562,6 +3574,7 @@
   function bindToggle(id,key){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{ pdfOpt[key]=b.dataset.v==='1'; document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); }); }
   bindSeg('mPaper','paper'); bindSeg('mOrient','orient'); bindSeg('mScale','scale');
   bindToggle('mDims','dims'); bindToggle('mRooms','rooms');
+  bindToggle('mNotes','notes'); bindToggle('mPhotos','photos');
   document.getElementById('mFrame').onchange=ev=>{ pdfOpt.frame=ev.target.value; frameRefreshUI(); };
   document.getElementById('mFrameAdd').onclick=()=>document.getElementById('frameInput').click();
   document.getElementById('mFrameDel').onclick=()=>frameDelete();
@@ -3600,7 +3613,7 @@
   pdfModal.addEventListener('click',e=>{ if(e.target===pdfModal) closePdfModal(); });
 
   function exportPDF(opt){
-    const {oc,cw,ch}=renderExport(3,{dims:opt.dims,rooms:opt.rooms});
+    const {oc,cw,ch}=renderExport(3,{dims:opt.dims,rooms:opt.rooms,notes:opt.notes,photos:opt.photos});
     const img=oc.toDataURL('image/png');
     if(!window.jspdf || !window.jspdf.jsPDF){
       throw new Error('PDF 元件（jsPDF）沒有載入成功，可能是這個環境擋掉了外部程式庫。\n請改用「匯出 PNG 圖片」，或把本檔案放到自己的網站再試。');
@@ -3668,11 +3681,13 @@
     // the label passes push onto these; keep the live ones so the on-screen hit
     // map isn't replaced by coordinates from the (differently scaled) export
     const sHits=hitLabels, sPlaced=placedLabels;
-    const sDims=showOpt.dims, sRooms=showOpt.rooms;
+    const sDims=showOpt.dims, sRooms=showOpt.rooms, sNotes=showOpt.notes, sPhotos=showOpt.photos;
     hitLabels=[]; placedLabels=[];
     const sSel=ui.selected; ui.selected=null;   // no selection chrome in an export
     if(o.dims!==undefined) showOpt.dims=!!o.dims;
     if(o.rooms!==undefined) showOpt.rooms=!!o.rooms;
+    if(o.notes!==undefined) showOpt.notes=!!o.notes;
+    if(o.photos!==undefined) showOpt.photos=!!o.photos;
     ctx=g; view.scale=scale; view.ox=pad-b.x0*scale; view.oy=pad-b.y0*scale; W=cw; H=ch; ui.grid=false;
     drawWalls(true); drawBeams(true); drawColumns();
     // these two were missing entirely, which is why an exported PNG came out with
@@ -3682,7 +3697,7 @@
     drawNotes(); drawInk();
     ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid;
     hitLabels=sHits; placedLabels=sPlaced; ui.selected=sSel;
-    showOpt.dims=sDims; showOpt.rooms=sRooms;
+    showOpt.dims=sDims; showOpt.rooms=sRooms; showOpt.notes=sNotes; showOpt.photos=sPhotos;
     return {oc,cw,ch};
   }
 
@@ -3712,27 +3727,51 @@
       if(!window.indexedDB) return rej(new Error('這個瀏覽器不支援照片儲存（IndexedDB 無法使用，可能是私密瀏覽）'));
       let rq;
       try{ rq=indexedDB.open(PHOTO_DB,1); }catch(err){ return rej(new Error('無法開啟照片資料庫：'+err.message)); }
-      rq.onupgradeneeded=()=>{ try{ rq.result.createObjectStore(PHOTO_STORE); }catch(_){} };
-      rq.onsuccess=()=>{ photoDB=rq.result; res(photoDB); };
+      rq.onupgradeneeded=()=>{
+        const db=rq.result;
+        if(!db.objectStoreNames.contains(PHOTO_STORE)) db.createObjectStore(PHOTO_STORE);
+      };
+      rq.onsuccess=()=>{
+        const db=rq.result;
+        if(!db.objectStoreNames.contains(PHOTO_STORE)){
+          // a database left over without the store can never be written to
+          db.close();
+          return rej(new Error('照片資料表缺失，請關閉所有 PlanPad 分頁後重開'));
+        }
+        photoDB=db; res(photoDB);
+      };
       rq.onerror=()=>rej(rq.error||new Error('無法開啟照片資料庫'));
       rq.onblocked=()=>rej(new Error('照片資料庫被其他分頁佔用，請關掉其他開著 PlanPad 的分頁'));
     }), 8000, '照片資料庫');
   }
+  // Safari has a long-standing defect storing Blob objects in IndexedDB: the
+  // transaction reports failure with a null error, which is exactly what the
+  // field report showed. Store the raw bytes plus the mime type and rebuild the
+  // Blob on read — ArrayBuffers have always been safe.
   function photoPut(id,blob){
-    return photoOpen().then(db=>withDeadline(new Promise((res,rej)=>{
-      const tx=db.transaction(PHOTO_STORE,'readwrite');
-      tx.objectStore(PHOTO_STORE).put(blob,id);
+    return blob.arrayBuffer().then(buf=>photoOpen().then(db=>withDeadline(new Promise((res,rej)=>{
+      let tx;
+      try{ tx=db.transaction(PHOTO_STORE,'readwrite'); }
+      catch(err){ return rej(new Error('照片資料表不存在：'+err.message)); }
+      tx.objectStore(PHOTO_STORE).put({buf, type:blob.type||'image/jpeg'}, id);
       tx.oncomplete=()=>res(id);
-      tx.onerror=()=>rej(tx.error||new Error('寫入失敗'));
-      tx.onabort=()=>rej(tx.error||new Error('寫入被中止，可能是儲存空間不足'));
-    }), 10000, '照片寫入'));
+      tx.onerror=()=>rej(tx.error||new Error('寫入被拒絕（可能是儲存空間不足）'));
+      tx.onabort=()=>rej(tx.error||new Error('寫入被中止（可能是儲存空間不足）'));
+    }), 10000, '照片寫入')));
   }
   function photoGet(id){
     if(memPhotos.has(id)) return Promise.resolve(memPhotos.get(id));
     return photoOpen().then(db=>new Promise((res,rej)=>{
-      const tx=db.transaction(PHOTO_STORE,'readonly');
+      let tx;
+      try{ tx=db.transaction(PHOTO_STORE,'readonly'); }catch(err){ return rej(err); }
       const rq=tx.objectStore(PHOTO_STORE).get(id);
-      rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>rej(rq.error);
+      rq.onsuccess=()=>{
+        const v=rq.result;
+        if(!v) return res(null);
+        // older records were stored as Blobs directly; both shapes must read back
+        res(v.buf ? new Blob([v.buf],{type:v.type||'image/jpeg'}) : v);
+      };
+      rq.onerror=()=>rej(rq.error);
     }));
   }
   function photoDelete(id){
@@ -3883,6 +3922,7 @@
     ctx.stroke();
   }
   function drawInk(){
+    if(!showOpt.notes){ if(inkDraft) drawInkStroke(inkDraft); return; }
     for(const s of state.ink) drawInkStroke(s);
     for(const n of state.notes) for(const s of (n.ink||[])) drawInkStroke(s);
     if(inkDraft) drawInkStroke(inkDraft);
@@ -4052,6 +4092,9 @@
   }
   function drawNotes(){
     for(const n of state.notes){
+      // a pin IS a photo, so it follows the photo switch; a box note is an
+      // annotation and follows the notes switch
+      if(isPin(n) ? !showOpt.photos : !showOpt.notes) continue;
       const sel = ui.selected && ui.selected.kind==='note' && ui.selected.id===n.id;
       const [ax,ay]=toScreen(n.ax,n.ay);
       if(isPin(n)){ drawPin(n,ax,ay,sel); continue; }
@@ -4081,7 +4124,7 @@
           ctx.fillText(line, x0+7, ty); ty+=fs*1.35;
         }
       }
-      if(n.photos && n.photos.length){
+      if(showOpt.photos && n.photos && n.photos.length){
         const th=Math.min(38, bh*0.42);
         let px2=x0+7, py2=y1-th-6;
         for(const pid of n.photos.slice(0,4)){
@@ -4309,17 +4352,27 @@
         text('DIM',(d.x1+d.x2)/2,(d.y1+d.y2)/2,th,fmtLen(dist(d.x1,d.y1,d.x2,d.y2)),true,0);
       }
     }
-    for(const t of state.texts) text('TEXT',t.x,t.y,Math.max(1,toDisp(t.size)),t.text||'',false,0);
+    if(opt.notes!==false)
+      for(const t of state.texts) text('TEXT',t.x,t.y,Math.max(1,toDisp(t.size)),t.text||'',false,0);
     // handwriting travels as plain polylines, so it survives into CAD
     const inkOut=(arr,lay)=>{ for(const st of arr){ for(let i=0;i<st.pts.length-2;i+=2)
       line(lay, st.pts[i],st.pts[i+1], st.pts[i+2],st.pts[i+3]); } };
-    inkOut(state.ink,'INK');
+    if(opt.notes!==false) inkOut(state.ink,'INK');
     for(const n of state.notes){
+      const pinned=n.mode==='pin';
+      if(pinned ? opt.photos===false : opt.notes===false) continue;
+      if(pinned){
+        const ph=n.w||120, pv=ph*0.75;
+        line('NOTE', n.ax,n.ay, n.x+ph/2, n.y+pv/2);
+        poly('NOTE',[{x:n.x,y:n.y},{x:n.x+ph,y:n.y},{x:n.x+ph,y:n.y+pv},{x:n.x,y:n.y+pv}]);
+        text('NOTE', n.x+4, n.y+pv/2, th, n.text? String(n.text).split('\n')[0] : '照片', false, 0);
+        continue;
+      }
       line('NOTE', n.ax,n.ay, Math.max(n.x,Math.min(n.x+n.w,n.ax)), Math.max(n.y,Math.min(n.y+n.h,n.ay)));
       poly('NOTE',[{x:n.x,y:n.y},{x:n.x+n.w,y:n.y},{x:n.x+n.w,y:n.y+n.h},{x:n.x,y:n.y+n.h}]);
       if(n.text) text('NOTE', n.x+4, n.y+th*1.2, th, String(n.text).split('\n')[0], false, 0);
-      if((n.photos||[]).length) text('NOTE', n.x+4, n.y+n.h-th*0.4, th*0.8, '照片 x'+n.photos.length, false, 0);
-      inkOut(n.ink||[],'INK');
+      if(opt.photos!==false && (n.photos||[]).length) text('NOTE', n.x+4, n.y+n.h-th*0.4, th*0.8, '照片 x'+n.photos.length, false, 0);
+      if(opt.notes!==false) inkOut(n.ink||[],'INK');
     }
 
     put(0,'ENDSEC',0,'EOF');
