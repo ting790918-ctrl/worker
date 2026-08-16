@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b26</title>
+<title>PlanPad · 平面圖工具 b27</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -155,7 +155,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b26</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b27</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <div class="spacer"></div>
     <button class="tbtn" id="undo" title="上一步 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
@@ -530,7 +530,23 @@
       flashHint('已復原上次的平面圖');
     }catch(err){ uiAlert('復原失敗：'+err.message); }
   }
-  function restore(js){ const o=JSON.parse(js); state.walls=o.walls; state.openings=o.openings; state.dims=o.dims; state.texts=o.texts; state.columns=o.columns||[]; state.beams=o.beams||[]; state.ink=o.ink||[]; state.notes=o.notes||[]; setTimeout(photoPreloadAll,0); state.roomNames=o.roomNames||{}; state.ceilingH=o.ceilingH||280; state._seq=o._seq; ui.selected=null; draft=null; typedNum=''; hideLenBox(); recomputeRooms(); refreshProp(); draw(); }
+  // Every list gets a fallback. A project saved by an older build — or one simply
+  // missing a key — used to leave the array undefined, and the next `for...of`
+  // over it took down whichever feature touched it first (exports, in practice).
+  function restore(js){
+    const o=JSON.parse(js)||{};
+    const arr=(v)=>Array.isArray(v)?v:[];
+    state.walls=arr(o.walls); state.openings=arr(o.openings);
+    state.dims=arr(o.dims); state.texts=arr(o.texts);
+    state.columns=arr(o.columns); state.beams=arr(o.beams);
+    state.ink=arr(o.ink); state.notes=arr(o.notes);
+    setTimeout(photoPreloadAll,0);
+    state.roomNames=(o.roomNames&&typeof o.roomNames==='object')?o.roomNames:{};
+    state.ceilingH=o.ceilingH||280;
+    state._seq=o._seq||1000;
+    ui.selected=null; draft=null; inkDraft=null; eraser=null; typedNum=''; hideLenBox();
+    recomputeRooms(); refreshProp(); draw();
+  }
   function undo(){ if(hi>0){ hi--; restore(history[hi]); updateUndo(); } }
   function redo(){ if(hi<history.length-1){ hi++; restore(history[hi]); updateUndo(); } }
   function updateUndo(){ document.getElementById('undo').style.opacity=hi>0?1:.4; document.getElementById('redo').style.opacity=hi<history.length-1?1:.4; }
@@ -3239,8 +3255,16 @@
   document.getElementById('fit').onclick=fitAll;
   function bounds(){ if(!state.walls.length&&!state.dims.length&&!state.texts.length&&!state.ink.length&&!state.notes.length) return null; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; const acc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}; for(const w of state.walls){acc(w.x1,w.y1);acc(w.x2,w.y2);} for(const d of state.dims){acc(d.x1,d.y1);acc(d.x2,d.y2);} for(const t of state.texts){acc(t.x,t.y);}
     for(const s2 of state.ink){ const b=strokeBBox(s2); acc(b.x0,b.y0); acc(b.x1,b.y1); }
-    for(const n of state.notes){ acc(n.ax,n.ay); acc(n.x,n.y); acc(n.x+n.w,n.y+n.h);
+    for(const n of state.notes){
+      acc(n.ax,n.ay); acc(n.x,n.y);
+      // a photo PIN has no `h` — its height comes from the width and the photo
+      // ratio. Reading n.h on one produced NaN here, which propagated into the
+      // export canvas size and made every export fail with "invalid coordinates".
+      const nw=n.w||PIN_DEF_W, nh=isPin(n) ? nw*PIN_RATIO : (n.h||0);
+      acc(n.x+nw, n.y+nh);
       for(const s2 of (n.ink||[])){ const b=strokeBBox(s2); acc(b.x0,b.y0); acc(b.x1,b.y1); } }
+    // one bad object should never be able to take the whole export down with it
+    if(![x0,y0,x1,y1].every(Number.isFinite)) return null;
     return {x0,y0,x1,y1}; }
   function fitAll(){ const b=bounds(); if(!b){ view.scale=0.7; view.ox=W/2; view.oy=H/2; updateZoom(); draw(); return; } const pad=60; const bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0); const s=Math.min((W-pad*2)/bw,(H-pad*2)/bh); view.scale=Math.max(0.03,Math.min(3,s)); view.ox=W/2-(b.x0+bw/2)*view.scale; view.oy=H/2-(b.y0+bh/2)*view.scale; updateZoom(); draw(); }
 
@@ -3366,7 +3390,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b26';
+  const BUILD='b27';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -3633,8 +3657,11 @@
     const o=opt||{};
     const b=bounds()||{x0:0,y0:0,x1:400,y1:300};
     const pad=60;
-    const bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0);
+    let bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0);
+    if(!Number.isFinite(bw)||!Number.isFinite(bh)){ bw=400; bh=300; }
     const cw=Math.ceil(bw*scale)+pad*2, ch=Math.ceil(bh*scale)+pad*2;
+    if(!Number.isFinite(cw)||!Number.isFinite(ch)||cw<1||ch<1)
+      throw new Error('圖面範圍計算異常（'+cw+'x'+ch+'），請按 🐞 複製記錄回報');
     const oc=document.createElement('canvas'); oc.width=cw; oc.height=ch;
     const g=oc.getContext('2d'); g.fillStyle='#FFFFFF'; g.fillRect(0,0,cw,ch);
     const saveView={...view}, sW=W, sH=H, sGrid=ui.grid;
