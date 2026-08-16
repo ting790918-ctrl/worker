@@ -1,0 +1,3669 @@
+[index.html](https://github.com/user-attachments/files/31112310/index.html)
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PlanPad · 平面圖工具（測試版）</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --accent:#275C7A; --accent-dark:#1C4358; --accent-soft:#E8F0F4;
+    --ink:#24282E; --panel:#FFFFFF; --line:#E6E8EB; --line-strong:#D3D7DC;
+    --text:#2A2E33; --muted:#7A828C; --canvas-bg:#FBFBFC;
+    --dim:#A23B2D; --danger:#C0392B;
+    --grid-minor:#EBEEF1; --grid-major:#DBE0E5;
+    --shadow:0 1px 3px rgba(20,30,40,.08),0 4px 16px rgba(20,30,40,.06);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC",system-ui,sans-serif; color:var(--text); background:var(--canvas-bg);}
+  #app{display:flex; flex-direction:column; height:100%;}
+
+  /* ---- Top bar ---- */
+  #topbar{display:flex; align-items:center; gap:10px; height:52px; padding:0 12px; background:var(--panel); border-bottom:1px solid var(--line); flex:0 0 auto; z-index:20;}
+  .brand{display:flex; align-items:baseline; gap:8px; user-select:none;}
+  .brand .mark{font-weight:700; letter-spacing:-.02em; font-size:17px; color:var(--ink);}
+  .brand .sub{font-size:11px; color:var(--muted);}
+  #fname{font-size:13px; color:var(--muted); border:none; background:transparent; width:130px; padding:4px 6px; border-radius:6px;}
+  #fname:hover,#fname:focus{background:#F4F5F7; outline:none; color:var(--text);}
+  .spacer{flex:1;}
+  .tbtn{display:inline-flex; align-items:center; justify-content:center; gap:6px; height:34px; min-width:34px; padding:0 9px; border:1px solid var(--line); background:#fff; border-radius:8px; cursor:pointer; font-size:13px; color:var(--text); user-select:none;}
+  .tbtn:hover{background:#F4F5F7;}
+  .tbtn:active{transform:translateY(.5px);}
+  .tbtn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .tbtn.primary:hover{background:var(--accent-dark);}
+  .tbtn svg{width:16px; height:16px;}
+  .zoomwrap{display:flex; align-items:center; border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .zoomwrap .tbtn{border:none; border-radius:0;}
+  .zoomwrap .zval{font-size:12px; color:var(--muted); min-width:46px; text-align:center; user-select:none;}
+  .menu{position:relative;}
+  .menu-pop{position:absolute; right:0; top:40px; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); padding:6px; min-width:180px; display:none; z-index:30;}
+  .menu-pop.open{display:block;}
+  .menu-item{display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:7px; cursor:pointer; font-size:13px;}
+  .menu-item:hover{background:#F4F5F7;}
+  .menu-item .k{margin-left:auto; color:var(--muted); font-size:11px;}
+  .menu-sep{height:1px; background:var(--line); margin:5px 4px;}
+
+  /* ---- Body ---- */
+  #body{display:flex; flex:1; min-height:0;}
+
+  /* ---- Tool rail ---- */
+  #rail{width:56px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:8px 0; gap:4px; flex:0 0 auto; z-index:15;}
+  .tool{width:42px; height:42px; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; color:#4B5158; border:1px solid transparent; user-select:none;}
+  .tool:hover{background:#F4F5F7;}
+  .tool.active{background:var(--accent-soft); color:var(--accent); border-color:#CDE0EA;}
+  .tool svg{width:20px; height:20px;}
+  .tool .lbl{font-size:9px; line-height:1;}
+  .rail-sep{width:28px; height:1px; background:var(--line); margin:4px 0;}
+
+  /* ---- Canvas ---- */
+  #stage{position:relative; flex:1; min-width:0; overflow:hidden; touch-action:none; background:var(--canvas-bg);}
+  #c{position:absolute; inset:0; width:100%; height:100%; display:block;}
+  #hint{position:absolute; left:50%; top:12px; transform:translateX(-50%); background:rgba(36,40,46,.9); color:#fff; font-size:12px; padding:6px 12px; border-radius:20px; pointer-events:none; opacity:0; transition:opacity .2s; z-index:5; white-space:nowrap;}
+  #hint.show{opacity:1;}
+  #lenbox{position:absolute; background:var(--ink); color:#fff; font-size:12px; font-variant-numeric:tabular-nums; padding:3px 7px; border-radius:6px; pointer-events:none; display:none; z-index:6; white-space:nowrap;}
+  #numIn{position:absolute; display:none; width:66px; height:28px; border:2px solid var(--accent); border-radius:6px; background:#fff; color:var(--ink); font-size:13px; font-variant-numeric:tabular-nums; text-align:center; z-index:8; box-shadow:0 2px 8px rgba(0,0,0,.18); padding:0 4px; touch-action:manipulation;}
+  .dim-edit-box{position:absolute; display:none; align-items:center; gap:4px; background:#fff; border-radius:8px; padding:4px; box-shadow:0 4px 16px rgba(0,0,0,.22); z-index:9; touch-action:manipulation;}
+  .dim-edit-box.show{display:flex;}
+  .dim-edit-box input{width:64px; height:30px; border:2px solid var(--accent); border-radius:6px; text-align:center; font-size:13px; font-variant-numeric:tabular-nums; color:var(--ink); padding:0 4px;}
+  .dim-dir-btn{width:30px; height:30px; border:1px solid var(--line-strong); background:#fff; border-radius:6px; font-size:15px; color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .dim-dir-btn:hover, .dim-dir-btn:active{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  #numIn:focus{outline:none;}
+  #txtIn{position:absolute; display:none; min-width:120px; height:30px; border:2px solid var(--accent); border-radius:6px; background:#fff; color:var(--ink); font-size:14px; z-index:8; box-shadow:0 2px 8px rgba(0,0,0,.18); padding:0 8px; touch-action:manipulation;}
+  #txtIn:focus{outline:none;}
+
+  /* ---- Right panel ---- */
+  #panel{width:248px; background:var(--panel); border-left:1px solid var(--line); flex:0 0 auto; overflow-y:auto; z-index:15;}
+  .psec{padding:14px 16px; border-bottom:1px solid var(--line);}
+  .ptitle{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 10px; font-weight:600;}
+  .row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
+  .row:last-child{margin-bottom:0;}
+  .row label{font-size:13px; color:var(--text);}
+  .field{display:flex; align-items:center; gap:6px;}
+  input[type=number],input[type=text].tin{width:74px; height:32px; border:1px solid var(--line-strong); border-radius:7px; padding:0 8px; font-size:13px; font-variant-numeric:tabular-nums; text-align:right; color:var(--text);}
+  input[type=number]:focus,.tin:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+  .unit{font-size:12px; color:var(--muted); min-width:20px;}
+  .seg{display:flex; border:1px solid var(--line-strong); border-radius:7px; overflow:hidden;}
+  .seg button{flex:1; border:none; background:#fff; padding:7px 8px; font-size:12px; cursor:pointer; color:var(--text);}
+  .seg button.on{background:var(--accent); color:#fff;}
+  .seg button+button{border-left:1px solid var(--line-strong);}
+  .sw{position:relative; width:40px; height:22px; border-radius:22px; background:#CBD2D8; cursor:pointer; transition:background .15s; flex:0 0 auto;}
+  .sw.on{background:var(--accent);}
+  .sw::after{content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .15s; box-shadow:0 1px 2px rgba(0,0,0,.2);}
+  .sw.on::after{left:20px;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px;}
+  .chip{border:1px solid var(--line-strong); background:#fff; border-radius:7px; padding:6px 10px; font-size:12px; cursor:pointer; color:var(--text); font-variant-numeric:tabular-nums;}
+  .chip.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .empty{font-size:12px; color:var(--muted); line-height:1.6;}
+  .del-btn{width:100%; height:34px; border:1px solid #E7C7C3; background:#FCF3F2; color:var(--danger); border-radius:8px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .del-btn:hover{background:#F9E9E7;}
+
+  /* ---- Status bar ---- */
+  #status{height:26px; background:var(--panel); border-top:1px solid var(--line); display:flex; align-items:center; gap:16px; padding:0 14px; font-size:11px; color:var(--muted); flex:0 0 auto; font-variant-numeric:tabular-nums;}
+  #status .s-hint{color:var(--accent);}
+
+  .panel-toggle{display:none;}
+  #dbgBtn.on{background:#C0392B; border-color:#C0392B; color:#fff;}
+  #debugPanel{position:fixed; left:6px; bottom:32px; width:340px; max-height:180px; overflow-y:auto; background:rgba(20,26,32,.92); color:#7CFFB2; font:10px/1.4 ui-monospace,Menlo,monospace; padding:6px 8px; border-radius:6px; z-index:999; pointer-events:none; white-space:pre-wrap; display:none;}
+  #debugPanel.show{display:block;}
+  .modal-mask{position:fixed; inset:0; background:rgba(20,26,32,.4); display:none; align-items:center; justify-content:center; z-index:100;}
+  .modal-mask.open{display:flex;}
+  .modal{background:#fff; border-radius:14px; padding:20px; width:340px; max-width:92vw; box-shadow:0 10px 40px rgba(0,0,0,.25);}
+  .modal-title{font-size:16px; font-weight:600; margin-bottom:16px; color:var(--ink);}
+  .mrow{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;}
+  .mrow>span{font-size:13px; color:var(--text); flex:0 0 auto;}
+  .mrow .seg{flex-wrap:wrap;}
+  .mrow .seg button{padding:7px 9px; font-size:12px;}
+  .dlg-mask{position:fixed; inset:0; background:rgba(20,26,32,.45); z-index:2000; display:flex; align-items:center; justify-content:center; padding:20px;}
+  .dlg{background:#fff; border-radius:14px; padding:20px; width:360px; max-width:92vw; box-shadow:0 12px 44px rgba(0,0,0,.28);}
+  .dlg-title{font-size:16px; font-weight:600; color:var(--ink); margin-bottom:10px;}
+  .dlg-body{font-size:13.5px; line-height:1.7; color:var(--text); white-space:pre-wrap;}
+  .dlg-input{width:100%; height:38px; margin-top:14px; padding:0 10px; border:1px solid var(--line); border-radius:9px; font-size:14px;}
+  .dlg-btns{display:flex; gap:10px; justify-content:flex-end; margin-top:18px;}
+  .dlg-btns .tbtn{min-width:76px; justify-content:center;}
+  .tbtn.primary.danger{background:var(--danger); border-color:var(--danger);}
+  .menu-label{padding:8px 14px 4px; font-size:10.5px; font-weight:600; letter-spacing:.06em; color:var(--muted);}
+  .modal-btns{display:flex; gap:10px; justify-content:flex-end; margin-top:6px;}
+  .proj-list{max-height:46vh; overflow:auto; margin:4px 0 14px; border-top:1px solid var(--line);}
+  .proj-row{display:flex; align-items:center; gap:8px; padding:10px 2px; border-bottom:1px solid var(--line);}
+  .proj-meta{flex:1 1 auto; min-width:0;}
+  .proj-meta b{display:block; font-size:14px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .proj-meta span{font-size:11px; color:var(--muted);}
+  .proj-row button{flex:0 0 auto; height:30px; padding:0 10px; font-size:12px; border:1px solid var(--line); background:#fff; border-radius:8px; color:var(--text);}
+  .proj-row button.go{background:#275C7A; border-color:#275C7A; color:#fff;}
+  .proj-row button.del{color:var(--danger); border-color:#F0D6D2;}
+  .proj-empty{padding:22px 4px; text-align:center; font-size:13px; color:var(--muted); line-height:1.7;}
+  @media (max-width:880px){
+    #panel{position:absolute; right:0; top:0; bottom:0; transform:translateX(100%); transition:transform .2s; box-shadow:-4px 0 20px rgba(0,0,0,.08);}
+    #panel.open{transform:translateX(0);}
+    .panel-toggle{display:inline-flex;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b19</span></span></div>
+    <input id="fname" value="未命名平面圖" spellcheck="false">
+    <div class="spacer"></div>
+    <button class="tbtn" id="undo" title="上一步 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
+    <button class="tbtn" id="redo" title="下一步 (Ctrl+Y)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h1"/></svg></button>
+    <div class="zoomwrap">
+      <button class="tbtn" id="zout">−</button>
+      <span class="zval" id="zval">100%</span>
+      <button class="tbtn" id="zin">＋</button>
+    </div>
+    <button class="tbtn" id="fit" title="縮放至全圖">全圖</button>
+    <div class="menu">
+      <button class="tbtn primary" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>檔案</button>
+      <div class="menu-pop" id="exportMenu">
+        <div class="menu-label">專案</div>
+        <div class="menu-item" data-act="newproj">新增專案<span class="k">換一個案場</span></div>
+        <div class="menu-item" data-act="saveproj">儲存專案<span class="k">存到這台裝置</span></div>
+        <div class="menu-item" data-act="openproj">開啟專案<span class="k" id="projCount"></span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-label">輸出圖面</div>
+        <div class="menu-item" data-act="png">匯出 PNG 圖片</div>
+        <div class="menu-item" data-act="pdf">匯出 PDF（含圖框）</div>
+        <div class="menu-item" data-act="dxf">匯出 DXF<span class="k">CAD</span></div>
+
+      </div>
+    </div>
+    <button class="tbtn panel-toggle" id="panelToggle" title="屬性面板"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <button class="tbtn" id="dbgBtn" title="除錯記錄(回報問題用)">🐞</button>
+  </div>
+
+  <div id="body">
+    <!-- TOOL RAIL -->
+    <div id="rail">
+      <div class="tool active" data-tool="select" title="選取／移動 (V)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3l7 17 2.5-7L20 10.5 4 3z"/></svg><span class="lbl">選取</span></div>
+      <div class="rail-sep"></div>
+      <div class="tool" data-tool="wall" title="畫牆 (W)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="9" width="18" height="6"/><path d="M8 9v6M14 9v6"/></svg><span class="lbl">牆</span></div>
+      <div class="tool" data-tool="door" title="門 (D)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 20V5a1 1 0 0 1 1-1h8v16"/><path d="M14 20a9 9 0 0 0-9-9" stroke-dasharray="2 2"/></svg><span class="lbl">門</span></div>
+      <div class="tool" data-tool="window" title="窗 (N)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="18" height="4"/><path d="M12 10v4"/></svg><span class="lbl">窗</span></div>
+      <div class="rail-sep"></div>
+      <div class="tool" data-tool="column" title="柱 (C)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="10" height="10"/></svg><span class="lbl">柱</span></div>
+      <div class="tool" data-tool="shaft" title="管道間 (P)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14"/><path d="M5 19L19 5M5 12l7-7M12 19l7-7"/></svg><span class="lbl">管道間</span></div>
+      <div class="tool" data-tool="beam" title="樑 (B)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="18" height="4" fill="currentColor" opacity="0.3"/><rect x="3" y="10" width="18" height="4"/></svg><span class="lbl">樑</span></div>
+      <div class="rail-sep"></div>
+      <div class="tool" data-tool="dim" title="標尺寸 (M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 9v6M21 9v6"/></svg><span class="lbl">尺寸</span></div>
+      <div class="tool" data-tool="text" title="文字 (T)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 6h14M12 6v13M9 19h6"/></svg><span class="lbl">文字</span></div>
+    </div>
+
+    <!-- STAGE -->
+    <div id="stage">
+      <canvas id="c"></canvas>
+      <div id="hint"></div>
+      <div id="lenbox"></div>
+      <input id="numIn" inputmode="decimal" autocomplete="off">
+      <input id="txtIn" type="text" autocomplete="off" placeholder="輸入文字…">
+      <div id="dimEditBox" class="dim-edit-box">
+        <input id="dimEditInput" inputmode="decimal" autocomplete="off">
+        <button class="dim-dir-btn" id="dimDirMin" title="固定左/上端，往右/下延伸">←</button>
+        <button class="dim-dir-btn" id="dimDirBoth" title="兩端同時延伸，中心不動">↔</button>
+        <button class="dim-dir-btn" id="dimDirMax" title="固定右/下端，往左/上延伸">→</button>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div id="panel">
+      <div class="psec" id="propSec">
+        <div class="ptitle">屬性</div>
+        <div id="propBody"><div class="empty">選一個物件來編輯它的尺寸與屬性，或從左邊工具列選一個工具開始畫。</div></div>
+      </div>
+      <div class="psec">
+        <div class="ptitle">戶型設定</div>
+        <div class="row"><label>樓高 CH</label>
+          <div class="field"><input type="number" id="ceilingH" min="180" step="1" value="280"><span class="unit" id="chUnit">cm</span></div>
+        </div>
+      </div>
+      <div class="psec">
+        <div class="ptitle">畫牆設定</div>
+        <div class="row"><label>牆厚</label>
+          <div class="chips" id="thickChips"></div>
+        </div>
+        <div class="row"><label>自訂牆厚</label>
+          <div class="field"><input type="number" id="thickCustom" min="1" step="1"><span class="unit" id="thickUnit">cm</span></div>
+        </div>
+      </div>
+      <div class="psec">
+        <div class="ptitle">畫門設定</div>
+        <div class="row"><label>類型</label><div class="seg" id="doorSubSeg"><button data-k="swing" class="on">門</button><button data-k="slide">推拉門</button><button data-k="cased">門洞</button></div></div>
+      </div>
+      <div class="psec">
+        <div class="ptitle">畫窗設定</div>
+        <div class="row"><label>類型</label><div class="seg" id="winSubSeg"><button data-k="fixed" class="on">窗</button><button data-k="french">落地窗</button><button data-k="bay">外凸窗</button></div></div>
+      </div>
+      <div class="psec">
+        <div class="ptitle">畫管道間設定</div>
+        <div class="row"><label>長度</label><div class="field"><input type="number" id="shaftW" min="1" step="1" value="60"><span class="unit" id="shaftWUnit">cm</span></div></div>
+        <div class="row"><label>寬度</label><div class="field"><input type="number" id="shaftH" min="1" step="1" value="60"><span class="unit" id="shaftHUnit">cm</span></div></div>
+      </div>
+      <div class="psec">
+        <div class="ptitle">畫柱設定</div>
+        <div class="row"><label>長度</label><div class="field"><input type="number" id="colW" min="1" step="1" value="65"><span class="unit" id="colWUnit">cm</span></div></div>
+        <div class="row"><label>寬度</label><div class="field"><input type="number" id="colH" min="1" step="1" value="65"><span class="unit" id="colHUnit">cm</span></div></div>
+      </div>
+      <div class="psec">
+        <div class="ptitle">畫樑設定</div>
+        <div class="row"><label>樑寬</label><div class="field"><input type="number" id="beamW" min="1" step="1" value="30"><span class="unit" id="beamWUnit">cm</span></div></div>
+        <div class="row"><label>樑高</label><div class="field"><input type="number" id="beamH" min="1" step="1" value="60"><span class="unit" id="beamHUnit">cm</span></div></div>
+      </div>
+      <div class="psec">
+        <div class="ptitle">格線與吸附</div>
+        <div class="row"><label>顯示格線</label><div class="sw on" id="swGrid"></div></div>
+        <div class="row"><label>吸附格線</label><div class="sw on" id="swSnap"></div></div>
+        <div class="row"><label>格線間距</label>
+          <div class="field"><input type="number" id="gridSize" min="1" max="100" step="1" value="10"><span class="unit">cm</span></div>
+        </div>
+        <div class="row"><label>角度鎖定</label>
+          <div class="seg" id="angleModeSeg">
+            <button data-v="free">自由</button>
+            <button data-v="45" class="on">45°</button>
+            <button data-v="ortho">正交</button>
+          </div>
+        </div>
+      </div>
+      <div class="psec">
+        <div class="ptitle">單位顯示</div>
+        <div class="row"><label>長度單位</label>
+          <div class="seg" id="unitSeg"><button data-u="cm">cm</button><button data-u="mm" class="on">mm</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="debugPanel"></div>
+  <!-- STATUS -->
+  <div id="status">
+    <span id="coord">X 0　Y 0</span>
+    <span id="sizeInfo"></span>
+    <span class="spacer" style="flex:1"></span>
+    <span class="s-hint" id="statusHint">選取工具</span>
+  </div>
+</div>
+
+
+
+<div id="projModal" class="modal-mask">
+  <div class="modal" style="width:420px">
+    <div class="modal-title" id="projTitle">專案</div>
+    <div class="mrow" style="gap:8px">
+      <input type="text" id="projName" placeholder="專案名稱" style="flex:1 1 auto;min-width:0;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:9px;font-size:14px;">
+      <button class="tbtn primary" id="projSave" style="flex:0 0 auto">儲存</button>
+    </div>
+    <div id="projList" class="proj-list"></div>
+    <div class="modal-btns"><button class="tbtn" id="projClose">關閉</button></div>
+  </div>
+</div>
+
+<div id="pdfModal" class="modal-mask">
+  <div class="modal">
+    <div class="modal-title" id="mTitle">匯出</div>
+    <div class="mrow pdfonly"><span>紙張</span><div class="seg" id="mPaper"><button data-v="a4" class="on">A4</button><button data-v="a3">A3</button></div></div>
+    <div class="mrow pdfonly"><span>方向</span><div class="seg" id="mOrient"><button data-v="l" class="on">橫式</button><button data-v="p">直式</button></div></div>
+    <div class="mrow pdfonly"><span>比例</span><div class="seg" id="mScale"><button data-v="fit" class="on">適應</button><button data-v="50">1:50</button><button data-v="100">1:100</button><button data-v="150">1:150</button><button data-v="200">1:200</button></div></div>
+    <div class="mrow"><span>尺寸標註</span><div class="seg" id="mDims"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
+    <div class="mrow"><span>空間名稱 / 坪數</span><div class="seg" id="mRooms"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
+    <div class="mrow" id="mEmbedWarn" style="display:none"><span style="font-size:11.5px;line-height:1.6;color:#8A5B2E;background:#FFF6E8;border:1px solid #F0D9B5;border-radius:8px;padding:9px 10px;display:block;width:100%">目前在其他 App 的內嵌瀏覽器中，iOS 不允許網頁存檔或叫出分享選單。PNG 可以長按預覽圖存到相簿，PDF／DXF 則要在 Safari 開啟才存得下來。</span></div>
+    <div class="mrow dxfonly" style="display:none"><span style="font-size:11px;color:var(--muted);line-height:1.5">DXF 為 CAD 通用交換格式，AutoCAD／BricsCAD／SketchUp 皆可直接開啟，開啟後另存即為 .dwg。牆、柱、樑、門窗、標註各自分層。</span></div>
+    <div class="modal-btns"><button class="tbtn" id="mCancel">取消</button><button class="tbtn primary" id="mExport">匯出</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  // ================= State =================
+  const state = {
+    walls: [],      // {id,x1,y1,x2,y2,t,align}
+    openings: [],   // {id,type:'door'|'window',sub,wallId,pos,width,height,sill,proj,flipH,flipV}
+    dims: [],       // {id,x1,y1,x2,y2,off}
+    texts: [],      // {id,x,y,text,size}
+    columns: [],    // rectangular blocks — {id,x,y,w,h,rot,kind:'col'|'shaft'}
+                    // a 管道間 is geometrically identical to a column (place, drag,
+                    // rotate, resize, distance-to-wall), so it shares the array and
+                    // only differs in how it is drawn, labelled and exported
+    beams: [],      // {id,x1,y1,x2,y2,w,h,align,position,distTop}
+    roomNames: {},  // key -> name
+    ceilingH: 280,  // 樓高 cm (whole plan)
+    _seq: 1,
+  };
+  const view = { scale: 0.7, ox: 0, oy: 0 };  // scale = px per cm
+  const ui = {
+    tool: 'select',
+    grid: true, snap: true, angleMode: '45', gridSize: 10,
+    thick: 20, unit: 'mm', wallAlign: 'mid',   // wallAlign: 'in'|'mid'|'out'
+    colW: 65, colH: 65,                        // column defaults (cm)
+    shaftW: 60, shaftH: 60,                    // pipe shaft defaults (cm)
+    doorSub: 'swing', winSub: 'fixed',         // which kind the next tap creates
+    beamW: 30, beamH: 60,                       // beam defaults (cm)
+    selected: null,   // {kind,id}
+  };
+  // What the drawing pass is allowed to print. Always true on screen; the export
+  // dialog flips these off to produce a clean plan without numbers or room labels.
+  const showOpt = { dims:true, rooms:true };
+  const TOOL_HINT = {
+    select:'選取工具：灰色圓點＝牆已接合，紅色空心圈＝該端沒接到東西（不會形成空間）。點牆體選取後，圓形握把＝拉伸端點，方形握把＝整面牆平行推移',
+    wall:'畫牆：按住拖曳＝畫線。只要牆體看起來有貼在一起（牆身有重疊），放開後就會自動接合並形成空間；輕點數字不拖曳＝改尺寸，會出現移動方向箭頭',
+    door:'放門：點在牆上放置。右側「畫門設定」可先選門／推拉門／門洞，放好後也能隨時改',
+    window:'放窗：點在牆上放置。右側「畫窗設定」可先選窗／落地窗／外凸窗，落地窗離地固定為 0',
+    shaft:'放管道間：點一下放置。選取後可改長寬與旋轉，也能點四邊的離牆距離直接輸入',
+    dim:'標尺寸：按住一點拖到另一點放開，自動量出距離',
+    text:'文字：點一下放置文字',
+    column:'放柱子：點一下放置。選取後可點四邊的離牆距離直接輸入，打 0 就貼牆',
+    beam:'畫樑：沿著牆畫時會自動貼齊牆內面（整根樑落在室內，不會壓進牆裡）；跨房間畫時兩端會停在牆內面',
+  };
+
+  // ================= Elements =================
+  const cv = document.getElementById('c');
+  let ctx = cv.getContext('2d');
+  const screenCtx = ctx;
+  const stage = document.getElementById('stage');
+  const hintEl = document.getElementById('hint');
+  const lenBox = document.getElementById('lenbox');
+  const numIn = document.getElementById('numIn');
+  const txtIn = document.getElementById('txtIn');
+  const coordEl = document.getElementById('coord');
+  const sizeInfoEl = document.getElementById('sizeInfo');
+  const statusHint = document.getElementById('statusHint');
+  const propBody = document.getElementById('propBody');
+  let DPR = Math.max(1, window.devicePixelRatio||1);
+  let W=0,H=0;
+
+  function uid(){ return state._seq++; }
+
+  // ================= History =================
+  const history=[]; let hi=-1;
+  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,roomNames:state.roomNames,ceilingH:state.ceilingH,_seq:state._seq}); }
+  function pushHistory(){
+    cleanupStrayWalls();
+    healJunctions();
+    cleanupStrayWalls();   // healing can collapse a stub to zero length
+    history.splice(hi+1);
+    history.push(snapshot());
+    if(history.length>80) history.shift();
+    hi=history.length-1;
+    recomputeRooms();
+    updateUndo();
+    autosave();
+  }
+
+  // ---- in-page dialogs ----
+  // This app runs inside a sandboxed iframe, and a sandbox without `allow-modals`
+  // silently disables the native dialogs: confirm() returns false without asking,
+  // alert() and prompt() do nothing at all. Every guarded action therefore looked
+  // like a dead button — 清空重畫 did nothing, project overwrite/delete/rename never
+  // fired, the autosave restore prompt never appeared, and error messages vanished.
+  // These replacements are ordinary DOM, so they work everywhere.
+  function uiDialog(opt){
+    return new Promise(resolve=>{
+      const back=document.createElement('div');
+      back.className='dlg-mask';
+      const card=document.createElement('div');
+      card.className='dlg';
+      if(opt.title){ const h=document.createElement('div'); h.className='dlg-title'; h.textContent=opt.title; card.appendChild(h); }
+      const body=document.createElement('div'); body.className='dlg-body';
+      body.textContent=opt.message||'';
+      card.appendChild(body);
+      let input=null;
+      if(opt.input!==undefined){
+        input=document.createElement('input');
+        input.type='text'; input.className='dlg-input'; input.value=opt.input||'';
+        card.appendChild(input);
+      }
+      const row=document.createElement('div'); row.className='dlg-btns';
+      // some decisions genuinely have three answers ("save first", "discard", "go back"),
+      // and forcing them into two is how people lose work by picking the wrong one
+      const done=(v)=>{ back.remove(); document.removeEventListener('keydown',onKey); resolve(v); };
+      const onKey=(e)=>{
+        if(e.key==='Escape') done(opt.cancel===false?true:null);
+        if(e.key==='Enter' && input) done(input.value);
+      };
+      if(opt.cancel!==false){
+        const c=document.createElement('button'); c.className='tbtn'; c.textContent=opt.cancelText||'取消';
+        c.onclick=()=>done(input?null:false); row.appendChild(c);
+      }
+      if(opt.alt){
+        const a=document.createElement('button'); a.className='tbtn'; a.textContent=opt.alt.text;
+        a.onclick=()=>done(opt.alt.value); row.appendChild(a);
+      }
+      const ok=document.createElement('button');
+      ok.className='tbtn primary'+(opt.danger?' danger':'');
+      ok.textContent=opt.okText||'確定';
+      ok.onclick=()=>done(input?input.value:true);
+      row.appendChild(ok);
+      card.appendChild(row);
+      back.appendChild(card);
+      back.addEventListener('click',e=>{ if(e.target===back) done(input?null:(opt.cancel===false?true:false)); });
+      document.addEventListener('keydown',onKey);
+      document.body.appendChild(back);
+      if(input){ input.focus(); input.select(); } else ok.focus();
+    });
+  }
+  const uiAlert  =(msg,title)=>uiDialog({title:title||'提示', message:msg, cancel:false, okText:'知道了'});
+  const uiConfirm=(msg,opt)=>uiDialog(Object.assign({title:'確認', message:msg}, opt||{}));
+  const uiPrompt =(msg,def,title)=>uiDialog({title:title||'輸入', message:msg, input:def||''});
+
+  // ---- crash / navigate-away insurance ----
+  // A page reload used to cost the whole drawing. Inside an in-app browser that
+  // is not hypothetical: a download that navigates instead of saving wipes the
+  // canvas with no warning. Every committed change is mirrored to local storage
+  // and offered back on the next load. Wrapped in try/catch because some embedded
+  // viewers block storage entirely — autosave must never break the editor itself.
+  const AUTOSAVE_KEY='planpad.autosave.v1';
+  function autosave(){
+    try{
+      if(!state.walls.length && !state.columns.length && !state.beams.length
+         && !state.texts.length && !state.dims.length) return;
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+        t:Date.now(), name:(document.getElementById('fname')||{}).value||'', data:JSON.parse(snapshot())
+      }));
+    }catch(_){}
+  }
+  async function loadAutosave(){
+    let saved=null;
+    try{ const raw=localStorage.getItem(AUTOSAVE_KEY); if(raw) saved=JSON.parse(raw); }catch(_){}
+    if(!saved || !saved.data || !(saved.data.walls||[]).length) return;
+    const mins=Math.round((Date.now()-(saved.t||0))/60000);
+    const when = mins<1 ? '剛剛' : mins<60 ? (mins+' 分鐘前') : (Math.round(mins/60)+' 小時前');
+    const n=(saved.data.walls||[]).length;
+    const yes=await uiConfirm('偵測到上次未儲存的平面圖（'+when+'，'+n+' 道牆）。\n要把它復原回來嗎？',{okText:'復原',cancelText:'從空白開始'});
+    if(!yes){
+      try{ localStorage.removeItem(AUTOSAVE_KEY); }catch(_){}
+      return;
+    }
+    try{
+      restore(JSON.stringify(saved.data));
+      if(saved.data.unit) applyUnit(saved.data.unit);
+      if(saved.name) document.getElementById('fname').value=saved.name;
+      history.length=0; history.push(snapshot()); hi=0; updateUndo();
+      fitAll();
+      flashHint('已復原上次的平面圖');
+    }catch(err){ uiAlert('復原失敗：'+err.message); }
+  }
+  function restore(js){ const o=JSON.parse(js); state.walls=o.walls; state.openings=o.openings; state.dims=o.dims; state.texts=o.texts; state.columns=o.columns||[]; state.beams=o.beams||[]; state.roomNames=o.roomNames||{}; state.ceilingH=o.ceilingH||280; state._seq=o._seq; ui.selected=null; draft=null; typedNum=''; hideLenBox(); recomputeRooms(); refreshProp(); draw(); }
+  function undo(){ if(hi>0){ hi--; restore(history[hi]); updateUndo(); } }
+  function redo(){ if(hi<history.length-1){ hi++; restore(history[hi]); updateUndo(); } }
+  function updateUndo(){ document.getElementById('undo').style.opacity=hi>0?1:.4; document.getElementById('redo').style.opacity=hi<history.length-1?1:.4; }
+
+  // ================= Coord transforms =================
+  function toScreen(x,y){ return [x*view.scale+view.ox, y*view.scale+view.oy]; }
+  function toWorld(px,py){ return [(px-view.ox)/view.scale, (py-view.oy)/view.scale]; }
+
+  // ================= Geometry helpers =================
+  function dist(a,b,c,d){ return Math.hypot(c-a,d-b); }
+  function wallLen(w){ return dist(w.x1,w.y1,w.x2,w.y2); }
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  function wallPointAt(w,t){ return [lerp(w.x1,w.x2,t), lerp(w.y1,w.y2,t)]; }
+  function projPointToSeg(px,py,x1,y1,x2,y2){
+    const dx=x2-x1, dy=y2-y1, L2=dx*dx+dy*dy;
+    if(L2===0) return {t:0,x:x1,y:y1,d:Math.hypot(px-x1,py-y1)};
+    let t=((px-x1)*dx+(py-y1)*dy)/L2; t=Math.max(0,Math.min(1,t));
+    const x=x1+t*dx, y=y1+t*dy;
+    return {t,x,y,d:Math.hypot(px-x,py-y)};
+  }
+
+  // ================= Room (enclosed space) detection =================
+  let roomsCache=[];
+  function detectRooms(walls){
+    const EPS=3; const nodes=[];
+    function nodeId(x,y){ for(let i=0;i<nodes.length;i++){ if(Math.hypot(nodes[i].x-x,nodes[i].y-y)<EPS) return i; } nodes.push({x,y}); return nodes.length-1; }
+    let segs=walls.filter(w=>wallLen(w)>1).map(w=>({a:nodeId(w.x1,w.y1), b:nodeId(w.x2,w.y2), t:w.t, align:w.align||'mid', wid:w.id}));
+    function ptOn(px,py,x1,y1,x2,y2){ const dx=x2-x1,dy=y2-y1,L2=dx*dx+dy*dy; if(L2<1e-6)return null; const t=((px-x1)*dx+(py-y1)*dy)/L2; if(t<=0.002||t>=0.998)return null; const cx=x1+t*dx,cy=y1+t*dy; return Math.hypot(px-cx,py-cy)<EPS?t:null; }
+    // Walls that CROSS each other (an X, where neither one ends at the other) had
+    // no node at the crossing point, so the graph never knew they met — the walls
+    // failed to divide the space and a whole room silently went undetected. Only
+    // T-junctions (an endpoint landing on another wall) were handled below.
+    // Insert a node at every genuine crossing first.
+    (function splitCrossings(){
+      let guard2=0;
+      for(let pass=0; pass<40; pass++){
+        let found=false;
+        for(let i=0;i<segs.length && !found;i++){
+          for(let j=i+1;j<segs.length && !found;j++){
+            const A=nodes[segs[i].a],B=nodes[segs[i].b],C=nodes[segs[j].a],D=nodes[segs[j].b];
+            const r={x:B.x-A.x,y:B.y-A.y}, sd={x:D.x-C.x,y:D.y-C.y};
+            const den=r.x*sd.y-r.y*sd.x;
+            if(Math.abs(den)<1e-9) continue;                 // parallel
+            const t=((C.x-A.x)*sd.y-(C.y-A.y)*sd.x)/den;
+            const u=((C.x-A.x)*r.y -(C.y-A.y)*r.x )/den;
+            if(t<=0.002||t>=0.998||u<=0.002||u>=0.998) continue;  // an end, not a crossing
+            const px=A.x+t*r.x, py=A.y+t*r.y;
+            const n=nodeId(px,py);
+            if(n===segs[i].a||n===segs[i].b||n===segs[j].a||n===segs[j].b) continue;
+            const si=segs[i], sj=segs[j];
+            segs.splice(j,1,{a:sj.a,b:n,t:sj.t,align:sj.align,wid:sj.wid},{a:n,b:sj.b,t:sj.t,align:sj.align,wid:sj.wid});
+            segs.splice(i,1,{a:si.a,b:n,t:si.t,align:si.align,wid:si.wid},{a:n,b:si.b,t:si.t,align:si.align,wid:si.wid});
+            found=true;
+          }
+        }
+        if(!found) break;
+        if(guard2++>200) break;
+      }
+    })();
+    let changed=true,guard=0;
+    while(changed && guard++<200){ changed=false;
+      for(let i=0;i<segs.length;i++){ const s=segs[i],A=nodes[s.a],B=nodes[s.b];
+        for(let n=0;n<nodes.length;n++){ if(n===s.a||n===s.b)continue; if(ptOn(nodes[n].x,nodes[n].y,A.x,A.y,B.x,B.y)!==null){ segs.splice(i,1,{a:s.a,b:n,t:s.t,align:s.align,wid:s.wid},{a:n,b:s.b,t:s.t,align:s.align,wid:s.wid}); changed=true; break; } }
+        if(changed)break; }
+    }
+    const half=[]; const adj={};
+    function addHalf(from,to,t,align,wid){ const a=Math.atan2(nodes[to].y-nodes[from].y,nodes[to].x-nodes[from].x); const idx=half.length; half.push({from,to,ang:a,t,align,wid,used:false}); (adj[from]=adj[from]||[]).push(idx); }
+    for(const s of segs){ if(s.a!==s.b){ addHalf(s.a,s.b,s.t,s.align,s.wid); addHalf(s.b,s.a,s.t,s.align,s.wid); } }
+    for(const k in adj){ adj[k].sort((i,j)=>half[i].ang-half[j].ang); }
+    function twin(h){ const H=half[h],list=adj[H.to]||[]; for(const x of list){ if(half[x].to===H.from) return x; } return -1; }
+    function nextEdge(h){ const H=half[h],rev=twin(h); if(rev<0)return -1; const list=adj[H.to]; const ni=(list.indexOf(rev)-1+list.length)%list.length; return list[ni]; }
+    const rooms=[];
+    for(let h=0;h<half.length;h++){ if(half[h].used)continue; const seq=[]; let cur=h,cnt=0;
+      while(cur>=0 && !half[cur].used && cnt<20000){ half[cur].used=true; seq.push(cur); cur=nextEdge(cur); cnt++; if(cur===h)break; }
+      if(seq.length>=3){
+        // strip dangling "dead-end" stub walls: the boundary trace walks OUT along a
+        // stub wall and immediately back along the same wall (same wid, reversed),
+        // which would otherwise corrupt the room's edge list (splitting the wall it's
+        // attached to) and break the inner-offset geometry (the stub's own render).
+        let hs=seq.map(hi=>({from:half[hi].from,to:half[hi].to,t:half[hi].t,align:half[hi].align,wid:half[hi].wid,wids:[half[hi].wid]}));
+        let pruned=true;
+        while(pruned && hs.length>=3){
+          pruned=false;
+          for(let i=0;i<hs.length;i++){
+            const a=hs[i], b=hs[(i+1)%hs.length];
+            if(a.wid===b.wid && a.from===b.to && a.to===b.from){
+              if(i+1<hs.length) hs.splice(i,2); else { hs.splice(i,1); hs.splice(0,1); }
+              pruned=true; break;
+            }
+          }
+        }
+        if(hs.length>=3){
+          // also merge adjacent edges that are the SAME wall (same wid) split by a
+          // stub's T-junction node but continuing in the same direction — otherwise
+          // the host wall (e.g. the outer wall a stub attaches to) shows up as two
+          // separate interior-dimension segments instead of one continuous span.
+          let merged=true;
+          while(merged && hs.length>=3){
+            merged=false;
+            for(let i=0;i<hs.length;i++){
+              const a=hs[i], b=hs[(i+1)%hs.length];
+              // ...and also merge pieces that are simply COLLINEAR, even when they
+              // are different wall objects of the same thickness. One straight side
+              // of a room should read as one dimension, not two numbers that the
+              // eye has to add up.
+              const col=(()=>{
+                if(a.to!==b.from) return false;
+                if(Math.abs(a.t-b.t)>0.5 || a.align!==b.align) return false;
+                const p=nodes[a.from], q=nodes[a.to], r=nodes[b.to];
+                const l1=Math.hypot(q.x-p.x,q.y-p.y)||1, l2=Math.hypot(r.x-q.x,r.y-q.y)||1;
+                const cross=((q.x-p.x)/l1)*((r.y-q.y)/l2)-((q.y-p.y)/l1)*((r.x-q.x)/l2);
+                const dot  =((q.x-p.x)/l1)*((r.x-q.x)/l2)+((q.y-p.y)/l1)*((r.y-q.y)/l2);
+                return Math.abs(cross)<0.002 && dot>0;
+              })();
+              if((a.wid===b.wid && a.to===b.from) || col){
+                // keep BOTH walls' ids on the merged edge. Dropping one made that
+                // wall look like it belonged to no room at all, so its neighbour
+                // stopped counting the wall as shared and started drawing an outer
+                // dimension into the room next door, on top of that room's own.
+                const na={from:a.from,to:b.to,t:a.t,align:a.align,wid:a.wid,
+                          wids:[...(a.wids||[a.wid]),...(b.wids||[b.wid])]};
+                if(i+1<hs.length) hs.splice(i,2,na); else { hs.splice(i,1); hs[0]=na; }
+                merged=true; break;
+              }
+            }
+          }
+          const edges=hs.map(e=>({x1:nodes[e.from].x,y1:nodes[e.from].y,x2:nodes[e.to].x,y2:nodes[e.to].y,t:e.t,align:e.align,wid:e.wid,wids:e.wids||[e.wid]}));
+          let s=0; for(const e of edges){ s+=e.x1*e.y2-e.x2*e.y1; } if(s/2>50) rooms.push({edges});
+        }
+      }
+    }
+    return rooms;
+  }
+  // Corner between two offset lines. When the two lines are PARALLEL there is no
+  // corner — the boundary just carries straight on, which happens whenever a side
+  // of a room is made of two walls in line (very common: a partition Tees in from
+  // the far side and splits the wall in two). The old code bailed out and returned
+  // p1, the previous edge's anchor point, which is nowhere near the junction: one
+  // piece then measured a full half-thickness too long and the other collapsed to
+  // almost nothing. Now we drop the vertex exactly where the walls really meet,
+  // projected onto the offset line.
+  function lineInt(p1,d1,p2,d2,fallbackPt){
+    const den=d1.x*d2.y-d1.y*d2.x;
+    if(Math.abs(den)<1e-9){
+      if(!fallbackPt) return p1;
+      const t=(fallbackPt.x-p2.x)*d2.x+(fallbackPt.y-p2.y)*d2.y;
+      return {x:p2.x+d2.x*t, y:p2.y+d2.y*t};
+    }
+    const s=((p2.x-p1.x)*d2.y-(p2.y-p1.y)*d2.x)/den;
+    return {x:p1.x+s*d1.x,y:p1.y+s*d1.y};
+  }
+  // inner-boundary offset from centerline (toward interior): 內線=0, 中線=t/2, 外線=t  → 內線 interior = drawn dim
+  function innerOffset(align,t){ return align==='in'?0 : align==='out'? t : t/2; }
+  function roomGeometry(edges){
+    const n=edges.length;
+    let A=0,cx=0,cy=0;
+    for(let i=0;i<n;i++){ const p=edges[i], q=edges[(i+1)%n]; const cr=p.x1*q.y1-q.x1*p.y1; A+=cr; cx+=(p.x1+q.x1)*cr; cy+=(p.y1+q.y1)*cr; }
+    const cen=Math.abs(A)>1?{x:cx/(3*A),y:cy/(3*A)}:{x:edges[0].x1,y:edges[0].y1};
+    // Which way is "into the room"? This used to be decided by asking whether the
+    // centroid lay on that side — which is simply false for any L- or U-shaped
+    // room, where the centroid can sit in the notch, OUTSIDE the room. Those edges
+    // then got offset the wrong way, so their dimensions were off by a wall
+    // thickness, the area was wrong, and their labels were flung to the wrong side
+    // of the wall (landing inside the neighbouring room).
+    // The boundary loop is traced with a consistent winding, so the interior is
+    // reliably on one fixed side of every directed edge — no guessing needed.
+    const wind = A>=0 ? 1 : -1;
+    function normals(e){
+      const L=Math.hypot(e.x2-e.x1,e.y2-e.y1)||1, ux=(e.x2-e.x1)/L, uy=(e.y2-e.y1)/L;
+      return {ux,uy, nx:-uy*wind, ny:ux*wind};
+    }
+    const innerL=[], outerL=[];
+    for(const e of edges){ const {ux,uy,nx,ny}=normals(e); const io=innerOffset(e.align,e.t); const oo=io-e.t;
+      innerL.push({p:{x:e.x1+nx*io,y:e.y1+ny*io},d:{x:ux,y:uy}});
+      outerL.push({p:{x:e.x1+nx*oo,y:e.y1+ny*oo},d:{x:ux,y:uy}}); }
+    const V=[],Vout=[];
+    for(let i=0;i<n;i++){
+      const pr=(i-1+n)%n;
+      const jn={x:edges[i].x1,y:edges[i].y1};   // where the two walls actually meet
+      V.push(lineInt(innerL[pr].p,innerL[pr].d,innerL[i].p,innerL[i].d,jn));
+      Vout.push(lineInt(outerL[pr].p,outerL[pr].d,outerL[i].p,outerL[i].d,jn));
+    }
+    const lens=[]; for(let i=0;i<n;i++){ const a=V[i],b=V[(i+1)%n]; lens.push(Math.hypot(b.x-a.x,b.y-a.y)); }
+    let s=0,ccx=0,ccy=0; for(let i=0;i<n;i++){ const p=V[i],q=V[(i+1)%n]; const cr=p.x*q.y-q.x*p.y; s+=cr; ccx+=(p.x+q.x)*cr; ccy+=(p.y+q.y)*cr; }
+    const area=Math.abs(s/2); const center=Math.abs(s)>1?{x:ccx/(3*s),y:ccy/(3*s)}:cen;
+    return {V,Vout,lens,area,center,edges};
+  }
+  function roomKey(edges){ return edges.map(e=>e.wid).filter(x=>x!=null).sort((a,b)=>a-b).join('-'); }
+  function recomputeRooms(){
+    try{
+      roomsCache=detectRooms(state.walls).map(r=>{ const g=roomGeometry(r.edges); g.key=roomKey(r.edges); g.name=(state.roomNames&&state.roomNames[g.key])||''; return g; });
+      roomWallIds=new Set(); wallBands={}; wallRoomCount={};
+      for(const r of roomsCache){
+        for(const ed of r.edges){
+          for(const wd of (ed.wids||[ed.wid])){ if(wd==null) continue; wallRoomCount[wd]=(wallRoomCount[wd]||0)+1; }
+        }
+        // recompute inward normals per edge for band mapping
+        let A=0,cx=0,cy=0; const e=r.edges,n=e.length;
+        for(let i=0;i<n;i++){ const p=e[i],q=e[(i+1)%n]; const cr=p.x1*q.y1-q.x1*p.y1; A+=cr; cx+=(p.x1+q.x1)*cr; cy+=(p.y1+q.y1)*cr; }
+        const cen=Math.abs(A)>1?{x:cx/(3*A),y:cy/(3*A)}:{x:e[0].x1,y:e[0].y1};
+        for(const ed of e){ if(ed.wid==null) continue;
+          const L=Math.hypot(ed.x2-ed.x1,ed.y2-ed.y1)||1, ux=(ed.x2-ed.x1)/L, uy=(ed.y2-ed.y1)/L; let nx=-uy,ny=ux;
+          const mx=(ed.x1+ed.x2)/2,my=(ed.y1+ed.y2)/2; if((cen.x-mx)*nx+(cen.y-my)*ny<0){nx=-nx;ny=-ny;}
+          // every wall the (possibly merged) edge covers belongs to this room
+          for(const wd of (ed.wids||[ed.wid])){
+            if(wd==null) continue;
+            roomWallIds.add(wd);
+            wallBands[wd]={ux,uy,nx,ny, io:innerOffset(ed.align,ed.t), oo:innerOffset(ed.align,ed.t)-ed.t};
+          }
+        }
+      }
+    } catch(e){ roomsCache=[]; roomWallIds=new Set(); wallBands={}; wallRoomCount={}; }
+    // subtract nested island rooms' area from the enclosing room
+    try{
+      function pip(pt,poly){ let c=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const a=poly[i],b=poly[j]; if(((a.y>pt.y)!=(b.y>pt.y)) && (pt.x<(b.x-a.x)*(pt.y-a.y)/(b.y-a.y)+a.x)) c=!c; } return c; }
+      for(const A of roomsCache){ for(const B of roomsCache){ if(A===B) continue; if(B.area<A.area && pip(B.center, A.V)){ A.area-=B.area; A.hole=A.hole||[]; A.hole.push(B.Vout); } } }
+    }catch(e){}
+  }
+  function fmtArea(cm2){ const m2=cm2/10000; return m2.toFixed(2)+' m²　'+(m2/3.305785).toFixed(2)+' 坪'; }
+
+  // ---- rectangle-preserving edit (keeps room rectangular, opposite wall follows) ----
+  function roomIsRect(r){ if(r.edges.length!==4) return false; for(const e of r.edges){ if(Math.abs(e.x1-e.x2)>0.5 && Math.abs(e.y1-e.y2)>0.5) return false; } return true; }
+  function roomWalls(r){ return r.edges.map(ed=>state.walls.find(w=>w.id===ed.wid)).filter(Boolean); }
+  // keep doors/windows at the same ABSOLUTE distance along their wall when that
+  // wall gets longer or shorter (o.pos is a 0..1 ratio, so without this a window
+  // silently slides every time you resize the room it sits in)
+  function withOpeningsPreserved(fn){
+    const rec=[];
+    for(const o of state.openings){
+      const w=state.walls.find(v=>v.id===o.wallId); if(!w) continue;
+      rec.push({o, d:o.pos*wallLen(w)});
+    }
+    fn();
+    for(const r of rec){
+      const w=state.walls.find(v=>v.id===r.o.wallId); if(!w) continue;
+      const L=wallLen(w)||1, R=wallOpenRange(w,r.o.width);
+      r.o.pos=Math.max(R.posMin, Math.min(R.posMax, r.d/L));
+    }
+  }
+
+  // ---- move one whole wall LINE sideways, dragging everything attached to it ----
+  // axis 'x' = a vertical wall standing at x=coord, axis 'y' = a horizontal wall at y=coord.
+  // Two passes:
+  //   1. every collinear wall piece sitting on that line moves BODILY (so a facade
+  //      that was drawn as three separate segments still travels as one wall, and
+  //      never gets bent), growing the affected span as it links pieces together;
+  //   2. every OTHER wall endpoint that lands on that line within the span comes
+  //      along, which is what makes the perpendicular walls stretch to follow
+  //      instead of tearing off the corner.
+  function moveWallLine(axis, coord, delta, spanLo, spanHi){
+    if(!isFinite(delta) || Math.abs(delta)<0.001) return false;
+    const EPS=1.0;
+    const on=(w)=> axis==='x'
+      ? (Math.abs(w.x1-coord)<EPS && Math.abs(w.x2-coord)<EPS)
+      : (Math.abs(w.y1-coord)<EPS && Math.abs(w.y2-coord)<EPS);
+    const ext=(w)=> axis==='x'
+      ? [Math.min(w.y1,w.y2), Math.max(w.y1,w.y2)]
+      : [Math.min(w.x1,w.x2), Math.max(w.x1,w.x2)];
+    // Is this point in the MIDDLE of some other wall (rather than at its end)?
+    // Used to tell "one wall that happens to be drawn in two pieces" apart from
+    // "two separate walls that merely line up".
+    const crossedAt=(px,py)=>{
+      for(const w of state.walls){
+        if(wallLen(w)<1 || on(w)) continue;
+        const pr=projPointToSeg(px,py,w.x1,w.y1,w.x2,w.y2);
+        if(pr.d<=1.5 && pr.t>0.02 && pr.t<0.98) return true;
+      }
+      return false;
+    };
+    const moved=new Set(); let lo=spanLo, hi=spanHi, grew=true, guard=0;
+    while(grew && guard++<60){ grew=false;
+      for(const w of state.walls){ if(moved.has(w.id)||!on(w)||wallLen(w)<1) continue;
+        const [a,b]=ext(w);
+        if(b<lo-EPS || a>hi+EPS) continue;                  // no contact at all
+        const overlap=Math.min(b,hi)-Math.max(a,lo);
+        if(overlap<=EPS){
+          // They only touch at a single point. That's one wall split in two IF
+          // nothing else runs through that point — but if a wall CROSSES there
+          // (the point is in its interior, not at its end), these are two separate
+          // walls on different sides of it that just happen to be in line. Chaining
+          // them was why resizing an upstairs room also shoved the downstairs
+          // partition sideways.
+          const tp=Math.abs(b-lo)<=EPS ? b : a;
+          const px = axis==='x' ? coord : tp, py = axis==='x' ? tp : coord;
+          if(crossedAt(px,py)) continue;
+        }
+        moved.add(w.id); lo=Math.min(lo,a); hi=Math.max(hi,b); grew=true;
+      }
+    }
+    for(const w of state.walls){ if(!moved.has(w.id)) continue;
+      if(axis==='x'){ w.x1+=delta; w.x2+=delta; } else { w.y1+=delta; w.y2+=delta; }
+    }
+    for(const w of state.walls){ if(moved.has(w.id)) continue;
+      // a collinear wall we deliberately left behind must not get one end dragged
+      // along either — that would just bend it instead of moving it
+      if(on(w)) continue;
+      if(axis==='x'){
+        if(Math.abs(w.x1-coord)<EPS && w.y1>=lo-EPS && w.y1<=hi+EPS) w.x1+=delta;
+        if(Math.abs(w.x2-coord)<EPS && w.y2>=lo-EPS && w.y2<=hi+EPS) w.x2+=delta;
+      } else {
+        if(Math.abs(w.y1-coord)<EPS && w.x1>=lo-EPS && w.x1<=hi+EPS) w.y1+=delta;
+        if(Math.abs(w.y2-coord)<EPS && w.x2>=lo-EPS && w.x2<=hi+EPS) w.y2+=delta;
+      }
+    }
+    return moved.size>0;
+  }
+
+  // ---- resize one side of a detected space ----
+  // The old version derived everything from the BOUNDING BOX of the room's walls,
+  // which is only ever correct for a lone standalone rectangle. As soon as there
+  // are two spaces (一房一廳), the shared outer walls span the WHOLE plan, so the
+  // bounding box was the whole plan and the numbers you typed moved either nothing
+  // at all or the wrong wall — that's the "改尺寸沒反應".
+  // It now works off the room's own loop: an edge's length is capped by its two
+  // NEIGHBOUR walls in that loop, so we simply slide one (or both) of them. That
+  // is local, correct with any number of adjoining rooms, and also works for
+  // L-shaped (non-rectangular) spaces.
+  // mode: 'fixMin' keep the left/top end still, 'fixMax' keep the right/bottom end
+  //       still, 'both' grow from the centre.
+  function editRoomEdge(r, edgeIndex, newInteriorLen, mode){
+    const n=r.edges.length; if(!n) return false;
+    const e=r.edges[edgeIndex];
+    const horiz=Math.abs(e.y1-e.y2)<1, vert=Math.abs(e.x1-e.x2)<1;
+    if(!horiz && !vert) return false;                       // diagonal wall: caller falls back
+    const delta=newInteriorLen - r.lens[edgeIndex];
+    if(!isFinite(delta)) return false;
+    if(Math.abs(delta)<0.01) return true;
+    const prev=r.edges[(edgeIndex-1+n)%n], next=r.edges[(edgeIndex+1)%n];
+    const cap=(ed)=> horiz
+      ? {coord:(ed.x1+ed.x2)/2, lo:Math.min(ed.y1,ed.y2), hi:Math.max(ed.y1,ed.y2), ok:Math.abs(ed.x1-ed.x2)<1}
+      : {coord:(ed.y1+ed.y2)/2, lo:Math.min(ed.x1,ed.x2), hi:Math.max(ed.x1,ed.x2), ok:Math.abs(ed.y1-ed.y2)<1};
+    const A=cap(prev), B=cap(next);
+    if(!A.ok || !B.ok) return false;                        // neighbours aren't square to this edge
+    if(Math.abs(A.coord-B.coord)<1) return false;
+    const loSide = A.coord<B.coord ? A : B;                 // left / top capping wall
+    const hiSide = A.coord<B.coord ? B : A;                 // right / bottom capping wall
+    const axis = horiz ? 'x' : 'y';
+    let okMove=false;
+    withOpeningsPreserved(()=>{
+      if(mode==='fixMin'){ okMove=moveWallLine(axis, hiSide.coord, +delta, hiSide.lo, hiSide.hi); }
+      else if(mode==='fixMax'){ okMove=moveWallLine(axis, loSide.coord, -delta, loSide.lo, loSide.hi); }
+      else {
+        const a=moveWallLine(axis, loSide.coord, -delta/2, loSide.lo, loSide.hi);
+        const b=moveWallLine(axis, hiSide.coord, +delta/2, hiSide.lo, hiSide.hi);
+        okMove=a||b;
+      }
+    });
+    return okMove;
+  }
+  // remove degenerate/stray walls: zero-length, or fully overlapping another wall's span on the same line
+  // (these are usually accidental micro-fragments left from a tap that was briefly interpreted as a drag)
+  // ================= Junction healing =================
+  // Room detection is topological: a loop only closes if the wall CENTERLINES
+  // actually meet. But what you see on screen is 20cm-thick bands, so two walls
+  // whose centerlines are 15cm apart still look firmly stuck together — and you
+  // reasonably expect a space. That mismatch is why some rooms formed and some
+  // didn't for no visible reason.
+  // The rule here: if two wall ends physically OVERLAP (closer than their combined
+  // half-thicknesses), they are the same junction, so make them literally the same
+  // point. Same for an end that lands inside another wall's band (a T-junction) —
+  // it gets pulled exactly onto that wall's centerline. After this pass, "looks
+  // joined" and "is joined" mean the same thing.
+  function healJunctions(){
+    const W=state.walls.filter(w=>wallLen(w)>=1);
+    if(W.length<2) return false;
+    let changed=false;
+    const isV=w=>Math.abs(w.x1-w.x2)<0.6, isH=w=>Math.abs(w.y1-w.y2)<0.6;
+
+    // --- 0. straighten walls that are a hair off square ---
+    // A wall leaning by less than its own half-thickness is a drawing wobble, not a
+    // design decision, and it would otherwise be excluded from coordinate snapping
+    // below and left leaning forever.
+    for(const w of W){
+      const dx=Math.abs(w.x1-w.x2), dy=Math.abs(w.y1-w.y2);
+      const tol=Math.max(4,w.t/2);
+      if(dy>0.001 && dy<=tol && dx>dy){ const m=(w.y1+w.y2)/2; w.y1=m; w.y2=m; changed=true; }
+      else if(dx>0.001 && dx<=tol && dy>dx){ const m=(w.x1+w.x2)/2; w.x1=m; w.x2=m; changed=true; }
+    }
+    const axisW=W.filter(w=>isV(w)||isH(w));
+
+    // --- 1. snap COORDINATES, not points ---
+    // Snapping whole points would pull a wall's two ends to different x values and
+    // leave it leaning; snapping the shared coordinate keeps every wall exactly
+    // square while still closing the junction. Two coordinates belong together when
+    // the walls' thickness bands would overlap there — i.e. when they already look
+    // joined on screen.
+    // ...with ONE exception. Two walls that both RUN along this axis and sit
+    // SIDE BY SIDE (their spans overlap) are two different parallel walls with a
+    // real gap between them — a narrow closet, a pipe shaft, or a dimension the
+    // user just typed. Fusing those destroys geometry that was deliberate: typing
+    // 2426 into a 964 room whose neighbour is 1596 leaves a 13.4cm sliver, which
+    // is under the 20cm thickness tolerance, so the partition used to get yanked
+    // onto the outer wall and the room silently became 2560 instead of 2426.
+    // Pieces of ONE line, by contrast, meet end to end and never overlap — those
+    // still fuse exactly as before. A gap under PAR_GAP is a drawing wobble, not
+    // a design decision, so that still fuses too.
+    const PAR_GAP=1.5;                              // cm
+    const snapAxis=(key)=>{
+      const runsAlong = key==='x' ? isV : isH;      // wall whose line position IS this coord
+      const sideSpan = (w)=> key==='x'
+        ? [Math.min(w.y1,w.y2), Math.max(w.y1,w.y2)]
+        : [Math.min(w.x1,w.x2), Math.max(w.x1,w.x2)];
+      const parallelRivals=(a,b,gap)=>{
+        if(a.id===b.id) return false;
+        if(!runsAlong(a) || !runsAlong(b)) return false;
+        if(gap<=PAR_GAP) return false;              // too close to be intentional
+        const [a1,a2]=sideSpan(a), [b1,b2]=sideSpan(b);
+        return Math.min(a2,b2)-Math.max(a1,b1) > 1; // genuinely alongside each other
+      };
+      const items=[];
+      for(const w of axisW){
+        items.push({w, get:()=>key==='x'?w.x1:w.y1, set:v=>{ if(key==='x') w.x1=v; else w.y1=v; }});
+        items.push({w, get:()=>key==='x'?w.x2:w.y2, set:v=>{ if(key==='x') w.x2=v; else w.y2=v; }});
+      }
+      items.sort((a,b)=>a.get()-b.get());
+      let i=0;
+      while(i<items.length){
+        const anchor=items[i].get();
+        let j=i+1;
+        while(j<items.length){
+          const tol=(items[i].w.t+items[j].w.t)/2;
+          if(items[j].get()-anchor>tol) break;      // measured from the anchor, so a
+          let rival=false;                          // cluster can never chain-drift wide
+          for(let k=i;k<j;k++){
+            if(parallelRivals(items[k].w, items[j].w, Math.abs(items[j].get()-items[k].get()))){ rival=true; break; }
+          }
+          if(rival) break;                          // keep the gap the user asked for
+          j++;
+        }
+        if(j-i>1){
+          // the longest wall in the group defines the true coordinate
+          let lead=i; for(let k=i;k<j;k++) if(wallLen(items[k].w)>wallLen(items[lead].w)) lead=k;
+          const v=items[lead].get();
+          for(let k=i;k<j;k++){ if(Math.abs(items[k].get()-v)>0.001){ items[k].set(v); changed=true; } }
+        }
+        i=j;
+      }
+    };
+    snapAxis('x'); snapAxis('y');
+
+    // --- 2. point-weld anything that isn't axis-aligned ---
+    const diag=W.filter(w=>!isV(w)&&!isH(w));
+    for(const w of diag){
+      for(const k of [1,2]){
+        const px=k===1?w.x1:w.y1===undefined?w.x1:w.x1, py=k===1?w.y1:w.y2;
+        const cx=k===1?w.x1:w.x2, cy=k===1?w.y1:w.y2;
+        let best=null,bd=Infinity;
+        for(const o of W){
+          if(o.id===w.id) continue;
+          const tol=(w.t+o.t)/2;
+          for(const q of [[o.x1,o.y1],[o.x2,o.y2]]){
+            const d=Math.hypot(q[0]-cx,q[1]-cy);
+            if(d<=tol && d<bd){ bd=d; best=q; }
+          }
+        }
+        if(best && bd>0.001){ if(k===1){w.x1=best[0];w.y1=best[1];} else {w.x2=best[0];w.y2=best[1];} changed=true; }
+      }
+    }
+
+    // --- 3. an end sitting inside another wall's band becomes a real T-junction ---
+    for(const w of W){
+      for(const k of [1,2]){
+        const cx=k===1?w.x1:w.x2, cy=k===1?w.y1:w.y2;
+        let best=null,bd=Infinity;
+        for(const o of W){
+          if(o.id===w.id || wallLen(o)<1) continue;
+          const pr=projPointToSeg(cx,cy,o.x1,o.y1,o.x2,o.y2);
+          if(pr.t<=0.001||pr.t>=0.999) continue;        // end-to-end, already handled
+          if(pr.d > o.t/2 + 3) continue;                // not inside the band
+          if(pr.d<bd){ bd=pr.d; best=pr; }
+        }
+        if(best && bd>0.001){
+          // keep the wall square: only take the component that doesn't lean it over
+          if(isV(w))      { if(k===1) w.y1=best.y; else w.y2=best.y; }
+          else if(isH(w)) { if(k===1) w.x1=best.x; else w.x2=best.x; }
+          else            { if(k===1){w.x1=best.x;w.y1=best.y;} else {w.x2=best.x;w.y2=best.y;} }
+          changed=true;
+        }
+      }
+    }
+    return changed;
+  }
+  function cleanupStrayWalls(){
+    const keep=[];
+    for(const w of state.walls){
+      if(wallLen(w)<3) continue; // drop near-zero-length fragments
+      // drop a wall that duplicates one we already kept (same two endpoints, either
+      // direction). Drawing over an existing wall — very easy to do when a snap
+      // grabs both ends — otherwise leaves two stacked walls, and EVERY label,
+      // room edge and dimension then gets rendered twice: the "重影".
+      const dup=keep.some(k=>
+        (Math.abs(k.x1-w.x1)<1.5 && Math.abs(k.y1-w.y1)<1.5 && Math.abs(k.x2-w.x2)<1.5 && Math.abs(k.y2-w.y2)<1.5) ||
+        (Math.abs(k.x1-w.x2)<1.5 && Math.abs(k.y1-w.y2)<1.5 && Math.abs(k.x2-w.x1)<1.5 && Math.abs(k.y2-w.y1)<1.5));
+      if(dup){
+        // move any door/window off the discarded copy onto the survivor
+        const surv=keep.find(k=>
+          (Math.abs(k.x1-w.x1)<1.5 && Math.abs(k.y1-w.y1)<1.5 && Math.abs(k.x2-w.x2)<1.5 && Math.abs(k.y2-w.y2)<1.5) ||
+          (Math.abs(k.x1-w.x2)<1.5 && Math.abs(k.y1-w.y2)<1.5 && Math.abs(k.x2-w.x1)<1.5 && Math.abs(k.y2-w.y1)<1.5));
+        if(surv) for(const o of state.openings){ if(o.wallId===w.id) o.wallId=surv.id; }
+        continue;
+      }
+      keep.push(w);
+    }
+    if(keep.length!==state.walls.length){
+      const ids=new Set(keep.map(w=>w.id));
+      state.walls=keep;
+      state.openings=state.openings.filter(o=>ids.has(o.wallId));
+    }
+  }
+  // inline dimension editor: number input + 3 direction buttons (fix-min / both / fix-max),
+  // shown right next to the tapped label — replaces the old "type Enter then a popup asks
+  // which direction" flow with something closer to a single continuous gesture.
+  const dimBox=document.getElementById('dimEditBox'), dimInput=document.getElementById('dimEditInput');
+  const dimBtnMin=document.getElementById('dimDirMin'), dimBtnBoth=document.getElementById('dimDirBoth'), dimBtnMax=document.getElementById('dimDirMax');
+  let dimApply=null;
+  // orient: 'h' = the dimension runs left↔right, 'v' = it runs up↕down.
+  // ARROW = THE DIRECTION THE WALL TRAVELS. ⬆ means the bottom wall stays put and
+  // the TOP wall moves up; ← means the right wall stays put and the LEFT wall moves
+  // left. (Internally 'fixMax' = anchor the far end = move the near wall outward,
+  // so the glyphs and the modes are deliberately crossed here.)
+  function showDimEditor(sx,sy,curVal,onApply,orient){
+    dimApply=onApply;
+    const v = orient==='v';
+    dimBtnMin.textContent = v?'↑':'←';
+    dimBtnMin.title       = v?'上面的牆往上移（下面的牆不動）':'左邊的牆往左移（右邊的牆不動）';
+    dimBtnMin.dataset.mode= 'fixMax';
+    dimBtnBoth.textContent= v?'↕':'↔';
+    dimBtnBoth.title      = v?'上下兩面牆各往外移一半（中心不動）':'左右兩面牆各往外移一半（中心不動）';
+    dimBtnBoth.dataset.mode='both';
+    dimBtnMax.textContent = v?'↓':'→';
+    dimBtnMax.title       = v?'下面的牆往下移（上面的牆不動）':'右邊的牆往右移（左邊的牆不動）';
+    dimBtnMax.dataset.mode= 'fixMin';
+    dimInput.value=String(Math.round(curVal));
+    // keep the little editor fully on screen even when the label is near an edge
+    const bw=190, bh=44;
+    const lx=Math.max(6, Math.min((W||stage.clientWidth)-bw-6, sx-70));
+    const ly=Math.max(6, Math.min((H||stage.clientHeight)-bh-6, sy-40));
+    dimBox.style.left=lx+'px'; dimBox.style.top=ly+'px';
+    dimBox.classList.add('show');
+    requestAnimationFrame(()=>{ try{ dimInput.focus(); dimInput.select(); }catch(e){} });
+  }
+  function hideDimEditor(){ dimBox.classList.remove('show'); dimApply=null; }
+  function commitDim(mode){
+    if(!dimApply) return;
+    const v=parseFloat(dimInput.value);
+    if(!isNaN(v) && v>0) dimApply(v, mode);
+    hideDimEditor();
+  }
+  dimBtnMin.onclick =()=>commitDim(dimBtnMin.dataset.mode ||'fixMax');
+  dimBtnBoth.onclick=()=>commitDim('both');
+  dimBtnMax.onclick =()=>commitDim(dimBtnMax.dataset.mode ||'fixMin');
+  // Enter = same as the → / ↓ button (grow rightward / downward), which is what
+  // people expect when they just type a number and hit return
+  dimInput.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); commitDim(dimBtnMax.dataset.mode||'fixMin'); } else if(e.key==='Escape'){ hideDimEditor(); } });
+  dimInput.addEventListener('pointerdown',e=>e.stopPropagation());
+  dimBox.addEventListener('pointerdown',e=>e.stopPropagation());
+
+  // open editor for a room interior dimension (tap a dim label)
+  // Change a lone wall's length while choosing WHICH END travels — the same
+  // ← ↔ → / ↑ ↕ ↓ semantics as a room dimension, so a wall that isn't (yet) part
+  // of a detected space still gets direction arrows instead of a bare number box.
+  // Anything joined to the end that moves is carried along so the join survives.
+  function setWallLengthDirectional(w,newLen,mode){
+    const L=wallLen(w)||1; const d=newLen-L;
+    if(!isFinite(d)) return false;
+    if(Math.abs(d)<0.01) return true;
+    const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L;
+    const horiz=Math.abs(w.x2-w.x1)>=Math.abs(w.y2-w.y1);
+    const v1=horiz?w.x1:w.y1, v2=horiz?w.x2:w.y2;
+    const maxIs2 = v2>=v1;                       // which endpoint is the right/bottom one
+    const moveEnd=(useSecond, amt)=>{            // amt measured along +u
+      const ox=useSecond?w.x2:w.x1, oy=useSecond?w.y2:w.y1;
+      // If a square wall is attached at this corner, it must travel as a whole wall
+      // (dragging whatever is joined to ITS ends), not have one end yanked sideways
+      // into a diagonal. That's the same parallel-slide used everywhere else.
+      const axisAligned = Math.abs(w.x1-w.x2)<1 || Math.abs(w.y1-w.y2)<1;
+      if(axisAligned){
+        const perp=state.walls.find(o=>{
+          if(o.id===w.id||wallLen(o)<1) return false;
+          if(Math.hypot(o.x1-ox,o.y1-oy)>1.5 && Math.hypot(o.x2-ox,o.y2-oy)>1.5) return false;
+          const ov=Math.abs(o.x1-o.x2)<1, oh=Math.abs(o.y1-o.y2)<1;
+          if(!ov && !oh) return false;
+          return horiz ? ov : oh;                 // perpendicular to this wall
+        });
+        if(perp){
+          const pv=Math.abs(perp.x1-perp.x2)<1;
+          const axis=pv?'x':'y';
+          const delta=pv?ux*amt:uy*amt;
+          const lo=pv?Math.min(perp.y1,perp.y2):Math.min(perp.x1,perp.x2);
+          const hi=pv?Math.max(perp.y1,perp.y2):Math.max(perp.x1,perp.x2);
+          moveWallLine(axis, pv?perp.x1:perp.y1, delta, lo, hi);
+          return;
+        }
+      }
+      const nx=ox+ux*amt, ny=oy+uy*amt;
+      for(const o of state.walls){               // carry whatever was joined here
+        if(o.id===w.id) continue;
+        if(Math.hypot(o.x1-ox,o.y1-oy)<1.5){ o.x1=nx; o.y1=ny; }
+        if(Math.hypot(o.x2-ox,o.y2-oy)<1.5){ o.x2=nx; o.y2=ny; }
+      }
+      if(useSecond){ w.x2=nx; w.y2=ny; } else { w.x1=nx; w.y1=ny; }
+    };
+    withOpeningsPreserved(()=>{
+      if(mode==='fixMin')      moveEnd(maxIs2,  maxIs2? d : -d);   // the max end travels outward
+      else if(mode==='fixMax') moveEnd(!maxIs2, maxIs2? -d : d);   // the min end travels outward
+      else { moveEnd(maxIs2, (maxIs2? d : -d)/2); moveEnd(!maxIs2, (maxIs2? -d : d)/2); }
+    });
+    return true;
+  }
+  function editWallLenLabel(w, sx, sy){
+    const horiz=Math.abs(w.y1-w.y2)<1, vert=Math.abs(w.x1-w.x2)<1;
+    if(!horiz && !vert){
+      showNumInput(sx,sy,toDisp(wallLen(w)),(v)=>{ const nl=fromDisp(v); if(nl>0){ withOpeningsPreserved(()=>setWallLength(w,nl)); pushHistory(); draw(); } });
+      return;
+    }
+    showDimEditor(sx, sy, toDisp(wallLen(w)), (v,mode)=>{
+      const nl=fromDisp(v); if(!(nl>0)) return;
+      setWallLengthDirectional(w,nl,mode); pushHistory(); draw();
+    }, horiz?'h':'v');
+  }
+  // One place that turns a tapped label into an editor. This used to be copy-pasted
+  // in two spots, and several branches could quietly do nothing at all — if the
+  // wall behind the label had since been merged away or renumbered, the tap was
+  // simply swallowed and the number looked dead. Now an unresolvable label says so
+  // instead of ignoring you.
+  function openLabelEditor(lab,px,py){
+    if(!lab) return false;
+    if(lab.kind==='dim'){ editDimLabel(lab,px,py); return true; }
+    if(lab.kind==='name'){ editRoomName(lab,px,py); return true; }
+    if(lab.kind==='walllen'){
+      const w=state.walls.find(x=>x.id===lab.wid);
+      if(w){ editWallLenLabel(w,px,py); return true; }
+      // the wall is gone (merged/cleaned up) but the number is still on screen:
+      // fall back to whatever room edge sits under the tap rather than no-op
+      const alt=hitLabels.find(l=>l!==lab && l.kind==='dim' &&
+        px>=l.rect[0]&&px<=l.rect[0]+l.rect[2]&&py>=l.rect[1]&&py<=l.rect[1]+l.rect[3]);
+      if(alt){ editDimLabel(alt,px,py); return true; }
+      flashHint('這個尺寸的牆體已變更，請重新點一次'); draw(); return false;
+    }
+    if(lab.kind==='openleft'||lab.kind==='openright'){
+      const o=state.openings.find(v=>v.id===lab.oid);
+      if(!o){ flashHint('找不到這個門窗'); return false; }
+      editOpeningGap(lab,px,py); return true;
+    }
+    if(lab.kind==='beamdist'){
+      const bm=state.beams.find(x=>x.id===lab.bid);
+      if(!bm){ flashHint('找不到這根樑'); return false; }
+      if(!beamGaps(bm).some(x=>x.dir===lab.dir)){ flashHint('這根樑沒有對齊到牆，無法量離牆距離'); return false; }
+      editBeamGap(lab,px,py); return true;
+    }
+    if(lab.kind==='coldist'){
+      const c=state.columns.find(x=>x.id===lab.cid);
+      if(!c){ flashHint('找不到這根柱子'); return false; }
+      const info=columnGaps(c).find(x=>x.dir===lab.dir);
+      if(!info){ flashHint('這根柱子沒有對齊到牆，無法量離牆距離'); return false; }
+      editColumnGap(lab,px,py); return true;
+    }
+    return false;
+  }
+  function editDimLabel(l, sx, sy){
+    const r=l.room, i=l.edgeIndex, curLen=r.lens[i];
+    const e=r.edges[i];
+    // any axis-aligned edge is editable now — not just edges of a lone rectangle,
+    // which is why a 一房一廳 layout previously refused to resize
+    const horiz=Math.abs(e.y1-e.y2)<1, vert=Math.abs(e.x1-e.x2)<1;
+    if(horiz||vert){
+      // an outer-face label shows interior + the two wall thicknesses; type an outer
+      // number and we subtract that overhang before resizing the space itself
+      const pad=l.outer||0;
+      showDimEditor(sx, sy, toDisp(curLen+pad), (v,mode)=>{
+        const newLen=fromDisp(v)-pad; if(!(newLen>0)) return;
+        // fingerprint the geometry so we can tell whether anything actually moved
+        const sig=()=>state.walls.map(w=>`${w.id}:${w.x1.toFixed(2)},${w.y1.toFixed(2)},${w.x2.toFixed(2)},${w.y2.toFixed(2)}`).join('|');
+        const before=sig();
+        let ok=editRoomEdge(r,i,newLen,mode);
+        if(!ok){
+          // Couldn't resolve the capping walls. Before giving up, try sliding this
+          // edge's own wall line — for a side made of several merged walls that is
+          // the right move anyway, and setWallLength would only have nudged one of
+          // them (which looked like nothing happening).
+          const e2=r.edges[i];
+          const hz=Math.abs(e2.y1-e2.y2)<1;
+          const cur=hz?e2.y1:e2.x1;
+          const lo=hz?Math.min(e2.x1,e2.x2):Math.min(e2.y1,e2.y2);
+          const hi=hz?Math.max(e2.x1,e2.x2):Math.max(e2.y1,e2.y2);
+          const d=newLen-r.lens[i];
+          withOpeningsPreserved(()=>{ ok=moveWallLine(hz?'y':'x', cur, hz?-d:-d, lo, hi); });
+          if(!ok){
+            const w=state.walls.find(x=>x.id===l.wid);
+            if(w) withOpeningsPreserved(()=>setWallLength(w,newLen));
+          }
+        }
+        if(sig()===before){
+          // nothing moved at all — say so rather than leaving you tapping a dead number
+          flashHint('這道尺寸改不動：兩端的牆沒有辦法判定。請改用選取工具拖曳牆面握把');
+          draw(); return;
+        }
+        pushHistory(); draw();
+      }, horiz?'h':'v');
+    } else {
+      showNumInput(sx, sy, toDisp(curLen), (v)=>{
+        const newLen=fromDisp(v); if(!(newLen>0)) return;
+        const w=state.walls.find(x=>x.id===l.wid); if(w){ setWallLength(w,newLen); pushHistory(); draw(); }
+      });
+    }
+  }
+  function editRoomName(l, sx, sy){
+    const r=l.room;
+    showTextInput(sx-40, sy-14, r.name||'', (val)=>{ if(!state.roomNames)state.roomNames={}; state.roomNames[r.key]=val.trim(); recomputeRooms(); pushHistory(); draw(); });
+  }
+
+  // ================= Snapping =================
+  function allEndpoints(){ const p=[]; for(const w of state.walls){ p.push([w.x1,w.y1]); p.push([w.x2,w.y2]); } return p; }
+  // angle-lock step size: 'ortho' only allows horizontal/vertical (90°), '45'
+  // allows the usual 45° increments, 'free' does no locking at all
+  function angleStep(){ return ui.angleMode==='ortho' ? Math.PI/2 : Math.PI/4; }
+  function angleLockOn(){ return ui.angleMode!=='free'; }
+  function snapWorld(wx,wy,from){
+    // endpoint snap (px threshold)
+    const thr=12/view.scale;
+    let best=null,bd=thr;
+    for(const [ex,ey] of allEndpoints()){ const d=Math.hypot(ex-wx,ey-wy); if(d<bd){bd=d;best=[ex,ey];} }
+    if(best) return {x:best[0],y:best[1],snapType:'end'};
+    let x=wx,y=wy;
+    // angle lock relative to 'from'
+    if(from && angleLockOn()){
+      const dx=wx-from.x, dy=wy-from.y, ang=Math.atan2(dy,dx), L=Math.hypot(dx,dy);
+      const step=angleStep();
+      const snapAng=Math.round(ang/step)*step;
+      if(Math.abs(((ang-snapAng+Math.PI)%(2*Math.PI))-Math.PI) < 0.14){
+        x=from.x+Math.cos(snapAng)*L; y=from.y+Math.sin(snapAng)*L;
+      }
+    }
+    // grid snap
+    if(ui.snap){ const g=ui.gridSize; x=Math.round(x/g)*g; y=Math.round(y/g)*g; }
+    return {x,y,snapType:'grid'};
+  }
+
+  // snap to existing geometry: endpoint/corner (priority) or a point on a wall
+  // face (T-junction). Corners (the actual face edges of a wall, not just its
+  // centerline endpoint) are included so a new wall can be started right at the
+  // visible edge of an existing one — walk up, tap the corner, it binds there,
+  // and because both walls share the same thickness the outer faces naturally
+  // line up into a clean corner, matching how you'd actually mark a wall on site.
+  function snapToGeometry(wx,wy,excludeFrom){
+    const thr=18/view.scale;
+    // Pass 1: centerline endpoints always win first, at the full threshold —
+    // this is what makes a continuous chain of walls (each new one starting
+    // where the last ended) snap EXACTLY, with no risk of a nearby face-corner
+    // (offset by half a thickness) stealing the point instead.
+    let best=null,bd=thr;
+    for(const [ex,ey] of allEndpoints()){ if(excludeFrom&&Math.abs(ex-excludeFrom.x)<0.01&&Math.abs(ey-excludeFrom.y)<0.01)continue; const d=Math.hypot(ex-wx,ey-wy); if(d<bd){bd=d;best={x:ex,y:ey,type:'end'};} }
+    if(best) return best;
+    // Pass 2: only if no centerline endpoint is nearby, fall back to a wall's
+    // face corners — this is what lets a new wall start right at the visible
+    // edge of an existing one (the "walk up and tap the corner" gesture).
+    let bc=null,bdc=thr;
+    for(const w of state.walls){ if(wallLen(w)<1) continue; const c=wallCorners(w);
+      for(const p of [c.L1,c.L2,c.R1,c.R2]){ if(excludeFrom&&Math.abs(p.x-excludeFrom.x)<0.01&&Math.abs(p.y-excludeFrom.y)<0.01)continue; const d=Math.hypot(p.x-wx,p.y-wy); if(d<bdc){bdc=d;bc={x:p.x,y:p.y,type:'corner'};} }
+    }
+    if(bc) return bc;
+    let be=null,bde=thr;
+    for(const w of state.walls){ if(wallLen(w)<1)continue; const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); if(pr.t>0.02&&pr.t<0.98&&pr.d<bde){bde=pr.d;be={x:pr.x,y:pr.y,type:'edge'};} }
+    return be;
+  }
+
+  // wall end resolver: prefer an exact snap target when it's already close to a
+  // locked angle (0/45/90°) — this is the common T-junction case, and taking the
+  // EXACT target coordinate (instead of projecting it onto the locked ray) is
+  // what makes two walls truly share one point instead of ending up a few mm
+  // apart looking like "two walls". Only fall back to a projected approximation
+  // when the snap target is clearly off-angle from the drag direction.
+  function computeWallEnd(from, wx, wy){
+    let x=wx, y=wy;
+    if(from && angleLockOn()){
+      const dx=x-from.x, dy=y-from.y, L=Math.hypot(dx,dy), step=angleStep();
+      const ang=Math.atan2(dy,dx); const sa=Math.round(ang/step)*step;
+      x=from.x+Math.cos(sa)*L; y=from.y+Math.sin(sa)*L;
+    }
+    const s=snapToGeometry(x,y,from);
+    if(s){
+      const near = from && Math.hypot(s.x-from.x,s.y-from.y) < 8/view.scale;
+      if(!near){
+        if(from && angleLockOn()){
+          // ANGLE LOCK IS ABSOLUTE. The old code took the snap target's raw
+          // coordinate whenever it happened to be "nearly" on-angle (within ~5°),
+          // which is exactly how an orthogonal wall ended up visibly skewed: the
+          // snap won, the right angle lost. Now the target is ALWAYS projected
+          // onto the locked ray — we adopt its position ALONG the wall direction
+          // (so the junction still lands exactly on the neighbour) while the
+          // perpendicular coordinate stays pinned to the locked axis.
+          const dx=x-from.x, dy=y-from.y, L0=Math.hypot(dx,dy)||1, ux=dx/L0, uy=dy/L0;
+          const t=(s.x-from.x)*ux+(s.y-from.y)*uy;
+          const rx=from.x+ux*t, ry=from.y+uy*t;
+          const perp=Math.hypot(s.x-rx,s.y-ry);      // how far off the locked ray the target sits
+          if(t>1 && perp < 26/view.scale){
+            const hz=Math.abs(ry-from.y)<0.01, vt=Math.abs(rx-from.x)<0.01;
+            return {x:rx,y:ry,guides:alignGuides(rx,ry,hz,vt),snap:{type:s.type,x:rx,y:ry}};
+          }
+        } else {
+          return {x:s.x,y:s.y,guides:[],snap:s};
+        }
+      }
+    }
+    if(from && angleLockOn()){
+      const horiz=Math.abs(y-from.y)<0.01, vert=Math.abs(x-from.x)<0.01;
+      if(ui.snap){ const g=ui.gridSize; if(horiz){ x=Math.round(x/g)*g; } else if(vert){ y=Math.round(y/g)*g; } else { x=Math.round(x/g)*g; y=Math.round(y/g)*g; } }
+      return {x,y,guides:alignGuides(x,y,horiz,vert),snap:null};
+    }
+    const gthr=9/view.scale; const guides=[];
+    let gx=null,gy=null,dx0=gthr,dy0=gthr;
+    for(const [ex,ey] of allEndpoints()){
+      const ddx=Math.abs(x-ex); if(ddx<dx0){dx0=ddx; gx=ex;}
+      const ddy=Math.abs(y-ey); if(ddy<dy0){dy0=ddy; gy=ey;}
+    }
+    if(gx!==null){ x=gx; guides.push({axis:'v',coord:gx}); }
+    if(gy!==null){ y=gy; guides.push({axis:'h',coord:gy}); }
+    if(ui.snap){ const g=ui.gridSize; if(gx===null)x=Math.round(x/g)*g; if(gy===null)y=Math.round(y/g)*g; }
+    return {x,y,guides,snap:null};
+  }
+  // detect alignment with other walls' edges/endpoints — shows a green guide line
+  // when the wall being drawn lines up with an existing parallel wall face. When
+  // angle-lock is on we only check the axis that ISN'T already locked-straight
+  // (checking both would just re-echo the locked coordinate itself).
+  // Walls join at their CENTERLINES, which is right for walls but wrong for a beam:
+  // a beam spans from the inside face of one wall to the inside face of another, and
+  // starting it at a wall's centre buries half of it inside the wall. This nudges a
+  // point out of every wall band it currently sits in, toward the side that was
+  // actually tapped — at a room corner (two walls) that lands on the inner corner.
+  function faceOffsetPoint(px,py,clickX,clickY){
+    let x=px,y=py;
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const pr=projPointToSeg(x,y,w.x1,w.y1,w.x2,w.y2);
+      if(pr.d > w.t/2+0.5) continue;                        // point isn't inside this wall
+      const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
+      const side=(((clickX-w.x1)*nx+(clickY-w.y1)*ny)>=0)?1:-1;
+      const cur=(x-w.x1)*nx+(y-w.y1)*ny;
+      const target=side*(w.t/2);
+      x+=nx*(target-cur); y+=ny*(target-cur);
+    }
+    return {x,y};
+  }
+  // beam end resolver: same snapping as a wall, then moved off the centerline
+  function computeBeamEnd(from, wx, wy){
+    const r=computeWallEnd(from,wx,wy);
+    const p=faceOffsetPoint(r.x,r.y,wx,wy);
+    if(from && angleLockOn()){
+      // the face nudge is perpendicular to the WALL, which may be perpendicular to
+      // the BEAM — re-project so the beam itself stays exactly on its locked axis
+      const dx=r.x-from.x, dy=r.y-from.y, L=Math.hypot(dx,dy);
+      if(L>0.001){
+        const ux=dx/L, uy=dy/L, t=(p.x-from.x)*ux+(p.y-from.y)*uy;
+        return {x:from.x+ux*t, y:from.y+uy*t, guides:r.guides, snap:r.snap};
+      }
+    }
+    return {x:p.x, y:p.y, guides:r.guides, snap:r.snap};
+  }
+  // A beam running ALONGSIDE a wall should sit against the wall's inner face, not
+  // straddle its centerline. Snapping the endpoints (which is all faceOffsetPoint
+  // did) fixes where the beam STARTS and STOPS, but the beam still had its own
+  // centerline lying on the wall's centerline, so half its width was buried in the
+  // wall. Here the whole segment is shifted sideways so its near edge is flush with
+  // the wall face on the side you're drawing from, and the beam lies wholly in the
+  // room. Beams that merely cross or butt into a wall are untouched — only ones
+  // running parallel to and near a wall get realigned.
+  function alignBeamAlongWall(a, c, clickX, clickY, bw){
+    const dx=c.x-a.x, dy=c.y-a.y, L=Math.hypot(dx,dy);
+    if(L<1) return {a,c};
+    const ux=dx/L, uy=dy/L, nx=-uy, ny=ux;
+    let best=null, bd=Infinity;
+    for(const w of state.walls){
+      const wl=wallLen(w); if(wl<1) continue;
+      const wux=(w.x2-w.x1)/wl, wuy=(w.y2-w.y1)/wl;
+      if(Math.abs(ux*wux+uy*wuy)<0.98) continue;                 // not parallel to the beam
+      const d1=(w.x1-a.x)*nx+(w.y1-a.y)*ny, d2=(w.x2-a.x)*nx+(w.y2-a.y)*ny;
+      if(Math.abs(d1-d2)>2) continue;
+      const d=(d1+d2)/2, dist=Math.abs(d);
+      if(dist > w.t/2 + bw + 30) continue;                       // too far to be "along" it
+      const t1=(w.x1-a.x)*ux+(w.y1-a.y)*uy, t2=(w.x2-a.x)*ux+(w.y2-a.y)*uy;
+      if(Math.max(t1,t2) < L*0.25 || Math.min(t1,t2) > L*0.75) continue;   // barely overlaps
+      if(dist<bd){ bd=dist; best={w,d}; }
+    }
+    if(!best) return {a,c};
+    const cs=(clickX-a.x)*nx+(clickY-a.y)*ny;
+    const side=(cs-best.d)>=0 ? 1 : -1;                          // which side of the wall you're on
+    const off=best.d + side*(best.w.t/2 + bw/2);                 // flush against that face
+    return {a:{x:a.x+nx*off, y:a.y+ny*off}, c:{x:c.x+nx*off, y:c.y+ny*off}};
+  }
+  function alignGuides(x,y,horiz,vert){
+    const gthr=9/view.scale; const guides=[];
+    let gx=null,gy=null,dx0=gthr,dy0=gthr;
+    for(const w of state.walls){
+      for(const [ex,ey] of [[w.x1,w.y1],[w.x2,w.y2]]){
+        if(!horiz){ const ddx=Math.abs(x-ex); if(ddx<dx0){dx0=ddx; gx=ex;} }
+        if(!vert){ const ddy=Math.abs(y-ey); if(ddy<dy0){dy0=ddy; gy=ey;} }
+      }
+    }
+    if(gx!==null) guides.push({axis:'v',coord:gx});
+    if(gy!==null) guides.push({axis:'h',coord:gy});
+    return guides;
+  }
+  function setWallLength(w,nl){
+    const L=wallLen(w)||1; const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L;
+    const ox=w.x2, oy=w.y2;                 // old moving corner
+    const nx2=w.x1+ux*nl, ny2=w.y1+uy*nl;   // new corner
+    // move this wall's end, and drag along any wall sharing that corner
+    for(const o of state.walls){
+      if(Math.abs(o.x1-ox)<0.5 && Math.abs(o.y1-oy)<0.5){ o.x1=nx2; o.y1=ny2; }
+      if(Math.abs(o.x2-ox)<0.5 && Math.abs(o.y2-oy)<0.5){ o.x2=nx2; o.y2=ny2; }
+    }
+    w.x2=nx2; w.y2=ny2;
+  }
+
+  // ================= Auto-connect (weld) =================
+  // Drawing "close enough" is how people actually draw. A 2cm gap is invisible on
+  // screen but it's the whole difference between four walls that enclose a space
+  // and four walls that just sit near each other. So after a wall is finished (or
+  // an endpoint is let go) we pull its ends onto the nearest existing endpoint,
+  // and failing that onto the nearest wall centerline (a T-junction).
+  // Critically this never bends a straight wall: for an axis-aligned wall we adopt
+  // the target's coordinate ALONG the wall freely, and shift the wall bodily
+  // sideways only when the offset is small — so it stays exactly orthogonal.
+  function weldTarget(px,py,selfId){
+    const TOL=Math.max(14, 18/view.scale);   // cm
+    let best=null,bd=TOL;
+    for(const w of state.walls){ if(w.id===selfId||wallLen(w)<1) continue;
+      for(const p of [[w.x1,w.y1],[w.x2,w.y2]]){
+        const d=Math.hypot(p[0]-px,p[1]-py); if(d<bd){ bd=d; best={x:p[0],y:p[1]}; }
+      }
+    }
+    if(best) return best;
+    let be=null,bde=TOL;
+    for(const w of state.walls){ if(w.id===selfId||wallLen(w)<1) continue;
+      const pr=projPointToSeg(px,py,w.x1,w.y1,w.x2,w.y2);
+      if(pr.t>0.001 && pr.t<0.999 && pr.d<bde){ bde=pr.d; be={x:pr.x,y:pr.y}; }
+    }
+    return be;
+  }
+  function weldWall(w){
+    if(!w || wallLen(w)<1) return;
+    const vert=Math.abs(w.x1-w.x2)<0.6, horiz=Math.abs(w.y1-w.y2)<0.6;
+    const c1=weldTarget(w.x1,w.y1,w.id), c2=weldTarget(w.x2,w.y2,w.id);
+    if(!c1 && !c2) return;
+    if(vert){
+      if(c1) w.y1=c1.y;
+      if(c2) w.y2=c2.y;
+      // slide the whole wall onto the welded x so it stays perfectly vertical.
+      // The allowance matches the healer: if the bands overlap, it's one junction.
+      const lim=Math.max(12,w.t);
+      const cand=[c1,c2].filter(Boolean).sort((a,b)=>Math.abs(a.x-w.x1)-Math.abs(b.x-w.x1))[0];
+      if(cand && Math.abs(cand.x-w.x1)<=lim){ w.x1=cand.x; w.x2=cand.x; }
+    } else if(horiz){
+      if(c1) w.x1=c1.x;
+      if(c2) w.x2=c2.x;
+      const lim=Math.max(12,w.t);
+      const cand=[c1,c2].filter(Boolean).sort((a,b)=>Math.abs(a.y-w.y1)-Math.abs(b.y-w.y1))[0];
+      if(cand && Math.abs(cand.y-w.y1)<=lim){ w.y1=cand.y; w.y2=cand.y; }
+    } else {
+      if(c1){ w.x1=c1.x; w.y1=c1.y; }
+      if(c2){ w.x2=c2.x; w.y2=c2.y; }
+    }
+  }
+
+  // ================= Hit testing =================
+  function hitTest(wx,wy){
+    const thr=10/view.scale;
+    // texts
+    for(let i=state.texts.length-1;i>=0;i--){ const t=state.texts[i]; const w=(t.text.length*t.size*0.6); if(wx>t.x-4 && wx<t.x+w+4 && wy>t.y-t.size && wy<t.y+4) return {kind:'text',id:t.id}; }
+    // columns (rotated rect)
+    for(let i=state.columns.length-1;i>=0;i--){ const c=state.columns[i];
+      const rad=-(c.rot||0)*Math.PI/180, dx=wx-c.x, dy=wy-c.y;
+      const lx=dx*Math.cos(rad)-dy*Math.sin(rad), ly=dx*Math.sin(rad)+dy*Math.cos(rad);
+      if(Math.abs(lx)<c.w/2+thr*0.3 && Math.abs(ly)<c.h/2+thr*0.3) return {kind:'column',id:c.id};
+    }
+    // beams
+    for(let i=state.beams.length-1;i>=0;i--){ const bm=state.beams[i]; const pr=projPointToSeg(wx,wy,bm.x1,bm.y1,bm.x2,bm.y2); if(pr.d<Math.max(bm.w/2,thr)) return {kind:'beam',id:bm.id}; }
+    // openings
+    for(let i=state.openings.length-1;i>=0;i--){ const o=state.openings[i]; const w=state.walls.find(v=>v.id===o.wallId); if(!w)continue; const [cx,cy]=wallPointAt(w,o.pos); if(Math.hypot(cx-wx,cy-wy)<Math.max(o.width/2,thr)) return {kind:'opening',id:o.id}; }
+    // dims
+    for(let i=state.dims.length-1;i>=0;i--){ const d=state.dims[i]; const off=dimOffsetPoints(d); const pr=projPointToSeg(wx,wy,off.ax,off.ay,off.bx,off.by); if(pr.d<thr) return {kind:'dim',id:d.id}; }
+    // walls
+    for(let i=state.walls.length-1;i>=0;i--){ const w=state.walls[i]; const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); if(pr.d<Math.max(w.t/2,thr)) return {kind:'wall',id:w.id}; }
+    return null;
+  }
+  function findWallNear(wx,wy){
+    let best=null,bd=1e9;
+    for(const w of state.walls){ const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); if(pr.d<bd){bd=pr.d;best={w,pr};} }
+    if(best && bd < Math.max(best.w.t/2,20/view.scale)) return best;
+    return null;
+  }
+
+  // ================= Units & Formatting =================
+  function toDisp(cm){ return ui.unit==='mm' ? cm*10 : cm; }   // cm(internal) -> display value
+  function fromDisp(v){ return ui.unit==='mm' ? v/10 : v; }    // display value -> cm(internal)
+  function fmtLen(cm){ return Math.round(toDisp(cm)) + ' ' + ui.unit; }
+
+  // ================= Drawing =================
+  function resize(){
+    DPR=Math.max(1,window.devicePixelRatio||1);
+    W=stage.clientWidth; H=stage.clientHeight;
+    cv.width=W*DPR; cv.height=H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    draw();
+  }
+
+  function drawGrid(){
+    if(!ui.grid) return;
+    const g=ui.gridSize;
+    const [wx0,wy0]=toWorld(0,0), [wx1,wy1]=toWorld(W,H);
+    const stepPx=g*view.scale;
+    // hide grid when too dense
+    let gg=g, sp=stepPx;
+    while(sp<6){ gg*=5; sp=gg*view.scale; }
+    const startX=Math.floor(wx0/gg)*gg, startY=Math.floor(wy0/gg)*gg;
+    ctx.lineWidth=1;
+    for(let x=startX;x<=wx1;x+=gg){
+      const [sx]=toScreen(x,0);
+      const major=Math.abs(Math.round(x/(gg*5))*(gg*5)-x)<1e-6;
+      ctx.strokeStyle=major?'#DBE0E5':'#EBEEF1';
+      ctx.beginPath(); ctx.moveTo(sx+.5,0); ctx.lineTo(sx+.5,H); ctx.stroke();
+    }
+    for(let y=startY;y<=wy1;y+=gg){
+      const [,sy]=toScreen(0,y);
+      const major=Math.abs(Math.round(y/(gg*5))*(gg*5)-y)<1e-6;
+      ctx.strokeStyle=major?'#DBE0E5':'#EBEEF1';
+      ctx.beginPath(); ctx.moveTo(0,sy+.5); ctx.lineTo(W,sy+.5); ctx.stroke();
+    }
+  }
+
+  // ---- wall centerline (accounting for align: in/out/mid offset from the drawn line) ----
+  function approx(a,b){ return Math.abs(a-b)<1.0; }
+  function wallCenterline(w){
+    const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
+    const al=w.align||'mid'; let c=0; if(al==='in')c=w.t/2; else if(al==='out')c=-w.t/2;
+    return {x1:w.x1+nx*c, y1:w.y1+ny*c, x2:w.x2+nx*c, y2:w.y2+ny*c, t:w.t};
+  }
+  // simple (non-mitered) rectangle for a wall's centerline band — used only for
+  // hit-testing / label placement / selection highlight, NOT for the actual wall
+  // rendering (which uses the stroke technique below and needs no corner math at all)
+  function wallCorners(w){
+    const cl=wallCenterline(w);
+    const L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1, ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L, nx=-uy, ny=ux, h=w.t/2;
+    return {
+      L1:{x:cl.x1+nx*h,y:cl.y1+ny*h}, L2:{x:cl.x2+nx*h,y:cl.y2+ny*h},
+      R1:{x:cl.x1-nx*h,y:cl.y1-ny*h}, R2:{x:cl.x2-nx*h,y:cl.y2-ny*h},
+    };
+  }
+  const WALL_FILL='#9BA0A6';
+  const WALL_EDGE='#4A4F55';
+  let roomWallIds=new Set();
+  let wallBands={};   // wid -> {ux,uy,nx,ny(inward), io, oo}
+  let wallRoomCount={}; // wid -> how many detected spaces this wall borders
+
+  // Wall corners/junctions (L-shapes, T-junctions, crosses, mixed thicknesses) are
+  // handled entirely by the browser's own path-stroke engine instead of manually
+  // computing which face pairs with which neighbour — that hand-rolled "nearest
+  // point" / "cross product" / "inset test point" matching kept breaking on edge
+  // cases (90° ties, T-junctions, differing thicknesses) no matter how many times
+  // it was patched. Grouping walls by thickness and stroking each group's
+  // centerlines as one path lets Canvas's native miter-join do the corner math
+  // (which is exhaustively tested browser code, not ours); drawing a slightly
+  // thicker edge-coloured pass first and a fill-coloured pass at exact thickness
+  // on top gives a clean outline that only ever appears on the true outer edge.
+  // Before rendering, snap together any centerline endpoints that are merely
+  // "close" (within a small tolerance) into one exact shared coordinate. Two
+  // walls meant to meet at a corner rarely land on the EXACT same floating
+  // point coordinate after a touch/Pencil drag — even a fraction of a cm is
+  // enough for the browser's path-stroke engine to treat them as unconnected
+  // segments (each gets its own square end-cap) instead of joining them with
+  // a miter, which is what produced the little stepped notches at corners.
+  // This mirrors the same EPS-merge idea used for room detection, but is only
+  // used for the rendered copy — it never touches the stored wall data.
+  function normalizedCenterlines(list){
+    const EPS=2.5;
+    const nodes=[];
+    function nodeIdx(x,y){ for(let i=0;i<nodes.length;i++){ if(Math.hypot(nodes[i].x-x,nodes[i].y-y)<EPS) return i; } nodes.push({x,y}); return nodes.length-1; }
+    return list.map(cl=>{
+      const i1=nodeIdx(cl.x1,cl.y1), i2=nodeIdx(cl.x2,cl.y2);
+      return {x1:nodes[i1].x,y1:nodes[i1].y,x2:nodes[i2].x,y2:nodes[i2].y};
+    });
+  }
+  function drawWalls(forExport){
+    const groups={};
+    for(const w of state.walls){ if(wallLen(w)<1) continue; (groups[w.t]=groups[w.t]||[]).push(wallCenterline(w)); }
+    ctx.lineCap='square'; ctx.lineJoin='miter'; ctx.miterLimit=6;
+    for(const t in groups){
+      const tn=parseFloat(t);
+      const cls=normalizedCenterlines(groups[t]);
+      ctx.beginPath();
+      for(const cl of cls){ const [a,b]=toScreen(cl.x1,cl.y1),[c,d]=toScreen(cl.x2,cl.y2); ctx.moveTo(a,b); ctx.lineTo(c,d); }
+      ctx.lineWidth=Math.max(1,tn*view.scale+2.4); ctx.strokeStyle=WALL_EDGE; ctx.stroke();
+    }
+    for(const t in groups){
+      const tn=parseFloat(t);
+      const cls=normalizedCenterlines(groups[t]);
+      ctx.beginPath();
+      for(const cl of cls){ const [a,b]=toScreen(cl.x1,cl.y1),[c,d]=toScreen(cl.x2,cl.y2); ctx.moveTo(a,b); ctx.lineTo(c,d); }
+      ctx.lineWidth=Math.max(1,tn*view.scale); ctx.strokeStyle=WALL_FILL; ctx.stroke();
+    }
+    // openings
+    for(const o of state.openings){ const w=state.walls.find(v=>v.id===o.wallId); if(!w) continue; drawOpening(o,w,forExport); }
+  }
+
+  function alignCenterOffset(w){ const al=w.align||'mid'; if(al==='in')return w.t/2; if(al==='out')return -w.t/2; return 0; }
+  // band offsets for an opening's wall: use room band if available, else centred
+  function openingBand(w){
+    const b=wallBands[w.id];
+    const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L;
+    if(b){ // inner face at io toward interior(b.nx), outer at oo; band centre = (io+oo)/2
+      const mid=(b.io+b.oo)/2; return {ux,uy,nx:b.nx,ny:b.ny, coff:mid, ht:w.t/2}; }
+    const nx=-uy, ny=ux; return {ux,uy,nx,ny, coff:0, ht:w.t/2};
+  }
+
+  function drawOpening(o,w,forExport){
+    const L=wallLen(w); if(L<1) return;
+    const bd=openingBand(w); const ux=bd.ux, uy=bd.uy, nx=bd.nx, ny=bd.ny;
+    const [dx,dy]=wallPointAt(w,o.pos);
+    const cx=dx+nx*bd.coff, cy=dy+ny*bd.coff;
+    const hw=o.width/2, ht=bd.ht;
+    const P=(a,b)=>toScreen(cx+ux*a+nx*b, cy+uy*a+ny*b);
+    const over=ht+ (2/view.scale);
+    ctx.fillStyle='#FFFFFF';
+    const c=[P(-hw,-over),P(hw,-over),P(hw,over),P(-hw,over)];
+    ctx.beginPath(); ctx.moveTo(c[0][0],c[0][1]); for(let i=1;i<4;i++)ctx.lineTo(c[i][0],c[i][1]); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=WALL_EDGE; ctx.lineWidth=1.6; ctx.lineCap='butt';
+    const seg=(a,b)=>{const A=P(a[0],a[1]),B=P(b[0],b[1]); ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();};
+    // jambs — every kind has these
+    seg([-hw,-ht],[-hw,ht]);
+    seg([hw,-ht],[hw,ht]);
+    const sub=o.sub || (o.type==='door'?'swing':'fixed');
+    const poly=(pts,close)=>{ ctx.beginPath();
+      pts.forEach((pt,i)=>{ const A=P(pt[0],pt[1]); i?ctx.lineTo(A[0],A[1]):ctx.moveTo(A[0],A[1]); });
+      if(close) ctx.closePath(); };
+
+    if(sub==='fixed'){                       // 窗：frame plus the glazing line
+      seg([-hw,-ht],[hw,-ht]); seg([-hw,ht],[hw,ht]);
+      ctx.lineWidth=1; seg([-hw,0],[hw,0]);
+    }
+    else if(sub==='french'){                 // 落地窗：doubled glazing reads heavier
+      seg([-hw,-ht],[hw,-ht]); seg([-hw,ht],[hw,ht]);
+      ctx.lineWidth=1.2;
+      const g=Math.min(ht*0.42, 3);
+      seg([-hw,-g],[hw,-g]); seg([-hw,g],[hw,g]);
+    }
+    else if(sub==='bay'){                    // 外凸窗：trapezoid pushed out of the wall
+      const out=(o.flipV?-1:1)*(o.proj||45);
+      const inset=Math.min(hw*0.45, Math.abs(out)*0.8);
+      ctx.lineWidth=1.6;
+      poly([[-hw,0],[-hw+inset,out],[hw-inset,out],[hw,0]],false);
+      ctx.fillStyle='#FFFFFF'; ctx.fill(); ctx.stroke();
+      seg([-hw,0],[hw,0]);                   // the wall line it springs from
+    }
+    else if(sub==='cased'){                  // 門洞：a hole. no leaf, no swing
+      ctx.lineWidth=1; ctx.strokeStyle='#B6BCC2'; ctx.setLineDash([5,4]);
+      seg([-hw,-ht],[hw,-ht]); seg([-hw,ht],[hw,ht]);
+      ctx.setLineDash([]); ctx.strokeStyle=WALL_EDGE;
+    }
+    else if(sub==='slide'){                  // 推拉門：two panels, overlapped, no arc
+      const sv=o.flipV?-1:1;
+      const pw=o.width/2, off=ht*0.42;
+      ctx.lineWidth=2.2;
+      seg([-hw,      sv*off*-1],[-hw+pw, sv*off*-1]);
+      seg([ hw-pw,   sv*off   ],[ hw,    sv*off   ]);
+      ctx.lineWidth=1; ctx.strokeStyle='#B6BCC2';
+      seg([-hw,-ht],[hw,-ht]); seg([-hw,ht],[hw,ht]);
+      ctx.strokeStyle=WALL_EDGE;
+    }
+    else {                                   // 門：leaf plus swing arc
+      const sv=o.flipV?-1:1;
+      const hingeX=o.flipH? hw : -hw;
+      const dir=o.flipH? -1 : 1;
+      ctx.lineWidth=1.8;
+      seg([hingeX, sv*ht],[hingeX, sv*(ht+o.width)]);
+      const ctr=P(hingeX, sv*ht), tip=P(hingeX, sv*(ht+o.width)), opp=P(hingeX+dir*o.width, sv*ht);
+      const r=o.width*view.scale;
+      const a0=Math.atan2(tip[1]-ctr[1],tip[0]-ctr[0]);
+      const a1=Math.atan2(opp[1]-ctr[1],opp[0]-ctr[0]);
+      let lo=Math.min(a0,a1), hi=Math.max(a0,a1); if(hi-lo>Math.PI){const t=lo; lo=hi; hi=t+2*Math.PI;}
+      ctx.strokeStyle='#9AA1A8'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.arc(ctr[0],ctr[1],r,lo,hi); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+
+  function dimOffsetPoints(d){
+    const L=dist(d.x1,d.y1,d.x2,d.y2)||1;
+    const nx=-(d.y2-d.y1)/L, ny=(d.x2-d.x1)/L;
+    const off=d.off||30;
+    return {ax:d.x1+nx*off, ay:d.y1+ny*off, bx:d.x2+nx*off, by:d.y2+ny*off, nx,ny,off};
+  }
+  function drawDims(){
+    if(!showOpt.dims) return;
+    ctx.strokeStyle='#A23B2D'; ctx.fillStyle='#A23B2D';
+    ctx.lineWidth=1;
+    for(const d of state.dims){
+      const o=dimOffsetPoints(d);
+      const [ax,ay]=toScreen(o.ax,o.ay),[bx,by]=toScreen(o.bx,o.by);
+      const [ex1,ey1]=toScreen(d.x1,d.y1),[ex2,ey2]=toScreen(d.x2,d.y2);
+      // extension lines
+      ctx.beginPath(); ctx.moveTo(ex1,ey1); ctx.lineTo(ax,ay); ctx.moveTo(ex2,ey2); ctx.lineTo(bx,by); ctx.stroke();
+      // dim line
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+      // arrows (ticks)
+      const ang=Math.atan2(by-ay,bx-ax);
+      arrow(ax,ay,ang); arrow(bx,by,ang+Math.PI);
+      // label
+      const mx=(ax+bx)/2, my=(ay+by)/2;
+      const len=dist(d.x1,d.y1,d.x2,d.y2);
+      ctx.save(); ctx.translate(mx,my); let ra=ang; if(ra>Math.PI/2||ra<-Math.PI/2)ra+=Math.PI; ctx.rotate(ra);
+      ctx.font='600 12px -apple-system,system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+      const txt=fmtLen(len);
+      const tw=ctx.measureText(txt).width;
+      ctx.fillStyle='#FBFBFC'; ctx.fillRect(-tw/2-3,-16,tw+6,15);
+      ctx.fillStyle='#A23B2D'; ctx.fillText(txt,0,-3);
+      ctx.restore();
+    }
+  }
+  function arrow(x,y,ang){
+    const s=6;
+    ctx.beginPath(); ctx.moveTo(x,y);
+    ctx.lineTo(x+Math.cos(ang+0.4)*s, y+Math.sin(ang+0.4)*s);
+    ctx.moveTo(x,y);
+    ctx.lineTo(x+Math.cos(ang-0.4)*s, y+Math.sin(ang-0.4)*s);
+    ctx.stroke();
+  }
+
+  function drawTexts(){
+    for(const t of state.texts){
+      const [sx,sy]=toScreen(t.x,t.y);
+      ctx.fillStyle='#24282E';
+      ctx.font=`500 ${t.size*view.scale*3}px -apple-system,system-ui,sans-serif`;
+      ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+      ctx.fillText(t.text,sx,sy);
+    }
+  }
+
+  function drawSelection(){
+    if(!ui.selected) return;
+    const {kind,id}=ui.selected;
+    ctx.strokeStyle='#275C7A'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+    if(kind==='wall'){ const w=state.walls.find(v=>v.id===id); if(w){ const c=wallCorners(w); const cl=toScreen((c.L1.x+c.R1.x)/2,(c.L1.y+c.R1.y)/2), cl2=toScreen((c.L2.x+c.R2.x)/2,(c.L2.y+c.R2.y)/2); ctx.beginPath(); ctx.moveTo(cl[0],cl[1]); ctx.lineTo(cl2[0],cl2[1]); ctx.stroke(); ctx.setLineDash([]);
+      const sh=wallSideHandles(w); if(sh){ const a=toScreen(sh.a.x,sh.a.y), b=toScreen(sh.b.x,sh.b.y); sqHandle(a[0],a[1]); sqHandle(b[0],b[1]); }
+      handle(cl[0],cl[1]); handle(cl2[0],cl2[1]);
+      if(!roomWallIds.has(w.id)) wallLenLabel(w,true); } }
+    else if(kind==='opening'){ const o=state.openings.find(v=>v.id===id); const w=state.walls.find(v=>v.id===o.wallId); if(w){ const[cx,cy]=wallPointAt(w,o.pos); const[sx,sy]=toScreen(cx,cy); ctx.setLineDash([]); handle(sx,sy); drawOpeningGaps(o,w); } }
+    else if(kind==='dim'){ const d=state.dims.find(v=>v.id===id); if(d){ const o=dimOffsetPoints(d); const[ax,ay]=toScreen(o.ax,o.ay),[bx,by]=toScreen(o.bx,o.by); ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke(); } }
+    else if(kind==='text'){ const t=state.texts.find(v=>v.id===id); if(t){ const[sx,sy]=toScreen(t.x,t.y); ctx.setLineDash([]); handle(sx,sy-t.size); } }
+    else if(kind==='column'){ const c=state.columns.find(v=>v.id===id); if(c){ drawColumnSelection(c); } }
+    else if(kind==='beam'){ const bm=state.beams.find(v=>v.id===id); if(bm){ drawBeamSelection(bm); } }
+    ctx.setLineDash([]);
+  }
+  // Distance from each side of a column to the nearest wall FACE.
+  // Rewritten: the old version measured to the wall's centerline extremes and had a
+  // half-broken overlap test, so the numbers drifted by half a wall thickness; and
+  // the labels were only ever painted — never registered as hit targets, which is
+  // why tapping them did nothing at all.
+  function wallRect(w){
+    const lo={x:Math.min(w.x1,w.x2), y:Math.min(w.y1,w.y2)}, hi={x:Math.max(w.x1,w.x2), y:Math.max(w.y1,w.y2)};
+    const vert=Math.abs(w.x1-w.x2)<Math.abs(w.y1-w.y2);
+    return vert
+      ? {x0:lo.x-w.t/2, x1:hi.x+w.t/2, y0:lo.y, y1:hi.y}
+      : {x0:lo.x, x1:hi.x, y0:lo.y-w.t/2, y1:hi.y+w.t/2};
+  }
+  function columnGaps(c){
+    if(Math.abs(((c.rot||0)%180))>0.5) return [];      // only meaningful for a square-on column
+    const cx0=c.x-c.w/2, cx1=c.x+c.w/2, cy0=c.y-c.h/2, cy1=c.y+c.h/2;
+    const out=[];
+    const scan=(dir)=>{
+      let best=Infinity, face=null;
+      for(const w of state.walls){
+        if(wallLen(w)<1) continue;
+        const R=wallRect(w);
+        if(dir==='left'||dir==='right'){
+          if(R.y1<=cy0+1 || R.y0>=cy1-1) continue;      // wall doesn't span the column's height
+          const g = dir==='left' ? cx0-R.x1 : R.x0-cx1;
+          if(g>-1 && g<best){ best=g; face = dir==='left'?R.x1:R.x0; }
+        } else {
+          if(R.x1<=cx0+1 || R.x0>=cx1-1) continue;
+          const g = dir==='up' ? cy0-R.y1 : R.y0-cy1;
+          if(g>-1 && g<best){ best=g; face = dir==='up'?R.y1:R.y0; }
+        }
+      }
+      if(best<Infinity && best<2000) out.push({dir, gap:Math.max(0,best), face});
+    };
+    scan('up'); scan('down'); scan('left'); scan('right');
+    return out;
+  }
+  // placing against a REMEMBERED face is split out from setColumnGap, because
+  // after a resize the column may already be overlapping the wall — columnGaps
+  // then refuses to report that direction, so the face has to be captured first.
+  function placeColumnAgainst(c,dir,g,face){
+    if(!isFinite(face)) return false;
+    if(dir==='left')  c.x=face + g + c.w/2;
+    if(dir==='right') c.x=face - g - c.w/2;
+    if(dir==='up')    c.y=face + g + c.h/2;
+    if(dir==='down')  c.y=face - g - c.h/2;
+    return true;
+  }
+  function setColumnGap(c,dir,gapCm){
+    const info=columnGaps(c).find(x=>x.dir===dir); if(!info) return false;
+    return placeColumnAgainst(c,dir,Math.max(0,gapCm||0),info.face);
+  }
+
+  // ---- the same, for beams ----
+  // A beam is stored as its own centreline, so growing bm.w used to expand it
+  // symmetrically: a beam drawn flush against a wall face ended up with half the
+  // NEW width buried in the wall — visually it jumped onto the wall centreline,
+  // and there was no way to nudge it back because a beam had no distance-to-wall
+  // field at all. Only the ACROSS direction is offered: sliding a beam along its
+  // own axis would just pull its ends off the walls it spans.
+  function beamGaps(bm){
+    const horiz=Math.abs(bm.y1-bm.y2)<0.6, vert=Math.abs(bm.x1-bm.x2)<0.6;
+    if(!horiz && !vert) return [];                      // diagonal beam: not measurable
+    if(wallLen(bm)<1) return [];
+    const mid = horiz ? (bm.y1+bm.y2)/2 : (bm.x1+bm.x2)/2;   // across the beam
+    const e0=mid-bm.w/2, e1=mid+bm.w/2;                      // its two long faces
+    const s0 = horiz ? Math.min(bm.x1,bm.x2) : Math.min(bm.y1,bm.y2);
+    const s1 = horiz ? Math.max(bm.x1,bm.x2) : Math.max(bm.y1,bm.y2);
+    const out=[];
+    const scan=(dir)=>{
+      const low=(dir==='up'||dir==='left');
+      let best=Infinity, face=null;
+      for(const w of state.walls){
+        if(wallLen(w)<1) continue;
+        const R=wallRect(w);
+        const rs0=horiz?R.x0:R.y0, rs1=horiz?R.x1:R.y1;   // wall extent ALONG the beam
+        const rp0=horiz?R.y0:R.x0, rp1=horiz?R.y1:R.x1;   // wall extent ACROSS the beam
+        if(rs1<=s0+1 || rs0>=s1-1) continue;              // doesn't run alongside it
+        const g = low ? e0-rp1 : rp0-e1;
+        if(g>-1 && g<best){ best=g; face = low?rp1:rp0; }
+      }
+      if(best<Infinity && best<2000) out.push({dir, gap:Math.max(0,best), face});
+    };
+    if(horiz){ scan('up'); scan('down'); } else { scan('left'); scan('right'); }
+    return out;
+  }
+  function placeBeamAcross(bm,dir,g,face){
+    if(!isFinite(face)) return false;
+    const horiz=Math.abs(bm.y1-bm.y2)<0.6;
+    const cur = horiz ? (bm.y1+bm.y2)/2 : (bm.x1+bm.x2)/2;
+    const want = (dir==='up'||dir==='left') ? face+g+bm.w/2 : face-g-bm.w/2;
+    const d=want-cur; if(!isFinite(d)) return false;
+    if(horiz){ bm.y1+=d; bm.y2+=d; } else { bm.x1+=d; bm.x2+=d; }
+    return true;
+  }
+  function setBeamGap(bm,dir,gapCm){
+    const info=beamGaps(bm).find(x=>x.dir===dir); if(!info) return false;
+    return placeBeamAcross(bm,dir,Math.max(0,gapCm||0),info.face);
+  }
+  // Resizing must not shove the thing into the wall it was sitting against. Any
+  // face that is flush (or all but flush) stays put and the new size grows the
+  // other way; a free-standing column or beam still grows about its centre.
+  const FLUSH_CM=2;
+  function keepFlushThroughResize(gapsOf, place, obj, mutate){
+    const pin=[];
+    for(const pair of [['left','right'],['up','down']]){
+      const near=gapsOf(obj).filter(g=>pair.indexOf(g.dir)>=0 && g.gap<=FLUSH_CM);
+      if(near.length){ let b=near[0]; for(const g of near) if(g.gap<b.gap) b=g; pin.push(b); }
+    }
+    mutate();
+    for(const g of pin) place(obj, g.dir, g.gap, g.face);
+  }
+  function drawColumnSelection(c){
+    const [sx,sy]=toScreen(c.x,c.y); const sw=c.w*view.scale, sh=c.h*view.scale;
+    ctx.save(); ctx.translate(sx,sy); ctx.rotate((c.rot||0)*Math.PI/180);
+    ctx.setLineDash([6,4]); ctx.strokeStyle='#275C7A'; ctx.lineWidth=2;
+    ctx.strokeRect(-sw/2-4,-sh/2-4,sw+8,sh+8); ctx.setLineDash([]);
+    for(const [hx,hy] of [[-sw/2,-sh/2],[sw/2,-sh/2],[sw/2,sh/2],[-sw/2,sh/2]]){
+      ctx.fillStyle='#fff'; ctx.strokeStyle='#275C7A'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(hx,hy,5,0,7); ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+    for(const g of columnGaps(c)){
+      const vertical=(g.dir==='up'||g.dir==='down');
+      const mx = vertical ? c.x : (g.dir==='left' ? c.x-c.w/2-g.gap/2 : c.x+c.w/2+g.gap/2);
+      const my = vertical ? (g.dir==='up' ? c.y-c.h/2-g.gap/2 : c.y+c.h/2+g.gap/2) : c.y;
+      const [lx,ly]=toScreen(mx,my);
+      const txt=fmtLen(g.gap);
+      const tw=boxedLabel(txt,lx,ly,vertical?Math.PI/2:0,11);
+      // register the tap target (rotated label -> swap the box dimensions)
+      const hw = vertical ? 12 : tw/2+8, hh = vertical ? tw/2+8 : 12;
+      hitLabels.push({kind:'coldist', rect:[lx-hw,ly-hh,hw*2,hh*2], cid:c.id, dir:g.dir});
+      placedLabels.push([lx-hw,ly-hh,hw*2,hh*2]);
+    }
+  }
+  function drawBeamSelection(bm){
+    const a=toScreen(bm.x1,bm.y1), b=toScreen(bm.x2,bm.y2);
+    ctx.setLineDash([]); handle(a[0],a[1]); handle(b[0],b[1]);
+    const horiz=Math.abs(bm.y1-bm.y2)<0.6;
+    const cx=(bm.x1+bm.x2)/2, cy=(bm.y1+bm.y2)/2;
+    for(const g of beamGaps(bm)){
+      const vertical=(g.dir==='up'||g.dir==='down');
+      const mx = horiz ? cx : (g.dir==='left' ? cx-bm.w/2-g.gap/2 : cx+bm.w/2+g.gap/2);
+      const my = horiz ? (g.dir==='up' ? cy-bm.w/2-g.gap/2 : cy+bm.w/2+g.gap/2) : cy;
+      const [lx,ly]=toScreen(mx,my);
+      const tw=boxedLabel(fmtLen(g.gap),lx,ly,vertical?Math.PI/2:0,11);
+      const hw = vertical ? 12 : tw/2+8, hh = vertical ? tw/2+8 : 12;
+      hitLabels.push({kind:'beamdist', rect:[lx-hw,ly-hh,hw*2,hh*2], bid:bm.id, dir:g.dir});
+      placedLabels.push([lx-hw,ly-hh,hw*2,hh*2]);
+    }
+  }
+  function editBeamGap(lab, sx, sy){
+    const bm=state.beams.find(x=>x.id===lab.bid); if(!bm) return;
+    const info=beamGaps(bm).find(x=>x.dir===lab.dir); if(!info) return;
+    showNumInput(sx,sy, toDisp(info.gap), (v)=>{
+      const g=fromDisp(v); if(!isFinite(g)||g<0) return;
+      if(setBeamGap(bm,lab.dir,g)){ pushHistory(); refreshProp(); draw(); }
+    }, true);
+  }
+  function editColumnGap(lab, sx, sy){
+    const c=state.columns.find(x=>x.id===lab.cid); if(!c) return;
+    const info=columnGaps(c).find(x=>x.dir===lab.dir); if(!info) return;
+    showNumInput(sx,sy, toDisp(info.gap), (v)=>{
+      const g=fromDisp(v); if(!isFinite(g)||g<0) return;
+      if(setColumnGap(c,lab.dir,g)){ pushHistory(); refreshProp(); draw(); }
+    }, true);
+  }
+  // square = slide the whole wall sideways (round = stretch that end)
+  function sqHandle(x,y){ ctx.setLineDash([]); ctx.fillStyle='#275C7A'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.rect(x-5,y-5,10,10); ctx.fill(); ctx.stroke(); }
+  function handle(x,y){ ctx.setLineDash([]); ctx.fillStyle='#fff'; ctx.strokeStyle='#275C7A'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fill(); ctx.stroke(); }
+  function wallLenLabel(w, active){
+    const L=wallLen(w)||1; const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
+    const coff=alignCenterOffset(w);
+    const push=(w.t/2)+18/view.scale;   // sit just outside the wall face
+    const mxw=(w.x1+w.x2)/2 + nx*(coff+push);
+    const myw=(w.y1+w.y2)/2 + ny*(coff+push);
+    const [mx,my]=toScreen(mxw,myw);
+    const txt=fmtLen(wallLen(w));
+    let lang=Math.atan2(uy,ux); if(lang>Math.PI/2||lang<-Math.PI/2) lang+=Math.PI;
+    const tw = active ? boxedLabel(txt,mx,my,lang,12) : plainLabel(txt,mx,my,lang,'#22262B',12);
+  }
+  function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  function drawOverallDims(){
+    const b=bounds(); if(!b) return;
+    const gap=34/view.scale, ext=8/view.scale;
+    ctx.strokeStyle='#8A9199'; ctx.fillStyle='#4A5560'; ctx.lineWidth=1;
+    // top = overall width
+    const ty=b.y0-gap;
+    line(b.x0,ty,b.x1,ty); tick(b.x0,ty); tick(b.x1,ty);
+    line(b.x0,b.y0-ext,b.x0,ty-ext*0); line(b.x1,b.y0-ext,b.x1,ty); // ext lines (simplified)
+    dimText((b.x0+b.x1)/2,ty, fmtLen(b.x1-b.x0), 0);
+    // left = overall height
+    const lx=b.x0-gap;
+    line(lx,b.y0,lx,b.y1); tick2(lx,b.y0); tick2(lx,b.y1);
+    dimText(lx,(b.y0+b.y1)/2, fmtLen(b.y1-b.y0), Math.PI/2);
+    function line(x1,y1,x2,y2){ const A=toScreen(x1,y1),B=toScreen(x2,y2); ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke(); }
+    function tick(x,y){ const A=toScreen(x,y); ctx.beginPath(); ctx.moveTo(A[0],A[1]-3); ctx.lineTo(A[0],A[1]+3); ctx.stroke(); }
+    function tick2(x,y){ const A=toScreen(x,y); ctx.beginPath(); ctx.moveTo(A[0]-3,A[1]); ctx.lineTo(A[0]+3,A[1]); ctx.stroke(); }
+    function dimText(wx,wy,txt,ang){ const [mx,my]=toScreen(wx,wy); ctx.save(); ctx.translate(mx,my); ctx.rotate(ang); ctx.font='700 12px -apple-system,system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; const tw=ctx.measureText(txt).width; ctx.fillStyle='#FBFBFC'; ctx.fillRect(-tw/2-4,-9,tw+8,18); ctx.fillStyle='#2A2E33'; ctx.fillText(txt,0,0); ctx.restore(); }
+  }
+
+  // draft (while drag-drawing): {kind:'wall'|'dim', a:{x,y}, cur:{x,y}}
+  let draft=null;
+  function drawDraft(){
+    if(!draft||!draft.a||!draft.cur) return;
+    if(draft.kind==='wall'){
+      const w={x1:draft.a.x,y1:draft.a.y,x2:draft.cur.x,y2:draft.cur.y,t:ui.thick,align:ui.wallAlign};
+      ctx.fillStyle='rgba(43,47,54,.35)';
+      const c=wallCorners(w);
+      const p=[toScreen(c.L1.x,c.L1.y),toScreen(c.L2.x,c.L2.y),toScreen(c.R2.x,c.R2.y),toScreen(c.R1.x,c.R1.y)];
+      ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<4;i++)ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); ctx.fill();
+    } else if(draft.kind==='beam'){
+      const bw={x1:draft.a.x,y1:draft.a.y,x2:draft.cur.x,y2:draft.cur.y,t:ui.beamW,align:ui.wallAlign};
+      ctx.fillStyle='rgba(180,140,60,.35)';
+      const c=wallCorners(bw);
+      const p=[toScreen(c.L1.x,c.L1.y),toScreen(c.L2.x,c.L2.y),toScreen(c.R2.x,c.R2.y),toScreen(c.R1.x,c.R1.y)];
+      ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<4;i++)ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); ctx.fill();
+    } else if(draft.kind==='dim'){
+      ctx.strokeStyle='rgba(162,59,45,.7)'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+      const[a,b]=toScreen(draft.a.x,draft.a.y),[c,d]=toScreen(draft.cur.x,draft.cur.y);
+      ctx.beginPath(); ctx.moveTo(a,b); ctx.lineTo(c,d); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    hitLabels=[];
+    placedLabels=[];
+    drawGrid();
+    drawRoomsFill();
+    drawWalls(false);
+    drawBeams(false);
+    drawColumns();
+    drawJunctions();
+    drawRoomsInfo();
+    drawWallLabels();
+    drawDims();
+    drawTexts();
+    drawGuides();
+    drawDraft();
+    drawSelection();
+  }
+  const BEAM_FILL='#C9A876', BEAM_EDGE='#8A6D3B';
+  // beams render like walls (thick/edge stroke pass) but with their own colour,
+  // and a hatch pattern so they read as "structure above" rather than a wall
+  // The beam used to be painted as a thick STROKED LINE with a square line cap.
+  // A square cap sticks out half the line width past each endpoint — so a 30cm
+  // beam whose ends were correctly placed on the wall faces still visibly ran 15cm
+  // into the wall at each end, right through to the far side. The endpoints were
+  // right all along; the rendering overshot them.
+  // Drawn as an explicit rectangle now, so the beam ends exactly where it ends —
+  // the same way the drag preview always drew it.
+  // NOTE: a beam's stored segment is already its own CENTRELINE — alignBeamAlongWall
+  // offsets it at draw time. Running it through wallCenterline() applied the WALL
+  // align setting using bm.t, which a beam doesn't have: with 牆體對齊 set to 內/外
+  // the offset came out NaN and the beam disappeared entirely. Use the raw segment.
+  function beamCorners(bm){
+    const cl={x1:bm.x1,y1:bm.y1,x2:bm.x2,y2:bm.y2};
+    const L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1;
+    const ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L;
+    const hx=-uy*(bm.w/2), hy=ux*(bm.w/2);
+    return [{x:cl.x1+hx,y:cl.y1+hy},{x:cl.x2+hx,y:cl.y2+hy},
+            {x:cl.x2-hx,y:cl.y2-hy},{x:cl.x1-hx,y:cl.y1-hy}];
+  }
+  function drawBeams(forExport){
+    for(const bm of state.beams){ if(wallLen(bm)<1) continue;
+      const c=beamCorners(bm);
+      ctx.beginPath();
+      const p0=toScreen(c[0].x,c[0].y); ctx.moveTo(p0[0],p0[1]);
+      for(let i=1;i<4;i++){ const p=toScreen(c[i].x,c[i].y); ctx.lineTo(p[0],p[1]); }
+      ctx.closePath();
+      ctx.fillStyle=BEAM_FILL; ctx.fill();
+      ctx.lineJoin='miter'; ctx.lineWidth=1.5; ctx.strokeStyle=BEAM_EDGE; ctx.stroke();
+    }
+  }
+  const COL_FILL='#7D8894', COL_EDGE='#3F4750';
+  const SHAFT_FILL='#FFFFFF', SHAFT_EDGE='#7A828C';
+  function isShaft(c){ return c.kind==='shaft'; }
+  function drawColumns(){
+    for(const c of state.columns){
+      const [sx,sy]=toScreen(c.x,c.y);
+      const sw=c.w*view.scale, sh=c.h*view.scale;
+      ctx.save(); ctx.translate(sx,sy); ctx.rotate((c.rot||0)*Math.PI/180);
+      if(isShaft(c)){
+        // 管道間 reads as a void, not structure: hollow, dashed, cross-hatched
+        ctx.fillStyle=SHAFT_FILL; ctx.fillRect(-sw/2,-sh/2,sw,sh);
+        ctx.save(); ctx.beginPath(); ctx.rect(-sw/2,-sh/2,sw,sh); ctx.clip();
+        ctx.strokeStyle='#C6CCD2'; ctx.lineWidth=1;
+        for(let i=-sh;i<sw+sh;i+=7){
+          ctx.beginPath(); ctx.moveTo(-sw/2+i,-sh/2); ctx.lineTo(-sw/2+i-sh,sh/2); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-sw/2+i-sh,-sh/2); ctx.lineTo(-sw/2+i,sh/2); ctx.stroke();
+        }
+        ctx.restore();
+        ctx.strokeStyle=SHAFT_EDGE; ctx.lineWidth=1.4; ctx.setLineDash([5,3]);
+        ctx.strokeRect(-sw/2,-sh/2,sw,sh); ctx.setLineDash([]);
+        if(Math.min(sw,sh)>34){
+          ctx.fillStyle='#5B646E'; ctx.font='600 11px -apple-system,system-ui,sans-serif';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillStyle='rgba(255,255,255,.85)'; ctx.fillRect(-20,-8,40,16);
+          ctx.fillStyle='#5B646E'; ctx.fillText('管道間',0,0);
+        }
+      } else {
+        ctx.fillStyle=COL_FILL; ctx.strokeStyle=COL_EDGE; ctx.lineWidth=1.5;
+        ctx.fillRect(-sw/2,-sh/2,sw,sh); ctx.strokeRect(-sw/2,-sh/2,sw,sh);
+        // diagonal hatch to distinguish from walls/rooms at a glance
+        ctx.save(); ctx.beginPath(); ctx.rect(-sw/2,-sh/2,sw,sh); ctx.clip();
+        ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=1;
+        for(let i=-sw;i<sw+sh;i+=6){ ctx.beginPath(); ctx.moveTo(-sw/2+i,-sh/2); ctx.lineTo(-sw/2+i-sh,sh/2); ctx.stroke(); }
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+  }
+  // tappable length label for every wall not already covered by a room edge
+  function drawWallLabels(){
+    if(!showOpt.dims) return;
+    for(const w of state.walls){ if(wallLen(w)<20) continue; if(roomWallIds.has(w.id)) continue;
+      const c=wallCorners(w);
+      const mxw=(c.L1.x+c.L2.x+c.R1.x+c.R2.x)/4, myw=(c.L1.y+c.L2.y+c.R1.y+c.R2.y)/4;
+      const [mx,my]=toScreen(mxw,myw);
+      const txt=fmtLen(wallLen(w));
+      const L=wallLen(w), ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L;
+      let ang=Math.atan2(uy,ux); if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
+      const active=wallIsActive(w.id);
+      const tw = active ? boxedLabel(txt,mx,my,ang,12) : plainLabel(txt,mx,my,ang,'#22262B',12);
+      const rect=labelRect(mx,my,tw,ang);
+      hitLabels.push({kind:'walllen', rect, wid:w.id, len:wallLen(w)});
+      placedLabels.push(rect);
+    }
+  }
+
+  function drawRoomsFill(){
+    for(const r of roomsCache){ if(r.V.length<3) continue;
+      ctx.fillStyle='rgba(39,92,122,.05)'; ctx.beginPath();
+      const p0=toScreen(r.V[0].x,r.V[0].y); ctx.moveTo(p0[0],p0[1]);
+      for(let i=1;i<r.V.length;i++){ const p=toScreen(r.V[i].x,r.V[i].y); ctx.lineTo(p[0],p[1]); }
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  let hitLabels=[];
+  // screen-space rects of labels already drawn this frame, so lower-priority
+  // (grey / secondary) labels can bow out instead of printing on top of another
+  let placedLabels=[];
+  // Footprint of a label on screen. A label rotated to run up a vertical wall is
+  // TALL and NARROW, but the collision test was using the horizontal box in every
+  // case — so vertical dimensions were compared with a box lying on its side and
+  // happily printed on top of one another.
+  function labelRect(cx,cy,textW,ang){
+    const vertical=Math.abs(Math.abs(ang)-Math.PI/2)<0.4;
+    const half=Math.max(textW/2+9,14);
+    const hw=vertical?14:half, hh=vertical?half:14;
+    return [cx-hw,cy-hh,hw*2,hh*2];
+  }
+  function labelFree(r){
+    for(const p of placedLabels){
+      if(r[0] < p[0]+p[2] && r[0]+r[2] > p[0] && r[1] < p[1]+p[3] && r[1]+r[3] > p[1]) return false;
+    }
+    return true;
+  }
+  // ================= Dimension label styling =================
+  // Two states, following the reference: at rest a dimension is just a NUMBER —
+  // dark text with a soft white halo so it stays readable over the grid or a floor
+  // finish, no heavy chip. The white bordered box only appears on the thing you're
+  // actually working on. Chips on everything at once is what turned the drawing
+  // into a wall of floating boxes.
+  function plainLabel(txt,mx,my,ang,color,size){
+    ctx.save();
+    ctx.font=`700 ${size}px -apple-system,system-ui,sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const tw=ctx.measureText(txt).width;
+    ctx.translate(mx,my); if(ang) ctx.rotate(ang);
+    ctx.lineJoin='round'; ctx.miterLimit=2;
+    ctx.lineWidth=3.5; ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.strokeText(txt,0,0);
+    ctx.fillStyle=color; ctx.fillText(txt,0,0);
+    ctx.restore();
+    return tw;
+  }
+  function boxedLabel(txt,mx,my,ang,size){
+    ctx.save();
+    ctx.font=`700 ${size}px -apple-system,system-ui,sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const tw=ctx.measureText(txt).width;
+    ctx.translate(mx,my); if(ang) ctx.rotate(ang);
+    ctx.fillStyle='#FFFFFF'; ctx.strokeStyle='#9AA3AB'; ctx.lineWidth=1;
+    roundRect(-tw/2-7,-11,tw+14,22,4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#22262B'; ctx.fillText(txt,0,0);
+    ctx.restore();
+    return tw;
+  }
+  // is this wall the one currently being worked on?
+  function wallIsActive(wid){
+    return !!(wid!=null && ui.selected && ui.selected.kind==='wall' && ui.selected.id===wid);
+  }
+
+  // ================= Junction markers =================
+  // Whether two walls are actually JOINED is a topological fact that used to be
+  // invisible — you could only find out by waiting to see if a space appeared.
+  // Now every wall end is marked: a solid grey node means it is genuinely tied to
+  // its neighbour, a hollow red ring means that end is dangling and no space can
+  // close through it. No more guessing why a room didn't form.
+  function drawJunctions(){
+    if(view.scale<0.08) return;
+    const WS=state.walls.filter(w=>wallLen(w)>=1);
+    if(!WS.length) return;
+    const nodes=[];
+    for(const w of WS){
+      for(const p of [[w.x1,w.y1],[w.x2,w.y2]]){
+        let joined=false;
+        for(const o of WS){
+          if(o.id===w.id) continue;
+          if(Math.hypot(o.x1-p[0],o.y1-p[1])<1.5 || Math.hypot(o.x2-p[0],o.y2-p[1])<1.5){ joined=true; break; }
+          if(projPointToSeg(p[0],p[1],o.x1,o.y1,o.x2,o.y2).d<1.5){ joined=true; break; }
+        }
+        const ex=nodes.find(n=>Math.hypot(n.x-p[0],n.y-p[1])<1.5);
+        if(ex){ ex.joined=ex.joined||joined; } else nodes.push({x:p[0],y:p[1],joined});
+      }
+    }
+    ctx.save();
+    for(const n of nodes){
+      const [sx,sy]=toScreen(n.x,n.y);
+      if(sx<-20||sy<-20||sx>W+20||sy>H+20) continue;
+      if(n.joined){
+        ctx.fillStyle='#7C858E'; ctx.strokeStyle='#7C858E'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.arc(sx,sy,4,0,7); ctx.fill();
+      } else {
+        ctx.fillStyle='#FFFFFF'; ctx.strokeStyle='#D6492E'; ctx.lineWidth=2.5;
+        ctx.beginPath(); ctx.arc(sx,sy,5.5,0,7); ctx.fill(); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+  function drawRoomsInfo(){
+    for(const r of roomsCache){ if(r.V.length<3) continue;
+      // interior side from the polygon's winding — the old centroid test put labels
+      // on the OUTSIDE of some walls in L- and U-shaped rooms (the centroid of such
+      // a room can lie in the notch, outside the room entirely), which is how a
+      // dimension ended up floating in the neighbouring room looking like garbage
+      let sA=0; for(let i=0;i<r.V.length;i++){ const p=r.V[i], q=r.V[(i+1)%r.V.length]; sA+=p.x*q.y-q.x*p.y; }
+      const wind = sA>=0 ? 1 : -1;
+      for(let i=0;showOpt.dims && i<r.V.length;i++){
+        const a=r.V[i], b=r.V[(i+1)%r.V.length];
+        const L=Math.hypot(b.x-a.x,b.y-a.y); if(L<20) continue;
+        const ux=(b.x-a.x)/L, uy=(b.y-a.y)/L;
+        const nx=-uy*wind, ny=ux*wind;
+        const midx=(a.x+b.x)/2, midy=(a.y+b.y)/2;
+        // never let a dimension sit on top of another one: try further along the
+        // wall, then further in from it. Only the LAST resort overlaps — a number
+        // that silently disappears is worse than one slightly out of place.
+        let mx=0,my=0,placed=false;
+        const txt0=fmtLen(r.lens[i]);
+        let ang0=Math.atan2(uy,ux); if(ang0>Math.PI/2||ang0<-Math.PI/2)ang0+=Math.PI;
+        ctx.save(); ctx.font='700 12px -apple-system,system-ui,sans-serif';
+        const tw0=ctx.measureText(txt0).width; ctx.restore();
+        const hwT=Math.max(tw0/2+9,14);
+        outer: for(const push of [16,32,50]){
+          for(const f of [0,0.18,-0.18,0.33,-0.33]){
+            const wx0=midx+ux*L*f + nx*(push/view.scale), wy0=midy+uy*L*f + ny*(push/view.scale);
+            const [tx,ty]=toScreen(wx0,wy0);
+            if(labelFree(labelRect(tx,ty,tw0,ang0))){ mx=tx; my=ty; placed=true; break outer; }
+          }
+        }
+        if(!placed){ const p=toScreen(midx+nx*(16/view.scale), midy+ny*(16/view.scale)); mx=p[0]; my=p[1]; }
+        const txt=txt0, ang=ang0;
+        const active=wallIsActive(r.edges[i].wid);
+        const tw=active ? boxedLabel(txt,mx,my,ang,12) : plainLabel(txt,mx,my,ang,'#22262B',12);
+        // hit region (axis-aligned bbox around label centre)
+        const lr=labelRect(mx,my,tw,ang);
+        hitLabels.push({kind:'dim', rect:lr, wid:r.edges[i].wid, room:r, edgeIndex:i, len:r.lens[i]});
+        placedLabels.push(lr);
+        // second label, sitting just OUTSIDE the wall (opposite of the inner
+        // direction we just computed) showing this wall segment's true OUTER
+        // face-to-face length (using Vout, the already-computed outer boundary
+        // polygon) — NOT the centerline length, which would only add ONE wall
+        // thickness instead of the two (one on each end) that the visible outer
+        // edge actually spans.
+        const oa=r.Vout[i], ob=r.Vout[(i+1)%r.Vout.length];
+        const outerLen=Math.hypot(ob.x-oa.x,ob.y-oa.y);
+        // The grey "outer face" label sits on the far side of the wall. If that wall
+        // is SHARED with another space, the far side is that space's interior — and
+        // its own blue inner label is already sitting there. Drawing both is what
+        // produced the doubled-up, overlapping numbers. Interior partitions get the
+        // inner label from each side only; the outer label is for exterior walls.
+        const shared=(r.edges[i].wids||[r.edges[i].wid]).some(wd=>wd!=null && (wallRoomCount[wd]||0)>1);
+        // Sanity gate. An outer face runs from one wall's outside corner to the
+        // next, so it can only ever be a bit LONGER than the interior — by at most
+        // a couple of wall thicknesses per end. Anything outside that came from a
+        // degenerate corner intersection (two nearly parallel edges meeting), and
+        // printing it gives an absurd number like "2290 cm" on a 270cm wall.
+        const pad=outerLen-r.lens[i];
+        const cap=6*Math.max(r.edges[i].t||20, 20);
+        const sane = pad>1 && pad<cap && isFinite(outerLen);
+        if(!shared && sane){
+          const omidx=(oa.x+ob.x)/2, omidy=(oa.y+ob.y)/2;
+          const oxw=omidx - nx*(14/view.scale), oyw=omidy - ny*(14/view.scale);
+          const [ox,oy]=toScreen(oxw,oyw);
+          const otxt=fmtLen(outerLen);
+          ctx.save(); ctx.font='700 11px -apple-system,system-ui,sans-serif';
+          const otw0=ctx.measureText(otxt).width; ctx.restore();
+
+          // Rather than vanish when something is in the way (which made these blink
+          // in and out as you drew), slide along the wall until a clear spot is found.
+          const dxs=(ob.x-oa.x), dys=(ob.y-oa.y);
+          let ox2=ox, oy2=oy, ok=false;
+          for(const f of [0,0.16,-0.16,0.30,-0.30]){
+            const [tx,ty]=toScreen((oa.x+ob.x)/2+dxs*f - nx*(14/view.scale),
+                                   (oa.y+ob.y)/2+dys*f - ny*(14/view.scale));
+            if(labelFree(labelRect(tx,ty,otw0,ang))){ ox2=tx; oy2=ty; ok=true; break; }
+          }
+          if(ok){
+            if(active) boxedLabel(otxt,ox2,oy2,ang,11);
+            else plainLabel(otxt,ox2,oy2,ang,'#8A9299',11);
+            const rect=labelRect(ox2,oy2,otw0,ang);
+            placedLabels.push(rect);
+            // tappable too: editing the outer face length adjusts the room behind it
+            hitLabels.push({kind:'dim', rect, wid:r.edges[i].wid, room:r, edgeIndex:i,
+                            len:r.lens[i], outer:outerLen-r.lens[i]});
+          }
+        }
+      }
+      // name + area at centroid
+      if(!showOpt.rooms) continue;
+      const [cx,cy]=toScreen(r.center.x,r.center.y);
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const nm=r.name||'未命名';
+      ctx.font='600 13px -apple-system,system-ui,sans-serif'; ctx.fillStyle=r.name?'#2A2E33':'#8A9199';
+      ctx.fillText(nm, cx, cy-9);
+      const nmw=ctx.measureText(nm).width;
+      hitLabels.push({kind:'name', rect:[cx-nmw/2-6,cy-9-10,nmw+12,20], room:r});
+      ctx.font='600 12px -apple-system,system-ui,sans-serif'; ctx.fillStyle='#5B646E';
+      ctx.fillText(fmtArea(r.area), cx, cy+9);
+    }
+  }
+  function hitLabel(px,py){ for(let i=hitLabels.length-1;i>=0;i--){ const l=hitLabels[i], r=l.rect; if(px>=r[0]&&px<=r[0]+r[2]&&py>=r[1]&&py<=r[1]+r[3]) return l; } return null; }
+
+  // door/window: draw tappable distance-to-left-wall / distance-to-right-wall on canvas
+  function drawOpeningGaps(o,w){
+    const L=wallLen(w); if(L<1) return;
+    const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
+    const bd=openingBand(w); const off=bd.coff + (o.type==='door'? 0 : 0);
+    const sideoff = (w.t/2 + 22/view.scale); // put labels just outside the wall
+    // measure from the wall FACES either side, not from the centerline endpoints
+    const R=wallOpenRange(w,o.width);
+    const startD=R.s, leftEdgeD=o.pos*L - o.width/2, rightEdgeD=o.pos*L + o.width/2, endD=R.e;
+    const mkLabel=(d0,d1,kind)=>{
+      const dm=(d0+d1)/2; const px=w.x1+ux*dm + nx*(off+sideoff), py=w.y1+uy*dm + ny*(off+sideoff);
+      const [mx,my]=toScreen(px,py); const val=Math.max(0,d1-d0); const txt=fmtLen(val);
+      let ang=Math.atan2(uy,ux); if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
+      const sel=!!(ui.selected && ui.selected.kind==='opening' && ui.selected.id===o.id);
+      const tw = sel ? boxedLabel(txt,mx,my,ang,12) : plainLabel(txt,mx,my,ang,'#22262B',11);
+      const rect=labelRect(mx,my,tw,ang);
+      hitLabels.push({kind, rect, oid:o.id});
+      placedLabels.push(rect);
+    };
+    mkLabel(startD,leftEdgeD,'openleft');
+    mkLabel(rightEdgeD,endD,'openright');
+  }
+  function editOpeningGap(lab, sx, sy){
+    const o=state.openings.find(x=>x.id===lab.oid); if(!o) return;
+    const w=state.walls.find(x=>x.id===o.wallId); if(!w) return; const L=wallLen(w);
+    const g=openingGaps(o); if(!g) return;
+    const cur = lab.kind==='openleft' ? g.left : g.right;
+    showNumInput(sx,sy, toDisp(cur), (v)=>{
+      let gap=fromDisp(v); if(!isFinite(gap) || gap<0) gap=0;
+      if(g.R.e-g.R.s < o.width){ flashHint('這道牆放不下這個門窗，請先加大牆長或縮小門窗'); return; }
+      // gap 0 = flush against the inside face of the adjoining wall
+      setOpeningGap(o, lab.kind==='openleft'?'left':'right', gap);
+      pushHistory(); draw();
+    }, true);
+  }
+
+  // ================= Length box (draft) =================
+  function showLenBox(px,py,txt){ lenBox.style.display='block'; lenBox.style.left=(px+14)+'px'; lenBox.style.top=(py-30)+'px'; lenBox.textContent=txt; }
+  function hideLenBox(){ lenBox.style.display='none'; }
+
+  // ---- inline numeric input (edit length in cm) ----
+  let numCommit=null;
+  // allowZero: a length (wall, room side) must be positive, but a GAP may legitimately
+  // be 0 — a door or window pushed hard up against the adjoining wall is completely
+  // normal, and rejecting 0 meant there was no way to say "貼著牆" at all.
+  let numMin=0.0001;
+  function showNumInput(sx,sy,val,cb,allowZero){
+    numCommit=cb; numMin = allowZero ? 0 : 0.0001;
+    numIn.value=String(Math.round(val));
+    numIn.style.display='block'; numIn.style.left=(sx-33)+'px'; numIn.style.top=(sy-14)+'px';
+    try{ numIn.focus(); numIn.select(); }catch(e){}
+    requestAnimationFrame(()=>{ try{ numIn.focus(); numIn.select(); }catch(e){} });
+  }
+  function hideNumInput(commit){
+    if(numIn.style.display==='none') return;
+    const v=parseFloat(numIn.value); numIn.style.display='none';
+    const cb=numCommit; numCommit=null; const mn=numMin; numMin=0.0001;
+    if(commit && cb && !isNaN(v) && v>=mn) cb(v);
+  }
+  numIn.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); hideNumInput(true); } else if(e.key==='Escape'){ hideNumInput(false); } });
+  numIn.addEventListener('blur',()=>hideNumInput(true));
+
+  // ---- inline text input ----
+  let txtCommit=null;
+  function showTextInput(sx,sy,val,cb){
+    txtCommit=cb; txtIn.value=val||'';
+    txtIn.style.display='block'; txtIn.style.left=(sx)+'px'; txtIn.style.top=(sy)+'px';
+    try{ txtIn.focus(); txtIn.select(); }catch(e){}
+    requestAnimationFrame(()=>{ try{ txtIn.focus(); txtIn.select(); }catch(e){} });
+  }
+  function hideTextInput(commit){
+    if(txtIn.style.display==='none') return;
+    const v=txtIn.value; txtIn.style.display='none';
+    const cb=txtCommit; txtCommit=null;
+    if(commit && cb) cb(v);
+  }
+  txtIn.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); hideTextInput(true); } else if(e.key==='Escape'){ hideTextInput(false); } });
+  txtIn.addEventListener('blur',()=>hideTextInput(true));
+
+  function drawGuides(){
+    if(!draft) return;
+    // alignment guides: this wall's endpoint lines up with an existing wall's
+    // endpoint on the same x or y — shown as a green dashed reference line
+    if(draft.guides && draft.guides.length){
+      ctx.save(); ctx.strokeStyle='#12B76A'; ctx.lineWidth=1.2; ctx.setLineDash([6,5]);
+      for(const g of draft.guides){
+        if(g.axis==='v'){ const [sx]=toScreen(g.coord,0); ctx.beginPath(); ctx.moveTo(sx+.5,0); ctx.lineTo(sx+.5,H); ctx.stroke(); }
+        else { const [,sy]=toScreen(0,g.coord); ctx.beginPath(); ctx.moveTo(0,sy+.5); ctx.lineTo(W,sy+.5); ctx.stroke(); }
+      }
+      ctx.restore();
+    }
+    // "straight" indicator: green dashed line when the wall is exactly horizontal or vertical
+    if(draft.kind==='wall' && draft.a && draft.cur){
+      const dx=draft.cur.x-draft.a.x, dy=draft.cur.y-draft.a.y, L=Math.hypot(dx,dy);
+      if(L>1){
+        const horiz=Math.abs(dy)<0.5, vert=Math.abs(dx)<0.5;
+        if(horiz||vert){
+          ctx.save(); ctx.strokeStyle='#12B76A'; ctx.lineWidth=1.5; ctx.setLineDash([8,6]);
+          if(horiz){ const [,sy]=toScreen(0,draft.a.y); ctx.beginPath(); ctx.moveTo(0,sy+.5); ctx.lineTo(W,sy+.5); ctx.stroke(); }
+          else { const [sx]=toScreen(draft.a.x,0); ctx.beginPath(); ctx.moveTo(sx+.5,0); ctx.lineTo(sx+.5,H); ctx.stroke(); }
+          ctx.restore();
+        }
+      }
+    }
+    // snap indicator (circle = endpoint bind, square = wall-face bind)
+    drawSnapMark(draft.snap);
+    if(draft.startSnap && draft.a) drawSnapMark({...draft.startSnap, x:draft.a.x, y:draft.a.y});
+  }
+  function drawSnapMark(s){
+    if(!s) return;
+    const [sx,sy]=toScreen(s.x,s.y);
+    ctx.save(); ctx.strokeStyle='#12B76A'; ctx.lineWidth=2.5; ctx.fillStyle='rgba(18,183,106,.15)';
+    if(s.type==='end'){ ctx.beginPath(); ctx.arc(sx,sy,9,0,7); ctx.fill(); ctx.stroke(); ctx.fillStyle='#12B76A'; ctx.beginPath(); ctx.arc(sx,sy,2.5,0,7); ctx.fill(); }
+    else { ctx.beginPath(); ctx.rect(sx-8,sy-8,16,16); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  // ================= Pointer handling =================
+  const pointers=new Map();
+  let dragging=null;     // for select/move
+  let panStart=null;
+  let pinch=null;
+  let typedNum='';
+
+  function evtPos(e){ const r=cv.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; }
+
+  // ---- on-screen debug log (so bug-report screen recordings capture the raw
+  // pointer event sequence — down/move/up/cancel, pointerId, draft state —
+  // instead of us having to guess what happened from the visuals alone) ----
+  const dbgPanel=document.getElementById('debugPanel');
+  const dbgBtn=document.getElementById('dbgBtn');
+  const dbgLog=[];
+  let dbgOn=false;
+  function dbg(msg){
+    if(!dbgOn) return;
+    const t=(performance.now()/1000).toFixed(2);
+    dbgLog.push(`${t}s ${msg}`);
+    if(dbgLog.length>28) dbgLog.shift();
+    dbgPanel.textContent=dbgLog.join('\n');
+  }
+  function toggleDebug(){ dbgOn=!dbgOn; dbgPanel.classList.toggle('show',dbgOn); dbgBtn.classList.toggle('on',dbgOn); if(dbgOn){ dbgLog.length=0; dbg('— 除錯記錄開啟 —'); } }
+  dbgBtn.addEventListener('click',toggleDebug);
+
+  stage.addEventListener('pointerdown',e=>{
+    dbg(`DOWN id=${e.pointerId} type=${e.pointerType} pointers.size(before)=${pointers.size} draft=${draft?draft.kind+'(pid='+draft.pointerId+',type='+draft.pointerType+')':'null'}`);
+    // A SECOND finger arriving is always a pinch-zoom gesture and takes priority
+    // over anything else — including a wall/dim currently being dragged by the
+    // first finger. This must be checked BEFORE the single-finger-lock below,
+    // otherwise the lock swallows the second touch and zoom never triggers,
+    // forcing the user back to the select tool just to zoom mid-draw.
+    if(pointers.size===1 && !pointers.has(e.pointerId)){
+      hideNumInput(true); hideTextInput(true); hideDimEditor();
+      try{ stage.setPointerCapture(e.pointerId); }catch(_){}
+      pointers.set(e.pointerId,evtPos(e));
+      dbg(`  -> PINCH START (2nd finger, takes priority over draft), draft cleared`);
+      startPinch(); draft=null; hideLenBox(); draw();
+      return;
+    }
+    // if a wall/dim draft is already being actively dragged by another finger,
+    // ignore this new touch entirely (prevents palm/second-finger touches from
+    // hijacking an in-progress drag — this was silently swallowing drawn walls).
+    // EXCEPTION: an Apple Pencil ('pen') always takes priority over a palm/finger
+    // ('touch') that happened to land first — otherwise a palm touching the glass
+    // a few ms before the Pencil tip permanently "owns" the drag and every real
+    // Pencil move gets silently ignored (this was the root cause of walls that
+    // visibly dragged out on screen but never actually got created).
+    let penOverrideFrom=null;
+    if(draft && draft.kind && draft.pointerId!=null && draft.pointerId!==e.pointerId && pointers.size<2){
+      if(e.pointerType==='pen' && draft.pointerType!=='pen'){
+        dbg(`  -> PEN OVERRIDE (was owned by ${draft.pointerType}), discarding that draft`);
+        penOverrideFrom=draft.pointerId;
+        draft=null;
+      } else {
+        dbg(`  -> IGNORED (owned by another pointer)`);
+        return;
+      }
+    }
+    hideNumInput(true); hideTextInput(true); hideDimEditor();
+    try{ stage.setPointerCapture(e.pointerId); }catch(_){}
+    // a pen overriding a stray touch/palm is NOT a two-finger gesture — drop the
+    // old (palm) point from tracking so it can't trigger pinch-zoom a line below
+    if(penOverrideFrom!=null){ pointers.delete(penOverrideFrom); try{ stage.releasePointerCapture(penOverrideFrom); }catch(_){} }
+    pointers.set(e.pointerId,evtPos(e));
+    if(pointers.size===2){ dbg(`  -> PINCH START, draft cleared`); startPinch(); draft=null; hideLenBox(); draw(); return; }
+    const [px,py]=evtPos(e);
+    const [wx,wy]=toWorld(px,py);
+    if(e.button===1){ panStart={px,py,ox:view.ox,oy:view.oy}; return; }
+
+    // if a wall/beam is already selected, its endpoint handles take priority
+    // over any nearby dimension label — you selected it, so a tap near its own
+    // endpoint means "stretch this", not "edit some label that happens to sit
+    // close by". recomputeRooms() re-runs on every move, so pulling an endpoint
+    // away from its neighbours makes the room disappear immediately (no longer
+    // a closed loop), and pushing it back together makes it reappear.
+    if(ui.tool==='select'){
+      const epHit=hitEndpointHandle(wx,wy);
+      if(dbgOn) dbg(`  select-tool down: ui.selected=${ui.selected?ui.selected.kind+'#'+ui.selected.id:'null'} epHit=${epHit?epHit.kind+'('+epHit.which+')':'null'}`);
+      if(epHit){
+        dragging={hit:epHit, start:[wx,wy], moved:false, orig:cloneForDrag(epHit)};
+        draw();
+        return;
+      }
+    }
+
+    // tap a room dimension / name label first (works in any tool EXCEPT wall,
+    // where we must let you draw through/inside labels — tap-vs-drag decided on release)
+    const lab=hitLabel(px,py);
+    if(lab && ui.tool!=='wall'){ dbg(`  -> hit label kind=${lab.kind}`); try{stage.releasePointerCapture(e.pointerId);}catch(_){}
+      pointers.delete(e.pointerId);
+      openLabelEditor(lab,px,py);
+      return; }
+
+    if(ui.tool==='select'){
+      const hit=hitTest(wx,wy);
+      if(hit){
+        ui.selected=hit; refreshProp();
+        dragging={hit, start:[wx,wy], moved:false, orig:cloneForDrag(hit)};
+      } else { ui.selected=null; refreshProp(); panStart={px,py,ox:view.ox,oy:view.oy}; }
+      draw();
+    }
+    else if(ui.tool==='wall'){ const r=computeWallEnd(null,wx,wy); draft={kind:'wall',a:{x:r.x,y:r.y},cur:{x:r.x,y:r.y},startSnap:r.snap,snap:r.snap,pendingLabel:lab,downPx:[px,py],pointerId:e.pointerId,pointerType:e.pointerType}; typedNum=''; dbg(`  wall draft started type=${e.pointerType}`); }
+    else if(ui.tool==='dim'){ const sp=snapWorld(wx,wy,null); draft={kind:'dim',a:{x:sp.x,y:sp.y},cur:{x:sp.x,y:sp.y},pointerId:e.pointerId,pointerType:e.pointerType}; }
+    else if(ui.tool==='door'||ui.tool==='window'){ placeOpening(wx,wy,ui.tool); }
+    else if(ui.tool==='shaft'){ placeColumn(wx,wy,'shaft'); }
+    else if(ui.tool==='text'){ placeText(wx,wy); }
+    else if(ui.tool==='column'){ placeColumn(wx,wy); }
+    else if(ui.tool==='beam'){ const r=computeBeamEnd(null,wx,wy); draft={kind:'beam',a:{x:r.x,y:r.y},a0:{x:r.x,y:r.y},cur:{x:r.x,y:r.y},pointerId:e.pointerId,pointerType:e.pointerType}; typedNum=''; }
+  });
+
+  stage.addEventListener('pointermove',e=>{
+    if(dbgOn && draft){ dbg(`move id=${e.pointerId} (draft owner=${draft.pointerId}) pointers.size=${pointers.size}`); }
+    if(!pointers.has(e.pointerId)) { /* hover */ }
+    if(pointers.has(e.pointerId)) pointers.set(e.pointerId,evtPos(e));
+    if(pointers.size===2 && pinch){ doPinch(); return; }
+    const [px,py]=evtPos(e);
+    let [wx,wy]=toWorld(px,py);
+    coordEl.textContent=`X ${Math.round(wx)}　Y ${Math.round(wy)}`;
+
+    if(panStart && pointers.size<2){ view.ox=panStart.ox+(px-panStart.px); view.oy=panStart.oy+(py-panStart.py); draw(); return; }
+
+    if(dragging){ if(dbgOn) dbg(`  dragging hit=${dragging.hit.kind}${dragging.hit.which?'('+dragging.hit.which+')':''} id=${dragging.hit.id}`); doDrag(wx,wy,px,py); return; }
+
+    // drag-drawing preview (wall / dim) — only the finger that owns this draft may drive it
+    if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> move IGNORED, not draft owner`); return; }
+    if(draft){
+      if(draft.pendingLabel && draft.downPx){ const dd=Math.hypot(px-draft.downPx[0],py-draft.downPx[1]); if(dd>6){ draft.pendingLabel=null; dbg(`  pendingLabel cleared (dd=${dd.toFixed(0)}px)`); } }
+      const from=(draft.kind==='beam' && draft.a0) ? draft.a0 : draft.a;
+      let sp;
+      if(draft.kind==='wall'||draft.kind==='beam'){
+        if(typedNum!==''){
+          const raw=(draft.kind==='beam')?computeBeamEnd(from,wx,wy):computeWallEnd(from,wx,wy);
+          const ang=Math.atan2(raw.y-from.y, raw.x-from.x);
+          const L=parseFloat(typedNum)||0;
+          sp={x:from.x+Math.cos(ang)*L, y:from.y+Math.sin(ang)*L}; draft.guides=[];
+        } else {
+          const r=(draft.kind==='beam')?computeBeamEnd(from,wx,wy):computeWallEnd(from,wx,wy);
+          sp={x:r.x,y:r.y}; draft.guides=r.guides; draft.snap=r.snap;
+        }
+      } else {
+        sp=snapWorld(wx,wy,from); draft.guides=[];
+      }
+      if(draft.kind==='beam'){
+        // re-derive the sideways offset from scratch every move (absolute, not
+        // incremental) so it can also fall back to no offset if you draw away
+        // from the wall again
+        const al=alignBeamAlongWall(from, sp, wx, wy, ui.beamW);
+        draft.a=al.a; sp=al.c;
+      }
+      draft.cur=sp;
+      const len=dist(from.x,from.y,sp.x,sp.y);
+      if(dbgOn) dbg(`  draft.cur updated len=${len.toFixed(0)}cm pendingLabel=${!!draft.pendingLabel}`);
+      const [sx,sy]=toScreen(sp.x,sp.y);
+      showLenBox(sx,sy, ((draft.kind==='wall'||draft.kind==='beam')&&typedNum!=='')?('⌨ '+typedNum+' cm'):fmtLen(len));
+      draw();
+      return;
+    }
+  });
+
+  stage.addEventListener('pointerup',e=>{
+    dbg(`UP id=${e.pointerId} pointers.size(before)=${pointers.size} draft=${draft?draft.kind+'(pid='+draft.pointerId+',len='+(draft.cur?dist(draft.a.x,draft.a.y,draft.cur.x,draft.cur.y).toFixed(0):'?')+'cm,pending='+!!draft.pendingLabel+')':'null'}`);
+    pointers.delete(e.pointerId);
+    if(pointers.size<2){ pinch=null; }
+    if(panStart){ panStart=null; }
+    if(dragging){
+      // let go of a stretched endpoint right next to a neighbour and it snaps
+      // onto it for real — so the loop closes and the space appears
+      if(dragging.moved && dragging.hit.kind==='wallEndpoint'){
+        const w=state.walls.find(v=>v.id===dragging.hit.id); if(w) weldWall(w);
+      }
+      if(dragging.moved) pushHistory();
+      dragging=null;
+    }
+    if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> UP IGNORED, not draft owner`); return; }
+    if(draft && draft.kind==='wall' && draft.pendingLabel){
+      dbg(`  -> treated as LABEL TAP, wall NOT created`);
+      const lab=draft.pendingLabel; const [px,py]=draft.downPx;
+      draft=null; typedNum=''; hideLenBox(); draw();
+      openLabelEditor(lab,px,py);
+      return;
+    }
+    if(draft){
+      const a=draft.a, c=draft.cur||draft.a;
+      const len=dist(a.x,a.y,c.x,c.y);
+      dbg(`  final len=${len.toFixed(1)}cm (threshold=15)`);
+      if(len>15){
+        if(draft.kind==='wall'){
+          const w={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,t:ui.thick,align:ui.wallAlign};
+          state.walls.push(w); weldWall(w); pushHistory();
+          dbg(`  -> WALL CREATED id=${w.id} (${a.x.toFixed(0)},${a.y.toFixed(0)})-(${c.x.toFixed(0)},${c.y.toFixed(0)})`);
+          draft=null; typedNum=''; hideLenBox(); draw();
+          return;
+        } else if(draft.kind==='beam'){
+          const bm={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,w:ui.beamW,h:ui.beamH,align:ui.wallAlign,position:'ceiling',distTop:0};
+          state.beams.push(bm); pushHistory();
+          ui.selected={kind:'beam',id:bm.id}; refreshProp();
+          draft=null; typedNum=''; hideLenBox(); draw();
+          return;
+        } else if(draft.kind==='dim'){
+          const d={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,off:30}; state.dims.push(d); ui.selected={kind:'dim',id:d.id}; refreshProp(); pushHistory();
+        }
+      } else { dbg(`  -> too short, NOT created`); }
+      draft=null; typedNum=''; hideLenBox(); draw();
+    }
+  });
+  stage.addEventListener('pointercancel',e=>{
+    dbg(`CANCEL id=${e.pointerId} pointers.size(before)=${pointers.size} draft=${draft?draft.kind+'(pid='+draft.pointerId+',len='+(draft.cur?dist(draft.a.x,draft.a.y,draft.cur.x,draft.cur.y).toFixed(0):'?')+'cm)':'null'}`);
+    pointers.delete(e.pointerId);
+    pinch=null;
+    if(pointers.size<2 && panStart) panStart=null;
+    if(dragging){ if(dragging.moved) pushHistory(); dragging=null; }
+    // a cancel on a finger that doesn't own the current draft (e.g. a stray
+    // second-finger/palm touch) must NOT discard an in-progress wall drag —
+    // iOS sometimes sends pointercancel to the primary finger when a second
+    // touch appears, so we try to COMMIT the draft here just like pointerup,
+    // instead of silently throwing away everything the user just dragged.
+    if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> CANCEL IGNORED, not draft owner`); return; }
+    if(draft && draft.kind==='wall' && draft.pendingLabel){ dbg(`  -> pendingLabel set, discarding without creating`); draft=null; typedNum=''; hideLenBox(); draw(); return; }
+    if(draft){
+      const a=draft.a, c=draft.cur||draft.a;
+      const len=dist(a.x,a.y,c.x,c.y);
+      dbg(`  final len=${len.toFixed(1)}cm (threshold=15)`);
+      if(len>15 && draft.kind==='wall'){
+        const w={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,t:ui.thick,align:ui.wallAlign};
+        state.walls.push(w); weldWall(w); pushHistory();
+        dbg(`  -> WALL CREATED (on cancel) id=${w.id}`);
+      } else if(len>15 && draft.kind==='dim'){
+        const d={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,off:30}; state.dims.push(d); pushHistory();
+      } else { dbg(`  -> too short, discarded`); }
+      draft=null; typedNum=''; hideLenBox(); draw();
+    }
+  });
+
+  // double-click a wall (select tool) to edit its length inline
+  stage.addEventListener('dblclick',e=>{
+    if(ui.tool!=='select') return;
+    const [px,py]=evtPos(e); const [wx,wy]=toWorld(px,py);
+    const hit=hitTest(wx,wy);
+    if(hit && hit.kind==='wall'){
+      const w=state.walls.find(v=>v.id===hit.id);
+      ui.selected=hit; refreshProp(); draw();
+      const mid=toScreen((w.x1+w.x2)/2,(w.y1+w.y2)/2);
+      editWallLenLabel(w, mid[0], mid[1]);
+    } else if(hit && hit.kind==='text'){
+      const t=state.texts.find(v=>v.id===hit.id);
+      ui.selected=hit; refreshProp(); draw();
+      const [sx,sy]=toScreen(t.x,t.y);
+      showTextInput(sx,sy-14,t.text,(val)=>{ if(val.trim()===''){ state.texts=state.texts.filter(x=>x.id!==t.id); ui.selected=null; } else t.text=val; refreshProp(); pushHistory(); draw(); });
+    }
+  });
+
+  // ---- Pinch/zoom ----
+  function startPinch(){ const p=[...pointers.values()]; pinch={d:Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]), scale:view.scale, cx:(p[0][0]+p[1][0])/2, cy:(p[0][1]+p[1][1])/2, ox:view.ox, oy:view.oy}; panStart=null; dragging=null; hideLenBox(); }
+  function doPinch(){ const p=[...pointers.values()]; const d=Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]); const cx=(p[0][0]+p[1][0])/2, cy=(p[0][1]+p[1][1])/2; let ns=Math.max(0.03,Math.min(6,pinch.scale*(d/pinch.d))); const[wx,wy]=[(cx-pinch.ox)/pinch.scale,(cy-pinch.oy)/pinch.scale]; view.scale=ns; view.ox=cx-wx*ns; view.oy=cy-wy*ns; view.ox+=(cx-pinch.cx); view.oy+=(cy-pinch.cy); updateZoom(); draw(); }
+
+  // ---- wheel zoom ----
+  stage.addEventListener('wheel',e=>{ e.preventDefault(); const[px,py]=evtPos(e); const[wx,wy]=toWorld(px,py); const f=e.deltaY<0?1.12:1/1.12; view.scale=Math.max(0.03,Math.min(6,view.scale*f)); view.ox=px-wx*view.scale; view.oy=py-wy*view.scale; updateZoom(); draw(); },{passive:false});
+
+  // ================= Tool actions =================
+  // How much of each end of a wall is swallowed by the wall it runs into.
+  // A wall's stored geometry is its CENTERLINE, so its centerline endpoint sits in
+  // the MIDDLE of the wall it meets — half of that neighbour's thickness further on
+  // than the surface you'd actually measure from on site. Every door/window gap is
+  // measured from the usable inner face, so gap 0 means "貼著牆", not "沉進牆裡一半".
+  function wallEndInset(w){
+    const EPS=2.5;
+    const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L;
+    const at=(px,py)=>{
+      let m=0;
+      for(const o of state.walls){
+        if(o.id===w.id || wallLen(o)<1) continue;
+        if(projPointToSeg(px,py,o.x1,o.y1,o.x2,o.y2).d>EPS) continue;
+        const oL=wallLen(o)||1, oux=(o.x2-o.x1)/oL, ouy=(o.y2-o.y1)/oL;
+        const cosang=Math.abs(ux*oux+uy*ouy);
+        if(cosang>0.95) continue;                       // collinear continuation: nothing in the way
+        const sinang=Math.sqrt(Math.max(0.05,1-cosang*cosang));
+        m=Math.max(m,(o.t/2)/sinang);                   // oblique joins eat a bit more
+      }
+      return m;
+    };
+    return {s:at(w.x1,w.y1), e:at(w.x2,w.y2)};
+  }
+  // usable run of a wall for placing an opening, plus the pos limits that keep it there
+  function wallOpenRange(w,width){
+    const L=wallLen(w)||1, ins=wallEndInset(w);
+    let s=ins.s, e=L-ins.e;
+    if(e-s < width){ const c=(s+e)/2; s=Math.max(0,c-width/2); e=Math.min(L,c+width/2); }
+    return {L, s, e, posMin:(s+width/2)/L, posMax:(e-width/2)/L};
+  }
+  function openingGaps(o){
+    const w=state.walls.find(v=>v.id===o.wallId); if(!w) return null;
+    const R=wallOpenRange(w,o.width), L=R.L;
+    return {w, R, left:Math.max(0, o.pos*L - o.width/2 - R.s), right:Math.max(0, R.e - (o.pos*L + o.width/2))};
+  }
+  function setOpeningGap(o,side,gapCm){
+    const w=state.walls.find(v=>v.id===o.wallId); if(!w) return false;
+    const R=wallOpenRange(w,o.width), L=R.L;
+    const g=Math.max(0,gapCm||0);
+    let pos = side==='left' ? (R.s+g+o.width/2)/L : (R.e-g-o.width/2)/L;
+    o.pos=Math.max(R.posMin, Math.min(R.posMax, pos));
+    return true;
+  }
+  // Every opening kind, with the sizes a Taiwanese interior plan actually uses.
+  // `sillFixed` marks the kinds that sit on the floor by definition — a 落地窗 with
+  // an adjustable 離地高 is not a 落地窗, so that field is hidden and pinned to 0.
+  const OPEN_KINDS={
+    swing : {type:'door',   label:'門',     w:90,  h:210, sill:0,  sillFixed:true },
+    slide : {type:'door',   label:'推拉門', w:150, h:210, sill:0,  sillFixed:true },
+    cased : {type:'door',   label:'門洞',   w:90,  h:210, sill:0,  sillFixed:true },
+    fixed : {type:'window', label:'窗',     w:120, h:120, sill:90 },
+    french: {type:'window', label:'落地窗', w:180, h:210, sill:0,  sillFixed:true },
+    bay   : {type:'window', label:'外凸窗', w:180, h:120, sill:90, proj:45 },
+  };
+  const DOOR_SUBS=['swing','slide','cased'], WIN_SUBS=['fixed','french','bay'];
+  function openKind(o){ return OPEN_KINDS[o.sub] || OPEN_KINDS[o.type==='door'?'swing':'fixed']; }
+  function openLabel(o){ return openKind(o).label; }
+  function placeOpening(wx,wy,type){
+    const near=findWallNear(wx,wy); if(!near){ flashHint('請點在牆上'); return; }
+    const sub = type==='door' ? ui.doorSub : ui.winSub;
+    const K=OPEN_KINDS[sub];
+    const w=near.w;
+    const R=wallOpenRange(w,K.w); let pos=Math.max(R.posMin,Math.min(R.posMax,near.pr.t));
+    const o={id:uid(),type,sub,wallId:w.id,pos,width:K.w,flipH:false,flipV:false,
+             height:K.h, sill:K.sill};
+    if(K.proj) o.proj=K.proj;
+    state.openings.push(o); ui.selected={kind:'opening',id:o.id}; refreshProp(); pushHistory(); draw();
+  }
+  // switching an existing opening to another kind keeps where it sits, but adopts
+  // the new kind's proportions unless the user had already customised them
+  function setOpeningSub(o,sub){
+    const K=OPEN_KINDS[sub]; if(!K) return;
+    const old=openKind(o);
+    if(Math.abs(o.width-old.w)<0.5) o.width=K.w;
+    if(Math.abs((o.height||0)-old.h)<0.5) o.height=K.h;
+    o.sub=sub; o.type=K.type;
+    // coming FROM a floor-level kind, the stored sill is 0 — that is the old kind's
+    // constraint, not a choice, so the new kind's own default should take over
+    if(K.sillFixed) o.sill=0;
+    else if(old.sillFixed || o.sill===undefined) o.sill=K.sill;
+    if(K.proj){ if(!o.proj) o.proj=K.proj; } else delete o.proj;
+    const w=state.walls.find(v=>v.id===o.wallId);
+    if(w){ const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,o.pos)); }
+  }
+
+  function placeColumn(wx,wy,kind){
+    let x=wx,y=wy;
+    if(ui.snap){ const g=ui.gridSize; x=Math.round(x/g)*g; y=Math.round(y/g)*g; }
+    const shaft = kind==='shaft';
+    const c={id:uid(),x,y,w:shaft?ui.shaftW:ui.colW,h:shaft?ui.shaftH:ui.colH,rot:0,
+             kind:shaft?'shaft':'col'};
+    state.columns.push(c); ui.selected={kind:'column',id:c.id}; refreshProp(); pushHistory(); draw();
+  }
+
+  function placeText(wx,wy){
+    const t={id:uid(),x:wx,y:wy,text:'',size:16};
+    state.texts.push(t); ui.selected={kind:'text',id:t.id};
+    const [sx,sy]=toScreen(wx,wy);
+    showTextInput(sx,sy-14, '', (val)=>{
+      if(val.trim()===''){ state.texts=state.texts.filter(x=>x.id!==t.id); ui.selected=null; }
+      else { t.text=val; }
+      refreshProp(); pushHistory(); draw();
+    });
+    draw();
+  }
+
+  // ================= Dragging (select/move) =================
+  // midpoints of a wall's two long faces — the grab points for a parallel slide
+  function wallSideHandles(w){
+    if(!w || wallLen(w)<1) return null;
+    const c=wallCorners(w);
+    return {
+      a:{x:(c.L1.x+c.L2.x)/2, y:(c.L1.y+c.L2.y)/2},
+      b:{x:(c.R1.x+c.R2.x)/2, y:(c.R1.y+c.R2.y)/2},
+    };
+  }
+  function hitEndpointHandle(wx,wy){
+    if(!ui.selected) return null;
+    const thr=12/view.scale;
+    if(ui.selected.kind==='wall'){
+      const w=state.walls.find(v=>v.id===ui.selected.id); if(!w) return null;
+      if(Math.hypot(wx-w.x1,wy-w.y1)<thr) return {kind:'wallEndpoint', id:w.id, which:'x1'};
+      if(Math.hypot(wx-w.x2,wy-w.y2)<thr) return {kind:'wallEndpoint', id:w.id, which:'x2'};
+      // the two square handles on the wall's long FACES: grab either one to slide
+      // the whole wall sideways, dragging its neighbours along so they stretch
+      const s=wallSideHandles(w);
+      if(s){ for(const p of [s.a,s.b]){ if(Math.hypot(wx-p.x,wy-p.y)<thr) return {kind:'wallSide', id:w.id}; } }
+    } else if(ui.selected.kind==='beam'){
+      const b=state.beams.find(v=>v.id===ui.selected.id); if(!b) return null;
+      if(Math.hypot(wx-b.x1,wy-b.y1)<thr) return {kind:'beamEndpoint', id:b.id, which:'x1'};
+      if(Math.hypot(wx-b.x2,wy-b.y2)<thr) return {kind:'beamEndpoint', id:b.id, which:'x2'};
+    }
+    return null;
+  }
+  function cloneForDrag(hit){
+    if(hit.kind==='wall'){ const w=state.walls.find(v=>v.id===hit.id); return {...w}; }
+    if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); return {...o}; }
+    if(hit.kind==='dim'){ const d=state.dims.find(v=>v.id===hit.id); return {...d}; }
+    if(hit.kind==='text'){ const t=state.texts.find(v=>v.id===hit.id); return {...t}; }
+    if(hit.kind==='column'){ const c=state.columns.find(v=>v.id===hit.id); return {...c}; }
+    if(hit.kind==='beam'){ const b=state.beams.find(v=>v.id===hit.id); return {...b}; }
+    if(hit.kind==='wallEndpoint'){ const w=state.walls.find(v=>v.id===hit.id); return {...w}; }
+    if(hit.kind==='wallSide'){ const w=state.walls.find(v=>v.id===hit.id); return {...w}; }
+    if(hit.kind==='beamEndpoint'){ const b=state.beams.find(v=>v.id===hit.id); return {...b}; }
+  }
+  function doDrag(wx,wy){
+    const {hit,start,orig}=dragging; const dx=wx-start[0], dy=wy-start[1];
+    if(Math.hypot(dx,dy)>2/view.scale) dragging.moved=true;
+    // NOTE: grid-snap the MOVEMENT, not each endpoint separately. Rounding both
+    // ends independently is what used to quietly bend a wall a degree or two off
+    // square every time it was dragged.
+    if(hit.kind==='wall'){ const w=state.walls.find(v=>v.id===hit.id); let ddx=dx,ddy=dy; if(ui.snap){const g=ui.gridSize; ddx=Math.round((orig.x1+dx)/g)*g-orig.x1; ddy=Math.round((orig.y1+dy)/g)*g-orig.y1;} w.x1=orig.x1+ddx;w.y1=orig.y1+ddy;w.x2=orig.x2+ddx;w.y2=orig.y2+ddy; recomputeRooms(); }
+    else if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); const w=state.walls.find(v=>v.id===o.wallId); const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,pr.t)); }
+    else if(hit.kind==='dim'){ const d=state.dims.find(v=>v.id===hit.id); d.x1=orig.x1+dx;d.y1=orig.y1+dy;d.x2=orig.x2+dx;d.y2=orig.y2+dy; }
+    else if(hit.kind==='text'){ const t=state.texts.find(v=>v.id===hit.id); t.x=orig.x+dx;t.y=orig.y+dy; }
+    else if(hit.kind==='column'){ const c=state.columns.find(v=>v.id===hit.id); let nx=orig.x+dx,ny=orig.y+dy; if(ui.snap){nx=Math.round(nx/ui.gridSize)*ui.gridSize;ny=Math.round(ny/ui.gridSize)*ui.gridSize;} c.x=nx;c.y=ny; }
+    else if(hit.kind==='beam'){ const b=state.beams.find(v=>v.id===hit.id); let ddx=dx,ddy=dy; if(ui.snap){const g=ui.gridSize; ddx=Math.round((orig.x1+dx)/g)*g-orig.x1; ddy=Math.round((orig.y1+dy)/g)*g-orig.y1;} b.x1=orig.x1+ddx;b.y1=orig.y1+ddy;b.x2=orig.x2+ddx;b.y2=orig.y2+ddy; }
+    else if(hit.kind==='wallEndpoint'){
+      const w=state.walls.find(v=>v.id===hit.id);
+      const other = hit.which==='x1' ? {x:w.x2,y:w.y2} : {x:w.x1,y:w.y1};
+      const r=computeWallEnd(other, wx, wy);
+      if(hit.which==='x1'){ w.x1=r.x; w.y1=r.y; } else { w.x2=r.x; w.y2=r.y; }
+      if(dbgOn) dbg(`  wallEndpoint drag: which=${hit.which} newpos=(${r.x.toFixed(0)},${r.y.toFixed(0)}) wall now=(${w.x1.toFixed(0)},${w.y1.toFixed(0)})-(${w.x2.toFixed(0)},${w.y2.toFixed(0)})`);
+      // re-run room detection live so a wall pulled apart from its neighbours
+      // immediately stops being a closed room, and pushed back together
+      // immediately becomes one again — no need to release the drag first
+      recomputeRooms();
+      if(dbgOn) dbg(`  after recompute: roomsCache.length=${roomsCache.length} areas=${roomsCache.map(r=>(r.area/10000).toFixed(1)).join(',')}`);
+    }
+    else if(hit.kind==='wallSide'){
+      // slide the whole wall perpendicular to itself; every wall attached to it
+      // stretches to keep up, exactly like typing a new room dimension does
+      const w=state.walls.find(v=>v.id===hit.id);
+      if(w){
+        const vert=Math.abs(w.x1-w.x2) < Math.abs(w.y1-w.y2);
+        const square = vert ? Math.abs(w.x1-w.x2)<1 : Math.abs(w.y1-w.y2)<1;
+        if(square){
+          const axis=vert?'x':'y';
+          const cur = vert ? w.x1 : w.y1;
+          const grabOff = vert ? (start[0]-orig.x1) : (start[1]-orig.y1);
+          let target = (vert?wx:wy) - grabOff;
+          if(ui.snap){ const g=ui.gridSize; target=Math.round(target/g)*g; }
+          const d=target-cur;
+          if(Math.abs(d)>0.001){
+            const lo = vert?Math.min(w.y1,w.y2):Math.min(w.x1,w.x2);
+            const hi = vert?Math.max(w.y1,w.y2):Math.max(w.x1,w.x2);
+            withOpeningsPreserved(()=>moveWallLine(axis,cur,d,lo,hi));
+            recomputeRooms();
+          }
+        } else {
+          // diagonal wall: slide along its own normal instead
+          const L=wallLen(w)||1, nx=-(w.y2-w.y1)/L, ny=(w.x2-w.x1)/L;
+          const proj=dx*nx+dy*ny;
+          w.x1=orig.x1+nx*proj; w.y1=orig.y1+ny*proj;
+          w.x2=orig.x2+nx*proj; w.y2=orig.y2+ny*proj;
+          recomputeRooms();
+        }
+      }
+    }
+    else if(hit.kind==='beamEndpoint'){
+      const b=state.beams.find(v=>v.id===hit.id);
+      const other = hit.which==='x1' ? {x:b.x2,y:b.y2} : {x:b.x1,y:b.y1};
+      const r=computeBeamEnd(other, wx, wy);
+      const al=alignBeamAlongWall(other, {x:r.x,y:r.y}, wx, wy, b.w);
+      if(hit.which==='x1'){ b.x1=al.c.x; b.y1=al.c.y; b.x2=al.a.x; b.y2=al.a.y; }
+      else { b.x2=al.c.x; b.y2=al.c.y; b.x1=al.a.x; b.y1=al.a.y; }
+    }
+    refreshProp(); draw();
+  }
+
+  // ================= Property panel =================
+  function refreshProp(){
+    const s=ui.selected; const U=ui.unit;
+    if(!s){ propBody.innerHTML='<div class="empty">選一個物件來編輯它的尺寸與屬性，或從左邊工具列選一個工具開始畫。</div>'; return; }
+    if(s.kind==='wall'){ const w=state.walls.find(v=>v.id===s.id);
+      propBody.innerHTML=`
+      <div class="row"><label>牆長</label><div class="field"><input type="number" id="pWlen" value="${Math.round(toDisp(wallLen(w)))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>牆厚</label><div class="field"><input type="number" id="pWt" value="${Math.round(toDisp(w.t))}" step="1"><span class="unit">${U}</span></div></div>
+      <button class="del-btn" id="pDel">刪除這道牆</button>`;
+      document.getElementById('pWlen').onchange=ev=>{ setWallLength(w, fromDisp(parseFloat(ev.target.value)||0)); pushHistory(); draw(); };
+      document.getElementById('pWt').onchange=ev=>{ w.t=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); pushHistory(); draw(); };
+      document.getElementById('pDel').onclick=deleteSelected;
+    }
+    else if(s.kind==='opening'){ const o=state.openings.find(v=>v.id===s.id);
+      const w=state.walls.find(v=>v.id===o.wallId); const L=w?wallLen(w):0;
+      const _g=openingGaps(o)||{left:0,right:0};
+      const leftGap=_g.left, rightGap=_g.right;
+      const K=openKind(o), subs=(o.type==='door'?DOOR_SUBS:WIN_SUBS);
+      const cur=o.sub||(o.type==='door'?'swing':'fixed');
+      const subSeg=subs.map(k=>`<button data-k="${k}"${k===cur?' class="on"':''}>${OPEN_KINDS[k].label}</button>`).join('');
+      propBody.innerHTML=`
+      <div class="row"><label>類型</label><div class="seg" id="pOsub">${subSeg}</div></div>
+      <div class="row"><label>寬度</label><div class="field"><input type="number" id="pOw" value="${Math.round(toDisp(o.width))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>距左牆</label><div class="field"><input type="number" id="pOl" value="${Math.round(toDisp(leftGap))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>距右牆</label><div class="field"><input type="number" id="pOr" value="${Math.round(toDisp(rightGap))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>高度</label><div class="field"><input type="number" id="pOh" value="${Math.round(toDisp(o.height||0))}" step="1"><span class="unit">${U}</span></div></div>
+      ${K.sillFixed
+        ? `<div class="row"><label>離地高度</label><span style="font-size:12px;color:var(--muted)">0（${K.label}落地）</span></div>`
+        : `<div class="row"><label>離地高度</label><div class="field"><input type="number" id="pOs" value="${Math.round(toDisp(o.sill||0))}" step="1"><span class="unit">${U}</span></div></div>`}
+      ${K.proj?`<div class="row"><label>外凸深度</label><div class="field"><input type="number" id="pOp" value="${Math.round(toDisp(o.proj||45))}" step="1"><span class="unit">${U}</span></div></div>`:''}
+      ${o.type==='door'&&cur!=='cased'?`
+      <div class="row"><label>${cur==='slide'?'錯位方向':'內外開'}</label><button class="chip" id="pFlipV">翻轉</button></div>`:''}
+      ${cur==='bay'?`<div class="row"><label>凸出方向</label><button class="chip" id="pFlipV">翻轉</button></div>`:''}
+      ${cur==='swing'?`<div class="row"><label>左右開</label><button class="chip" id="pFlipH">翻轉</button></div>`:''}
+      <button class="del-btn" id="pDel">刪除${K.label}</button>`;
+      document.querySelectorAll('#pOsub button').forEach(b=>b.onclick=()=>{
+        setOpeningSub(o,b.dataset.k); pushHistory(); refreshProp(); draw(); });
+      const reposFromLeft=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,'left',gapCm); pushHistory(); refreshProp(); draw(); };
+      const reposFromRight=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,'right',gapCm); pushHistory(); refreshProp(); draw(); };
+      document.getElementById('pOw').onchange=ev=>{ o.width=Math.max(10,fromDisp(parseFloat(ev.target.value)||10)); const R2=wallOpenRange(w,o.width); o.pos=Math.max(R2.posMin,Math.min(R2.posMax,o.pos)); pushHistory(); refreshProp(); draw(); };
+      document.getElementById('pOl').onchange=ev=>reposFromLeft(fromDisp(parseFloat(ev.target.value)||0));
+      document.getElementById('pOr').onchange=ev=>reposFromRight(fromDisp(parseFloat(ev.target.value)||0));
+      document.getElementById('pOh').onchange=ev=>{ o.height=Math.max(1,fromDisp(parseFloat(ev.target.value)||0)); pushHistory(); };
+      const os=document.getElementById('pOs');
+      if(os) os.onchange=ev=>{ o.sill=Math.max(0,fromDisp(parseFloat(ev.target.value)||0)); pushHistory(); };
+      const op=document.getElementById('pOp');
+      if(op) op.onchange=ev=>{ o.proj=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); pushHistory(); draw(); };
+      const fv=document.getElementById('pFlipV'); if(fv) fv.onclick=()=>{ o.flipV=!o.flipV; pushHistory(); draw(); };
+      const fh=document.getElementById('pFlipH'); if(fh) fh.onclick=()=>{ o.flipH=!o.flipH; pushHistory(); draw(); };
+      document.getElementById('pDel').onclick=deleteSelected;
+    }
+    else if(s.kind==='dim'){ const d=state.dims.find(v=>v.id===s.id);
+      propBody.innerHTML=`
+      <div class="row"><label>量測長度</label><span style="font-size:13px;color:var(--muted)">${fmtLen(dist(d.x1,d.y1,d.x2,d.y2))}</span></div>
+      <div class="row"><label>標註偏移</label><div class="field"><input type="number" id="pDoff" value="${Math.round(toDisp(d.off))}" step="5"><span class="unit">${U}</span></div></div>
+      <button class="del-btn" id="pDel">刪除標註</button>`;
+      document.getElementById('pDoff').onchange=ev=>{ d.off=fromDisp(parseFloat(ev.target.value)||0); pushHistory(); draw(); };
+      document.getElementById('pDel').onclick=deleteSelected;
+    }
+    else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id);
+      propBody.innerHTML=`
+      <div class="row"><label>內容</label></div>
+      <input type="text" class="tin" id="pTx" value="${(t.text||'').replace(/"/g,'&quot;')}" style="width:100%;text-align:left">
+      <div class="row" style="margin-top:10px"><label>字級</label><div class="field"><input type="number" id="pTs" value="${t.size}" step="1"><span class="unit">cm</span></div></div>
+      <button class="del-btn" id="pDel">刪除文字</button>`;
+      document.getElementById('pTx').oninput=ev=>{ t.text=ev.target.value; draw(); };
+      document.getElementById('pTx').onchange=()=>pushHistory();
+      document.getElementById('pTs').onchange=ev=>{ t.size=Math.max(4,parseFloat(ev.target.value)||16); pushHistory(); draw(); };
+      document.getElementById('pDel').onclick=deleteSelected;
+    }
+    else if(s.kind==='column'){ const c=state.columns.find(v=>v.id===s.id);
+      const nm=isShaft(c)?'管道間':'柱子';
+      propBody.innerHTML=`
+      <div class="row"><label>長度</label><div class="field"><input type="number" id="pCw" value="${Math.round(toDisp(c.w))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>寬度</label><div class="field"><input type="number" id="pCh" value="${Math.round(toDisp(c.h))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>旋轉</label><div class="field"><input type="number" id="pCrot" value="${Math.round(c.rot||0)}" step="5"><span class="unit">°</span></div></div>
+      <button class="del-btn" id="pDel">刪除${nm}</button>`;
+      document.getElementById('pCw').onchange=ev=>{
+        keepFlushThroughResize(columnGaps, placeColumnAgainst, c, ()=>{ c.w=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); });
+        pushHistory(); refreshProp(); draw(); };
+      document.getElementById('pCh').onchange=ev=>{
+        keepFlushThroughResize(columnGaps, placeColumnAgainst, c, ()=>{ c.h=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); });
+        pushHistory(); refreshProp(); draw(); };
+      document.getElementById('pCrot').onchange=ev=>{ c.rot=parseFloat(ev.target.value)||0; pushHistory(); draw(); };
+      document.getElementById('pDel').onclick=deleteSelected;
+    }
+    else if(s.kind==='beam'){ const bm=state.beams.find(v=>v.id===s.id);
+      const DIRTXT={up:'上',down:'下',left:'左',right:'右'};
+      const gaps=beamGaps(bm);
+      const gapRows=gaps.map(g=>
+        `<div class="row"><label>離牆(${DIRTXT[g.dir]})</label><div class="field"><input type="number" class="pBgap" data-dir="${g.dir}" min="0" value="${Math.round(toDisp(g.gap))}" step="1"><span class="unit">${U}</span></div></div>`).join('');
+      propBody.innerHTML=`
+      <div class="row"><label>樑長</label><span style="font-size:13px;color:var(--muted)">${fmtLen(wallLen(bm))}</span></div>
+      <div class="row"><label>樑寬</label><div class="field"><input type="number" id="pBw" value="${Math.round(toDisp(bm.w))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>樑高</label><div class="field"><input type="number" id="pBh" value="${Math.round(toDisp(bm.h))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>離頂距離</label><div class="field"><input type="number" id="pBdt" value="${Math.round(toDisp(bm.distTop||0))}" step="1"><span class="unit">${U}</span></div></div>
+      ${gapRows||'<div class="row"><label style="color:var(--muted);font-size:11px">兩側沒有平行的牆，無法量離牆距離</label></div>'}
+      <button class="del-btn" id="pDel">刪除樑</button>`;
+      document.querySelectorAll('.pBgap').forEach(inp=>{ inp.onchange=ev=>{
+        const g=fromDisp(parseFloat(ev.target.value));
+        if(!isFinite(g)||g<0) { refreshProp(); return; }
+        if(setBeamGap(bm,ev.target.dataset.dir,g)){ pushHistory(); refreshProp(); draw(); }
+        else flashHint('這根樑沒有對齊到牆，無法設定離牆距離');
+      }; });
+      document.getElementById('pBw').onchange=ev=>{
+        keepFlushThroughResize(beamGaps, placeBeamAcross, bm, ()=>{ bm.w=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); });
+        pushHistory(); refreshProp(); draw(); };
+      document.getElementById('pBh').onchange=ev=>{ bm.h=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); pushHistory(); draw(); };
+      document.getElementById('pBdt').onchange=ev=>{ bm.distTop=Math.max(0,fromDisp(parseFloat(ev.target.value)||0)); pushHistory(); draw(); };
+      document.getElementById('pDel').onclick=deleteSelected;
+    }
+  }
+  function deleteSelected(){
+    const s=ui.selected; if(!s) return;
+    if(s.kind==='wall'){ state.walls=state.walls.filter(w=>w.id!==s.id); state.openings=state.openings.filter(o=>o.wallId!==s.id); }
+    else if(s.kind==='opening') state.openings=state.openings.filter(o=>o.id!==s.id);
+    else if(s.kind==='dim') state.dims=state.dims.filter(d=>d.id!==s.id);
+    else if(s.kind==='text') state.texts=state.texts.filter(t=>t.id!==s.id);
+    else if(s.kind==='column') state.columns=state.columns.filter(c=>c.id!==s.id);
+    else if(s.kind==='beam') state.beams=state.beams.filter(b=>b.id!==s.id);
+    ui.selected=null; refreshProp(); pushHistory(); draw();
+  }
+
+  // ================= Hints =================
+  let hintTimer=null;
+  // test hook: lets an automated harness drive the real app end to end
+  try{ window.__pp={ get state(){return state;}, get ui(){return ui;}, get view(){return view;},
+        get hitLabels(){return hitLabels;}, get roomsCache(){return roomsCache;},
+        draw:()=>draw(), recompute:()=>recomputeRooms(), toScreen:(x,y)=>toScreen(x,y),
+        editDimLabel:(l,x,y)=>editDimLabel(l,x,y), pushHistory:()=>pushHistory(),
+        hitLabel:(x,y)=>hitLabel(x,y), openLabelEditor:(l,x,y)=>openLabelEditor(l,x,y) }; }catch(_){ }
+  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑'})[ui.tool]; }
+  function flashHint(msg){ hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
+  function showToolHint(){ flashHint(TOOL_HINT[ui.tool]); }
+
+  // ================= Tool switching =================
+  function setTool(t){
+    ui.tool=t; draft=null; typedNum=''; hideLenBox();
+    document.querySelectorAll('.tool').forEach(el=>el.classList.toggle('active',el.dataset.tool===t));
+    setHint(); showToolHint();
+    if(t!=='select'){ ui.selected=null; refreshProp(); draw(); }
+    stage.style.cursor = t==='select'?'default':'crosshair';
+  }
+  document.querySelectorAll('.tool').forEach(el=>el.addEventListener('click',()=>setTool(el.dataset.tool)));
+
+  // ================= Zoom UI =================
+  function updateZoom(){ document.getElementById('zval').textContent=Math.round(view.scale/0.7*100)+'%'; }
+  document.getElementById('zin').onclick=()=>zoomAt(1.15);
+  document.getElementById('zout').onclick=()=>zoomAt(1/1.15);
+  function zoomAt(f){ const cx=W/2,cy=H/2; const[wx,wy]=toWorld(cx,cy); view.scale=Math.max(0.03,Math.min(6,view.scale*f)); view.ox=cx-wx*view.scale; view.oy=cy-wy*view.scale; updateZoom(); draw(); }
+  document.getElementById('fit').onclick=fitAll;
+  function bounds(){ if(!state.walls.length&&!state.dims.length&&!state.texts.length) return null; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; const acc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}; for(const w of state.walls){acc(w.x1,w.y1);acc(w.x2,w.y2);} for(const d of state.dims){acc(d.x1,d.y1);acc(d.x2,d.y2);} for(const t of state.texts){acc(t.x,t.y);} return {x0,y0,x1,y1}; }
+  function fitAll(){ const b=bounds(); if(!b){ view.scale=0.7; view.ox=W/2; view.oy=H/2; updateZoom(); draw(); return; } const pad=60; const bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0); const s=Math.min((W-pad*2)/bw,(H-pad*2)/bh); view.scale=Math.max(0.03,Math.min(3,s)); view.ox=W/2-(b.x0+bw/2)*view.scale; view.oy=H/2-(b.y0+bh/2)*view.scale; updateZoom(); draw(); }
+
+  // ================= Right panel controls =================
+  const THICKS=[8,10,12,15,20,24];  // internal cm
+  const thickChips=document.getElementById('thickChips');
+  function renderThickChips(){
+    thickChips.innerHTML='';
+    THICKS.forEach(t=>{ const c=document.createElement('div'); c.className='chip'+(t===ui.thick?' on':''); c.textContent=Math.round(toDisp(t)); c.onclick=()=>{ ui.thick=t; document.getElementById('thickCustom').value=''; renderThickChips(); }; thickChips.appendChild(c); });
+  }
+  renderThickChips();
+  document.getElementById('thickCustom').oninput=e=>{ const v=parseFloat(e.target.value); if(v>0){ ui.thick=fromDisp(v); renderThickChips(); } };
+  // 定位線 (draw setting)
+  // (align/内外线 selection removed — all walls use a single unified centerline model now)
+  document.querySelectorAll('#doorSubSeg button').forEach(b=>b.onclick=()=>{
+    ui.doorSub=b.dataset.k;
+    document.querySelectorAll('#doorSubSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    setTool('door');
+  });
+  document.querySelectorAll('#winSubSeg button').forEach(b=>b.onclick=()=>{
+    ui.winSub=b.dataset.k;
+    document.querySelectorAll('#winSubSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    setTool('window');
+  });
+  document.getElementById('shaftW').oninput=ev=>{ ui.shaftW=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); };
+  document.getElementById('shaftH').oninput=ev=>{ ui.shaftH=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); };
+  document.getElementById('colW').oninput=e=>{ const v=parseFloat(e.target.value); if(v>0) ui.colW=fromDisp(v); };
+  document.getElementById('colH').oninput=e=>{ const v=parseFloat(e.target.value); if(v>0) ui.colH=fromDisp(v); };
+  document.getElementById('beamW').oninput=e=>{ const v=parseFloat(e.target.value); if(v>0) ui.beamW=fromDisp(v); };
+  document.getElementById('beamH').oninput=e=>{ const v=parseFloat(e.target.value); if(v>0) ui.beamH=fromDisp(v); };
+  function bindSwitch(id,key,after){ const el=document.getElementById(id); el.onclick=()=>{ ui[key]=!ui[key]; el.classList.toggle('on',ui[key]); if(after)after(); draw(); }; }
+  bindSwitch('swGrid','grid'); bindSwitch('swSnap','snap');
+  document.querySelectorAll('#angleModeSeg button').forEach(b=>b.onclick=()=>{ ui.angleMode=b.dataset.v; document.querySelectorAll('#angleModeSeg button').forEach(x=>x.classList.toggle('on',x===b)); });
+  document.getElementById('gridSize').onchange=e=>{ ui.gridSize=Math.max(1,parseInt(e.target.value)||10); draw(); };
+  document.getElementById('ceilingH').onchange=e=>{ const v=fromDisp(parseFloat(e.target.value)||280); state.ceilingH=Math.max(150,v); pushHistory(); };
+  document.getElementById('unitSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>applyUnit(b.dataset.u));
+
+  // ================= Keyboard =================
+  window.addEventListener('keydown',e=>{
+    if(e.target.tagName==='INPUT') { return; }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); return; }
+    if(draft&&draft.kind==='wall'){ if(/[0-9]/.test(e.key)){ typedNum+=e.key; return; } if(e.key==='.'&&!typedNum.includes('.')){ typedNum+='.'; return; } if(e.key==='Backspace'){ typedNum=typedNum.slice(0,-1); return; } }
+    if(e.key==='Escape'){ draft=null; typedNum=''; hideLenBox(); ui.selected=null; refreshProp(); draw(); return; }
+    if(e.key==='Delete'||e.key==='Backspace'){ if(ui.selected){ deleteSelected(); return; } }
+    if(e.key===' '||e.code==='Space'){ e.preventDefault(); setTool('select'); return; }
+    const map={v:'select',w:'wall',d:'door',n:'window',m:'dim',t:'text',p:'shaft'};
+    if(map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]);
+  });
+
+  // ================= Export menu =================
+  const exportMenu=document.getElementById('exportMenu');
+  document.getElementById('exportBtn').onclick=e=>{ e.stopPropagation(); exportMenu.classList.toggle('open'); };
+  document.addEventListener('click',()=>exportMenu.classList.remove('open'));
+  // e.target can be the little ".json" hint SPAN inside the row, which carries no
+  // data-act — tapping exactly on that text used to do nothing at all.
+  exportMenu.addEventListener('click',e=>{ const row=e.target.closest('[data-act]'); if(!row)return; const act=row.dataset.act; exportMenu.classList.remove('open'); doExport(act); });
+  document.getElementById('panelToggle').onclick=()=>document.getElementById('panel').classList.toggle('open');
+
+  // Saving a file from an iPad is not the same as from a desktop browser. The
+  // classic `<a download>` + blob trick works in desktop browsers and in full
+  // Safari, but inside an iOS IN-APP browser (a WKWebView — what you get when a
+  // page opens from another app) it is silently ignored: no error, no prompt,
+  // nothing at all. That is why 匯出 looked like a dead button.
+  // So: offer the file to the system share sheet first, which is the supported
+  // way to hand a file to 檔案／照片 on iOS, and keep the anchor as the desktop
+  // path. Everything stays inside the original tap so Safari's user-gesture
+  // requirement is satisfied — hence dataURL (sync) rather than toBlob (async).
+  function dataURLtoBlob(du){
+    const [head,b64]=du.split(',');
+    const mime=(head.match(/:(.*?);/)||[,'application/octet-stream'])[1];
+    const bin=atob(b64); const u8=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+    return new Blob([u8],{type:mime});
+  }
+  function anchorDownload(name,blob){
+    try{
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=name; a.rel='noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),8000);
+      return true;
+    }catch(_){ return false; }
+  }
+  // On iOS the anchor trick either downloads, does nothing, or — inside an in-app
+  // webview — NAVIGATES to the blob and replaces the whole page with raw file
+  // content, wiping out the drawing. There is no way to detect which, and losing
+  // someone's work is far worse than one extra tap, so the anchor is only used
+  // where it is known to be a real download: desktop browsers.
+  function isAppleTouch(){
+    return /iPad|iPhone|iPod/.test(navigator.userAgent)
+        || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  }
+  // Every export path used to be unguarded: one throw anywhere — a missing API in
+  // a sandboxed iframe, a share sheet that rejects synchronously, a CDN script that
+  // never arrived — and the button simply did nothing, with no way to tell why.
+  function runExport(what, fn){
+    try{
+      const r=fn();
+      if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
+    }catch(err){ reportExportError(what,err); }
+  }
+  const BUILD='b19';
+  // A page inside another app's browser is sandboxed: the OS share sheet is
+  // withheld and downloads are ignored. Nothing in JS can work around that, so
+  // say it plainly instead of letting the buttons look broken.
+  const EMBEDDED = (function(){ try{ return window.self!==window.top; }catch(_){ return true; } })();
+  function shareUsable(){
+    try{ return !!(navigator.canShare && navigator.share); }catch(_){ return false; }
+  }
+  function reportExportError(what,err){
+    const msg=(err && (err.message||err.name)) || String(err);
+    try{ dbg('export FAILED ('+what+') build '+BUILD+': '+msg); }catch(_){}
+    uiAlert(what+'失敗。\n\n'+msg+'\n\n如果一直發生，請按右上角 🐞 把記錄複製給開發者。','匯出沒有成功');
+  }
+  function download(name,blob){
+    const type=blob.type||'application/octet-stream';
+    let file=null;
+    try{ file=new File([blob],name,{type}); }catch(_){}
+    let canShare=false;
+    try{ canShare = !!(file && navigator.canShare && navigator.canShare({files:[file]})); }catch(_){}
+    if(canShare){
+      try{
+        const pr=navigator.share({files:[file], title:name});
+        if(pr && pr.then){
+          pr.then(()=>flashHint('已送出「'+name+'」，選「儲存到檔案」即可'))
+            .catch(err=>{ if(!err || err.name!=='AbortError') showSaveFallback(name,blob); });
+          return;
+        }
+      }catch(_){ /* some WebKit builds throw here instead of rejecting */ }
+      showSaveFallback(name,blob); return;
+    }
+    if(isAppleTouch()){ showSaveFallback(name,blob); return; }
+    if(!anchorDownload(name,blob)) showSaveFallback(name,blob);
+  }
+  // Last resort when neither the share sheet nor a download is available: put the
+  // result on screen so it can still be long-pressed (image) or copied (project
+  // file), instead of the tap just doing nothing.
+  function showSaveFallback(name,blob){
+    // deliberately avoids URL.createObjectURL: it is unavailable or blocked in some
+    // sandboxed contexts, and this dialog is the LAST resort — it must not throw
+    const isImg=/^image\//.test(blob.type||'');
+    const isText=/json|dxf|text|xml/i.test(blob.type||'') || /\.(json|dxf|txt|svg)$/i.test(name);
+    const back=document.createElement('div');
+    back.style.cssText='position:fixed;inset:0;background:rgba(20,26,32,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const card=document.createElement('div');
+    card.style.cssText='background:#fff;border-radius:14px;padding:16px;max-width:min(560px,92vw);max-height:86vh;overflow:auto;box-shadow:0 8px 40px rgba(20,30,40,.3);font:13px/1.6 -apple-system,system-ui,sans-serif;';
+    const head=document.createElement('div');
+    head.innerHTML='<div style="font-weight:600;margin-bottom:8px">'+name+'</div>'
+      + '<div style="color:#7A828C;margin-bottom:12px">'
+      + (isImg  ? '按「分享 / 儲存」試著叫出系統選單。若被擋下，直接長按下面的圖片選「儲存影像」也可以。'
+        : isText ? '按「分享 / 儲存」試著叫出系統選單或複製內容。若被擋下，全選下面的文字複製，貼到記事本另存即可。'
+                 : 'PDF 是二進位檔，沒辦法用複製貼上的方式救回來。這個內嵌瀏覽器擋掉了存檔權限，請在 Safari 開啟同一個網址再匯出一次。')
+      + '</div>';
+    card.appendChild(head);
+
+    // the share sheet is the only route that reliably lands a file in 檔案 on iOS
+    const shareBtn=document.createElement('button');
+    shareBtn.textContent='分享 / 儲存';
+    shareBtn.style.cssText='width:100%;height:42px;border:0;background:#275C7A;color:#fff;border-radius:9px;font-size:15px;font-weight:600;margin-bottom:12px;';
+    // Saving from inside an embedded browser is genuinely constrained, so this
+    // tries every route in turn and REPORTS which one worked instead of failing
+    // silently. navigator.share exists in the iframe but is rejected unless the
+    // host granted allow="web-share" — an empty .catch() here is what made the
+    // button look dead.
+    const say=(t,ok)=>{ shareBtn.textContent=t; shareBtn.style.background= ok?'#2E7D5B':'#8A9199'; };
+    shareBtn.onclick=()=>{
+      say('處理中…',false); shareBtn.disabled=true;
+      const reenable=()=>{ shareBtn.disabled=false; };
+      let f=null; try{ f=new File([blob],name,{type:blob.type||'application/octet-stream'}); }catch(_){}
+
+      const tryClipboard=()=>{
+        // images can go to the clipboard as a real image on Safari 13.1+
+        if(isImg && navigator.clipboard && window.ClipboardItem){
+          return navigator.clipboard.write([new ClipboardItem({[blob.type||'image/png']:blob})])
+            .then(()=>{ say('已複製圖片，可貼到「備忘錄」或訊息',true); reenable(); return true; });
+        }
+        if(!isImg && isText && navigator.clipboard){
+          return blob.text().then(t=>navigator.clipboard.writeText(t))
+            .then(()=>{ say('已複製內容到剪貼簿',true); reenable(); return true; });
+        }
+        return Promise.reject(new Error('no clipboard'));
+      };
+      const giveUp=()=>{
+        reenable();
+        say(isImg?'請改用「長按圖片 → 儲存影像」': isText?'請長按下方內容全選複製':'此瀏覽器無法儲存，請改用 Safari',false);
+        const tip=document.createElement('div');
+        tip.style.cssText='margin:10px 0 0;padding:10px;background:#FFF6E8;border:1px solid #F0D9B5;border-radius:8px;font-size:12px;line-height:1.7;color:#7A5B2E;';
+        tip.textContent='這個內嵌瀏覽器擋掉了存檔權限。'+(isImg?'':'DXF／PDF 沒辦法在這裡存成檔案。')
+          +'在 Safari 開啟同一個網址就能正常儲存 — 右上角 ••• → Copy 複製連結，再貼到 Safari。';
+        if(!card.querySelector('.save-tip')){ tip.className='save-tip'; shareBtn.after(tip); }
+      };
+
+      let p;
+      try{
+        p = (f && navigator.share) ? navigator.share({files:[f], title:name}) : Promise.reject(new Error('no share'));
+      }catch(err){ p = Promise.reject(err); }
+      if(!p || !p.then) p = Promise.reject(new Error('no share'));
+
+      p.then(()=>{ say('已送出，選「儲存到檔案」即可',true); reenable(); })
+       .catch(err=>{
+         if(err && err.name==='AbortError'){ say('分享 / 儲存',false); reenable(); return; }
+         tryClipboard().catch(giveUp);
+       });
+    };
+    card.appendChild(shareBtn);
+
+    if(isImg){
+      const im=document.createElement('img');
+      im.style.cssText='max-width:100%;border:1px solid #E6E8EB;border-radius:8px;display:block;';
+      try{ const fr=new FileReader(); fr.onload=()=>{ im.src=fr.result; }; fr.readAsDataURL(blob); }catch(_){}
+      card.appendChild(im);
+    } else if(isText){
+      const ta=document.createElement('textarea');
+      ta.readOnly=true; ta.style.cssText='width:100%;height:200px;font:11px/1.5 ui-monospace,monospace;border:1px solid #E6E8EB;border-radius:8px;padding:8px;';
+      blob.text().then(t=>{ ta.value=t; });
+      card.appendChild(ta);
+    } else {
+      const info=document.createElement('div');
+      info.style.cssText='padding:14px;background:#F5F7F9;border-radius:8px;font-size:12px;color:#5B646E;text-align:center;';
+      info.textContent='檔案已產生（'+Math.round(blob.size/1024)+' KB），等待儲存';
+      card.appendChild(info);
+    }
+    const close=document.createElement('button');
+    close.textContent='關閉';
+    close.style.cssText='margin-top:14px;width:100%;height:38px;border:1px solid #E6E8EB;background:#fff;border-radius:9px;font-size:14px;';
+    close.onclick=()=>{ back.remove(); };
+    card.appendChild(close);
+    back.appendChild(card);
+    back.addEventListener('click',e=>{ if(e.target===back) close.onclick(); });
+    document.body.appendChild(back);
+  }
+  function fname(){ return (document.getElementById('fname').value||'平面圖').trim(); }
+
+  function doExport(act){
+    if(act==='png'||act==='pdf'||act==='dxf'){ runExport('開啟匯出設定', ()=>openExportModal(act)); }
+    else if(act==='newproj'){ newProject(); }
+    else if(act==='saveproj'){ openProjModal('save'); }
+    else if(act==='openproj'){ openProjModal('open'); }
+  }
+
+  function exportPNG(){
+    const {oc}=renderExport(2,{dims:pdfOpt.dims,rooms:pdfOpt.rooms});
+    // toBlob is async, which drops us out of the user gesture and makes iOS
+    // refuse the share sheet — build the blob synchronously instead.
+    download(fname()+'.png', dataURLtoBlob(oc.toDataURL('image/png')));
+  }
+
+  // ---- export options modal (shared by PNG / PDF / DXF) ----
+  const pdfModal=document.getElementById('pdfModal');
+  const pdfOpt={paper:'a4',orient:'l',scale:'fit',dims:true,rooms:true};
+  let exportKind='pdf';
+  function openExportModal(kind){
+    exportKind=kind;
+    document.getElementById('mTitle').textContent =
+      kind==='png' ? '匯出 PNG 圖片' : kind==='dxf' ? '匯出 DXF（CAD）' : '匯出 PDF';
+    document.querySelectorAll('#pdfModal .pdfonly').forEach(el=>el.style.display = kind==='pdf' ? '' : 'none');
+    document.querySelectorAll('#pdfModal .dxfonly').forEach(el=>el.style.display = kind==='dxf' ? '' : 'none');
+    document.getElementById('mEmbedWarn').style.display = (EMBEDDED && !shareUsable()) ? '' : 'none';
+    pdfModal.classList.add('open');
+  }
+  function closePdfModal(){ pdfModal.classList.remove('open'); }
+  function bindSeg(id,key){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{ pdfOpt[key]=b.dataset.v; document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); }); }
+  function bindToggle(id,key){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{ pdfOpt[key]=b.dataset.v==='1'; document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); }); }
+  bindSeg('mPaper','paper'); bindSeg('mOrient','orient'); bindSeg('mScale','scale');
+  bindToggle('mDims','dims'); bindToggle('mRooms','rooms');
+  document.getElementById('mCancel').onclick=closePdfModal;
+  document.getElementById('mExport').onclick=()=>{
+    closePdfModal();
+    if(exportKind==='png')      runExport('PNG 匯出', ()=>exportPNG());
+    else if(exportKind==='dxf') runExport('DXF 匯出', ()=>exportDXF(pdfOpt));
+    else                        runExport('PDF 匯出', ()=>exportPDF(pdfOpt));
+  };
+  pdfModal.addEventListener('click',e=>{ if(e.target===pdfModal) closePdfModal(); });
+
+  function exportPDF(opt){
+    const {oc,cw,ch}=renderExport(3,{dims:opt.dims,rooms:opt.rooms});
+    const img=oc.toDataURL('image/png');
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      throw new Error('PDF 元件（jsPDF）沒有載入成功，可能是這個環境擋掉了外部程式庫。\n請改用「匯出 PNG 圖片」，或把本檔案放到自己的網站再試。');
+    }
+    const { jsPDF }=window.jspdf;
+    const landscape=opt.orient==='l';
+    const pdf=new jsPDF({orientation:landscape?'l':'p',unit:'mm',format:opt.paper});
+    const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+    const m=8; pdf.setDrawColor(36,40,46); pdf.setLineWidth(0.6); pdf.rect(m,m,pw-2*m,ph-2*m);
+    // title block
+    const tbw=76, tbh=24, tbx=pw-m-tbw, tby=ph-m-tbh;
+    pdf.setLineWidth(0.4); pdf.rect(tbx,tby,tbw,tbh);
+    pdf.line(tbx,tby+12,tbx+tbw,tby+12); pdf.line(tbx+tbw/2,tby,tbx+tbw/2,tby+12);
+    const scaleTxt = opt.scale==='fit' ? '適應' : ('1:'+opt.scale);
+    pdf.setFontSize(7); pdf.setTextColor(120);
+    pdf.text('圖名 / TITLE',tbx+2,tby+4.5); pdf.text('比例 / SCALE',tbx+tbw/2+2,tby+4.5);
+    pdf.text('日期 / DATE',tbx+2,tby+16.5);
+    pdf.setFontSize(9); pdf.setTextColor(36,40,46);
+    pdf.text(fname(),tbx+2,tby+9.5,{maxWidth:tbw/2-3});
+    pdf.text(scaleTxt,tbx+tbw/2+2,tby+9.5);
+    pdf.text(new Date().toISOString().slice(0,10),tbx+2,tby+21);
+    // drawable area (inside frame, above title block)
+    const availW=pw-2*m-6, availH=ph-2*m-tbh-8;
+    const ar=cw/ch; let iw,ih;
+    if(opt.scale==='fit'){
+      iw=availW; ih=iw/ar; if(ih>availH){ ih=availH; iw=ih*ar; }
+    } else {
+      const S=parseFloat(opt.scale), RS=3;      // renderExport used scale 3 (3px per cm)
+      iw = cw*10/(RS*S); ih = ch*10/(RS*S);      // px -> mm at 1:S
+      if(iw>availW || ih>availH){ uiAlert('此比例在所選紙張放不下，已改用「適應頁面」。建議換成 A3 或較小的比例。'); iw=availW; ih=iw/ar; if(ih>availH){ ih=availH; iw=ih*ar; } }
+    }
+    const ix=m+3+(availW-iw)/2, iy=m+3+(availH-ih)/2;
+    pdf.addImage(img,'PNG',ix,iy,iw,ih);
+    // NOT pdf.save(): jsPDF's own save() builds an object URL and clicks a hidden
+    // anchor, which bypasses everything this app knows about saving on iOS — that
+    // is why PDF was the one export that did absolutely nothing, while PNG and DXF
+    // at least reached the save dialog. Hand the blob to the shared path instead.
+    download(fname()+'.pdf', pdf.output('blob'));
+  }
+
+  // export renderer: temporarily swap ctx to an offscreen canvas
+  function renderExport(scale,opt){
+    const o=opt||{};
+    const b=bounds()||{x0:0,y0:0,x1:400,y1:300};
+    const pad=60;
+    const bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0);
+    const cw=Math.ceil(bw*scale)+pad*2, ch=Math.ceil(bh*scale)+pad*2;
+    const oc=document.createElement('canvas'); oc.width=cw; oc.height=ch;
+    const g=oc.getContext('2d'); g.fillStyle='#FFFFFF'; g.fillRect(0,0,cw,ch);
+    const saveView={...view}, sW=W, sH=H, sGrid=ui.grid;
+    // the label passes push onto these; keep the live ones so the on-screen hit
+    // map isn't replaced by coordinates from the (differently scaled) export
+    const sHits=hitLabels, sPlaced=placedLabels;
+    const sDims=showOpt.dims, sRooms=showOpt.rooms;
+    hitLabels=[]; placedLabels=[];
+    if(o.dims!==undefined) showOpt.dims=!!o.dims;
+    if(o.rooms!==undefined) showOpt.rooms=!!o.rooms;
+    ctx=g; view.scale=scale; view.ox=pad-b.x0*scale; view.oy=pad-b.y0*scale; W=cw; H=ch; ui.grid=false;
+    drawWalls(true); drawBeams(true); drawColumns();
+    // these two were missing entirely, which is why an exported PNG came out with
+    // no room dimensions and no name/坪數 even though the screen showed them
+    drawRoomsInfo(); drawWallLabels();
+    drawDims(); drawTexts();
+    ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid;
+    hitLabels=sHits; placedLabels=sPlaced;
+    showOpt.dims=sDims; showOpt.rooms=sRooms;
+    return {oc,cw,ch};
+  }
+
+  // ================= DXF export =================
+  // True .dwg is Autodesk's undocumented binary format and cannot be written from
+  // a browser. DXF is the published interchange format for exactly this purpose —
+  // AutoCAD, BricsCAD, SketchUp, Rhino and ZWCAD all open it natively, and 另存新檔
+  // from any of them produces a .dwg.
+  // Written as DXF R12 (the most widely accepted flavour) in pure ASCII: any
+  // non-ASCII character is emitted as the \U+XXXX escape that AutoCAD decodes back
+  // into the original glyph, so 主臥 survives without any codepage guessing.
+  const DXF_LAYERS=[['WALL',7],['COLUMN',8],['SHAFT',9],['BEAM',30],['OPENING',5],['DIM',1],['ROOM',3],['TEXT',2]];
+  function dxfAscii(str){
+    let out='';
+    for(const ch of String(str)){
+      const c=ch.codePointAt(0);
+      out += (c<127 && c>=32) ? ch : '\\U+'+c.toString(16).toUpperCase().padStart(4,'0');
+    }
+    return out;
+  }
+  function buildDXF(opt){
+    const U=ui.unit;                       // export in whatever unit is on screen
+    const k=(v)=>+(toDisp(v).toFixed(3));  // world cm -> display unit
+    const L=[];
+    const put=(...a)=>{ for(const v of a) L.push(v); };
+    const ent=(type,layer)=>put(0,type,8,layer);
+    // canvas Y grows downward, CAD Y grows upward
+    const line=(layer,x1,y1,x2,y2)=>{ ent('LINE',layer); put(10,k(x1),20,-k(y1),30,0,11,k(x2),21,-k(y2),31,0); };
+    const poly=(layer,pts)=>{ for(let i=0;i<pts.length;i++){ const a=pts[i], b=pts[(i+1)%pts.length]; line(layer,a.x,a.y,b.x,b.y); } };
+    const text=(layer,x,y,h,txt,centre,rot)=>{
+      ent('TEXT',layer);
+      put(10,k(x),20,-k(y),30,0,40,+(h).toFixed(3),1,dxfAscii(txt),50,+(rot||0).toFixed(2));
+      if(centre) put(72,1,11,k(x),21,-k(y),31,0);
+    };
+
+    put(0,'SECTION',2,'HEADER',
+        9,'$ACADVER',1,'AC1009',
+        9,'$INSUNITS',70,(U==='mm'?4:5),
+        0,'ENDSEC');
+    put(0,'SECTION',2,'TABLES',0,'TABLE',2,'LAYER',70,DXF_LAYERS.length);
+    for(const pair of DXF_LAYERS) put(0,'LAYER',2,pair[0],70,0,62,pair[1],6,'CONTINUOUS');
+    put(0,'ENDTAB',0,'ENDSEC');
+    put(0,'SECTION',2,'ENTITIES');
+    const th=(U==='mm'?90:9);              // text height in export units
+
+    // walls — the visible band, as a closed outline
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const c=wallCorners(w);
+      poly('WALL',[c.L1,c.L2,c.R2,c.R1]);
+    }
+    // openings — mark the gap across the wall so doors/windows are locatable
+    for(const o of state.openings){
+      const w=state.walls.find(v=>v.id===o.wallId); if(!w||wallLen(w)<1) continue;
+      const cl=wallCenterline(w), Lw=wallLen(w)||1;
+      const ux=(cl.x2-cl.x1)/Lw, uy=(cl.y2-cl.y1)/Lw, nx=-uy, ny=ux, h=w.t/2;
+      const cxp=cl.x1+ux*Lw*o.pos, cyp=cl.y1+uy*Lw*o.pos, hw=o.width/2;
+      for(const sgn of [-1,1]){
+        const px=cxp+ux*hw*sgn, py=cyp+uy*hw*sgn;
+        line('OPENING',px+nx*h,py+ny*h,px-nx*h,py-ny*h);
+      }
+      line('OPENING',cxp+ux*hw+nx*h,cyp+uy*hw+ny*h,cxp-ux*hw+nx*h,cyp-uy*hw+ny*h);
+      line('OPENING',cxp+ux*hw-nx*h,cyp+uy*hw-ny*h,cxp-ux*hw-nx*h,cyp-uy*hw-ny*h);
+    }
+    // columns and pipe shafts share the geometry but land on separate layers
+    for(const c of state.columns){
+      const lay = c.kind==='shaft' ? 'SHAFT' : 'COLUMN';
+      const a=(c.rot||0)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+      const pts=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]]
+        .map(function(d){ return {x:c.x+d[0]*ca-d[1]*sa, y:c.y+d[0]*sa+d[1]*ca}; });
+      poly(lay,pts);
+      line(lay,pts[0].x,pts[0].y,pts[2].x,pts[2].y);
+      line(lay,pts[1].x,pts[1].y,pts[3].x,pts[3].y);
+      if(c.kind==='shaft') text('SHAFT',c.x,c.y,th*0.85,'管道間',true,0);
+    }
+    // beams
+    for(const bm of state.beams){ if(wallLen(bm)<1) continue; poly('BEAM',beamCorners(bm)); }
+
+    for(const r of roomsCache){
+      if(r.V.length<3) continue;
+      if(opt.dims){
+        for(let i=0;i<r.V.length;i++){
+          const a=r.V[i], b=r.V[(i+1)%r.V.length];
+          const seg=Math.hypot(b.x-a.x,b.y-a.y); if(seg<20) continue;
+          let ang=Math.atan2(-(b.y-a.y), b.x-a.x)*180/Math.PI;
+          if(ang>90||ang<-90) ang+=180;
+          text('DIM',(a.x+b.x)/2,(a.y+b.y)/2,th,fmtLen(r.lens[i]),true,ang);
+        }
+      }
+      if(opt.rooms){
+        text('ROOM',r.center.x,r.center.y-th*0.9,th,(r.name||'未命名'),true,0);
+        text('ROOM',r.center.x,r.center.y+th*0.9,th*0.9,fmtArea(r.area),true,0);
+      }
+    }
+    if(opt.dims){
+      for(const w of state.walls){
+        if(wallLen(w)<20 || roomWallIds.has(w.id)) continue;
+        const cl=wallCenterline(w);
+        let ang=Math.atan2(-(cl.y2-cl.y1), cl.x2-cl.x1)*180/Math.PI;
+        if(ang>90||ang<-90) ang+=180;
+        text('DIM',(cl.x1+cl.x2)/2,(cl.y1+cl.y2)/2,th,fmtLen(wallLen(w)),true,ang);
+      }
+      for(const d of state.dims){
+        line('DIM',d.x1,d.y1,d.x2,d.y2);
+        text('DIM',(d.x1+d.x2)/2,(d.y1+d.y2)/2,th,fmtLen(dist(d.x1,d.y1,d.x2,d.y2)),true,0);
+      }
+    }
+    for(const t of state.texts) text('TEXT',t.x,t.y,Math.max(1,toDisp(t.size)),t.text||'',false,0);
+
+    put(0,'ENDSEC',0,'EOF');
+    return L.join('\r\n')+'\r\n';
+  }
+  function exportDXF(opt){
+    download(fname()+'.dxf', new Blob([buildDXF(opt)],{type:'application/dxf'}));
+  }
+
+  // ================= project library =================
+  // Saving to a FILE is close to unusable on an iPad: the download either lands in
+  // 檔案 somewhere hard to find or (in an in-app browser) can't happen at all, and
+  // reopening means hunting through the Files picker. So plans live in the device's
+  // own storage instead, named and listed. The .json export stays for moving a plan
+  // to another device or handing it to someone else.
+  const PROJ_KEY='planpad.projects.v1';
+  function projRead(){
+    try{ const raw=localStorage.getItem(PROJ_KEY); const o=raw?JSON.parse(raw):null; return (o&&typeof o==='object')?o:{}; }
+    catch(_){ return {}; }
+  }
+  function projWrite(all){
+    try{ localStorage.setItem(PROJ_KEY, JSON.stringify(all)); return true; }
+    catch(err){ uiAlert('無法儲存到這個瀏覽器。\n可能是使用了私密瀏覽模式，或裝置的儲存空間已滿。'); return false; }
+  }
+  function projStamp(t){
+    const d=new Date(t||0), n=new Date();
+    const p=(v)=>String(v).padStart(2,'0');
+    const same=d.toDateString()===n.toDateString();
+    return same ? ('今天 '+p(d.getHours())+':'+p(d.getMinutes()))
+                : ((d.getMonth()+1)+'/'+d.getDate()+' '+p(d.getHours())+':'+p(d.getMinutes()));
+  }
+  function projCountRefresh(){
+    const el=document.getElementById('projCount'); if(!el) return;
+    const n=Object.keys(projRead()).length;
+    el.textContent = n ? (n+' 份') : '';
+  }
+  function currentPlan(){
+    // the display unit is saved WITH the plan: reopening a drawing you made in mm
+    // and having every dimension silently switch to cm is disorienting and invites
+    // reading a number wrong by a factor of ten
+    return {walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,
+            columns:state.columns,beams:state.beams,roomNames:state.roomNames,
+            ceilingH:state.ceilingH,_seq:state._seq, unit:ui.unit};
+  }
+  // applies a unit without touching geometry (internal storage is always cm)
+  function applyUnit(u){
+    if(u!=='cm' && u!=='mm') return;
+    ui.unit=u;
+    try{ localStorage.setItem('planpad.unit', u); }catch(_){}
+    document.querySelectorAll('#unitSeg button').forEach(x=>x.classList.toggle('on',x.dataset.u===u));
+    for(const [id,val] of [['thickUnit',null],['chUnit',null],['colWUnit',null],['colHUnit',null],
+                           ['beamWUnit',null],['beamHUnit',null],['shaftWUnit',null],['shaftHUnit',null]]){
+      const el=document.getElementById(id); if(el) el.textContent=u;
+    }
+    const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=Math.round(toDisp(v)); };
+    set('ceilingH',state.ceilingH); set('colW',ui.colW); set('colH',ui.colH);
+    set('beamW',ui.beamW); set('beamH',ui.beamH); set('shaftW',ui.shaftW); set('shaftH',ui.shaftH);
+    renderThickChips(); refreshProp(); draw();
+  }
+  async function projSaveAs(name){
+    name=(name||'').trim();
+    if(!name){ await uiAlert('請先輸入專案名稱。'); return false; }
+    if(!state.walls.length && !state.columns.length && !state.beams.length){
+      await uiAlert('目前是空白的平面圖，沒有東西可以儲存。'); return false;
+    }
+    const all=projRead();
+    // same name = overwrite, so re-saving a plan you are working on just updates it
+    const existing=Object.keys(all).find(k=>all[k].name===name);
+    if(existing && !await uiConfirm('「'+name+'」已經存在，要覆蓋掉舊的那份嗎？',{okText:'覆蓋',danger:true})) return false;
+    const id=existing || ('p'+Date.now()+Math.floor(Math.random()*1000));
+    all[id]={name, t:Date.now(), data:JSON.parse(JSON.stringify(currentPlan()))};
+    if(!projWrite(all)) return false;
+    document.getElementById('fname').value=name;
+    markSaved();
+    projCountRefresh(); projRenderList();
+    flashHint('已儲存「'+name+'」');
+    return true;
+  }
+  async function projLoad(id){
+    const all=projRead(), p=all[id]; if(!p) return;
+    if(isDirty()){
+      const cur=(document.getElementById('fname').value||'目前的平面圖').trim();
+      const ans=await uiDialog({
+        title:'尚未儲存',
+        message:'「'+cur+'」有還沒儲存的變更，開啟「'+p.name+'」會蓋掉它。',
+        okText:'先儲存', cancelText:'取消',
+        alt:{text:'不儲存，直接開啟', value:'discard'}
+      });
+      if(ans===false || ans===null) return;
+      if(ans===true){ document.getElementById('projName').value=cur; return; }
+    } else if(state.walls.length && !await uiConfirm('要開啟「'+p.name+'」嗎？',{okText:'開啟'})) return;
+    try{
+      restore(JSON.stringify(p.data));
+      if(p.data.unit) applyUnit(p.data.unit);
+      document.getElementById('fname').value=p.name;
+      history.length=0; history.push(snapshot()); hi=0; updateUndo();
+      markSaved();
+      fitAll(); closeProjModal();
+      flashHint('已開啟「'+p.name+'」');
+    }catch(err){ uiAlert('開啟失敗：'+err.message); }
+  }
+  async function projDelete(id){
+    const all=projRead(), p=all[id]; if(!p) return;
+    if(!await uiConfirm('確定刪除「'+p.name+'」？\n此動作無法復原。',{okText:'刪除',danger:true})) return;
+    delete all[id]; projWrite(all); projCountRefresh(); projRenderList();
+  }
+  async function projRename(id){
+    const all=projRead(), p=all[id]; if(!p) return;
+    const nn=await uiPrompt('新的專案名稱：', p.name, '重新命名'); if(nn===null) return;
+    const name=nn.trim(); if(!name) return;
+    p.name=name; projWrite(all); projCountRefresh(); projRenderList();
+  }
+  function projRenderList(){
+    const box=document.getElementById('projList');
+    const all=projRead();
+    const ids=Object.keys(all).sort((a,b)=>(all[b].t||0)-(all[a].t||0));
+    if(!ids.length){
+      box.innerHTML='<div class="proj-empty">還沒有任何專案。<br>在上面輸入名稱後按「儲存」，目前的平面圖就會存進來。</div>';
+      return;
+    }
+    box.innerHTML='';
+    for(const id of ids){
+      const p=all[id];
+      const nWall=(p.data&&p.data.walls||[]).length;
+      const nCol=(p.data&&p.data.columns||[]).length;
+      const nBeam=(p.data&&p.data.beams||[]).length;
+      const bits=[nWall+' 牆']; if(nCol) bits.push(nCol+' 柱'); if(nBeam) bits.push(nBeam+' 樑');
+      const row=document.createElement('div'); row.className='proj-row';
+      const meta=document.createElement('div'); meta.className='proj-meta';
+      const b=document.createElement('b'); b.textContent=p.name;
+      const s=document.createElement('span'); s.textContent=projStamp(p.t)+' · '+bits.join(' · ');
+      meta.appendChild(b); meta.appendChild(s); row.appendChild(meta);
+      const mk=(txt,cls,fn)=>{ const el=document.createElement('button'); el.textContent=txt; if(cls)el.className=cls; el.onclick=fn; row.appendChild(el); };
+      mk('開啟','go',()=>projLoad(id));
+      mk('改名',null,()=>projRename(id));
+      mk('刪除','del',()=>projDelete(id));
+      box.appendChild(row);
+    }
+  }
+  // ---- unsaved-work tracking ----
+  // Switching to another 案場 used to mean reloading the page, which is both
+  // clumsy and dangerous: nothing warned you that the plan on screen had never
+  // been saved. A fingerprint of the last saved/opened state is kept so the app
+  // can tell real edits from "you have not touched anything yet".
+  let savedSig='';
+  function markSaved(){ try{ savedSig=snapshot(); }catch(_){ savedSig=''; } }
+  function isDirty(){
+    if(!state.walls.length && !state.columns.length && !state.beams.length
+       && !state.texts.length && !state.dims.length) return false;   // blank canvas
+    try{ return snapshot()!==savedSig; }catch(_){ return true; }
+  }
+  function blankPlan(){
+    state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
+    state.columns=[]; state.beams=[]; state.roomNames={};
+    ui.selected=null; draft=null; typedNum=''; hideLenBox();
+    document.getElementById('fname').value='未命名平面圖';
+    recomputeRooms(); refreshProp();
+    history.length=0; history.push(snapshot()); hi=0; updateUndo();
+    markSaved();
+    view.scale=1; view.ox=W/2; view.oy=H/2; updateZoom();
+    draw();
+  }
+  async function newProject(){
+    if(isDirty()){
+      const name=(document.getElementById('fname').value||'目前的平面圖').trim();
+      const ans=await uiDialog({
+        title:'尚未儲存',
+        message:'「'+name+'」有還沒儲存的變更。\n開新專案會清掉畫面上的內容。',
+        okText:'先儲存', cancelText:'取消',
+        alt:{text:'不儲存，直接開新的', value:'discard'}
+      });
+      if(ans===false || ans===null) return;
+      if(ans===true){ openProjModal('save'); return; }   // save first, then they can start a new one
+    }
+    blankPlan();
+    flashHint('已開新專案，可以開始畫了');
+  }
+
+  const projModal=document.getElementById('projModal');
+  function openProjModal(mode){
+    document.getElementById('projTitle').textContent = mode==='save' ? '儲存專案' : '開啟專案';
+    document.getElementById('projName').value = (document.getElementById('fname').value||'').trim();
+    projRenderList();
+    projModal.classList.add('open');
+  }
+  function closeProjModal(){ projModal.classList.remove('open'); }
+  document.getElementById('projClose').onclick=closeProjModal;
+  document.getElementById('projSave').onclick=()=>projSaveAs(document.getElementById('projName').value);
+  document.getElementById('projName').addEventListener('keydown',e=>{ if(e.key==='Enter') projSaveAs(e.target.value); });
+  projModal.addEventListener('click',e=>{ if(e.target===projModal) closeProjModal(); });
+
+  // ================= Boot =================
+  window.addEventListener('resize',resize);
+  document.getElementById('undo').onclick=undo;
+  document.getElementById('redo').onclick=redo;
+
+  // demo starter: nothing. Just fit.
+  resize(); updateZoom(); recomputeRooms(); pushHistory(); setHint();
+  // always run applyUnit at boot: the markup ships with static labels, so the
+  // default has to be pushed through the same code path a manual switch uses
+  let bootUnit=ui.unit;
+  try{ const u=localStorage.getItem('planpad.unit'); if(u==='cm'||u==='mm') bootUnit=u; }catch(_){}
+  applyUnit(bootUnit);
+  projCountRefresh(); markSaved();
+  loadAutosave();
+  flashHint('選「牆」→ 按住拖曳畫牆（放開即完成）。兩指縮放平移，點物件可編輯尺寸');
+})();
+</script>
+</body>
+</html>
