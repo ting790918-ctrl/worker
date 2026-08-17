@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b42</title>
+<title>PlanPad · 平面圖工具 b43</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b42</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b43</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -401,9 +401,13 @@
     <div class="mrow"><span>尺寸標註</span><div class="seg" id="mDims"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow"><span>空間名稱 / 坪數</span><div class="seg" id="mRooms"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow" style="align-items:flex-start"><span>圖層</span>
-      <div class="exp-layers" id="mLayers"></div></div>
+      <div style="flex:1 1 auto;min-width:0">
+        <div class="exp-layers" id="mLayers"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">灰色＝這次不匯出</div>
+      </div></div>
     <div class="mrow pngonly"><span>加上圖框</span><div class="seg" id="mPngFrame"><button data-v="0" class="on">否</button><button data-v="1">是</button></div></div>
     <div class="mrow pdfonly" id="mPerLayerRow"><span>每層一頁</span><div class="seg" id="mPerLayer"><button data-v="0" class="on">否</button><button data-v="1">是</button></div></div>
+    <div class="mrow"><span>文字大小</span><div class="seg" id="mTextSize"><button data-v="s">小</button><button data-v="m" class="on">中</button><button data-v="l">大</button></div></div>
     <div class="mrow"><span>文字與註記</span><div class="seg" id="mNotes"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow"><span>現場照片</span><div class="seg" id="mPhotos"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow" id="mEmbedWarn" style="display:none"><span style="font-size:11.5px;line-height:1.6;color:#8A5B2E;background:#FFF6E8;border:1px solid #F0D9B5;border-radius:8px;padding:9px 10px;display:block;width:100%">目前在其他 App 的內嵌瀏覽器中，iOS 不允許網頁存檔或叫出分享選單。PNG 可以長按預覽圖存到相簿，PDF／DXF 則要在 Safari 開啟才存得下來。</span></div>
@@ -3641,7 +3645,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b42';
+  const BUILD='b43';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -3805,7 +3809,7 @@
   // ---- export options modal (shared by PNG / PDF / DXF) ----
   const pdfModal=document.getElementById('pdfModal');
   const pdfOpt={paper:'a4',orient:'l',scale:'fit',dims:true,rooms:true,notes:true,photos:true,
-                frame:'builtin', perLayer:false, layers:null, pngFrame:false};
+                frame:'builtin', perLayer:false, layers:null, pngFrame:false, textSize:'m'};
   let exportKind='pdf';
   function openExportModal(kind){
     exportKind=kind;
@@ -3832,7 +3836,7 @@
     // turning the PNG frame on reveals the paper and frame choices it needs
     if(key==='pngFrame') openExportModal(exportKind);
   }); }
-  bindSeg('mPaper','paper'); bindSeg('mOrient','orient'); bindSeg('mScale','scale');
+  bindSeg('mPaper','paper'); bindSeg('mOrient','orient'); bindSeg('mScale','scale'); bindSeg('mTextSize','textSize');
   bindToggle('mDims','dims'); bindToggle('mRooms','rooms');
   bindToggle('mNotes','notes'); bindToggle('mPhotos','photos'); bindToggle('mPerLayer','perLayer');
   bindToggle('mPngFrame','pngFrame');
@@ -3911,7 +3915,7 @@
   // on a Chinese title block would be garbage. So the whole sheet — border, title
   // block, text and the plan itself — is composed on a CANVAS, which renders CJK
   // properly, and placed on the page as one image.
-  const SHEET_PPM = 10;                 // px per mm ≈ 254 dpi
+  const SHEET_PPM = 12;                 // px per mm ≈ 305 dpi
   const MM = (v)=> v*SHEET_PPM;         // work in device px, never a scaled ctx:
                                         // a scaled context needs sub-pixel font
                                         // sizes like "2.1px", which some canvas
@@ -3982,10 +3986,13 @@
   // Composes a finished sheet — border, title block, plan — onto a canvas. PDF
   // places it on a page; PNG saves it directly, so both routes produce the same
   // drawing rather than PNG quietly being the only one without a frame.
+  // The outer dimension labels sit OUTSIDE the walls, so the render needs a margin
+  // wide enough for them. Once the text is scaled up for print, a fixed 60px is no
+  // longer enough and the outermost numbers get clipped at the sheet edge.
+  const exportPad = (ts)=> Math.max(60, Math.round((ts||1)*12*3.0));
+  const TEXT_MM = {s:2.8, m:3.6, l:4.6}; // printed height of a dimension label
   function composeSheet(opt, page, pageNo, pageCount, pwMM, phMM){
     const pw=pwMM, ph=phMM;
-    const {oc,cw,ch}=renderExport(3,{dims:opt.dims,rooms:opt.rooms,notes:opt.notes,
-                                     photos:opt.photos,layers:page.layers});
     const {c:sheet,g}=sheetCanvas(pw,ph);
     const custom=frameCurrent();
     let availW, availH, ox, oy;                 // all in mm
@@ -4006,17 +4013,31 @@
       availW=pw-2*m-8;
       availH=(tb.yMM-4)-oy;
     }
-    const ar=cw/ch; let iw,ih;
-    if(opt.scale==='fit'){
-      iw=availW; ih=iw/ar; if(ih>availH){ ih=availH; iw=ih*ar; }
-    } else {
-      const S=parseFloat(opt.scale), RS=3;       // renderExport drew 3 px per cm
-      iw = cw*10/(RS*S); ih = ch*10/(RS*S);      // px -> mm at 1:S
-      if(iw>availW || ih>availH){
+    // Render the plan at exactly the pixel size it will occupy. The old code always
+    // rendered at 3 px/cm and then stretched the result to fit the sheet, which is
+    // why the PDF looked soft — it was an upscaled bitmap.
+    const b=bounds()||{x0:0,y0:0,x1:400,y1:300};
+    const bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0);
+    const pxW=MM(availW), pxH=MM(availH);
+    const targetMM0=TEXT_MM[opt.textSize||'m']||TEXT_MM.m;
+    const TSv=targetMM0*SHEET_PPM/12, PADp=exportPad(TSv);
+    let S;                                       // px per cm for the plan render
+    const fitS=()=>Math.min((pxW-2*PADp)/bw, (pxH-2*PADp)/bh);
+    if(opt.scale==='fit'){ S=fitS(); }
+    else {
+      S = 10*SHEET_PPM/parseFloat(opt.scale);    // 1cm real -> 10/N mm -> px
+      if(bw*S+2*PADp>pxW || bh*S+2*PADp>pxH){
         uiAlert('此比例在所選紙張放不下，已改用「適應頁面」。建議換成 A3 或較小的比例。');
-        iw=availW; ih=iw/ar; if(ih>availH){ ih=availH; iw=ih*ar; }
+        S=fitS();
       }
     }
+    S=Math.max(0.05,S);
+    // text size is stated in millimetres ON PAPER, so it no longer depends on how
+    // big the plan happens to be or which sheet it landed on
+    const {oc,cw,ch}=renderExport(S,{dims:opt.dims,rooms:opt.rooms,notes:opt.notes,
+                                     photos:opt.photos,layers:page.layers,
+                                     textScale: TSv});
+    const iw=cw/SHEET_PPM, ih=ch/SHEET_PPM;      // 1:1 pixels, no resampling
     const ix=ox+(availW-iw)/2, iy=oy+(availH-ih)/2;
     g.drawImage(oc, MM(ix),MM(iy), MM(iw),MM(ih));
     return sheet;
@@ -4024,7 +4045,9 @@
   function pdfPage(pdf, opt, page, pageNo, pageCount){
     const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
     const sheet=composeSheet(opt,page,pageNo,pageCount,pw,ph);
-    pdf.addImage(sheet.toDataURL('image/jpeg',0.92),'JPEG',0,0,pw,ph);
+    // PNG, not JPEG: this is line art, and JPEG leaves halos on every wall edge
+    // and smears the dimension text. Flat line drawings compress fine as PNG.
+    pdf.addImage(sheet.toDataURL('image/png'),'PNG',0,0,pw,ph);
   }
   // imported frames are stored as data URLs; keep the decoded Image around
   const frameImgs=new Map();
@@ -4038,7 +4061,7 @@
   function renderExport(scale,opt){
     const o=opt||{};
     const b=bounds()||{x0:0,y0:0,x1:400,y1:300};
-    const pad=60;
+    const pad=exportPad(o.textScale!==undefined ? o.textScale : EXPORT_TEXT_SCALE);
     let bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0);
     if(!Number.isFinite(bw)||!Number.isFinite(bh)){ bw=400; bh=300; }
     const cw=Math.ceil(bw*scale)+pad*2, ch=Math.ceil(bh*scale)+pad*2;
@@ -4066,6 +4089,7 @@
     if(o.notes!==undefined) showOpt.notes=!!o.notes;
     if(o.photos!==undefined) showOpt.photos=!!o.photos;
     ctx=g; view.scale=scale; view.ox=pad-b.x0*scale; view.oy=pad-b.y0*scale; W=cw; H=ch; ui.grid=false;
+    try{
     drawWalls(true); drawBeams(true); drawColumns();
     // these two were missing entirely, which is why an exported PNG came out with
     // no room dimensions and no name/坪數 even though the screen showed them
@@ -4073,10 +4097,14 @@
     drawFurniture();
     drawDims(); drawTexts();
     drawNotes(); drawInk();
+    } finally {
+    // restore in a finally: a throw part-way through used to leave the app running
+    // with the export's layer visibility, and no way back except a reload
     ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid;
     hitLabels=sHits; placedLabels=sPlaced; ui.selected=sSel; TS=sTS; state.layer=sLayer;
     state.layerVis=sVis;
     showOpt.dims=sDims; showOpt.rooms=sRooms; showOpt.notes=sNotes; showOpt.photos=sPhotos;
+    }
     return {oc,cw,ch};
   }
 
