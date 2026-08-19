@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b43</title>
+<title>PlanPad · 平面圖工具 b44</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b43</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b44</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -1280,7 +1280,7 @@
     if(lab.kind==='furndist'){
       const f=state.furniture.find(x=>x.id===lab.fid);
       if(!f){ flashHint('找不到這件家具'); return false; }
-      if(!furnGaps(f).some(x=>x.dir===lab.dir)){ flashHint('這個方向沒有牆，無法量離牆距離'); return false; }
+      if(!furnGaps(f).some(x=>x.dir===lab.dir)){ flashHint('這個方向沒有東西可以量'); return false; }
       editFurnGap(lab,px,py); return true;
     }
     if(lab.kind==='beamdist'){
@@ -1375,6 +1375,45 @@
     // grid snap
     if(ui.snap){ const g=ui.gridSize; x=Math.round(x/g)*g; y=Math.round(y/g)*g; }
     return {x,y,snapType:'grid'};
+  }
+
+  // ---- object snapping for the dimension tool ----
+  // A measurement is only useful if it lands on a real edge. Grid snapping was
+  // rounding every dimension to the nearest 10cm, so measuring the gap between a
+  // sofa and a wall could never give the true number. Here the cursor is pulled
+  // to actual geometry — furniture corners and edges, wall faces, columns,
+  // shafts, beams — and falls back to the exact cursor position, never the grid.
+  function dimSnapTargets(){
+    const pts=[], segs=[];
+    const rect=(c)=>{ for(const p of c) pts.push([p.x,p.y]);
+      for(let i=0;i<c.length;i++){ const a=c[i], b=c[(i+1)%c.length]; segs.push([a.x,a.y,b.x,b.y]); } };
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const c=wallCorners(w);
+      rect([c.L1,c.L2,c.R2,c.R1]);
+    }
+    for(const c of state.columns){
+      const a=(c.rot||0)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+      rect([[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]]
+        .map(d=>({x:c.x+d[0]*ca-d[1]*sa, y:c.y+d[0]*sa+d[1]*ca})));
+    }
+    for(const bm of state.beams){ if(wallLen(bm)>=1) rect(beamCorners(bm)); }
+    for(const f of state.furniture){ if(layerVisible(f.layer||'plan')) rect(furnCorners(f)); }
+    return {pts,segs};
+  }
+  function snapToObjects(wx,wy){
+    const T=dimSnapTargets();
+    const near=14/view.scale;          // corners win within this radius
+    let best=null, bd=near;
+    for(const [x,y] of T.pts){ const d=Math.hypot(x-wx,y-wy); if(d<bd){ bd=d; best={x,y,snapType:'corner'}; } }
+    if(best) return best;
+    let bs=null, bsd=10/view.scale;    // then the nearest edge
+    for(const [x1,y1,x2,y2] of T.segs){
+      const p=projPointToSeg(wx,wy,x1,y1,x2,y2);
+      if(p.d<bsd){ bsd=p.d; bs={x:p.x,y:p.y,snapType:'edge'}; }
+    }
+    if(bs) return bs;
+    return {x:wx,y:wy,snapType:'free'};   // exact cursor — never rounded to grid
   }
 
   // snap to existing geometry: endpoint/corner (priority) or a point on a wall
@@ -2725,7 +2764,7 @@
       draw();
     }
     else if(ui.tool==='wall'){ const r=computeWallEnd(null,wx,wy); draft={kind:'wall',a:{x:r.x,y:r.y},cur:{x:r.x,y:r.y},startSnap:r.snap,snap:r.snap,pendingLabel:lab,downPx:[px,py],pointerId:e.pointerId,pointerType:e.pointerType}; typedNum=''; dbg(`  wall draft started type=${e.pointerType}`); }
-    else if(ui.tool==='dim'){ const sp=snapWorld(wx,wy,null); draft={kind:'dim',a:{x:sp.x,y:sp.y},cur:{x:sp.x,y:sp.y},pointerId:e.pointerId,pointerType:e.pointerType}; }
+    else if(ui.tool==='dim'){ const sp=snapToObjects(wx,wy); draft={kind:'dim',a:{x:sp.x,y:sp.y},cur:{x:sp.x,y:sp.y},pointerId:e.pointerId,pointerType:e.pointerType}; }
     else if(ui.tool==='door'||ui.tool==='window'){ placeOpening(wx,wy,ui.tool); }
     else if(ui.tool==='shaft'){ placeColumn(wx,wy,'shaft'); }
     else if(ui.tool==='furn'){ placeFurniture(wx,wy); }
@@ -2795,6 +2834,17 @@
           const r=(draft.kind==='beam')?computeBeamEnd(from,wx,wy):computeWallEnd(from,wx,wy);
           sp={x:r.x,y:r.y}; draft.guides=r.guides; draft.snap=r.snap;
         }
+      } else if(draft.kind==='dim'){
+        // a dimension measures real geometry, so it snaps to real geometry —
+        // and to nothing at all otherwise. Rounding to the grid is what made
+        // every measurement land on a 10cm multiple.
+        sp=snapToObjects(wx,wy);
+        if(angleLockOn()){
+          const dx=sp.x-from.x, dy=sp.y-from.y;
+          if(Math.abs(dx)>Math.abs(dy)*4) sp={x:sp.x,y:from.y};
+          else if(Math.abs(dy)>Math.abs(dx)*4) sp={x:from.x,y:sp.y};
+        }
+        draft.guides=[];
       } else {
         sp=snapWorld(wx,wy,from); draft.guides=[];
       }
@@ -3002,7 +3052,7 @@
     const o={id:uid(),type,sub,wallId:w.id,pos,width:K.w,flipH:false,flipV:false,
              height:K.h, sill:K.sill};
     if(K.proj) o.proj=K.proj;
-    state.openings.push(o); ui.selected={kind:'opening',id:o.id}; refreshProp(); pushHistory(); draw();
+    state.openings.push(o); ui.selected={kind:'opening',id:o.id}; refreshProp(); pushHistory(); draw(); afterPlace();
   }
   // switching an existing opening to another kind keeps where it sits, but adopts
   // the new kind's proportions unless the user had already customised them
@@ -3027,7 +3077,7 @@
     const shaft = kind==='shaft';
     const c={id:uid(),x,y,w:shaft?ui.shaftW:ui.colW,h:shaft?ui.shaftH:ui.colH,rot:0,
              kind:shaft?'shaft':'col'};
-    state.columns.push(c); ui.selected={kind:'column',id:c.id}; refreshProp(); pushHistory(); draw();
+    state.columns.push(c); ui.selected={kind:'column',id:c.id}; refreshProp(); pushHistory(); draw(); afterPlace();
   }
 
   function placeText(wx,wy){
@@ -3037,7 +3087,7 @@
     showTextInput(sx,sy-14, '', (val)=>{
       if(val.trim()===''){ state.texts=state.texts.filter(x=>x.id!==t.id); ui.selected=null; }
       else { t.text=val; }
-      refreshProp(); pushHistory(); draw();
+      refreshProp(); pushHistory(); draw(); afterPlace();
     });
     draw();
   }
@@ -3225,9 +3275,10 @@
       <div class="row"><label></label><div class="field"><input type="number" id="pFrot" value="${Math.round(f.rot||0)}" step="5"><span class="unit">°</span></div></div>
       ${(()=>{const D={up:'上',down:'下',left:'左',right:'右'};
         const gs=furnGaps(f);
+        const short=(t)=>{ t=String(t||'牆'); return t.length>4 ? t.slice(0,4)+'…' : t; };
         return gs.length
-          ? gs.map(g=>`<div class="row"><label>離牆(${D[g.dir]})</label><div class="field"><input type="number" class="pFgap" data-dir="${g.dir}" min="0" value="${Math.round(toDisp(g.gap))}" step="1"><span class="unit">${U}</span></div></div>`).join('')
-          : '<div class="row"><label style="color:var(--muted);font-size:11px">四周沒有牆，無法量離牆距離</label></div>';
+          ? gs.map(g=>`<div class="row"><label>${D[g.dir]}·離${short(g.what)}</label><div class="field"><input type="number" class="pFgap" data-dir="${g.dir}" min="0" value="${Math.round(toDisp(g.gap))}" step="1"><span class="unit">${U}</span></div></div>`).join('')
+          : '<div class="row"><label style="color:var(--muted);font-size:11px">四周沒有東西，無法量距離</label></div>';
       })()}
       <div class="row"><label>圖層</label><span style="font-size:12px;color:var(--muted)">${layerName(f.layer||'plan')}</span></div>
       <button class="del-btn" id="pDel">刪除家具</button>`;
@@ -3491,6 +3542,18 @@
       sec.style.display = sec.dataset.layer===state.layer ? '' : 'none';
     });
   }
+  // Placement tools fire once. Tapping the canvas twice while still holding the
+  // 門 tool used to leave two doors stacked on each other, and you would not
+  // notice until the plan looked wrong. Drawing tools (wall, beam, dimension,
+  // handwriting) stay armed, because those are used in runs.
+  const ONE_SHOT = new Set(['door','window','column','shaft','furn','note','photo','text']);
+  function afterPlace(){
+    if(!ONE_SHOT.has(ui.tool)) return;
+    const sel=ui.selected;          // setTool clears it; the new object should
+    setTool('select');              // stay selected so it can be adjusted at once
+    ui.furnPick=null; syncFurnUI();
+    ui.selected=sel; refreshProp(); draw();
+  }
   function setTool(t){
     ui.tool=t; draft=null; typedNum=''; hideLenBox();
     document.querySelectorAll('.tool').forEach(el=>el.classList.toggle('active',el.dataset.tool===t));
@@ -3645,7 +3708,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b43';
+  const BUILD='b44';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4450,24 +4513,56 @@
     return {x0:Math.min(...c.map(p=>p.x)), x1:Math.max(...c.map(p=>p.x)),
             y0:Math.min(...c.map(p=>p.y)), y1:Math.max(...c.map(p=>p.y))};
   }
+  // What sits next to a piece of furniture is usually another piece of furniture,
+  // not a wall. Measuring past the sofa to the far wall is the wrong number, so
+  // every neighbour counts — walls, columns, shafts, beams and other furniture —
+  // and the label says which one it is.
+  function neighbourBoxes(exceptId){
+    const out=[];
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const R=wallRect(w);
+      out.push({x0:R.x0,y0:R.y0,x1:R.x1,y1:R.y1,what:'牆'});
+    }
+    for(const c of state.columns){
+      const a=(c.rot||0)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+      const p=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]]
+        .map(d=>({x:c.x+d[0]*ca-d[1]*sa, y:c.y+d[0]*sa+d[1]*ca}));
+      out.push({x0:Math.min(...p.map(q=>q.x)),x1:Math.max(...p.map(q=>q.x)),
+                y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)),
+                what:c.kind==='shaft'?'管道間':'柱'});
+    }
+    for(const bm of state.beams){
+      if(wallLen(bm)<1) continue;
+      const p=beamCorners(bm);
+      out.push({x0:Math.min(...p.map(q=>q.x)),x1:Math.max(...p.map(q=>q.x)),
+                y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)),what:'樑'});
+    }
+    for(const g of state.furniture){
+      if(g.id===exceptId) continue;
+      if(!layerVisible(g.layer||'plan')) continue;
+      const bb=furnBox(g);
+      out.push({...bb, what:g.name||'家具'});
+    }
+    return out;
+  }
   function furnGaps(f){
     const b=furnBox(f), out=[];
+    const boxes=neighbourBoxes(f.id);
     const scan=(dir)=>{
-      let best=Infinity, face=null;
-      for(const w of state.walls){
-        if(wallLen(w)<1) continue;
-        const R=wallRect(w);
+      let best=Infinity, face=null, what=null;
+      for(const R of boxes){
         if(dir==='left'||dir==='right'){
           if(R.y1<=b.y0+1 || R.y0>=b.y1-1) continue;
           const g = dir==='left' ? b.x0-R.x1 : R.x0-b.x1;
-          if(g>-1 && g<best){ best=g; face = dir==='left'?R.x1:R.x0; }
+          if(g>-1 && g<best){ best=g; face = dir==='left'?R.x1:R.x0; what=R.what; }
         } else {
           if(R.x1<=b.x0+1 || R.x0>=b.x1-1) continue;
           const g = dir==='up' ? b.y0-R.y1 : R.y0-b.y1;
-          if(g>-1 && g<best){ best=g; face = dir==='up'?R.y1:R.y0; }
+          if(g>-1 && g<best){ best=g; face = dir==='up'?R.y1:R.y0; what=R.what; }
         }
       }
-      if(best<Infinity && best<2000) out.push({dir, gap:Math.max(0,best), face});
+      if(best<Infinity && best<2000) out.push({dir, gap:Math.max(0,best), face, what});
     };
     scan('up'); scan('down'); scan('left'); scan('right');
     return out;
@@ -4833,7 +4928,7 @@
     const inp=document.getElementById('photoInput');
     inp.setAttribute('capture','environment'); inp.removeAttribute('multiple');
     inp.dataset.note=n.id; inp.dataset.pin='1';
-    refreshProp(); draw();
+    refreshProp(); draw(); afterPlace();
     inp.click();
     return n;
   }
@@ -4846,7 +4941,7 @@
     const f={id:uid(),cat,name,shape,x,y,w,h,rot:0,layer:'plan'};
     state.furniture.push(f);
     ui.selected={kind:'furn',id:f.id};
-    refreshProp(); pushHistory(); draw();
+    refreshProp(); pushHistory(); draw(); afterPlace();
   }
   function noteThumbAt(n,sx,sy){
     if(!n.photos || !n.photos.length || isPin(n)) return null;
@@ -4923,7 +5018,7 @@
              text:'', ink:[], photos:[], layer:state.layer};
     state.notes.push(n);
     ui.selected={kind:'note',id:n.id};
-    refreshProp(); pushHistory(); draw();
+    refreshProp(); pushHistory(); draw(); afterPlace();
     return n;
   }
   function moveNote(n,dx,dy){
