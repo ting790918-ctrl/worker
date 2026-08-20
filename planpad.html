@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b49</title>
+<title>PlanPad · 平面圖工具 b50</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b49</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b50</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -271,7 +271,6 @@
         <div class="row"><label>格線間距</label>
           <div class="field"><input type="number" id="gridSize" min="1" max="100" step="1" value="10"><span class="unit">cm</span></div>
         </div>
-        <div class="row"><label>尺寸標註</label><div class="seg" id="dimStyleSeg"><button data-v="outside" class="on">戶型外側</button><button data-v="inline">牆上</button></div></div>
         <div class="row"><label>角度鎖定</label>
           <div class="seg" id="angleModeSeg">
             <button data-v="free">自由</button>
@@ -456,7 +455,6 @@
     thick: 20, unit: 'mm', wallAlign: 'mid',   // wallAlign: 'in'|'mid'|'out'
     colW: 65, colH: 65,                        // column defaults (cm)
     shaftW: 60, shaftH: 60,                    // pipe shaft defaults (cm)
-    dimStyle: 'outside',                       // 'outside' = chains around the plan
     doorSub: 'swing', winSub: 'fixed',         // which kind the next tap creates
     furnCat: 'living', furnPick: null,         // library category / armed item
     mepCat: '插座', mepPick: null,
@@ -475,6 +473,10 @@
   const EXPORT_TEXT_SCALE = 1.8;
   let TS = 1;
   const fpx = (n)=> n*TS;
+  // On screen the wall and room dimensions ARE the editing handles — you tap a
+  // number to retype that wall's length. So they stay exactly as they were, and
+  // the tidy exterior chains are built only for the exported sheet.
+  let EXPORT_MODE = false;
   const TOOL_HINT = {
     select:'選取工具：灰色圓點＝牆已接合，紅色空心圈＝該端沒接到東西（不會形成空間）。點牆體選取後，圓形握把＝拉伸端點，方形握把＝整面牆平行推移',
     wall:'畫牆：按住拖曳＝畫線。只要牆體看起來有貼在一起（牆身有重疊），放開後就會自動接合並形成空間；輕點數字不拖曳＝改尺寸，會出現移動方向箭頭',
@@ -2217,7 +2219,6 @@
     drawRoomsInfo();
     drawWallLabels();
     drawDims();
-    drawExteriorDims();
     drawFurniture();
     drawMEP();
     drawTexts();
@@ -2305,7 +2306,7 @@
   }
   // tappable length label for every wall not already covered by a room edge
   function drawWallLabels(){
-    if(ui.dimStyle==='outside') return;
+    if(EXPORT_MODE) return;
     if(!showOpt.dims) return;
     for(const w of state.walls){ if(wallLen(w)<20) continue; if(roomWallIds.has(w.id)) continue;
       const c=wallCorners(w);
@@ -2430,7 +2431,7 @@
       // dimension ended up floating in the neighbouring room looking like garbage
       let sA=0; for(let i=0;i<r.V.length;i++){ const p=r.V[i], q=r.V[(i+1)%r.V.length]; sA+=p.x*q.y-q.x*p.y; }
       const wind = sA>=0 ? 1 : -1;
-      for(let i=0;showOpt.dims && ui.dimStyle!=='outside' && i<r.V.length;i++){
+      for(let i=0;showOpt.dims && !EXPORT_MODE && i<r.V.length;i++){
         const a=r.V[i], b=r.V[(i+1)%r.V.length];
         const L=Math.hypot(b.x-a.x,b.y-a.y); if(L<20) continue;
         const ux=(b.x-a.x)/L, uy=(b.y-a.y)/L;
@@ -3715,16 +3716,6 @@
     document.querySelectorAll('#winSubSeg button').forEach(x=>x.classList.toggle('on',x===b));
     setTool('window');
   });
-  document.querySelectorAll('#dimStyleSeg button').forEach(b=>b.onclick=()=>{
-    ui.dimStyle=b.dataset.v;
-    document.querySelectorAll('#dimStyleSeg button').forEach(x=>x.classList.toggle('on',x===b));
-    try{ localStorage.setItem('planpad.dimStyle',ui.dimStyle); }catch(_){}
-    draw();
-  });
-  try{ const v=localStorage.getItem('planpad.dimStyle');
-    if(v){ ui.dimStyle=v;
-      document.querySelectorAll('#dimStyleSeg button').forEach(x=>x.classList.toggle('on',x.dataset.v===v)); }
-  }catch(_){}
   document.querySelectorAll('#inkColorSeg button').forEach(b=>b.onclick=()=>{
     ui.inkColor=b.dataset.c;
     document.querySelectorAll('#inkColorSeg button').forEach(x=>x.classList.toggle('on',x===b));
@@ -3826,7 +3817,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b49';
+  const BUILD='b50';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4170,7 +4161,8 @@
   // The outer dimension labels sit OUTSIDE the walls, so the render needs a margin
   // wide enough for them. Once the text is scaled up for print, a fixed 60px is no
   // longer enough and the outermost numbers get clipped at the sheet edge.
-  const exportPad = (ts)=> Math.max(60, Math.round((ts||1)*12*(ui.dimStyle==='outside'?6.4:3.0)));
+  // the chains sit outside the walls, so the render needs room for them
+  const exportPad = (ts)=> Math.max(60, Math.round((ts||1)*12*6.4));
   const TEXT_MM = {s:2.8, m:3.6, l:4.6}; // printed height of a dimension label
   function composeSheet(opt, page, pageNo, pageCount, pwMM, phMM){
     const pw=pwMM, ph=phMM;
@@ -4316,6 +4308,7 @@
     const sDims=showOpt.dims, sRooms=showOpt.rooms, sNotes=showOpt.notes, sPhotos=showOpt.photos;
     hitLabels=[]; placedLabels=[];
     const sSel=ui.selected; ui.selected=null;   // no selection chrome in an export
+    const sExp=EXPORT_MODE; EXPORT_MODE=true;
     // an export is a finished sheet: nothing is "the layer you are editing", so
     // every visible layer prints at full strength
     const sLayer=state.layer; state.layer='__all__';
@@ -4344,7 +4337,7 @@
     // with the export's layer visibility, and no way back except a reload
     ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid;
     hitLabels=sHits; placedLabels=sPlaced; ui.selected=sSel; TS=sTS; state.layer=sLayer;
-    state.layerVis=sVis;
+    state.layerVis=sVis; EXPORT_MODE=sExp;
     showOpt.dims=sDims; showOpt.rooms=sRooms; showOpt.notes=sNotes; showOpt.photos=sPhotos;
     }
     return {oc,cw,ch};
@@ -4609,7 +4602,7 @@
     }
   }
   function drawExteriorDims(){
-    if(!showOpt.dims || ui.dimStyle!=='outside') return;
+    if(!showOpt.dims || !EXPORT_MODE) return;
     const B=planBox(); if(!B) return;
     const tol=Math.max(2, 6/view.scale);
     const xs=dedupeSorted(wallFaceStations('x').concat([B.x0,B.x1]).filter(v=>v>=B.x0-tol&&v<=B.x1+tol), tol);
