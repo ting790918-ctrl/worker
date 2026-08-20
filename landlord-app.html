@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>房東智慧收租</title>
+<style>
+:root{
+  --ink:#16283C; --ink-soft:#2E4560; --paper:#EBEEF1; --card:#FFFFFF; --line:#DCE1E7;
+  --seal:#C0362C; --seal-bg:#FBEDEB; --jade:#127A57; --jade-bg:#E8F4EF;
+  --mute:#6F7E90; --mute-bg:#F1F4F7;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  background:#0E1926;
+  font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  color:var(--ink);-webkit-font-smoothing:antialiased;font-size:19px;
+}
+.num{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.serif{font-family:"Noto Serif TC","Songti TC","PMingLiU",serif;}
+
+#phone{max-width:460px;margin:0 auto;min-height:100vh;background:var(--paper);
+  position:relative;display:flex;flex-direction:column;box-shadow:0 0 60px rgba(0,0,0,.5);}
+
+header{background:var(--ink);color:#fff;padding:16px 14px 14px;
+  display:flex;flex-direction:column;gap:14px;position:sticky;top:0;z-index:40;}
+header .hrow{display:flex;align-items:center;padding:0 4px;min-height:34px;}
+header .ttl{font-size:26px;font-weight:700;letter-spacing:.01em;}
+header .back{font-size:22px;font-weight:600;opacity:.9;padding:4px 12px 4px 0;cursor:pointer;}
+.roleswitch{display:flex;background:rgba(255,255,255,.14);border-radius:14px;padding:5px;gap:4px;}
+.roleswitch button{flex:1;border:0;background:transparent;color:rgba(255,255,255,.72);
+  font-size:24px;font-weight:700;padding:15px 0;border-radius:11px;cursor:pointer;font-family:inherit;
+  letter-spacing:.04em;line-height:1.2;}
+.roleswitch button.on{background:#fff;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.18);}
+
+main{flex:1;padding:14px 12px 120px;overflow-x:hidden;}
+
+.card{background:var(--card);border-radius:16px;margin-bottom:14px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(22,40,60,.06),0 1px 12px rgba(22,40,60,.05);}
+.card-h{display:flex;align-items:baseline;gap:8px;padding:17px 18px 0;font-size:21px;font-weight:700;}
+.card-h .sub{margin-left:auto;font-size:16px;color:var(--mute);font-weight:600;}
+.card-b{padding:14px 18px 20px;}
+.big{font-size:50px;font-weight:700;line-height:1.05;}
+.mid{font-size:30px;font-weight:700;line-height:1.3;}
+.meta{font-size:17px;color:var(--mute);margin-top:8px;line-height:1.75;}
+.pos{color:var(--jade);} .neg{color:var(--seal);} .sys{color:var(--mute);}
+.hr{height:1px;background:var(--line);margin:14px 0;}
+.hr-strong{height:2px;background:var(--ink);margin:16px 0 14px;opacity:.85;}
+
+.todo{border-top:1px solid var(--line);padding:18px;position:relative;}
+.todo:first-of-type{border-top:0;}
+.todo .who{font-size:22px;font-weight:700;line-height:1.4;}
+.todo .amt{font-size:34px;font-weight:700;margin-top:4px;line-height:1.1;}
+.todo .tag{font-size:15px;padding:3px 9px;border-radius:6px;font-weight:700;margin-right:8px;
+  display:inline-block;vertical-align:3px;}
+.tag-pay{background:var(--jade-bg);color:var(--jade);}
+.tag-fix{background:var(--seal-bg);color:var(--seal);}
+.tag-warn{background:#FDF3E2;color:#8A5A0D;}
+.acts{display:flex;gap:10px;margin-top:15px;}
+button.b{font-family:inherit;font-size:21px;font-weight:700;border-radius:12px;
+  padding:16px 16px;border:2px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;flex:1;line-height:1.2;}
+button.b.ghost{background:#fff;color:var(--ink);}
+button.b.danger{background:#fff;color:var(--seal);border-color:var(--seal);}
+button.b.wide{width:100%;}
+button.b:active{transform:scale(.985);}
+.batch{padding:18px;background:var(--ink);color:#fff;display:flex;align-items:center;gap:10px;
+  font-size:21px;font-weight:700;cursor:pointer;line-height:1.3;}
+.batch .n{margin-left:auto;font-size:17px;font-weight:600;opacity:.85;}
+.empty{padding:34px 18px;text-align:center;color:var(--mute);font-size:18px;line-height:1.6;}
+.empty b{display:block;color:var(--ink);font-size:22px;margin-bottom:6px;}
+
+.stamped{position:relative;background:var(--mute-bg);}
+.seal{position:absolute;right:20px;top:50%;width:94px;height:94px;border-radius:50%;
+  border:4px solid var(--seal);color:var(--seal);display:flex;align-items:center;justify-content:center;
+  font-size:28px;font-weight:700;letter-spacing:.12em;opacity:.9;pointer-events:none;
+  animation:stamp .32s cubic-bezier(.2,1.5,.4,1) forwards;}
+@keyframes stamp{0%{transform:translate(0,-50%) scale(2.4) rotate(-24deg);opacity:0;}
+  70%{opacity:1;}100%{transform:translate(0,-50%) scale(1) rotate(-13deg);opacity:.9;}}
+.undo{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--mute-bg);
+  font-size:17px;color:var(--mute);border-top:1px solid var(--line);}
+.undo b{color:var(--jade);}
+.undo button{margin-left:auto;font-family:inherit;font-size:17px;font-weight:700;color:var(--ink);
+  background:#fff;border:2px solid var(--line);border-radius:10px;padding:9px 16px;cursor:pointer;}
+
+.row{display:flex;align-items:baseline;gap:10px;padding:12px 0;font-size:19px;border-bottom:1px dashed var(--line);}
+.row:last-child{border-bottom:0;}
+.row .k{flex:1;line-height:1.45;}
+.row .k small{display:block;color:var(--mute);font-size:15px;margin-top:2px;}
+.row .v{font-weight:700;white-space:nowrap;}
+.ico{width:24px;display:inline-block;text-align:center;font-size:17px;}
+.total{display:flex;align-items:baseline;font-size:21px;font-weight:700;padding-top:12px;gap:10px;}
+.total .v{margin-left:auto;font-size:28px;}
+
+.item{display:flex;align-items:center;gap:12px;padding:19px 18px;border-top:1px solid var(--line);cursor:pointer;}
+.item:first-child{border-top:0;}
+.item .t{flex:1;min-width:0;}
+.item .t b{font-size:22px;font-weight:700;display:block;line-height:1.35;}
+.item .t small{font-size:17px;color:var(--mute);line-height:1.6;display:block;margin-top:3px;}
+.item .r{text-align:right;font-weight:700;font-size:23px;white-space:nowrap;}
+.item .chev{color:#C3CBD4;font-size:26px;}
+.pill{display:inline-block;font-size:15px;padding:5px 10px;border-radius:7px;
+  background:var(--mute-bg);color:var(--mute);font-weight:700;white-space:nowrap;}
+.pill.on{background:var(--jade-bg);color:var(--jade);}
+.pill.off{background:var(--seal-bg);color:var(--seal);}
+
+.seg{display:flex;background:#DFE4EA;border-radius:13px;padding:4px;margin-bottom:14px;}
+.seg button{flex:1;border:0;background:transparent;font-family:inherit;font-size:19px;font-weight:700;
+  color:var(--ink-soft);padding:13px 0;border-radius:10px;cursor:pointer;}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(22,40,60,.14);}
+
+.bar{height:12px;background:#E3E8ED;border-radius:99px;overflow:hidden;margin:12px 0 8px;}
+.bar i{display:block;height:100%;background:var(--ink);border-radius:99px;}
+
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;
+  background:rgba(255,255,255,.98);backdrop-filter:blur(8px);border-top:1px solid var(--line);
+  display:flex;padding:9px 0 max(11px,env(safe-area-inset-bottom));z-index:50;}
+nav button{flex:1;border:0;background:transparent;font-family:inherit;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mute);font-size:15px;font-weight:700;}
+nav button .g{font-size:27px;line-height:1;}
+nav button.on{color:var(--ink);}
+
+.wiz{padding:6px 4px 0;}
+.step{font-size:16px;color:var(--mute);font-weight:700;letter-spacing:.06em;margin-bottom:8px;}
+.q{font-size:29px;font-weight:700;line-height:1.4;margin:0 0 6px;}
+.hint{font-size:18px;color:var(--mute);line-height:1.65;margin-bottom:20px;}
+input,select,textarea{width:100%;font-family:inherit;font-size:23px;color:var(--ink);background:#fff;
+  border:2px solid var(--line);border-radius:12px;padding:16px 16px;margin-bottom:12px;outline:none;}
+input:focus,textarea:focus{border-color:var(--ink);}
+input.num,textarea{font-family:ui-monospace,Menlo,monospace;}
+textarea{font-size:19px;}
+label.fl{display:block;font-size:17px;font-weight:700;color:var(--mute);margin:4px 0 7px;}
+.prefill{font-size:16px;color:var(--jade);font-weight:700;margin:-4px 0 16px;line-height:1.5;}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+.chip{font-family:inherit;font-size:20px;font-weight:700;padding:15px 18px;border-radius:12px;
+  border:2px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;line-height:1.25;text-align:left;}
+.chip.on{border-color:var(--ink);background:var(--ink);color:#fff;}
+.chip small{display:block;font-size:14px;font-weight:600;opacity:.7;margin-top:3px;}
+.bignum{font-family:ui-monospace,Menlo,monospace;font-size:52px;font-weight:700;text-align:center;
+  border:0;border-bottom:3px solid var(--ink);border-radius:0;padding:8px 0 12px;margin:10px 0 22px;}
+.wizbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;
+  background:#fff;border-top:1px solid var(--line);padding:12px 12px max(14px,env(safe-area-inset-bottom));
+  display:flex;gap:10px;z-index:60;}
+
+.notice{display:flex;gap:11px;align-items:flex-start;background:#FDF3E2;color:#70490E;
+  border-radius:13px;padding:16px 17px;font-size:17px;line-height:1.65;margin-bottom:14px;}
+.notice.info{background:var(--mute-bg);color:var(--ink-soft);}
+.notice.warn{background:var(--seal-bg);color:#8A2B22;}
+.notice b{font-weight:700;}
+
+.chk{display:flex;align-items:center;gap:14px;padding:17px 18px;border-top:1px solid var(--line);cursor:pointer;}
+.chk .box{width:32px;height:32px;border-radius:9px;border:2.5px solid var(--line);flex:none;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px;font-weight:700;}
+.chk.on .box{background:var(--ink);border-color:var(--ink);}
+.chk.lock{opacity:.5;cursor:default;}
+.chk .t{flex:1;font-size:21px;font-weight:700;line-height:1.35;}
+.chk .t small{display:block;font-size:16px;color:var(--mute);font-weight:500;margin-top:3px;}
+
+#toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:16px 20px;border-radius:13px;font-size:18px;font-weight:600;z-index:99;opacity:0;
+  transition:opacity .2s;pointer-events:none;max-width:400px;width:calc(100% - 32px);text-align:center;line-height:1.55;}
+#toast.show{opacity:.97;}
+
+/* 歡迎頁 */
+#welcome{padding:34px 22px 40px;}
+.wtitle{font-size:34px;font-weight:700;line-height:1.35;margin:0 0 10px;}
+.wsub{font-size:19px;color:var(--mute);line-height:1.7;margin-bottom:28px;}
+.wcard{background:#fff;border:2px solid var(--line);border-radius:16px;padding:22px;margin-bottom:14px;cursor:pointer;}
+.wcard.pick{border-color:var(--ink);}
+.wcard b{display:block;font-size:24px;margin-bottom:6px;}
+.wcard span{font-size:17px;color:var(--mute);line-height:1.65;}
+.protobar{background:#22364C;color:rgba(255,255,255,.75);font-size:14px;
+  text-align:center;padding:7px 12px;line-height:1.4;}
+.protobar b{color:#fff;}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+</head>
+<body>
+<div id="phone">
+  <div class="protobar" id="protobar">這是<b>試用原型</b> · 上面三顆按鈕可切換身分看畫面，正式版沒有</div>
+  <header id="header">
+    <div class="hrow"><div id="hleft"></div></div>
+    <div class="roleswitch" id="roles"></div>
+  </header>
+  <main id="app"></main>
+  <nav id="nav"></nav>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   房東智慧收租 App — 第一階段互動原型
+   規格依據：單一真相文件 v6
+   支援兩種開場：示範資料 ／ 空白開始（自己建）
+   ============================================================ */
+
+const $ = s => document.querySelector(s);
+const money = n => (n<0?'−$':'$') + Math.abs(Math.round(n)).toLocaleString('en-US');
+const signed = n => (n<0?'−$':'+$') + Math.abs(Math.round(n)).toLocaleString('en-US');
+const cls = n => n<0?'neg':'pos';
+const uid = () => 'x'+Math.random().toString(36).slice(2,8);
+
+let S = {};
+
+function baseState(){
+  return {
+    started:false, demo:false,
+    role:'landlord', tab:'home', screen:null, wiz:null, period:'month',
+    undo:null, stamped:{},
+    houses:[], todos:[], drafts:0,
+    subjects:['修繕維護','大樓管理費','清潔','房屋稅','火險','水電代墊','其他'],
+    subjectUse:{},
+    entry:{house:null,room:null,subject:null,amt:''},
+    newHouse:{type:null,addr:'',name:'',rooms:'',rent:'',pay:'',years:'',first:''},
+    ctx:{house:null,room:null},
+    invite:{name:'',phone:''},
+    contract:{},
+    perms:{訂金:true,簽約:true,點交:true,建立費用:true,催租:true,維修:true,續約:false,退租:false,協助買賣紀錄:false},
+    mgrJobs:[], tenantBills:[], acctName:'台銀-收租專用'
+  };
+}
+
+/* ---------- 空白開始 ---------- */
+function startEmpty(){
+  S = baseState(); S.started = true; S.demo = false;
+  render();
+}
+
+/* ---------- 示範資料 ---------- */
+function startDemo(){
+  S = baseState(); S.started = true; S.demo = true;
+  S.houses = [
+    {id:'h1',name:'復興南路 2F',addr:'台北市大安區復興南路一段100號2樓',type:'分租套房',
+     rooms:[{no:'A1',rent:12000,tenant:'王大明',status:'出租中'},
+            {no:'A2',rent:11500,tenant:'陳怡君',status:'出租中'},
+            {no:'A3',rent:10800,tenant:'林淑芬',status:'出租中'},
+            {no:'A4',rent:11000,tenant:null,status:'空房'}],
+     income:22850, expense:27850, manager:'安心包租代管',
+     loan:{pay:24800,paid:89,total:240,end:'2039/03'},
+     cost:{buy:8500000,reno:600000,fee:210000},
+     ytd:{i:198400,e:212300}, all:{i:1980000,e:1720000}},
+    {id:'h2',name:'中山北路 3F',addr:'台北市中山區中山北路二段55號3樓',type:'整層住家',
+     rooms:[{no:'—',rent:38000,tenant:null,status:'停租整修'}],
+     income:0, expense:25500, manager:null,
+     loan:{pay:24500,paid:42,total:240,end:'2045/11'},
+     cost:{buy:12800000,reno:0,fee:340000},
+     ytd:{i:114000,e:198000}, all:{i:520000,e:640000}},
+    {id:'h3',name:'民生東路店面',addr:'台北市松山區民生東路四段80號1樓',type:'店面',
+     rooms:[{no:'—',rent:65000,tenant:'好味小館',status:'出租中'}],
+     income:65000, expense:3950, manager:null,
+     loan:null, cost:{buy:0,reno:0,fee:0},
+     ytd:{i:585000,e:41200}, all:{i:2340000,e:180000}}
+  ];
+  S.todos = [
+    {id:'t1',kind:'pay',who:'王大明',room:'復興南路 2F · A1',hid:'h1',amt:12000,note:'8/18 轉帳 · 末五碼 88213',acct:'台銀-收租專用'},
+    {id:'t2',kind:'pay',who:'陳怡君',room:'復興南路 2F · A2',hid:'h1',amt:23650,note:'8/19 轉帳 · 末五碼 40167',acct:'台銀-收租專用'},
+    {id:'t3',kind:'pay',who:'林淑芬',room:'復興南路 2F · A3',hid:'h1',amt:15000,note:'8/19 現金 · 房東代為登記',acct:'現金'},
+    {id:'t4',kind:'fix',who:'浴室水管維修',room:'復興南路 2F · A2',hid:'h1',amt:3500,note:'代管回報 · 阿明水電行報價'},
+    {id:'t5',kind:'renew',who:'王大明 租約 60 天後到期',room:'復興南路 2F · A1',hid:'h1',amt:12000,note:'10/19 到期 · 現行月租 $12,000'},
+    {id:'t6',kind:'lag',who:'代管未回報',room:'復興南路 2F · A2 點交',hid:'h1',amt:0,note:'安心包租代管已 3 天未回報'}
+  ];
+  S.drafts = 2;
+  S.mgrJobs = [
+    {id:'m1',t:'浴室水管維修',sub:'復興南路 2F · A2 · 已取得報價',need:'廠商、金額、報價單',done:false},
+    {id:'m2',t:'入住點交',sub:'復興南路 2F · A2 · 8/17 已完成',need:'照片、水電表、鑰匙數',done:false},
+    {id:'m3',t:'催繳 8 月租金',sub:'復興南路 2F · A3 · 已電聯',need:'聯絡方式、房客回覆',done:true}
+  ];
+  S.tenantBills = [
+    {id:'b1',t:'8 月租金',due:'8/20',amt:11500,paid:false},
+    {id:'b2',t:'7–8 月電費 · 168 度',due:'8/25',amt:1008,paid:false},
+    {id:'b3',t:'7 月租金',due:'7/20',amt:11500,paid:true}
+  ];
+  render();
+}
+
+function resetAll(){ S = baseState(); render(); }
+
+/* ---------- 合計（由資料算出來，不寫死） ---------- */
+function totals(p){
+  let i=0,e=0;
+  S.houses.forEach(x=>{
+    const d = p==='month'?{i:x.income,e:x.expense} : p==='year'?x.ytd : x.all;
+    i+=d.i; e+=d.e;
+  });
+  return {i,e};
+}
+function unpaidTotal(){
+  return S.houses.flatMap(x=>x.rooms).filter(r=>r.tenant).reduce((a,r)=>a+r.rent,0)
+       - S.todos.filter(t=>t.kind==='pay').reduce((a,t)=>a+t.amt,0);
+}
+
+/* ---------- 工具 ---------- */
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
+function go(screen){ if(screen==='wiz-house'||screen==='wiz-contract') S.wiz=0;
+  S.screen=screen;window.scrollTo(0,0);render();}
+function back(){S.screen=null;S.wiz=null;window.scrollTo(0,0);render();}
+function tab(t){S.tab=t;S.screen=null;S.wiz=null;window.scrollTo(0,0);render();}
+
+function autoName(addr){
+  if(!addr) return '';
+  const road = addr.match(/([\u4e00-\u9fa5]{2,4}(路|街|大道))/);
+  const floor = addr.match(/(\d+)\s*樓/);
+  const no = addr.match(/(\d+)\s*號/);
+  let n = road ? road[1] : addr.slice(-6);
+  if(floor) n += ' ' + floor[1] + 'F';
+  else if(no) n += ' ' + no[1] + '號';
+  return n;
+}
+
+/* ============================================================
+   歡迎頁
+   ============================================================ */
+function welcome(){
+  return `<div id="welcome">
+    <div class="wtitle">房東智慧收租</div>
+    <div class="wsub">這是可以直接點的試用版。<br>要先看示範，還是自己從頭建一次？</div>
+    <div class="wcard" onclick="startEmpty()">
+      <b>空白開始，自己建</b>
+      <span>裡面什麼都沒有。你自己新增房子、建合約、記一筆，畫面上的數字都會跟著你變。想知道實際用起來順不順，選這個。</span>
+    </div>
+    <div class="wcard" onclick="startDemo()">
+      <b>先看示範資料</b>
+      <span>已經放好 3 間房、6 件待辦、完整損益表。想快點看到全貌，選這個。</span>
+    </div>
+    <div class="notice info" style="margin-top:22px">這是原型，資料只存在這個畫面上。關掉或重新整理就會回到這一頁，不會留下任何東西。</div>
+  </div>`;
+}
+
+/* ============================================================
+   房東首頁
+   ============================================================ */
+function homeLandlord(){
+  const pend = S.todos.filter(t=>!S.stamped[t.id]);
+  const pays = pend.filter(t=>t.kind==='pay');
+  const sum = pays.reduce((a,b)=>a+b.amt,0);
+  let h = '';
+
+  if(!S.houses.length){
+    return `<div class="card"><div class="card-h">🔔 我的待辦</div>
+      <div class="empty"><b>還沒有房子</b>建了第一間房，系統才知道要幫你追什麼。</div></div>
+      <button class="b wide" onclick="tab('house');go('wiz-house')">＋ 新增第一間房子</button>
+      <div class="notice info" style="margin-top:16px">建好房子 → 建合約 → 之後每個月的租金帳單、提醒、催繳系統自己來，你只要按〔確認收到〕。</div>`;
+  }
+
+  h += `<div class="card">
+    <div class="card-h">🔔 我的待辦 <span class="sub">${pend.length? pend.length+' 件':'已清空'}</span></div>`;
+  if(pays.length>1){
+    h += `<div class="batch" onclick="confirmAll()">✅ 全部確認收到
+      <span class="n">${pays.length} 筆 ${money(sum)}</span></div>`;
+  }
+  if(!pend.length && !S.undo){
+    h += `<div class="empty"><b>✅ 目前沒有待辦</b>其他都交給系統處理了</div>`;
+  }
+  S.todos.forEach(t=>{
+    if(S.stamped[t.id]==='gone') return;
+    if(S.stamped[t.id]==='done'){
+      h += `<div class="todo stamped"><div class="who">${t.who}</div>
+        <div class="meta">${t.room}</div><div class="seal serif">收訖</div></div>`;
+      return;
+    }
+    h += `<div class="todo">`;
+    if(t.kind==='pay'){
+      h += `<div class="who"><span class="tag tag-pay">已付款</span>${t.who}</div>
+        <div class="amt num pos">${money(t.amt)}</div>
+        <div class="meta">${t.room}<br>${t.note} · 匯入 ${t.acct}</div>
+        <div class="acts">
+          <button class="b" onclick="stamp('${t.id}')">確認收到</button>
+          <button class="b ghost" style="flex:0 0 118px" onclick="go('check-${t.id}')">看明細</button>
+        </div>`;
+    }
+    if(t.kind==='fix'){
+      h += `<div class="who"><span class="tag tag-fix">要決定</span>${t.who}</div>
+        <div class="amt num">${money(t.amt)}</div>
+        <div class="meta">${t.room}<br>${t.note}</div>
+        <div class="acts">
+          <button class="b" onclick="approveFix('${t.id}')">同意</button>
+          <button class="b danger" onclick="resolve('${t.id}','已回覆不同意，系統通知代管')">不同意</button>
+        </div>`;
+    }
+    if(t.kind==='renew'){
+      h += `<div class="who"><span class="tag tag-warn">要決定</span>${t.who}</div>
+        <div class="meta" style="margin-top:6px">${t.room}<br>${t.note}</div>
+        <div class="acts">
+          <button class="b" onclick="resolve('${t.id}','已詢問房客續約意願，回覆後再通知你')">續約</button>
+          <button class="b ghost" onclick="resolve('${t.id}','已標記不續約，到期前 30 天提醒你安排點交')">不續約</button>
+        </div>`;
+    }
+    if(t.kind==='lag'){
+      h += `<div class="who"><span class="tag tag-warn">未回報</span>${t.who}</div>
+        <div class="meta" style="margin-top:6px">${t.room}<br>${t.note}</div>
+        <div class="acts">
+          <button class="b ghost" onclick="resolve('${t.id}','已再次提醒代管業者')">催一下</button>
+          <button class="b ghost" onclick="go('perm')">看授權</button>
+        </div>`;
+    }
+    h += `</div>`;
+  });
+  if(S.undo) h += `<div class="undo">✅ <b>${S.undo.label}</b><button onclick="undo()">復原</button></div>`;
+  h += `</div>`;
+
+  const T = totals('month'), net = T.i - T.e, unpaid = Math.max(0, unpaidTotal());
+  h += `<div class="card" onclick="tab('pnl')" style="cursor:pointer">
+    <div class="card-h">📅 這個月 <span class="sub">8 月 ›</span></div>
+    <div class="card-b">
+      <div class="big num ${cls(net)}">${signed(net)}</div>
+      <div style="font-size:19px;font-weight:700;color:var(--mute);margin-top:6px">淨賺</div>
+      <div class="hr"></div>
+      <div class="row"><div class="k">已收</div><div class="v num pos">${money(T.i)}</div></div>
+      <div class="row"><div class="k">還沒收</div><div class="v num ${unpaid?'neg':''}">${money(unpaid)}</div></div>
+      <div class="row"><div class="k">支出</div><div class="v num">${money(T.e)}</div></div>
+    </div></div>`;
+
+  const rooms = S.houses.flatMap(x=>x.rooms);
+  h += `<div class="card" onclick="tab('house')" style="cursor:pointer">
+    <div class="card-h">🏠 我的房子 <span class="sub">${S.houses.length} 個物件 ›</span></div>
+    <div class="card-b">
+      <div class="mid num">出租中 ${rooms.filter(r=>r.status==='出租中').length} · 空房 ${rooms.filter(r=>r.status==='空房').length}${rooms.filter(r=>r.status==='停租整修').length?' · 整修 '+rooms.filter(r=>r.status==='停租整修').length:''}</div>
+      <div class="meta">${S.houses.map(x=>x.name).join('、')}</div>
+    </div></div>`;
+  return h;
+}
+
+function stamp(id){
+  S.stamped[id]='done';
+  const t=S.todos.find(x=>x.id===id);
+  applyIncome(t.hid, t.amt);
+  S.undo={label:`已收到 ${money(t.amt)}，入帳完成`,ids:[id],inc:[[t.hid,t.amt]]};
+  render();
+  setTimeout(()=>{ if(S.undo&&S.undo.ids.includes(id)){ finishUndo(); } },3400);
+}
+function confirmAll(){
+  const list=S.todos.filter(t=>t.kind==='pay'&&!S.stamped[t.id]);
+  const ids=list.map(t=>t.id);
+  const sum=list.reduce((a,b)=>a+b.amt,0);
+  ids.forEach(i=>S.stamped[i]='done');
+  list.forEach(t=>applyIncome(t.hid,t.amt));
+  S.undo={label:`已收到 ${ids.length} 筆 ${money(sum)}`,ids,inc:list.map(t=>[t.hid,t.amt])};
+  render();
+  setTimeout(()=>{ if(S.undo){ finishUndo(); } },3800);
+}
+function finishUndo(){ S.undo.ids.forEach(i=>S.stamped[i]='gone'); S.undo=null; render(); }
+function undo(){
+  S.undo.ids.forEach(i=>delete S.stamped[i]);
+  (S.undo.inc||[]).forEach(([hid,a])=>applyIncome(hid,-a));
+  S.undo=null; render(); toast('已復原');
+}
+function applyIncome(hid,amt){
+  const x=S.houses.find(a=>a.id===hid); if(!x) return;
+  x.income+=amt; x.ytd.i+=amt; x.all.i+=amt;
+}
+function applyExpense(hid,amt){
+  if(hid==='all'){ S.houses.forEach(x=>{const p=amt/S.houses.length; x.expense+=p;x.ytd.e+=p;x.all.e+=p;}); return; }
+  const x=S.houses.find(a=>a.id===hid); if(!x) return;
+  x.expense+=amt; x.ytd.e+=amt; x.all.e+=amt;
+}
+function approveFix(id){
+  const t=S.todos.find(x=>x.id===id);
+  applyExpense(t.hid,t.amt); S.stamped[id]='gone'; render();
+  toast(`已同意。${money(t.amt)} 自動記入這間房的支出，你不用再記一次。`);
+}
+function resolve(id,msg){ S.stamped[id]='gone'; toast(msg); render(); }
+
+function checkScreen(id){
+  const t=S.todos.find(x=>x.id===id);
+  return `<div class="card"><div class="card-h">核對這筆款項</div><div class="card-b">
+    <div class="row"><div class="k">該收金額</div><div class="v num">${money(t.amt)}</div></div>
+    <div class="row"><div class="k">房客回報金額</div><div class="v num pos">${money(t.amt)} ✓</div></div>
+    <div class="row"><div class="k">匯入帳戶</div><div class="v">${t.acct}</div></div>
+    <div class="row"><div class="k">轉出末五碼</div><div class="v num">88213</div></div>
+    <div class="row"><div class="k">入帳日期</div><div class="v num">8/18</div></div>
+    <div class="hr"></div><div class="meta">${t.room} · ${t.who}</div>
+  </div></div>
+  <div class="notice info">💡 兩個金額一樣，系統已自動核對過。按下確認就會入帳並記進這個月的損益。</div>
+  <button class="b wide" onclick="stamp('${t.id}');back()">確認收到</button>`;
+}
+
+/* ============================================================
+   房子
+   ============================================================ */
+function houseList(){
+  if(!S.houses.length){
+    return `<div class="card"><div class="empty"><b>還沒有房子</b>從第一間開始，只要打地址，名字系統幫你取。</div></div>
+      <button class="b wide" onclick="go('wiz-house')">＋ 新增第一間房子</button>`;
+  }
+  let h = `<div class="card">`;
+  S.houses.forEach(x=>{
+    const n = x.income - x.expense;
+    const rent = x.rooms.filter(r=>r.tenant).length, tot=x.rooms.length;
+    h += `<div class="item" onclick="go('house-${x.id}')">
+      <div class="t"><b>${x.name}</b><small>${x.type} · ${x.type==='分租套房'?`${rent}／${tot} 間出租中`:x.rooms[0].status}${x.manager?' · 委託代管':''}</small></div>
+      <div class="r num ${cls(n)}">${signed(n)}</div><div class="chev">›</div></div>`;
+  });
+  h += `</div><button class="b wide ghost" onclick="go('wiz-house')">＋ 新增房子</button>`;
+  return h;
+}
+
+function houseDetail(id){
+  const x = S.houses.find(a=>a.id===id);
+  let h = `<div class="card"><div class="card-b">
+    <div class="mid serif">${x.name}</div>
+    <div class="meta">${x.addr}<br>${x.type}</div>
+    ${x.manager?`<div class="hr"></div><div style="font-size:19px;line-height:1.6">🧑‍💼 委託 <b>${x.manager}</b></div>`:''}
+  </div></div>`;
+
+  h += `<div class="card"><div class="card-h">房間與房客</div>`;
+  x.rooms.forEach((r,i)=>{
+    const on = r.status==='出租中';
+    h += `<div class="item" onclick="${r.tenant?`toast('${r.tenant} · 月租 ${money(r.rent)}')`:`startContract('${x.id}',${i})`}">
+      <div class="t"><b>${r.no==='—'?x.type:r.no}</b>
+      <small>${r.tenant?r.tenant:'尚無房客 · 點一下開始招租'} · 月租 ${money(r.rent)}</small></div>
+      <span class="pill ${on?'on':'off'}">${r.status}</span></div>`;
+  });
+  h += `</div>`;
+
+  h += `<div class="card"><div class="card-h">這間房的其他事 <span class="sub">不是每天要用的</span></div>
+    <div class="item" onclick="go('perm')"><div class="t"><b>代管授權與回報</b><small>${x.manager?x.manager:'尚未委託代管'}</small></div><div class="chev">›</div></div>
+    <div class="item" onclick="toast('第二階段：買賣紀錄')"><div class="t"><b>買賣紀錄</b><small>${x.cost.buy?'買入 '+money(x.cost.buy):'尚未填寫'} · 尚未賣出</small></div><div class="chev">›</div></div>
+    <div class="item" onclick="toast('第二階段：點交與設備清單')"><div class="t"><b>點交與設備清單</b><small>入住點交、水電表、鑰匙數</small></div><div class="chev">›</div></div>
+    <div class="item" onclick="toast('第二階段：報表匯出')"><div class="t"><b>報表匯出</b><small>Excel／PDF · 報稅用</small></div><div class="chev">›</div></div>
+  </div>`;
+  return h;
+}
+
+function permScreen(){
+  const list=[['訂金','代收訂金、登記金額'],['簽約','建立合約、帶房客簽名'],['點交','入住／退租點交、拍照記錄'],
+    ['建立費用','開立水電雜費帳單'],['催租','聯絡房客催繳'],['維修','接報修、找廠商、取得報價'],
+    ['續約','與房客洽談續約條件'],['退租','處理退租、初算押金結算'],['協助買賣紀錄','代填買賣費用與單據']];
+  const lock=['確認收款入帳','決定是否續約','決定是否解約','變更房屋主資料','移除代管'];
+  let h='';
+  if(S.demo) h += `<div class="notice warn">⚠️ <div><b>安心包租代管有 1 件未回報</b><br>復興南路 2F · A2 點交，已 3 天。系統已同時通知你和代管。</div></div>`;
+  h += `<div class="card"><div class="card-h">可以讓代管做的事 <span class="sub">勾了才能做</span></div>`;
+  list.forEach(([k,d])=>{
+    h += `<div class="chk ${S.perms[k]?'on':''}" onclick="togglePerm('${k}')">
+      <div class="box">${S.perms[k]?'✓':''}</div><div class="t">${k}<small>${d}</small></div></div>`;
+  });
+  h += `</div><div class="card"><div class="card-h">🔒 永遠只有你能做</div>`;
+  lock.forEach(k=>h+=`<div class="chk lock"><div class="box">🔒</div><div class="t">${k}</div></div>`);
+  h += `</div>`;
+  h += `<div class="card"><div class="card-h">代管做完的事 <span class="sub">他打勾，你才看得到</span></div>`;
+  if(S.demo){
+    h += `<div class="item"><div class="t"><b>浴室水管維修 · 已回報</b><small>8/19 · 阿明水電行 $3,500 · 附報價單</small></div><span class="pill off">要你決定</span></div>
+    <div class="item"><div class="t"><b>入住點交 · 未回報</b><small>8/17 完成，已 3 天未打勾</small></div><span class="pill off">已催</span></div>
+    <div class="item" onclick="toast('每月 1 號自動產生，不用問代管')"><div class="t"><b>7 月代管月報</b><small>收租 4 筆 · 催繳 2 次 · 維修 1 件 · 管理費 $3,425</small></div><div class="chev">›</div></div>`;
+  } else {
+    h += `<div class="empty"><b>還沒有回報紀錄</b>切到上面的「代管」身分按〔完成回報〕，這裡就會出現。</div>`;
+  }
+  h += `</div>`;
+  return h;
+}
+function togglePerm(k){ S.perms[k]=!S.perms[k]; render(); toast(S.perms[k]?`已授權「${k}」，代管做完要回報`:`已收回「${k}」`); }
+
+/* ============================================================
+   記一筆
+   ============================================================ */
+function entryScreen(){
+  const e=S.entry;
+  if(!S.houses.length){
+    return `<div class="card"><div class="empty"><b>先有房子才能記帳</b>每一筆錢都要記到某一間房上，損益才算得出來。</div></div>
+      <button class="b wide" onclick="tab('house');go('wiz-house')">＋ 新增第一間房子</button>`;
+  }
+  let h='';
+  if(S.drafts) h += `<div class="notice">📸 <div><b>有 ${S.drafts} 筆收據待補金額</b><br>之前先拍起來的，有空再補數字就好。</div></div>`;
+
+  if(!e.house){
+    h += `<div class="wiz"><div class="step">第 1 步 / 共 3 步</div><div class="q">這筆花在哪間房？</div>
+      <div class="hint">分租套房點一下會展開房間。</div></div><div class="card">`;
+    S.houses.forEach(x=>{
+      h += `<div class="item" onclick="pickHouse('${x.id}')"><div class="t"><b>${x.name}</b><small>${x.type}</small></div><div class="chev">›</div></div>`;
+    });
+    h += `<div class="item" onclick="pickHouse('all')"><div class="t"><b>全部房屋分攤</b><small>例如共用網路、記帳軟體年費</small></div><div class="chev">›</div></div></div>`;
+    return h;
+  }
+  const hn = e.house==='all' ? '全部房屋分攤' : S.houses.find(x=>x.id===e.house).name + (e.room?' · '+e.room:'');
+  h += `<div class="notice info" style="align-items:center">📍 <div style="flex:1"><b>${hn}</b></div>
+    <button class="chip" style="padding:10px 18px;font-size:18px" onclick="S.entry={house:null,room:null,subject:null,amt:''};render()">改</button></div>`;
+
+  const hx = e.house!=='all' && S.houses.find(x=>x.id===e.house);
+  if(hx && hx.type==='分租套房' && !e.room){
+    h += `<div class="wiz"><div class="q">哪一間？</div></div><div class="chips">`;
+    hx.rooms.forEach(r=>h+=`<button class="chip" onclick="S.entry.room='${r.no}';render()">${r.no}<small>${r.tenant||'空房'}</small></button>`);
+    h += `<button class="chip" onclick="S.entry.room='整棟分攤';render()">整棟分攤<small>公共區域</small></button></div>`;
+    return h;
+  }
+  if(!e.subject){
+    const sorted = [...S.subjects].sort((a,b)=>(S.subjectUse[b]||0)-(S.subjectUse[a]||0));
+    h += `<div class="wiz"><div class="step">第 2 步 / 共 3 步</div><div class="q">這是什麼支出？</div>
+      <div class="hint">照你最常用的排序，用久了第一個就是你要的。</div></div><div class="chips">`;
+    sorted.forEach((s,i)=>h+=`<button class="chip" onclick="pickSubject('${s}')">${s}${(i===0&&S.subjectUse[s])?'<small>你最常用</small>':''}</button>`);
+    h += `</div>`;
+    return h;
+  }
+  h += `<div class="wiz"><div class="step">第 3 步 / 共 3 步</div><div class="q">${e.subject} 花了多少？</div></div>
+    <input class="bignum" inputmode="numeric" placeholder="$0" id="amtIn" value="${e.amt}" oninput="S.entry.amt=this.value">
+    <button class="b wide" onclick="saveEntry()">記好了</button>
+    <div style="height:12px"></div>
+    <button class="b wide ghost" onclick="S.drafts++;S.entry={house:null,room:null,subject:null,amt:''};render();toast('已存成草稿，金額有空再補')">先拍收據，金額之後補</button>
+    <div class="notice info" style="margin-top:16px">記一筆記的一律算進<b>現金流</b>。買賣的錢請走「房子 › 買賣紀錄」，兩本帳不會混在一起。</div>`;
+  return h;
+}
+function pickHouse(id){ S.entry.house=id; render(); }
+function pickSubject(s){ S.entry.subject=s; render(); setTimeout(()=>{const i=$('#amtIn'); i&&i.focus();},80); }
+function saveEntry(){
+  if(!S.entry.amt||isNaN(Number(S.entry.amt))){ toast('先填金額'); return; }
+  S.screen='entry-repeat'; render();
+}
+function repeatScreen(){
+  const e=S.entry;
+  return `<div class="card"><div class="card-b" style="text-align:center;padding:30px 20px">
+    <div style="font-size:18px;color:var(--mute);font-weight:700">已記下</div>
+    <div class="big num neg" style="margin:8px 0">${money(Number(e.amt))}</div>
+    <div class="meta">${e.subject} · ${e.house==='all'?'全部房屋分攤':S.houses.find(x=>x.id===e.house).name}${e.room?' · '+e.room:''}</div>
+  </div></div>
+  <div class="wiz"><div class="q">這筆每個月都有嗎？</div>
+  <div class="hint">按「每個月都有」，以後系統自動幫你記，你不用再進來這一頁。</div></div>
+  <button class="b wide" onclick="finishEntry(true)">每個月都有</button>
+  <div style="height:12px"></div>
+  <button class="b wide ghost" onclick="finishEntry(false)">這次而已</button>`;
+}
+function finishEntry(rep){
+  const e=S.entry, s=e.subject, amt=Number(e.amt);
+  applyExpense(e.house, amt);
+  S.subjectUse[s]=(S.subjectUse[s]||0)+1;
+  S.entry={house:null,room:null,subject:null,amt:''};
+  S.screen=null; S.tab='home'; render();
+  toast(rep?`已記入，並設定每月自動帶入「${s}」${money(amt)}，以後不用再記`:`已記入這個月的支出 ${money(amt)}`);
+}
+
+/* ============================================================
+   損益
+   ============================================================ */
+function pnlScreen(){
+  const p=S.period, T=totals(p);
+  let h = `<div class="seg">
+    <button class="${p==='month'?'on':''}" onclick="S.period='month';render()">本月</button>
+    <button class="${p==='year'?'on':''}" onclick="S.period='year';render()">今年</button>
+    <button class="${p==='all'?'on':''}" onclick="S.period='all';render()">累計</button></div>`;
+
+  if(!S.houses.length){
+    return h + `<div class="card"><div class="empty"><b>還沒有數字</b>建了房子、收到第一筆租金，這裡就會自己算出來。</div></div>
+      <button class="b wide" onclick="tab('house');go('wiz-house')">＋ 新增第一間房子</button>`;
+  }
+
+  h += `<div class="card">`;
+  S.houses.forEach(x=>{
+    const d = p==='month'?{i:x.income,e:x.expense} : p==='year'?x.ytd : x.all;
+    const n = d.i-d.e;
+    h += `<div class="item" onclick="go('pnl-${x.id}')">
+      <div class="t"><b>${x.name}</b><small>收 ${money(d.i)} · 支 ${money(d.e)}${x.type==='分租套房'?' · '+x.rooms.length+' 間':''}</small></div>
+      <div class="r num ${cls(n)}">${signed(n)}</div><div class="chev">›</div></div>`;
+  });
+  h += `</div>`;
+
+  const net=T.i-T.e;
+  h += `<div class="card" style="border:2px solid var(--ink)"><div class="card-b">
+    <div style="font-size:21px;font-weight:700">📊 全部房屋　總損益</div><div class="hr"></div>
+    <div class="row"><div class="k">總收入</div><div class="v num">${money(T.i)}</div></div>
+    <div class="row"><div class="k">總支出</div><div class="v num">${money(T.e)}</div></div>
+    <div class="hr-strong"></div>
+    <div class="total"><div>${p==='all'?'現金流累計':'這期淨賺'}</div><div class="v num ${cls(net)}">${signed(net)}</div></div>`;
+  if(p==='all'){
+    h += `<div class="hr"></div>
+    <div class="row"><div class="k">買賣獲利 <small>賣掉的房子才有</small></div><div class="v num sys">尚未賣出</div></div>
+    <div class="hr-strong"></div>
+    <div class="total"><div>合計</div><div class="v num ${cls(net)}">${signed(net)}</div></div>`;
+  }
+  h += `</div></div>`;
+  return h;
+}
+
+function pnlDetail(id){
+  const x=S.houses.find(a=>a.id===id), p=S.period;
+  const d = p==='month'?{i:x.income,e:x.expense} : p==='year'?x.ytd : x.all;
+  const n = d.i-d.e;
+  let h = `<div class="seg">
+    <button class="${p==='month'?'on':''}" onclick="S.period='month';render()">本月</button>
+    <button class="${p==='year'?'on':''}" onclick="S.period='year';render()">今年</button>
+    <button class="${p==='all'?'on':''}" onclick="S.period='all';render()">累計</button></div>`;
+
+  h += `<div class="card"><div class="card-h">💰 收入</div><div class="card-b">
+    <div class="row"><div class="k"><span class="ico">🤖</span>已收租金與費用</div><div class="v num pos">${money(d.i)}</div></div>
+  </div><div class="card-h">📉 支出</div><div class="card-b">`;
+  if(x.loan) h += `<div class="row"><div class="k"><span class="ico">🤖</span>房貸月付</div><div class="v num">${money(x.loan.pay)}</div></div>`;
+  if(S.demo){
+    h += `<div class="row"><div class="k"><span class="ico">🤖</span>大樓管理費 · 分攤<small>全部房屋共 $4,200，本物件 1／6 間</small></div><div class="v num">$700</div></div>
+    <div class="row"><div class="k"><span class="ico">✋</span>浴室水管維修</div><div class="v num">$3,500</div></div>
+    <div class="row"><div class="k"><span class="ico">🤖</span>代管費 · 租金 5%</div><div class="v num">$1,708</div></div>`;
+  } else {
+    h += `<div class="row"><div class="k"><span class="ico">✋</span>你記的支出</div><div class="v num">${money(Math.max(0,d.e-(x.loan?x.loan.pay:0)))}</div></div>`;
+  }
+  h += `<div class="hr-strong"></div>
+    <div class="total"><div>${p==='all'?'現金流累計':'這期淨賺'}</div><div class="v num ${cls(n)}">${signed(n)}</div></div>
+    <div class="meta">🤖 系統自己記的　✋ 你手動記的</div></div></div>`;
+
+  if(x.loan){
+    const L=x.loan, left=L.total-L.paid, pct=Math.round(L.paid/L.total*100);
+    h += `<div class="card"><div class="card-h">🏦 貸款 <span class="sub">參考，不算在損益裡</span></div><div class="card-b">
+      <div class="row"><div class="k">月付金</div><div class="v num">${money(L.pay)}</div></div>
+      <div class="row" style="border:0"><div class="k">已繳 ${L.paid}／${L.total} 期</div><div class="v num">還剩 ${left} 期</div></div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <div class="meta" style="margin-top:0">${pct}% · 預計 ${L.end} 繳清（還有 ${Math.floor(left/12)} 年 ${left%12} 個月）</div>
+      <div class="hr"></div>
+      <div class="total"><div>還要繳</div><div class="v num">${money(L.pay*left)}</div></div>
+    </div></div>`;
+  }
+
+  if(p==='all' && x.cost.buy){
+    const tot=x.cost.buy+x.cost.reno+x.cost.fee;
+    h += `<div class="card"><div class="card-h">🏘️ 買賣 <span class="sub">賣掉才結算</span></div><div class="card-b">
+      <div class="row"><div class="k">買入總價</div><div class="v num">${money(x.cost.buy)}</div></div>
+      <div class="row"><div class="k">裝潢／整修</div><div class="v num">${money(x.cost.reno)}</div></div>
+      <div class="row"><div class="k">取得費用<small>仲介、代書、契稅…</small></div><div class="v num">${money(x.cost.fee)}</div></div>
+      <div class="hr-strong"></div>
+      <div class="total"><div>投入成本合計</div><div class="v num">${money(tot)}</div></div>
+      <div class="notice info" style="margin:16px 0 0">⏳ 尚未賣出。買入成本不會拉低你每個月的現金流。</div>
+    </div></div>
+    <div class="card" style="border:2px solid var(--ink)"><div class="card-b">
+      <div style="font-size:21px;font-weight:700">📊 這間房總損益</div><div class="hr"></div>
+      <div class="row"><div class="k">現金流累計</div><div class="v num ${cls(n)}">${signed(n)}</div></div>
+      <div class="row"><div class="k">買賣獲利</div><div class="v num sys">尚未賣出</div></div>
+      <div class="hr-strong"></div>
+      <div class="total"><div>合計</div><div class="v num ${cls(n)}">${signed(n)}</div></div>
+    </div></div>`;
+  }
+
+  h += `<button class="b wide ghost" onclick="S.entry={house:'${x.id}',room:null,subject:null,amt:''};tab('entry')">＋ 幫這間房記一筆</button>`;
+  return h;
+}
+
+/* ============================================================
+   精靈：新增房子
+   ============================================================ */
+function wizHouse(){
+  const w=S.newHouse, st=S.wiz||0;
+  let body='', next='下一步';
+  if(st===0){
+    body=`<div class="step">第 1 步 / 共 4 步</div><div class="q">這是什麼房子？</div>
+      <div class="chips">${['分租套房／雅房','整層住家','店面／辦公','車位／倉庫'].map(t=>
+      `<button class="chip ${w.type===t?'on':''}" onclick="S.newHouse.type='${t}';render()">${t}</button>`).join('')}</div>`;
+  }
+  if(st===1){
+    body=`<div class="step">第 2 步 / 共 4 步</div><div class="q">地址是？</div>
+      <div class="hint">只要打地址就好，名字我幫你取。</div>
+      <label class="fl">地址</label>
+      <input value="${w.addr}" placeholder="台北市大安區復興南路一段100號2樓" oninput="S.newHouse.addr=this.value;S.newHouse.name=autoName(this.value);document.getElementById('nm').value=S.newHouse.name">
+      <label class="fl">房子名稱（系統幫你取，不喜歡可以改）</label>
+      <input id="nm" value="${w.name}" placeholder="打完地址就會自動出現" oninput="S.newHouse.name=this.value">
+      ${w.name?'<div class="prefill">✓ 已自動命名，不用自己想</div>':''}`;
+  }
+  if(st===2){
+    const sub = w.type==='分租套房／雅房';
+    body=`<div class="step">第 3 步 / 共 4 步</div><div class="q">${sub?'有幾間？租金多少？':'月租金多少？'}</div>
+      ${sub?`<label class="fl">房號（自己打，中間空一格，例：A1 A2 A3）</label>
+      <input value="${w.rooms}" placeholder="A1 A2 A3 A4" oninput="S.newHouse.rooms=this.value">
+      <label class="fl">每間月租（之後可以各別改）</label>`:`<label class="fl">月租金</label>`}
+      <input class="num" inputmode="numeric" value="${w.rent}" placeholder="12000" oninput="S.newHouse.rent=this.value">`;
+  }
+  if(st===3){
+    body=`<div class="step">第 4 步 / 共 4 步</div><div class="q">有房貸嗎？</div>
+      <div class="hint">填了系統每個月自動記成支出，還會幫你算還剩幾期、還要繳多少。沒有就跳過。</div>
+      <label class="fl">房貸月付金 🔁</label>
+      <input class="num" inputmode="numeric" value="${w.pay}" placeholder="24800" oninput="S.newHouse.pay=this.value">
+      <label class="fl">貸款年限（年）</label>
+      <input class="num" inputmode="numeric" value="${w.years}" placeholder="20" oninput="S.newHouse.years=this.value">
+      <label class="fl">第一次繳款是哪個月</label>
+      <input value="${w.first}" placeholder="2019/04" oninput="S.newHouse.first=this.value">
+      <div class="notice info">不用填利率，也不用算剩下多少本金 — 那些算不準，也不該讓你查。系統只告訴你<b>還剩幾期</b>和<b>還要繳多少</b>。</div>`;
+    next='建立好了';
+  }
+  return `<div class="wiz">${body}</div>
+    <div class="wizbar">
+      ${st>0?`<button class="b ghost" style="flex:0 0 122px" onclick="S.wiz=${st-1};render()">上一步</button>`:''}
+      <button class="b" onclick="${st===3?"doneHouse()":`S.wiz=${st+1};render()`}">${next}</button>
+      ${st===3?`<button class="b ghost" style="flex:0 0 100px" onclick="doneHouse()">跳過</button>`:''}
+    </div>`;
+}
+function doneHouse(){
+  const w=S.newHouse;
+  const rent=Number(w.rent)||0;
+  const sub = w.type==='分租套房／雅房';
+  let rooms;
+  if(sub && w.rooms.trim()){
+    rooms = w.rooms.trim().split(/[\s,、]+/).map(no=>({no,rent,tenant:null,status:'空房'}));
+  } else {
+    rooms = [{no:'—',rent,tenant:null,status:'空房'}];
+  }
+  const years = Number(w.years)||20;
+  S.houses.push({id:uid(), name:w.name||autoName(w.addr)||'新房子', addr:w.addr||'（未填地址）',
+    type: sub?'分租套房':(w.type||'整層住家'), rooms,
+    income:0, expense:Number(w.pay)||0, manager:null,
+    loan:w.pay?{pay:Number(w.pay),paid:0,total:years*12,end:'—'}:null,
+    cost:{buy:0,reno:0,fee:0},
+    ytd:{i:0,e:Number(w.pay)||0}, all:{i:0,e:Number(w.pay)||0}});
+  S.newHouse={type:null,addr:'',name:'',rooms:'',rent:'',pay:'',years:'',first:''};
+  S.wiz=null;S.screen=null;S.tab='house';render();
+  toast('房子建好了。點進去選一間空房，就能建合約、邀請房客。');
+}
+
+/* ============================================================
+   邀請房客 → 建立合約（七步，全預填）
+   ============================================================ */
+function startContract(hid,ri){
+  const x=S.houses.find(a=>a.id===hid), r=x.rooms[ri];
+  S.ctx={house:hid,room:ri};
+  S.invite={name:'',phone:''};
+  const today=new Date(), y=today.getFullYear(), m=String(today.getMonth()+1).padStart(2,'0'), d=String(today.getDate()).padStart(2,'0');
+  const end=new Date(today); end.setFullYear(y+1); end.setDate(end.getDate()-1);
+  S.contract={moveIn:`${y}-${m}-${d}`, from:`${y}-${m}-${d}`,
+    to:`${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`,
+    rent:String(r.rent||''), dep:String((r.rent||0)*2), payday:`每月 ${Number(d)} 號`,
+    util:'分表計算', meter:'每月 5 日', acct:S.acctName, terms:''};
+  S.screen='invite'; window.scrollTo(0,0); render();
+}
+function inviteScreen(){
+  const x=S.houses.find(a=>a.id===S.ctx.house), r=x.rooms[S.ctx.room];
+  return `<div class="wiz"><div class="step">開始出租</div><div class="q">這間要租給誰？</div>
+    <div class="hint">${x.name} · ${r.no==='—'?x.type:r.no}<br>填好之後會產生邀請連結，用 LINE 傳給房客就行。</div>
+    <label class="fl">房客姓名</label>
+    <input value="${S.invite.name}" placeholder="王大明" oninput="S.invite.name=this.value">
+    <label class="fl">手機號碼（選填）</label>
+    <input class="num" inputmode="tel" value="${S.invite.phone}" placeholder="0912345678" oninput="S.invite.phone=this.value">
+    <div class="notice info">房客不會用手機也沒關係。之後每筆錢你都可以自己按〔已收到〕，系統會標註「由房東代為登記」。</div>
+    </div>
+    <div class="wizbar"><button class="b" onclick="toInvite()">產生邀請，接著建合約</button></div>`;
+}
+function toInvite(){
+  if(!S.invite.name.trim()){ toast('先填房客姓名'); return; }
+  S.wiz=0; S.screen='wiz-contract'; window.scrollTo(0,0); render();
+}
+
+const CSTEPS=[
+  {q:'房客什麼時候入住？',f:'moveIn',pre:'預設今天'},
+  {q:'租多久？',f:'range',pre:'預設從入住日起算一年'},
+  {q:'租金與押金？',f:'money',pre:'租金帶房間設定值，押金預設 2 個月'},
+  {q:'每個月幾號繳租？',f:'payday',pre:'預設入住日的同一天'},
+  {q:'水電怎麼算？',f:'util',pre:'依房屋型態預設'},
+  {q:'租金要匯到哪個帳戶？',f:'acct',pre:'只有一個帳戶，已自動選好'},
+  {q:'有特約條款嗎？',f:'terms',pre:'多數人跳過這一步'}
+];
+function wizContract(){
+  const st=S.wiz||0, c=S.contract, s=CSTEPS[st];
+  let body=`<div class="step">第 ${st+1} 步 / 共 7 步</div><div class="q">${s.q}</div>`;
+  if(s.f==='moveIn') body+=`<input type="date" value="${c.moveIn}" oninput="S.contract.moveIn=this.value">`;
+  if(s.f==='range') body+=`<label class="fl">起</label><input type="date" value="${c.from}" oninput="S.contract.from=this.value">
+    <label class="fl">迄</label><input type="date" value="${c.to}" oninput="S.contract.to=this.value">`;
+  if(s.f==='money') body+=`<label class="fl">月租金</label><input class="num" inputmode="numeric" value="${c.rent}" oninput="S.contract.rent=this.value">
+    <label class="fl">押金</label><input class="num" inputmode="numeric" value="${c.dep}" oninput="S.contract.dep=this.value">
+    <div class="notice info">法規建議押金不超過 2 個月租金。超過我只會提醒你一聲，不會擋你。</div>`;
+  if(s.f==='payday') body+=`<div class="chips">${['每月 1 號','每月 5 號','每月 10 號','每月 15 號','每月 20 號','每月 25 號'].map(v=>
+    `<button class="chip ${c.payday===v?'on':''}" onclick="S.contract.payday='${v}';render()">${v}</button>`).join('')}</div>`;
+  if(s.f==='util'){ body+=`<div class="chips">${['分表計算','帳單金額','每月固定金額'].map(v=>
+    `<button class="chip ${c.util===v?'on':''}" onclick="S.contract.util='${v}';render()">${v}</button>`).join('')}</div>
+    ${c.util==='分表計算'?`<label class="fl">每月幾號抄表</label>
+    <div class="chips">${['每月 5 日','每月 15 日','每月 25 日'].map(v=>
+    `<button class="chip ${c.meter===v?'on':''}" onclick="S.contract.meter='${v}';render()">${v}</button>`).join('')}</div>
+    <div class="notice info">填了抄表日，之後系統每個月自動提醒你抄表。你只要輸入度數，金額和帳單它自己開給房客。</div>`:''}`; }
+  if(s.f==='acct') body+=`<div class="chips">
+    <button class="chip on">${S.acctName}<small>012-345-678901</small></button>
+    <button class="chip" onclick="toast('正式版可以建多個帳戶，每份合約各指定一個')">＋ 另一個帳戶</button></div>
+    <div class="notice info">房客的帳單頁會直接顯示這組帳號，還有一顆〔複製帳號〕。你對帳時也看得到每筆錢該進哪個戶頭。</div>`;
+  if(s.f==='terms') body+=`<textarea rows="4" placeholder="不用寫也可以" oninput="S.contract.terms=this.value">${c.terms}</textarea>
+    <div class="notice info">合約會用<b>內政部住宅租賃定型化契約範本</b>，並自動一起產生「房屋現況確認書」和「附屬設備清單」— 這兩份法規有要求，很多房東會漏。</div>`;
+  body += `<div class="prefill">✓ ${s.pre} · 對就下一步，不對再改</div>`;
+
+  return `<div class="wiz">${body}</div>
+    <div class="wizbar">
+      <button class="b ghost" style="flex:0 0 122px" onclick="${st>0?`S.wiz=${st-1};render()`:`S.screen='invite';render()`}">上一步</button>
+      <button class="b" onclick="${st===6?"doneContract()":`S.wiz=${st+1};render()`}">${st===6?'產生合約':'下一步'}</button>
+    </div>`;
+}
+function doneContract(){
+  const x=S.houses.find(a=>a.id===S.ctx.house), r=x.rooms[S.ctx.room];
+  const rent=Number(S.contract.rent)||0;
+  r.tenant=S.invite.name; r.rent=rent; r.status='出租中';
+  S.todos.push({id:uid(),kind:'pay',who:S.invite.name,hid:x.id,
+    room:`${x.name}${r.no==='—'?'':' · '+r.no}`,amt:rent,
+    note:'首月租金 · 房客回報已轉帳',acct:S.acctName});
+  S.tenantBills.unshift({id:uid(),t:'首月租金',due:S.contract.payday.replace('每月 ','').replace(' 號','/1'),amt:rent,paid:false});
+  S.wiz=null;S.screen=null;S.tab='home';render();
+  toast('合約已送出給房客簽。首月租金帳單已產生，房客回報後會出現在你的待辦。');
+}
+
+/* ============================================================
+   房客端 ／ 代管端
+   ============================================================ */
+function tenantHome(){
+  if(!S.tenantBills.length){
+    return `<div class="card"><div class="empty"><b>還沒有帳單</b>切回「房東」身分建一份合約，這裡就會出現首月租金。</div></div>`;
+  }
+  const un=S.tenantBills.filter(b=>!b.paid);
+  const sum=un.reduce((a,b)=>a+b.amt,0);
+  let h=`<div class="card"><div class="card-h">💳 這期要繳</div><div class="card-b">
+    <div class="big num ${sum?'neg':'pos'}">${money(sum)}</div>
+    <div class="meta">房東 林先生</div></div>`;
+  S.tenantBills.forEach(b=>{
+    h+=`<div class="item"><div class="t"><b>${b.t}</b><small>${b.paid?'已完成':'繳款期限 '+b.due}</small></div>
+      <div class="r num">${money(b.amt)}</div>
+      <span class="pill ${b.paid?'on':'off'}">${b.paid?'已收到':'待繳'}</span></div>`;
+  });
+  h+=`</div>`;
+  if(sum) h+=`<div class="card"><div class="card-h">請匯款至</div><div class="card-b">
+    <div style="font-size:22px;font-weight:700;line-height:1.6">台灣銀行 城中分行<br>戶名：林○○</div>
+    <div class="num" style="font-size:30px;font-weight:700;margin:12px 0">012-345-678901</div>
+    <button class="b wide ghost" onclick="toast('帳號已複製')">複製帳號</button>
+    <div style="height:12px"></div>
+    <button class="b wide" onclick="tenantPay()">我已付款</button>
+    <div class="meta">按了之後填末五碼或上傳截圖，房東確認就完成。</div>
+  </div></div>`;
+  else h+=`<div class="empty"><b>✅ 都繳清了</b>下一期系統會提醒你</div>`;
+  return h;
+}
+function tenantPay(){ S.tenantBills.forEach(b=>b.paid=true); render();
+  toast('已通知房東查收。房東確認後你這裡會顯示「已收到」。'); }
+
+function mgrHome(){
+  if(!S.mgrJobs.length){
+    return `<div class="card"><div class="empty"><b>還沒有被指派工作</b>房東在「房子 › 代管授權」勾選項目後，工作會出現在這裡。</div></div>
+    <div class="card"><div class="card-h">房東給我的權限</div><div class="card-b"><div class="meta" style="margin:0;font-size:18px">
+    ${Object.keys(S.perms).map(k=>`${S.perms[k]?'✓':'<span style="opacity:.45">✗</span>'} ${k}`).join('　')}<br><br>
+    🔒 收款確認、續約解約決定永遠在房東身上。</div></div></div>`;
+  }
+  const un=S.mgrJobs.filter(j=>!j.done);
+  let h=`<div class="card"><div class="card-h">🧑‍💼 我的工作 <span class="sub">${un.length} 件待回報</span></div>`;
+  if(!un.length) h+=`<div class="empty"><b>✅ 都回報完了</b>房東那邊都看得到</div>`;
+  S.mgrJobs.forEach(j=>{
+    if(j.done){ h+=`<div class="item"><div class="t"><b>${j.t}</b><small>${j.sub}</small></div><span class="pill on">已回報</span></div>`; return; }
+    h+=`<div class="todo"><div class="who">${j.t}</div>
+      <div class="meta">${j.sub}<br>要回報：${j.need}</div>
+      <div class="acts"><button class="b" onclick="mgrDone('${j.id}')">✓ 完成回報</button>
+      <button class="b ghost" style="flex:0 0 118px" onclick="toast('可上傳照片、報價單')">加照片</button></div></div>`;
+  });
+  h+=`</div>`;
+  if(un.some(j=>j.t.includes('點交')))
+    h+=`<div class="notice warn">⚠️ <div><b>入住點交已 3 天未回報</b><br>系統已提醒你，也同時通知了房東。滿 7 天會變成房東的待辦事項。</div></div>`;
+  h+=`<div class="card"><div class="card-h">房東給我的權限 <span class="sub">${Object.values(S.perms).filter(Boolean).length}／9 項</span></div>
+    <div class="card-b"><div class="meta" style="margin:0;font-size:18px">
+    ${Object.keys(S.perms).map(k=>`${S.perms[k]?'✓':'<span style="opacity:.45">✗</span>'} ${k}`).join('　')}<br><br>
+    🔒 收款確認、續約解約決定永遠在房東身上。</div></div></div>`;
+  return h;
+}
+function mgrDone(id){ S.mgrJobs.find(j=>j.id===id).done=true; render();
+  toast('已回報房東。涉及金額的會變成房東的待辦，其他只進紀錄不吵他。'); }
+
+/* ============================================================
+   Render
+   ============================================================ */
+const TABS=[['home','🏠','首頁'],['house','🏢','房子'],['entry','➕','記一筆'],['pnl','📊','損益']];
+const TITLES={home:'房東智慧收租',house:'我的房子',entry:'記一筆',pnl:'損益'};
+
+function render(){
+  const started = S.started;
+  $('#protobar').style.display = started?'block':'none';
+  $('#header').style.display = started?'flex':'none';
+
+  if(!started){ $('#app').innerHTML = welcome(); $('#nav').style.display='none'; return; }
+
+  let title = TITLES[S.tab], showBack=false;
+  if(S.role==='tenant') title='我要繳的錢';
+  if(S.role==='manager') title='代管工作';
+  if(S.screen && S.role==='landlord'){
+    showBack=true;
+    const s=S.screen;
+    if(s.startsWith('house-')) title=S.houses.find(x=>x.id===s.slice(6)).name;
+    else if(s.startsWith('pnl-')) title=S.houses.find(x=>x.id===s.slice(4)).name;
+    else if(s.startsWith('check-')) title='核對款項';
+    else if(s==='perm') title='代管授權';
+    else if(s==='wiz-house') title='新增房子';
+    else if(s==='invite') title='邀請房客';
+    else if(s==='wiz-contract') title='建立合約';
+    else if(s==='entry-repeat') title='記一筆';
+  }
+  $('#hleft').innerHTML = showBack
+    ? `<span class="back" onclick="back()">‹ 返回</span><span class="ttl">${title}</span>`
+    : `<span class="ttl">${title}</span>`;
+  $('#roles').innerHTML = [['landlord','房東'],['tenant','房客'],['manager','代管']]
+    .map(([k,n])=>`<button class="${S.role===k?'on':''}" onclick="setRole('${k}')">${n}</button>`).join('');
+
+  let h='';
+  if(S.role==='tenant') h=tenantHome();
+  else if(S.role==='manager') h=mgrHome();
+  else if(S.screen){
+    const s=S.screen;
+    if(s.startsWith('check-')) h=checkScreen(s.slice(6));
+    else if(s.startsWith('house-')) h=houseDetail(s.slice(6));
+    else if(s.startsWith('pnl-')) h=pnlDetail(s.slice(4));
+    else if(s==='perm') h=permScreen();
+    else if(s==='wiz-house') h=wizHouse();
+    else if(s==='invite') h=inviteScreen();
+    else if(s==='wiz-contract') h=wizContract();
+    else if(s==='entry-repeat') h=repeatScreen();
+  }
+  else if(S.tab==='home') h=homeLandlord();
+  else if(S.tab==='house') h=houseList();
+  else if(S.tab==='entry') h=entryScreen();
+  else if(S.tab==='pnl') h=pnlScreen();
+
+  if(S.role==='landlord' && !S.screen && S.tab==='house')
+    h += `<div style="height:8px"></div><button class="b wide ghost" style="border-color:var(--line);color:var(--mute);font-size:18px" onclick="if(confirm('清空所有資料，回到一開始？'))resetAll()">清空資料，重新試一次</button>`;
+
+  $('#app').innerHTML=h;
+
+  const wizOpen = ['wiz-house','wiz-contract','invite'].includes(S.screen);
+  $('#nav').style.display = (S.role==='landlord' && !wizOpen) ? 'flex':'none';
+  $('#nav').innerHTML = TABS.map(([k,g,n])=>
+    `<button class="${S.tab===k&&!S.screen?'on':''}" onclick="tab('${k}')"><span class="g">${g}</span>${n}</button>`).join('');
+}
+function setRole(r){ S.role=r; S.screen=null; S.wiz=null; S.tab='home'; window.scrollTo(0,0); render(); }
+
+S = baseState();
+render();
+
+</script>
+</body>
+</html>
