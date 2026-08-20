@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b47</title>
+<title>PlanPad · 平面圖工具 b48</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b47</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b48</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -3812,7 +3812,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b47';
+  const BUILD='b48';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4181,9 +4181,12 @@
       // Two ways to fit around the title block: the full width above it, or the
       // full height beside it. With a legend the block gets tall and the second
       // shape is much larger, so take whichever actually gives the bigger drawing.
-      const blockTop=(lg?lg.yMM:tb.yMM), blockLeft=(lg?Math.min(lg.xMM,tb.xMM):tb.xMM);
-      const above={w:pw-2*m-8, h:(blockTop-4)-oy};
-      const beside={w:(blockLeft-4)-ox, h:ph-2*m-8};
+      // With the legend bottom-left and the title block bottom-right, the whole
+      // band above them is free — that is the biggest single rectangle available,
+      // so the plan simply takes it.
+      const blockTop=Math.min(tb.yMM, lg?lg.yMM:tb.yMM);
+      const above={w:pw-2*m-8, h:(blockTop-3)-oy};
+      const beside={w:((lg?lg.xMM:tb.xMM)-4)-ox, h:ph-2*m-8};
       const pick = (above.w*above.h >= beside.w*beside.h) ? above : beside;
       availW=Math.max(20,pick.w); availH=Math.max(20,pick.h);
     }
@@ -4221,10 +4224,16 @@
   function drawLegend(g, pwMM, phMM, mMM, tb, layersOpt){
     const items=mepTally(layersOpt);
     if(!items.length) return null;
-    const wMM=112, rowMM=8.5, headMM=9;
-    const hMM=headMM+items.length*rowMM;
-    const xMM=tb ? tb.xMM : (pwMM-mMM-4.5-wMM);
-    const yMM=(tb ? tb.yMM : (phMM-mMM-4.5)) - hMM - 4;
+    const colMM=96, rowMM=8.5, headMM=9;
+    // A long legend in one column is a tall block, and a tall block steals the
+    // height the floor plan needs. Past eight entries it splits into columns so
+    // it stays a low strip along the bottom.
+    const cols=items.length>8 ? 2 : 1;
+    const per=Math.ceil(items.length/cols);
+    const wMM=colMM*cols, hMM=headMM+per*rowMM;
+    // bottom-LEFT, level with the title block
+    const xMM=mMM+4.5;
+    const yMM=(tb ? (tb.yMM+tb.hMM) : (phMM-mMM-4.5)) - hMM;
     const x=MM(xMM), y=MM(yMM), w=MM(wMM);
     g.strokeStyle='#24282E'; g.lineWidth=MM(0.35);
     g.strokeRect(x,y,w,MM(hMM));
@@ -4236,22 +4245,26 @@
     g.font='600 '+Math.round(MM(2.6))+'px '+SHEET_FONT;
     g.fillText('數量 QTY', x+w-MM(3), y+MM(headMM/2));
     items.forEach((it,i)=>{
-      const ry=y+MM(headMM+i*rowMM), rh=MM(rowMM);
-      if(i){ g.strokeStyle='#D8DDE2'; g.lineWidth=MM(0.2);
-             g.beginPath(); g.moveTo(x,ry); g.lineTo(x+w,ry); g.stroke(); }
+      const col=Math.floor(i/per), row=i%per;
+      const cx0=x+MM(col*colMM), cw=MM(colMM);
+      const ry=y+MM(headMM+row*rowMM), rh=MM(rowMM);
+      if(row){ g.strokeStyle='#D8DDE2'; g.lineWidth=MM(0.2);
+               g.beginPath(); g.moveTo(cx0,ry); g.lineTo(cx0+cw,ry); g.stroke(); }
+      if(col){ g.strokeStyle='#24282E'; g.lineWidth=MM(0.3);
+               g.beginPath(); g.moveTo(cx0,y+MM(headMM)); g.lineTo(cx0,y+MM(hMM)); g.stroke(); }
       const sp=MM(rowMM*0.62);
       g.save();
-      g.translate(x+MM(9), ry+rh/2);
+      g.translate(cx0+MM(9), ry+rh/2);
       g.strokeStyle=mepColor(it.kind); g.fillStyle='#fff';
       g.lineWidth=MEP_LW*(sp/110); g.lineJoin='round'; g.lineCap='round';
       (MEP_SY[it.kind]||MEP_SY.outlet2)(sp, g);
       g.restore();
       g.fillStyle='#24282E'; g.textAlign='left'; g.textBaseline='middle';
-      g.font='500 '+Math.round(MM(3.0))+'px '+SHEET_FONT;
-      g.fillText(it.name, x+MM(18), ry+rh/2);
+      g.font='500 '+Math.round(MM(2.9))+'px '+SHEET_FONT;
+      g.fillText(it.name, cx0+MM(17), ry+rh/2);
       g.textAlign='right';
-      g.font='700 '+Math.round(MM(3.0))+'px '+SHEET_FONT;
-      g.fillText(String(it.n), x+w-MM(4), ry+rh/2);
+      g.font='700 '+Math.round(MM(2.9))+'px '+SHEET_FONT;
+      g.fillText(String(it.n), cx0+cw-MM(4), ry+rh/2);
     });
     return {xMM, yMM, wMM, hMM};
   }
