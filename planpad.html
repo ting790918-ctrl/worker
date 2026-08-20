@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b48</title>
+<title>PlanPad · 平面圖工具 b49</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b48</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b49</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -271,6 +271,7 @@
         <div class="row"><label>格線間距</label>
           <div class="field"><input type="number" id="gridSize" min="1" max="100" step="1" value="10"><span class="unit">cm</span></div>
         </div>
+        <div class="row"><label>尺寸標註</label><div class="seg" id="dimStyleSeg"><button data-v="outside" class="on">戶型外側</button><button data-v="inline">牆上</button></div></div>
         <div class="row"><label>角度鎖定</label>
           <div class="seg" id="angleModeSeg">
             <button data-v="free">自由</button>
@@ -455,6 +456,7 @@
     thick: 20, unit: 'mm', wallAlign: 'mid',   // wallAlign: 'in'|'mid'|'out'
     colW: 65, colH: 65,                        // column defaults (cm)
     shaftW: 60, shaftH: 60,                    // pipe shaft defaults (cm)
+    dimStyle: 'outside',                       // 'outside' = chains around the plan
     doorSub: 'swing', winSub: 'fixed',         // which kind the next tap creates
     furnCat: 'living', furnPick: null,         // library category / armed item
     mepCat: '插座', mepPick: null,
@@ -2215,6 +2217,7 @@
     drawRoomsInfo();
     drawWallLabels();
     drawDims();
+    drawExteriorDims();
     drawFurniture();
     drawMEP();
     drawTexts();
@@ -2302,6 +2305,7 @@
   }
   // tappable length label for every wall not already covered by a room edge
   function drawWallLabels(){
+    if(ui.dimStyle==='outside') return;
     if(!showOpt.dims) return;
     for(const w of state.walls){ if(wallLen(w)<20) continue; if(roomWallIds.has(w.id)) continue;
       const c=wallCorners(w);
@@ -2426,7 +2430,7 @@
       // dimension ended up floating in the neighbouring room looking like garbage
       let sA=0; for(let i=0;i<r.V.length;i++){ const p=r.V[i], q=r.V[(i+1)%r.V.length]; sA+=p.x*q.y-q.x*p.y; }
       const wind = sA>=0 ? 1 : -1;
-      for(let i=0;showOpt.dims && i<r.V.length;i++){
+      for(let i=0;showOpt.dims && ui.dimStyle!=='outside' && i<r.V.length;i++){
         const a=r.V[i], b=r.V[(i+1)%r.V.length];
         const L=Math.hypot(b.x-a.x,b.y-a.y); if(L<20) continue;
         const ux=(b.x-a.x)/L, uy=(b.y-a.y)/L;
@@ -3711,6 +3715,16 @@
     document.querySelectorAll('#winSubSeg button').forEach(x=>x.classList.toggle('on',x===b));
     setTool('window');
   });
+  document.querySelectorAll('#dimStyleSeg button').forEach(b=>b.onclick=()=>{
+    ui.dimStyle=b.dataset.v;
+    document.querySelectorAll('#dimStyleSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    try{ localStorage.setItem('planpad.dimStyle',ui.dimStyle); }catch(_){}
+    draw();
+  });
+  try{ const v=localStorage.getItem('planpad.dimStyle');
+    if(v){ ui.dimStyle=v;
+      document.querySelectorAll('#dimStyleSeg button').forEach(x=>x.classList.toggle('on',x.dataset.v===v)); }
+  }catch(_){}
   document.querySelectorAll('#inkColorSeg button').forEach(b=>b.onclick=()=>{
     ui.inkColor=b.dataset.c;
     document.querySelectorAll('#inkColorSeg button').forEach(x=>x.classList.toggle('on',x===b));
@@ -3812,7 +3826,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b48';
+  const BUILD='b49';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4156,7 +4170,7 @@
   // The outer dimension labels sit OUTSIDE the walls, so the render needs a margin
   // wide enough for them. Once the text is scaled up for print, a fixed 60px is no
   // longer enough and the outermost numbers get clipped at the sheet edge.
-  const exportPad = (ts)=> Math.max(60, Math.round((ts||1)*12*3.0));
+  const exportPad = (ts)=> Math.max(60, Math.round((ts||1)*12*(ui.dimStyle==='outside'?6.4:3.0)));
   const TEXT_MM = {s:2.8, m:3.6, l:4.6}; // printed height of a dimension label
   function composeSheet(opt, page, pageNo, pageCount, pwMM, phMM){
     const pw=pwMM, ph=phMM;
@@ -4320,6 +4334,7 @@
     // these two were missing entirely, which is why an exported PNG came out with
     // no room dimensions and no name/坪數 even though the screen showed them
     drawRoomsInfo(); drawWallLabels();
+    drawExteriorDims();
     drawFurniture();
     drawMEP();
     drawDims(); drawTexts();
@@ -4503,6 +4518,110 @@
     document.body.appendChild(back);
   }
 
+
+  // ================= exterior dimension chains =================
+  // Dimensioning every wall and every room edge in place turns a plan into noise.
+  // A construction drawing puts the numbers OUTSIDE the outline: a chain of
+  // segments along each side, with the overall size on a second line beyond it.
+  // Only dimensions the user placed by hand stay where they were put.
+  const DIM_TICK = 4;                    // px, the 45° slash at each station
+  function wallFaceStations(axis){
+    // `axis` 'x' collects the vertical faces that divide the plan horizontally
+    const out=[];
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const vertical=Math.abs(w.y2-w.y1) >= Math.abs(w.x2-w.x1);
+      if(axis==='x' ? !vertical : vertical) continue;
+      const R=wallRect(w);
+      if(axis==='x'){ out.push(R.x0, R.x1); } else { out.push(R.y0, R.y1); }
+    }
+    return out;
+  }
+  function dedupeSorted(vals, tol){
+    const s=vals.slice().sort((a,b)=>a-b), out=[];
+    for(const v of s) if(!out.length || v-out[out.length-1]>tol) out.push(v);
+    return out;
+  }
+  function planBox(){
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9, any=false;
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const R=wallRect(w); any=true;
+      x0=Math.min(x0,R.x0); y0=Math.min(y0,R.y0);
+      x1=Math.max(x1,R.x1); y1=Math.max(y1,R.y1);
+    }
+    return any?{x0,y0,x1,y1}:null;
+  }
+  // one run of the chain, drawn in screen space
+  function dimChain(stations, fixed, horiz, sign, gapPx){
+    if(stations.length<2) return;
+    const S=(x,y)=>toScreen(x,y);
+    const lw=1.1, col='#5B646E';
+    const base = horiz ? S(0,fixed)[1] + sign*gapPx : S(fixed,0)[0] + sign*gapPx;
+    ctx.save();
+    ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.setLineDash([]);
+    // extension lines from each station back toward the plan
+    for(const v of stations){
+      const p = horiz ? S(v,fixed) : S(fixed,v);
+      ctx.beginPath();
+      if(horiz){ ctx.moveTo(p[0], base - sign*fpx(3)); ctx.lineTo(p[0], base + sign*fpx(3)); }
+      else     { ctx.moveTo(base - sign*fpx(3), p[1]); ctx.lineTo(base + sign*fpx(3), p[1]); }
+      ctx.stroke();
+    }
+    const a = horiz ? S(stations[0],fixed) : S(fixed,stations[0]);
+    const b = horiz ? S(stations[stations.length-1],fixed) : S(fixed,stations[stations.length-1]);
+    ctx.beginPath();
+    if(horiz){ ctx.moveTo(a[0],base); ctx.lineTo(b[0],base); }
+    else     { ctx.moveTo(base,a[1]); ctx.lineTo(base,b[1]); }
+    ctx.stroke();
+    // 45° ticks, the architectural convention instead of arrowheads
+    const t=fpx(DIM_TICK);
+    for(const v of stations){
+      const p = horiz ? S(v,fixed) : S(fixed,v);
+      ctx.beginPath();
+      if(horiz){ ctx.moveTo(p[0]-t, base+t); ctx.lineTo(p[0]+t, base-t); }
+      else     { ctx.moveTo(base+t, p[1]-t); ctx.lineTo(base-t, p[1]+t); }
+      ctx.stroke();
+    }
+    ctx.restore();
+    for(let i=0;i<stations.length-1;i++){
+      const len=Math.abs(stations[i+1]-stations[i]);
+      if(len<1) continue;
+      const mid=(stations[i]+stations[i+1])/2;
+      const p = horiz ? S(mid,fixed) : S(fixed,mid);
+      const px = horiz ? Math.abs(S(stations[i+1],fixed)[0]-S(stations[i],fixed)[0])
+                       : Math.abs(S(fixed,stations[i+1])[1]-S(fixed,stations[i])[1]);
+      // A partition only 120mm thick has no room for its number between the ticks.
+      // Dropping it silently loses information and makes the chain not add up, so
+      // the number steps out to its own line with a leader instead.
+      const tight = px < fpx(17);
+      const off = tight ? fpx(15) : fpx(6);
+      const lx = horiz ? p[0] : base - sign*off;
+      const ly = horiz ? base - sign*off : p[1];
+      if(tight){
+        ctx.save(); ctx.strokeStyle='#9AA1A8'; ctx.lineWidth=0.9; ctx.setLineDash([]);
+        ctx.beginPath();
+        if(horiz){ ctx.moveTo(p[0], base); ctx.lineTo(lx, ly + sign*fpx(4)); }
+        else     { ctx.moveTo(base, p[1]); ctx.lineTo(lx + sign*fpx(4), ly); }
+        ctx.stroke(); ctx.restore();
+      }
+      plainLabel(fmtLen(len), lx, ly, horiz?0:Math.PI/2, '#3A4148', tight?11:12);
+    }
+  }
+  function drawExteriorDims(){
+    if(!showOpt.dims || ui.dimStyle!=='outside') return;
+    const B=planBox(); if(!B) return;
+    const tol=Math.max(2, 6/view.scale);
+    const xs=dedupeSorted(wallFaceStations('x').concat([B.x0,B.x1]).filter(v=>v>=B.x0-tol&&v<=B.x1+tol), tol);
+    const ys=dedupeSorted(wallFaceStations('y').concat([B.y0,B.y1]).filter(v=>v>=B.y0-tol&&v<=B.y1+tol), tol);
+    const g1=fpx(26), g2=fpx(52);
+    dimChain(xs, B.y0, true,  -1, g1);            // segments above
+    dimChain([B.x0,B.x1], B.y0, true,  -1, g2);   // overall above
+    dimChain(ys, B.x0, false, -1, g1);            // segments left
+    dimChain([B.y0,B.y1], B.x0, false, -1, g2);   // overall left
+    dimChain([B.x0,B.x1], B.y1, true,   1, g1);   // overall below
+    dimChain([B.y0,B.y1], B.x1, false,  1, g1);   // overall right
+  }
 
   // ================= 水電符號庫 =================
   // Electrical / plumbing symbols for the 水電插座 layer, drawn to the conventions
