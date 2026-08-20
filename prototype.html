@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>房東智慧收租</title>
 <style>
 :root{
@@ -20,8 +20,19 @@ body{
 .num{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
 .serif{font-family:"Noto Serif TC","Songti TC","PMingLiU",serif;}
 
-#phone{max-width:460px;margin:0 auto;min-height:100vh;background:var(--paper);
+#phone{width:100%;max-width:460px;margin:0 auto;background:var(--paper);
+  min-height:100vh;min-height:100dvh;
   position:relative;display:flex;flex-direction:column;box-shadow:0 0 60px rgba(0,0,0,.5);}
+/* 平板／電腦：欄寬放大，字再大一級，維持單欄直式（規格禁止兩欄並排） */
+@media(min-width:768px){
+  body{font-size:20px;}
+  #phone{max-width:560px;min-height:100vh;}
+  main{padding:18px 16px 130px;}
+  .big{font-size:56px;} .todo .amt{font-size:38px;}
+}
+@media(min-width:1200px){ #phone{max-width:600px;} }
+/* LINE／FB 內嵌瀏覽器：底部工具列會蓋住，多留空間 */
+@supports(-webkit-touch-callout:none){ main{padding-bottom:150px;} }
 
 header{background:var(--ink);color:#fff;padding:16px 14px 14px;
   display:flex;flex-direction:column;gap:14px;position:sticky;top:0;z-index:40;}
@@ -138,7 +149,7 @@ label.fl{display:block;font-size:17px;font-weight:700;color:var(--mute);margin:4
 .chip{font-family:inherit;font-size:20px;font-weight:700;padding:15px 18px;border-radius:12px;
   border:2px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;line-height:1.25;text-align:left;}
 .chip.on{border-color:var(--ink);background:var(--ink);color:#fff;}
-.chip small{display:block;font-size:14px;font-weight:600;opacity:.7;margin-top:3px;}
+.chip small{display:block;font-size:16px;font-weight:600;opacity:.75;margin-top:3px;}
 .bignum{font-family:ui-monospace,Menlo,monospace;font-size:52px;font-weight:700;text-align:center;
   border:0;border-bottom:3px solid var(--ink);border-radius:0;padding:8px 0 12px;margin:10px 0 22px;}
 .wizbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;
@@ -172,9 +183,11 @@ label.fl{display:block;font-size:17px;font-weight:700;color:var(--mute);margin:4
 .wcard.pick{border-color:var(--ink);}
 .wcard b{display:block;font-size:24px;margin-bottom:6px;}
 .wcard span{font-size:17px;color:var(--mute);line-height:1.65;}
-.protobar{background:#22364C;color:rgba(255,255,255,.75);font-size:14px;
+.protobar{background:#22364C;color:rgba(255,255,255,.82);font-size:16px;
   text-align:center;padding:7px 12px;line-height:1.4;}
 .protobar b{color:#fff;}
+@media(min-width:768px){ nav,.wizbar{max-width:560px;} }
+@media(min-width:1200px){ nav,.wizbar{max-width:600px;} }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 </style>
 </head>
@@ -267,6 +280,8 @@ function startDemo(){
     {id:'t1',kind:'pay',who:'王大明',room:'復興南路 2F · A1',hid:'h1',amt:12000,note:'8/18 轉帳 · 末五碼 88213',acct:'台銀-收租專用'},
     {id:'t2',kind:'pay',who:'陳怡君',room:'復興南路 2F · A2',hid:'h1',amt:23650,note:'8/19 轉帳 · 末五碼 40167',acct:'台銀-收租專用'},
     {id:'t3',kind:'pay',who:'林淑芬',room:'復興南路 2F · A3',hid:'h1',amt:15000,note:'8/19 現金 · 房東代為登記',acct:'現金'},
+    {id:'t9',kind:'overdue',who:'李文華 8 月租金逾期',room:'復興南路 2F · A3',hid:'h1',amt:10800,days:9,
+     note:'8/5 到期 · 系統已催 4 次，房客都沒回應'},
     {id:'t4',kind:'fix',who:'浴室水管維修',room:'復興南路 2F · A2',hid:'h1',amt:3500,note:'代管回報 · 阿明水電行報價'},
     {id:'t5',kind:'renew',who:'王大明 租約 60 天後到期',room:'復興南路 2F · A1',hid:'h1',amt:12000,note:'10/19 到期 · 現行月租 $12,000'},
     {id:'t6',kind:'lag',who:'代管未回報',room:'復興南路 2F · A2 點交',hid:'h1',amt:0,note:'安心包租代管已 3 天未回報'}
@@ -308,9 +323,12 @@ function totals(p){
   });
   return {i,e};
 }
+/* 未收＝還沒按〔確認收到〕的款項 ＋ 房客根本還沒繳的（逾期）
+   按了確認之後這個數字要立刻跟著降，不然房東會覺得系統在騙他 */
 function unpaidTotal(){
-  return S.houses.flatMap(x=>x.rooms).filter(r=>r.tenant).reduce((a,r)=>a+r.rent,0)
-       - S.todos.filter(t=>t.kind==='pay').reduce((a,t)=>a+t.amt,0);
+  return S.todos
+    .filter(t=>(t.kind==='pay'||t.kind==='overdue') && S.stamped[t.id]!=='done' && S.stamped[t.id]!=='gone')
+    .reduce((a,t)=>a+t.amt,0);
 }
 
 /* ---------- 工具 ---------- */
@@ -410,6 +428,15 @@ function homeLandlord(){
           <button class="b ghost" onclick="resolve('${t.id}','已標記不續約，到期前 30 天提醒你安排點交')">不續約</button>
         </div>`;
     }
+    if(t.kind==='overdue'){
+      h += `<div class="who"><span class="tag tag-fix">逾期 ${t.days} 天</span>${t.who}</div>
+        <div class="amt num neg">${money(t.amt)}</div>
+        <div class="meta">${t.room}<br>${t.note}</div>
+        <div class="acts">
+          <button class="b ghost" onclick="go('od-${t.id}')">看處理方式</button>
+          <button class="b ghost" onclick="resolve('${t.id}','已標記為收到，帳單結清')">他繳了</button>
+        </div>`;
+    }
     if(t.kind==='refund'){
       h += `<div class="who"><span class="tag tag-warn">要退款</span>${t.who}</div>
         <div class="amt num neg">${money(t.amt)}</div>
@@ -476,9 +503,6 @@ function undo(){
   S.undo.ids.forEach(i=>delete S.stamped[i]);
   (S.undo.inc||[]).forEach(([hid,a])=>applyIncome(hid,-a));
   S.undo=null; render(); toast('已復原');
-}
-function logIncome(t){
-  addLedger({hid:t.hid,room:t.room,subject:'租金 · '+t.who,amt:t.amt,type:'income',src:'rent'});
 }
 function applyIncome(hid,amt){
   const x=S.houses.find(a=>a.id===hid); if(!x) return;
@@ -603,6 +627,43 @@ function houseDetail(id){
 
   if(!x.manager) h += `<button class="b wide ghost" style="font-size:18px;border-color:var(--line);color:var(--mute)"
     onclick="toast('委託之後，代管做的每一件事都要打勾回報給你。你自己管的房子不會出現這一塊。')">要委託代管嗎？</button>`;
+  return h;
+}
+
+function overdueScreen(id){
+  const t=S.todos.find(x=>x.id===id); if(!t) return '<div class="card"><div class="empty"><b>已結案</b></div></div>';
+  const steps=[
+    [-3,'到期前 3 天','提醒房客','房客','done'],
+    [0,'到期當天','再提醒一次','房客','done'],
+    [1,'逾期 1 天','開始催繳','房客','done'],
+    [3,'逾期 3 天','加強催繳，同時通知你','房客＋你','done'],
+    [7,'逾期 7 天','變成你的待辦（就是現在這件）','你','done'],
+    [15,'逾期 15 天','給你存證信函範本，姓名地址金額自動帶好','你','next'],
+    [30,'逾期 30 天','告訴你可以終止租約的條件與程序','你','wait']
+  ];
+  let h=`<div class="card"><div class="card-b">
+    <div style="font-size:26px;font-weight:700">${t.who}</div>
+    <div class="big num neg" style="margin:8px 0">${money(t.amt)}</div>
+    <div class="meta">${t.room} · ${t.note}</div></div></div>`;
+
+  h+=`<div class="card"><div class="card-h">系統怎麼往前推 <span class="sub">你不用盯</span></div><div class="card-b">`;
+  steps.forEach(([d,when,what,who,st])=>{
+    const cur = t.days>=d && st==='done';
+    const mark = cur?'✅':(st==='next'?'⏭':'⏳');
+    const c = cur?'':(st==='next'?'neg':'sys');
+    h+=`<div class="row"><div class="k ${c}">${mark} ${when}<small>${what} · 通知${who}</small></div></div>`;
+  });
+  h+=`<div class="meta">這些天數你都可以自己調。系統會一路自己走，不會停在原地等你。</div></div></div>`;
+
+  if(t.days>=15){
+    h+=`<button class="b wide" onclick="toast('存證信函已產生，姓名、地址、欠繳期數與金額都帶好了，可下載列印。')">下載存證信函範本</button><div style="height:12px"></div>`;
+  } else {
+    h+=`<div class="notice">📮 <div><b>再 ${15-t.days} 天可以出存證信函</b><br>到那天系統會自動幫你把姓名、地址、欠繳期數與金額都填好，你直接下載列印。</div></div>`;
+  }
+  h+=`<button class="b wide ghost" onclick="toast('已再傳一次催繳給房客')">再催他一次</button>
+    <div style="height:12px"></div>
+    <button class="b wide ghost" onclick="toast('之後改成逾期 5 天才通知你（示範）')">調整催繳天數</button>
+    <div class="notice info" style="margin-top:16px">存證信函與法律提示是<b>參考範本，不是法律意見</b>，必要時請諮詢專業人士。</div>`;
   return h;
 }
 
@@ -1202,6 +1263,7 @@ function render(){
     else if(s==='edit') title='改這一筆';
     else if(s==='trash') title='已刪除的紀錄';
     else if(s==='diff') title='多退少補';
+    else if(s.startsWith('od-')) title='逾期處理';
   }
   $('#hleft').innerHTML = showBack
     ? `<span class="back" onclick="back()">‹ 返回</span><span class="ttl">${title}</span>`
@@ -1225,6 +1287,7 @@ function render(){
     else if(s==='edit') h=editScreen();
     else if(s==='trash') h=trashScreen();
     else if(s==='diff') h=diffScreen();
+    else if(s.startsWith('od-')) h=overdueScreen(s.slice(3));
   }
   else if(S.tab==='home') h=homeLandlord();
   else if(S.tab==='house') h=houseList();
