@@ -403,6 +403,8 @@ input.num,td input{font-family:var(--mono);text-align:right}
    ============================================================ */
 body.mob{overflow:hidden}
 body.mob #rail,body.mob #topbar{display:none}
+body.welcome #rail,body.welcome #topbar{display:none}
+body.welcome #screen{zoom:1;overflow-y:auto}
 body.mob #screen{padding:0;-webkit-overflow-scrolling:touch}
 body.mob #main{width:100%}
 
@@ -524,7 +526,7 @@ select.mh-case{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.or
 /* 估價：空間橫捲 */
 .mchips{display:flex;gap:7px;overflow-x:auto;padding:12px 0 4px;margin:0 -15px;padding-left:15px;padding-right:15px}
 .mchip{
-  flex:0 0 auto;padding:8px 13px;border-radius:20px;border:1px solid var(--line);
+  flex:0 0 auto;padding:9px 14px;border-radius:20px;border:1px solid var(--line);
   background:var(--card);font-size:14px;white-space:nowrap;display:flex;align-items:center;gap:6px;
 }
 .mchip.sp{border-style:dashed}
@@ -584,10 +586,10 @@ select.mh-case{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.or
 .mp-h .num{font-size:13.5px;color:var(--ink-3);font-weight:600}
 .mpost p{font-size:14px;line-height:1.75;margin-bottom:10px}
 .mp-f{font-size:12.5px;color:var(--ink-3);margin-top:8px}
-.mphotos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.mphotos.sm{grid-template-columns:repeat(4,1fr);max-width:220px}
+.mphotos{display:grid;grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:6px}
+.mphotos.sm{grid-template-columns:repeat(auto-fit,minmax(52px,1fr));max-width:240px}
 
-.mkpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.mkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:9px;margin-top:12px}
 .mkpi{border:1px solid var(--line);border-radius:var(--r);padding:12px 13px}
 .mkpi span{display:block;font-size:12.5px;color:var(--ink-3)}
 .mkpi b{display:block;font-size:19px;margin-top:3px}
@@ -639,7 +641,7 @@ body.mob #toast{bottom:auto;top:16px}
 .tdo-h b{font-size:15.5px;font-weight:700}
 .tdo-s{font-size:13.5px;color:var(--ink-3);margin-top:5px}
 .tdo-w{font-size:14px;line-height:1.7;margin-top:8px;padding:9px 11px;background:var(--paper-2);border-radius:var(--r)}
-.tdo-m{display:flex;flex-wrap:wrap;gap:18px;margin-top:11px}
+.tdo-m{display:flex;flex-wrap:wrap;gap:14px 20px;margin-top:11px}
 .tdo-m span{display:flex;flex-direction:column;gap:1px}
 .tdo-m em{font-style:normal;font-size:12.5px;color:var(--ink-3)}
 .tdo-m b{font-size:15.5px}
@@ -678,6 +680,54 @@ body.mob #toast{bottom:auto;top:16px}
 .trk-b{padding:6px 12px;border:1px solid var(--line);border-radius:20px;font-size:13px;background:var(--card)}
 .trk-b:active{background:var(--paper-2)}
 .trk-f{font-size:12.5px;color:var(--ink-4);padding:11px 0 4px;line-height:1.7;border-top:1px solid var(--line-2)}
+
+/* ---- 字級縮放：手機整頁放大，像瀏覽器縮放一樣重排 ---- */
+body.mob #screen{zoom:var(--z,1.5)}
+
+/* ---- 開始畫面 ---- */
+.wel{max-width:640px;margin:0 auto;padding:34px 20px 60px}
+.wel-top{margin-bottom:32px}
+.wel-mark{font-family:var(--cond);font-weight:700;font-size:26px;letter-spacing:.06em;
+  display:flex;align-items:center;gap:9px;color:var(--ink)}
+.wel-mark i{width:19px;height:19px;background:var(--amber);display:inline-block;
+  clip-path:polygon(50% 0,100% 100%,0 100%)}
+.wel-sub{font-size:14px;color:var(--ink-3);margin-top:4px}
+.wel-h{font-size:27px;margin-bottom:8px}
+.wel-p{font-size:15px;color:var(--ink-3);margin-bottom:24px;line-height:1.75}
+.wel-c{display:flex;gap:16px;width:100%;text-align:left;background:var(--card);
+  border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:14px;transition:.14s}
+.wel-c:hover{border-color:var(--ink-3)}
+.wel-c.a{border-color:var(--ink);border-width:2px;padding:19px}
+.wel-ci{width:48px;height:48px;flex:0 0 48px;border-radius:var(--r);background:var(--paper);
+  display:grid;place-items:center;font-size:22px;color:var(--ink-2)}
+.wel-c.a .wel-ci{background:var(--ink);color:var(--amber)}
+.wel-ct{flex:1;min-width:0}
+.wel-ct b{display:block;font-size:18px;margin-bottom:6px}
+.wel-ct span{display:block;font-size:14px;color:var(--ink-3);line-height:1.75}
+.wel-ct em{display:inline-block;font-style:normal;font-size:13px;font-weight:500;
+  margin-top:10px;padding:3px 10px;border-radius:20px;background:var(--paper);color:var(--ink-2)}
+.wel-c.a .wel-ct em{background:var(--amber-bg);color:var(--amber-dk)}
+.wel-f{font-size:13.5px;color:var(--ink-4);line-height:1.75;margin-top:22px;
+  padding-top:18px;border-top:1px solid var(--line)}
+
+/* ---- 頂列的模式標記與工具鈕 ---- */
+.mh-tools{display:flex;gap:7px;align-items:center}
+.mh-t{width:36px;height:36px;flex:0 0 36px;border-radius:50%;background:rgba(255,255,255,.13);
+  color:#fff;font-size:14px;font-weight:600;display:grid;place-items:center}
+.modetag{font-size:12px;padding:2px 9px;border-radius:20px;background:rgba(255,255,255,.15);color:#fff}
+.modetag.blank{background:var(--amber);color:var(--ink);font-weight:600}
+
+/* 桌機頂列 */
+.dk-tools{display:flex;gap:8px;align-items:center;margin-left:auto}
+
+/* 字級選單 */
+.zrow{display:flex;align-items:center;gap:12px;width:100%;padding:15px 16px;
+  text-align:left;border-bottom:1px solid var(--line-2)}
+.zrow.on{background:var(--amber-bg)}
+.zrow .zs{flex:1}
+.zrow .zn{font-weight:500}
+.zrow .ze{color:var(--ink-3);font-size:13px}
+.zrow .zt{color:var(--green);font-size:17px}
 
 </style>
 </head>
@@ -860,7 +910,7 @@ const CASES = {
   c2:{
     id:'c2',code:'A-2412',n:'內湖 陳宅',addr:'台北市內湖區洲子街',ping:45,
     owner:{n:'陳映如',tel:'0937-882-114'},pm:'蔡明宏',designer:'周郁婷',
-    status:'估價中',start:'',end:'',paused:null,
+    status:'估價中',start:'',end:'',paused:null,quoteSentAt:'2026-08-05',
     spaces:['客廳','餐廳','廚房','主臥','次臥一','次臥二','書房','主浴','客浴','全室','雜項'],
     lines:[
       {sp:'客廳',it:'D05',q:5},{sp:'客廳',it:'D13',q:12},{sp:'客廳',it:'F01',q:10},
@@ -948,7 +998,7 @@ const ORDERS = [
   {id:'o2',cid:'c1',cat:'F',crew:'cw2',amt:214600,state:'施工中',accepted:'2026-07-14',
    stages:[{s:1,n:'天花隔間',in:'2026-07-21',out:'2026-08-14',done:true},
            {s:2,n:'木作收尾',in:'2026-09-01',out:'2026-09-12',done:false}]},
-  {id:'o3',cid:'c1',cat:'I',crew:'cw3',amt:243000,state:'待工班接受',accepted:'',
+  {id:'o3',cid:'c1',cat:'I',crew:'cw3',amt:243000,state:'待工班接受',accepted:'',sent:'2026-08-12',
    stages:[{s:1,n:'櫃體進場',in:'2026-08-25',out:'2026-09-10',done:false},
            {s:2,n:'門片五金',in:'2026-09-11',out:'2026-09-18',done:false}]},
   {id:'o4',cid:'c1',cat:'G',crew:null,amt:0,state:'未發包',accepted:'',stages:[]},
@@ -1108,7 +1158,8 @@ function railHTML(){
 function topbarHTML(){
   const cs = CS();
   if(S.role==='co'){
-    const opts = Object.values(CASES).map(c=>`<option value="${c.id}" ${c.id===S.caseId?'selected':''}>${c.n}</option>`).join('');
+    const opts = Object.values(CASES).filter(c=>S.mode==='blank'?c.id==='blank':c.id!=='blank')
+      .map(c=>`<option value="${c.id}" ${c.id===S.caseId?'selected':''}>${c.n||'（未命名案場）'}</option>`).join('');
     const t = totals(cs);
     return `
       <button id="burger" data-act="rail">☰</button>
@@ -1117,8 +1168,10 @@ function topbarHTML(){
         <select data-act="case">${opts}</select>
       </div>
       ${cs.paused?`<span class="pill r"><span class="dot"></span>暫停中</span>`:`<span class="pill ${cs.status==='施工中'?'b':cs.status==='已交屋'?'g':'a'}"><span class="dot"></span>${cs.status}</span>`}
+      <button class="pill ${S.mode==='blank'?'a':''}" data-act="modeswitch" style="margin-left:8px">${S.mode==='blank'?'我自己建的':'範例'}</button>
+      <button class="btn sm" data-act="gohome">試用選項</button>
       <div class="topmeta">
-        <div class="kv"><div class="k">業主</div><div class="v">${cs.owner.n}</div></div>
+        <div class="kv"><div class="k">業主</div><div class="v">${cs.owner.n||'—'}</div></div>
         <div class="kv"><div class="k">總負責人</div><div class="v">${cs.pm}</div></div>
         <div class="kv"><div class="k">合約金額</div><div class="v num">${NT(t.revenue)}</div></div>
       </div>`;
@@ -3125,7 +3178,7 @@ const ACT = {
     const g=byCat(CS()).find(x=>x.c===cat);
     let o=orderOf(S.caseId,cat);
     if(!o){o={id:uid('o'),cid:S.caseId,cat,crew:null,amt:0,state:'未發包',accepted:'',stages:[]};ORDERS.push(o);}
-    o.crew=cid;o.amt=g.cost;o.state='待工班接受';
+    o.crew=cid;o.amt=g.cost;o.state='待工班接受';o.sent=TODAY;
     o.stages=(STAGES[cat]||[{s:1,n:'單一階段'}]).map(s=>({...s,in:'',out:'',done:false}));
     S.modal=null;toast(`已發包給 ${crew(cid).n}，等對方接受`);render()},
   changecrew:v=>{S.modal={t:'changecrew',cat:v};render()},
@@ -3145,6 +3198,86 @@ document.addEventListener('click',e=>{
     S.railOpen=false; render();
   }
 },true);
+
+/* ============================================================
+   字級縮放 · 試用模式
+   ============================================================ */
+S.zoom = 1.5;                  // 手機預設就放大
+S.mode = localStorageSafe('mode') || null;   // null=尚未選擇 / demo / blank
+
+function localStorageSafe(){ return null; }  // 原型不落地，重整回到選擇畫面
+
+const ZOOMS = [['標準',1.0],['大',1.25],['特大',1.5],['加倍',2.0]];
+
+/* ---- 空白案場 ---- */
+function makeBlankCase(){
+  CASES.blank = {
+    id:'blank', code:'A-'+String(2400+Math.floor(Math.random()*99)), n:'', addr:'', ping:0,
+    owner:{n:'',tel:''}, pm:'', designer:'周郁婷',
+    status:'建立中', start:'', end:'', paused:null,
+    spaces:[], lines:[], fees:[],
+    terms:[{n:'簽約',pct:30,trig:'合約成立',done:false,date:''},
+           {n:'工程進場',pct:40,trig:'首個大類開工',done:false,date:''},
+           {n:'完工驗收',pct:30,trig:'全案驗收通過',done:false,date:''}],
+    contract:{signed:false},
+  };
+}
+
+/* ---- 空白模式的引導待辦：一步一步把人帶著走 ---- */
+function todoSetup(cs){
+  const T=[];
+  if(!cs.n) return [{id:'s1', kind:'第 1 步', ttl:'先填案場基本資料',
+    sub:'案場名稱、地址、坪數、業主聯絡方式', 
+    acts:[['填寫基本資料','newcase','','a']]}];
+  if(!cs.spaces.length) return [{id:'s2', kind:'第 2 步', ttl:'選擇這個案子有哪些空間',
+    sub:'空間是估價的骨架。之後每個品項都掛在空間上，工班才不會做錯位置',
+    acts:[['選擇空間','spacetpl','','a']]}];
+  if(!cs.lines.length) return [{id:'s3', kind:'第 3 步', ttl:'開始估價',
+    sub:`已建立 ${cs.spaces.length} 個空間。挑一個空間，加入品項就會自動算出業主售價與工班成本`,
+    acts:[['開始估價','openest','','a']]}];
+  if(!cs.contract.signed) T.push({id:'s4', kind:'第 4 步', ttl:'把估價單送給業主確認',
+    sub:`目前 ${cs.lines.length} 個項目，合計 ${NT(totals(cs).revenue)}。業主按同意即視同合約成立`,
+    acts:[['送出給業主','sendest','','a'],['繼續估價','openest','','']]});
+  return T;
+}
+
+/* ============================================================
+   開始畫面
+   ============================================================ */
+function welcomeHTML(){
+  return `<div class="wel">
+    <div class="wel-top">
+      <div class="wel-mark"><i></i>SITELINE</div>
+      <div class="wel-sub">裝修工程協作平台</div>
+    </div>
+    <h1 class="wel-h">要怎麼試用？</h1>
+    <p class="wel-p">兩種方式分開，不會互相干擾。隨時可以在右上角切換。</p>
+
+    <button class="wel-c a" data-act="mode" data-v="demo">
+      <div class="wel-ci">▣</div>
+      <div class="wel-ct">
+        <b>看填好的範例</b>
+        <span>一個施工到 62% 的真實案子：大安王宅、32 坪、四個工班在場、有追加單、有缺失、有待收款。<br>
+        想看整套系統長什麼樣、跑起來是什麼感覺，選這個。</span>
+        <em>資料都填好了，直接看</em>
+      </div>
+    </button>
+
+    <button class="wel-c" data-act="mode" data-v="blank">
+      <div class="wel-ci">＋</div>
+      <div class="wel-ct">
+        <b>自己建一個，從頭走一次</b>
+        <span>空白開始：填案場資料 → 選空間 → 估價 → 送業主 → 發包 → 施工拍照 → 請款。<br>
+        想知道實際操作順不順手、要點幾下才能完成一件事，選這個。</span>
+        <em>系統會一步一步帶你走</em>
+      </div>
+    </button>
+
+    <div class="wel-f">
+      兩邊都可以隨時切換身分，用設計公司、工班、業主三種角度看同一件事。
+    </div>
+  </div>`;
+}
 
 /* ============================================================
    追蹤層 — 等對方的事，系統盯著
@@ -3181,19 +3314,19 @@ function trackState(ruleKey, since){
 /* 蒐集這個身分正在等誰 */
 function tracksCo(cs){
   const K=[];
-  if(!cs.contract.signed && cs.status==='估價中')
-    K.push({k:'quote', who:cs.owner.n, what:'確認估價單', since:'2026-08-05', act:['催確認','toast','已再次通知業主']});
+  if(!cs.contract.signed && cs.quoteSentAt)
+    K.push({k:'quote', who:cs.owner.n, what:'確認估價單', since:cs.quoteSentAt, act:['催確認','toast','已再次通知業主']});
   ADDONS.filter(a=>a.cid===cs.id&&a.state==='待業主確認').forEach(a=>
     K.push({k:'addon', who:cs.owner.n, what:`確認追加 ${item(a.it).n} × ${a.q}`, since:a.date,
-            act:['催確認','toast','已再次通知業主']}));
+            ref:a, fld:'date', act:['催確認','toast','已再次通知業主']}));
   OWNER_BILLS.filter(b=>b.cid===cs.id&&b.state==='待收款').forEach(b=>
-    K.push({k:'ownpay', who:cs.owner.n, what:`支付 ${b.term} 款`, since:b.issue,
+    K.push({k:'ownpay', who:cs.owner.n, what:`支付 ${b.term} 款`, since:b.issue, ref:b, fld:'issue',
             amt:totals(cs).revenue*b.pct/100*1.05, act:['催款','toast','已發出付款提醒']}));
   ordersOf(cs.id).filter(o=>o.state==='待工班接受').forEach(o=>
-    K.push({k:'accept', who:crew(o.crew).n, what:`接受 ${catName(o.cat)} 發包`, since:'2026-08-12',
-            amt:o.amt, act:['催回覆','toast','已再次通知工班']}));
+    K.push({k:'accept', who:crew(o.crew).n, what:`接受 ${catName(o.cat)} 發包`, since:o.sent||TODAY,
+            ref:o, fld:'sent', amt:o.amt, act:['催回覆','toast','已再次通知工班']}));
   DEFECTS.filter(d=>d.cid===cs.id&&d.state==='待修繕').forEach(d=>
-    K.push({k:'fix', who:'施工工班', what:`改善 ${d.sp} 缺失`, since:d.due,
+    K.push({k:'fix', who:'施工工班', what:`改善 ${d.sp} 缺失`, since:d.due, ref:d, fld:'due',
             act:['催修','toast','已催修並通知工班']}));
   return K.map(x=>({...x, t:trackState(x.k,x.since)}));
 }
@@ -3201,10 +3334,10 @@ function tracksCrew(){
   const K=[];
   CREW_BILLS.filter(b=>b.crew===CREW_ME&&b.state==='待付款').forEach(b=>
     K.push({k:'crewpay', who:'亞恆室內設計', what:`支付 ${catName(b.cat)} ${b.stage} 工程款`,
-            since:b.accept, amt:(b.base+b.addon)*b.pct/100,
+            since:b.accept, ref:b, fld:'accept', amt:(b.base+b.addon)*b.pct/100,
             act:['提醒付款','toast','已提醒設計公司']}));
   ADDONS.filter(a=>a.crew===CREW_ME&&a.state==='待設計師處理').forEach(a=>
-    K.push({k:'addon', who:'亞恆室內設計', what:`審核追加 ${item(a.it).n}`, since:a.date,
+    K.push({k:'addon', who:'亞恆室內設計', what:`審核追加 ${item(a.it).n}`, since:a.date, ref:a, fld:'date',
             act:['提醒審核','toast','已提醒設計師']}));
   return K.map(x=>({...x, t:trackState(x.k,x.since)}));
 }
@@ -3217,17 +3350,20 @@ function tracksOwner(){
 const TRACKS = () => S.role==='co'?tracksCo(CS()):S.role==='crew'?tracksCrew():tracksOwner();
 
 /* 升級成待辦的那些 */
+const DEFERS = {};
 function escalated(){
-  return TRACKS().filter(x=>x.t.escalate).map(x=>({
+  return TRACKS().filter(x=>x.t.escalate).map((x,i)=>{
+    const dk = 'd'+i+x.k; DEFERS[dk]=x;
+    return {
     id:'esc_'+x.k+x.who, kind:'催辦',
     ttl:`${x.who} 遲遲沒有回應`,
     sub:`等對方${x.what} · 已等 ${x.t.days} 天，系統自動提醒 ${x.t.nudges} 次都沒有動靜`,
     meta:[['已等待',`${x.t.days} 天`],['自動提醒',`${x.t.nudges} 次`]]
       .concat(x.amt?[['金額',NT(x.amt)]]:[]),
-    acts:[['打電話聯絡','toast','已開啟撥號'],
+    acts:[['打電話聯絡','toast',`已開啟撥號 ${x.who}`],
           ['傳 LINE 訊息','chat',''],
-          ['展延期限','toast','已展延，重新開始追蹤']]
-  }));
+          ['展延期限','defer',dk]]
+  };});
 }
 
 /* ---- 追蹤區塊 ---- */
@@ -3265,7 +3401,9 @@ function trackBlock(){
 
 /* 設計公司：只有「非我決定不可」的才進來 */
 function todoCo(cs){
-  const T=[];
+  const setup = (S.mode==='blank') ? todoSetup(cs) : [];
+  if(setup.length && (!cs.n||!cs.spaces.length||!cs.lines.length)) return setup;
+  const T=[...setup];
 
   // 決定：追加單怎麼處理
   ADDONS.filter(a=>a.cid===cs.id&&a.state==='待設計師處理').forEach(a=>{
@@ -3280,8 +3418,8 @@ function todoCo(cs){
             ['駁回','addon',`${a.id}:reject`,'d']]});
   });
 
-  // 決定：誰來做
-  byCat(cs).forEach(g=>{
+  // 決定：誰來做（合約成立後才輪到這一步）
+  if(cs.contract.signed) byCat(cs).forEach(g=>{
     const o=orderOf(cs.id,g.c);
     if(!o||!o.crew) T.push({id:'aw'+g.c, kind:'決定', ttl:`${g.c} ${catName(g.c)} 還沒發包`,
       sub:`估價已展開 ${Object.keys(g.items).length} 項工作，等你指定工班`,
@@ -3324,7 +3462,7 @@ function todoCo(cs){
   });
 
   // 決定：暫停中的案子要不要復工
-  if(cs.paused) T.push({id:'pz', kind:'決定', ttl:`案場暫停中，等你決定復工`,
+  if(cs.paused && cs.n) T.push({id:'pz', kind:'決定', ttl:`案場暫停中，等你決定復工`,
     sub:`自 ${cs.paused.date} · 提出方 ${cs.paused.by}`, why:cs.paused.reasonOwner,
     acts:[['復工並順延工期','resume','','a']]});
 
@@ -3931,23 +4069,30 @@ function renderMobile(){
   const head = S.role==='co' ? `
     <div class="mh-top">
       <select class="mh-case" data-act="case">
-        ${Object.values(CASES).map(c=>`<option value="${c.id}" ${c.id===S.caseId?'selected':''}>${c.n}</option>`).join('')}
+        ${Object.values(CASES).filter(c=>S.mode==='blank'?c.id==='blank':c.id!=='blank')
+            .map(c=>`<option value="${c.id}" ${c.id===S.caseId?'selected':''}>${c.n||'（未命名案場）'}</option>`).join('')}
       </select>
-      <button class="mh-role" data-act="rolesheet">${r.av}</button>
+      <div class="mh-tools">
+        <button class="mh-t" data-act="zoomsheet">Aa</button>
+        <button class="mh-role" data-act="rolesheet">${r.av}</button>
+      </div>
     </div>
     <div class="mh-sub">
+      <button class="modetag ${S.mode==='blank'?'blank':''}" data-act="modeswitch">${S.mode==='blank'?'我自己建的':'範例'}</button>
       <span class="num">${cs.code}</span>
       ${cs.paused?'<span class="pill r">暫停中</span>':`<span class="pill ${cs.status==='施工中'?'b':cs.status==='已交屋'?'g':'a'}">${cs.status}</span>`}
       <span class="muted">${cs.owner.n} · ${cs.ping}坪</span>
     </div>`
   : S.role==='crew' ? `
     <div class="mh-top"><b class="mh-case">大呈水電工程行</b>
-      <button class="mh-role" data-act="rolesheet">${r.av}</button></div>
+      <div class="mh-tools"><button class="mh-t" data-act="zoomsheet">Aa</button>
+        <button class="mh-role" data-act="rolesheet">${r.av}</button></div></div>
     <div class="mh-sub"><span class="pill k">★ 平台指定合作廠商</span>
       <span class="muted">在建 3 案 · 待收 ${NT(170560)}</span></div>`
   : `
-    <div class="mh-top"><b class="mh-case">大安 王宅</b>
-      <button class="mh-role" data-act="rolesheet">${r.av}</button></div>
+    <div class="mh-top"><b class="mh-case">${S.mode==='blank'?(CASES.blank&&CASES.blank.n||'我的家'):'大安 王宅'}</b>
+      <div class="mh-tools"><button class="mh-t" data-act="zoomsheet">Aa</button>
+        <button class="mh-role" data-act="rolesheet">${r.av}</button></div></div>
     <div class="mh-sub"><span class="pill b">施工中 62%</span>
       <span class="muted">預計 09／30 交屋</span></div>`;
 
@@ -3980,6 +4125,15 @@ function renderMobile(){
 const _render = render;
 render = function(){
   document.body.classList.toggle('mob', S.mobile);
+  document.documentElement.style.setProperty('--z', S.zoom);
+  document.body.classList.toggle('welcome', !S.mode);
+  if(!S.mode){
+    document.getElementById('rail').innerHTML='';
+    document.getElementById('topbar').innerHTML='';
+    document.getElementById('screen').innerHTML = welcomeHTML();
+    document.getElementById('modalRoot').innerHTML = S.modal ? modalHTML() : '';
+    return;
+  }
   if(S.mobile){ renderMobile(); return; }
   _render();
 };
@@ -4000,6 +4154,38 @@ Object.assign(ACT,{
   rolesheet:()=>{S.modal={t:'roles'};render()},
   mkopen:()=>{S.modal={t:'markup'};render()},
   trackrule:()=>{S.modal={t:'trackrule'};render()},
+  defer:v=>{const x=DEFERS[v];
+    if(x&&x.ref&&x.fld){ x.ref[x.fld]=TODAY; toast(`已展延，重新開始追蹤 ${x.who}`); }
+    else toast('已展延');
+    render()},
+  mode:v=>{
+    S.mode=v;
+    if(v==='blank'){ if(!CASES.blank) makeBlankCase(); S.caseId='blank'; S.open=new Set(['todo']); }
+    else { S.caseId='c1'; S.open=new Set(['todo']); }
+    S.role='co'; S.route='co/case'; render();
+  },
+  modeswitch:()=>{S.modal={t:'modeswitch'};render()},
+  gohome:()=>{S.mode=null;S.modal=null;render()},
+  restart:()=>{makeBlankCase();S.mode='blank';S.caseId='blank';S.role='co';
+    S.open=new Set(['todo']);S.modal=null;toast('已清空，重新開始');render()},
+  zoomsheet:()=>{S.modal={t:'zoom'};render()},
+  setzoom:v=>{S.zoom=+v;S.modal=null;render()},
+  newcase:()=>{S.modal={t:'newcase'};render()},
+  savecase:()=>{
+    const g=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
+    const cs=CASES.blank;
+    cs.n=g('nc_n')||'我的第一個案場'; cs.addr=g('nc_a'); cs.ping=+g('nc_p')||0;
+    cs.owner={n:g('nc_o')||'業主',tel:g('nc_t')}; cs.pm=g('nc_m')||'我';
+    cs.status='估價中'; S.modal=null; toast('案場建立完成，接著選空間'); render();
+  },
+  openest:()=>{S.modal=null;S.open.add('estimate');render();
+    setTimeout(()=>{const e=document.getElementById('sec-estimate');if(e)e.scrollIntoView({behavior:'smooth',block:'start'})},60)},
+  sendest:()=>{const cs=CS();
+    cs.quoteSentAt=TODAY;
+    cs.contract={signed:true,date:'2026-08-20 '+new Date().toTimeString().slice(0,5),
+      method:'線上簽名＋手機驗證碼',phone:cs.owner.tel||'—',ip:'118.163.44.21'};
+    cs.status='施工中';
+    toast('業主已確認，合約成立。接下來可以發包了');render()},
 });
 
 /* 手機版新增彈窗 */
@@ -4032,6 +4218,46 @@ modalHTML = function(){
         <button class="mbtn a" data-act="closemodal" style="margin-top:14px">完成</button>
       </div>
     </div></div>`;
+  }
+  if(m.t==='zoom'){
+    return `<div class="scrim sheet" data-act="closebg"><div class="msheet" data-act="stop">
+      <div class="msh-h">字體大小<button class="mx" data-act="closemodal">✕</button></div>
+      ${ZOOMS.map(([n,v])=>`<button class="zrow ${S.zoom===v?'on':''}" data-act="setzoom" data-v="${v}">
+        <span style="font-size:${Math.round(15*v)}px;font-weight:600;width:46px">Aa</span>
+        <span class="zs"><span class="zn">${n}</span><span class="ze">整頁放大 ${Math.round(v*100)}%</span></span>
+        ${S.zoom===v?'<span class="zt">✓</span>':''}</button>`).join('')}
+      <div class="msh-n">整頁一起放大，版面會自動重排，不會被切掉。手機預設是「大」。</div>
+    </div></div>`;
+  }
+  if(m.t==='modeswitch'){
+    return `<div class="scrim sheet" data-act="closebg"><div class="msheet" data-act="stop">
+      <div class="msh-h">切換試用模式<button class="mx" data-act="closemodal">✕</button></div>
+      <button class="zrow ${S.mode==='demo'?'on':''}" data-act="mode" data-v="demo">
+        <span style="font-size:19px;width:36px">▣</span>
+        <span class="zs"><span class="zn">看填好的範例</span><span class="ze">大安王宅 · 施工到 62%</span></span>
+        ${S.mode==='demo'?'<span class="zt">✓</span>':''}</button>
+      <button class="zrow ${S.mode==='blank'?'on':''}" data-act="mode" data-v="blank">
+        <span style="font-size:19px;width:36px">＋</span>
+        <span class="zs"><span class="zn">自己建一個</span><span class="ze">${CASES.blank&&CASES.blank.n?CASES.blank.n+' · 進行中':'從空白開始，系統帶你走'}</span></span>
+        ${S.mode==='blank'?'<span class="zt">✓</span>':''}</button>
+      <div class="msh-n">兩邊資料各自獨立，切來切去不會互相影響。<br>
+        選「自己建一個」如果已經有資料，會接續上次；要重來請按下面。</div>
+      <div style="padding:0 16px 22px"><button class="mbtn d" data-act="restart">清空重新開始</button></div>
+    </div></div>`;
+  }
+  if(m.t==='newcase'){
+    return `<div class="scrim sheet" data-act="closebg"><div class="msheet" data-act="stop">
+      <div class="msh-h">新增案場<button class="mx" data-act="closemodal">✕</button></div>
+      <div style="padding:4px 16px 22px;overflow-y:auto">
+        <div class="mfield"><label>案場名稱</label><input id="nc_n" placeholder="例如：大安 王宅"></div>
+        <div class="mfield"><label>地址</label><input id="nc_a" placeholder="例如：台北市大安區敦化南路二段"></div>
+        <div class="mfield"><label>坪數</label><input id="nc_p" class="num" placeholder="32"></div>
+        <div class="mfield"><label>業主姓名</label><input id="nc_o" placeholder="例如：王承翰"></div>
+        <div class="mfield"><label>業主電話</label><input id="nc_t" placeholder="09xx-xxx-xxx"></div>
+        <div class="mfield"><label>案場總負責人</label><input id="nc_m" placeholder="例如：蔡明宏"></div>
+        <button class="mbtn a" data-act="savecase">建立案場</button>
+        <div class="mnote">建立後系統會帶你選空間、估價、送業主確認，一步一步走完。</div>
+      </div></div></div>`;
   }
   if(m.t==='trackrule'){
     return `<div class="scrim sheet" data-act="closebg"><div class="msheet" data-act="stop">
