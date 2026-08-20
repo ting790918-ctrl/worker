@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b46</title>
+<title>PlanPad · 平面圖工具 b47</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -159,7 +159,7 @@
     padding:5px 11px; font-size:12px; color:#4B5158; font-family:inherit;}
   .furn-cats button.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600;}
   .furn-list{display:flex; flex-direction:column; gap:5px; max-height:290px; overflow-y:auto;}
-  .furn-item{display:flex; align-items:baseline; gap:8px; border:1px solid var(--line);
+  .furn-item{display:flex; align-items:center; gap:8px; border:1px solid var(--line);
     background:#fff; border-radius:9px; padding:8px 10px; font-size:13px; color:var(--text);
     font-family:inherit; text-align:left;}
   .furn-item.on{background:var(--accent-soft); border-color:#CDE0EA;}
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b46</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b47</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -3586,19 +3586,25 @@
       if(cat!==ui.mepCat) continue;
       const b=document.createElement('button');
       b.className='furn-item'+(ui.mepPick===kind?' on':'');
-      // a coloured dot said nothing; draw the actual glyph so the list matches
-      // what will land on the plan
+      // A glyph is not centred on its circle: the code sits outside to the lower
+      // right, and the boards carry a caption underneath. Measured across the whole
+      // set the ink runs to 0.48/1.15 of the glyph size left/right and 0.41/0.82
+      // up/down, so the thumbnail is sized and offset to that, with margin — a
+      // square box simply cut the codes off.
+      const EX={l:0.50,r:1.18,t:0.44,b:0.86};
+      const G=22, DPR2=Math.max(1,window.devicePixelRatio||1);
+      const bw=Math.ceil(G*(EX.l+EX.r))+4, bh=Math.ceil(G*(EX.t+EX.b))+4;
       const cv=document.createElement('canvas');
-      const S=30, DPR2=Math.max(1,window.devicePixelRatio||1);
-      cv.width=S*DPR2; cv.height=S*DPR2;
-      cv.style.cssText='width:'+S+'px;height:'+S+'px;flex:0 0 auto;';
+      cv.width=bw*DPR2; cv.height=bh*DPR2;
+      cv.style.cssText='width:'+bw+'px;height:'+bh+'px;flex:0 0 auto;';
       const cg=cv.getContext('2d');
-      cg.scale(DPR2,DPR2); cg.translate(S/2,S/2);
+      cg.scale(DPR2,DPR2);
+      cg.translate(2+G*EX.l, 2+G*EX.t);
       cg.strokeStyle=mepColor(kind); cg.fillStyle='#fff';
-      cg.lineWidth=MEP_LW*(S*0.86/110); cg.lineJoin='round'; cg.lineCap='round';
-      (MEP_SY[kind]||MEP_SY.outlet2)(S*0.86, cg);
+      cg.lineWidth=MEP_LW*(G/110); cg.lineJoin='round'; cg.lineCap='round';
+      (MEP_SY[kind]||MEP_SY.outlet2)(G, cg);
       b.appendChild(cv);
-      const nm=document.createElement('b'); nm.textContent=name; nm.style.marginLeft='8px';
+      const nm=document.createElement('b'); nm.textContent=name; nm.style.marginLeft='6px';
       const hh=document.createElement('span'); hh.textContent='H'+Math.round(toDisp(mepDefH(kind)));
       b.appendChild(nm); b.appendChild(hh);
       b.onclick=()=>{ ui.mepPick=kind; setTool('mep'); syncMepUI();
@@ -3806,7 +3812,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b46';
+  const BUILD='b47';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
