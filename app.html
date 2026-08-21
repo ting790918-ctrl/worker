@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#16283C">
+<title>我的收租</title>
+<style>
+:root{
+  --ink:#16283C; --ink2:#2E4560; --paper:#EBEEF1; --card:#fff; --line:#DCE1E7;
+  --seal:#C0362C; --sealbg:#FBEDEB; --jade:#127A57; --jadebg:#E8F4EF;
+  --mute:#6F7E90; --mutebg:#F1F4F7;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:#0E1926;color:var(--ink);font-size:19px;-webkit-font-smoothing:antialiased;
+  font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+.num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.serif{font-family:"Noto Serif TC","Songti TC","PMingLiU",serif}
+
+#app{width:100%;max-width:460px;margin:0 auto;background:var(--paper);
+  min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;box-shadow:0 0 60px rgba(0,0,0,.5)}
+@media(min-width:768px){body{font-size:20px}#app{max-width:560px}main{padding:18px 16px 130px!important}
+  .big{font-size:56px!important}}
+@media(min-width:1200px){#app{max-width:600px}}
+
+header{background:var(--ink);color:#fff;padding:16px 16px 15px;display:flex;align-items:center;
+  gap:10px;position:sticky;top:0;z-index:40;min-height:62px}
+header .ttl{font-size:25px;font-weight:700}
+header .back{font-size:22px;opacity:.9;cursor:pointer;padding:4px 10px 4px 0}
+header .act{margin-left:auto;font-size:18px;font-weight:700;opacity:.9;cursor:pointer;
+  background:rgba(255,255,255,.14);padding:9px 14px;border-radius:10px}
+main{flex:1;padding:14px 12px 120px}
+@supports(-webkit-touch-callout:none){main{padding-bottom:150px}}
+
+.card{background:var(--card);border-radius:16px;margin-bottom:14px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(22,40,60,.06),0 1px 12px rgba(22,40,60,.05)}
+.ch{display:flex;align-items:baseline;gap:8px;padding:17px 18px 0;font-size:21px;font-weight:700}
+.ch .sub{margin-left:auto;font-size:16px;color:var(--mute);font-weight:600}
+.cb{padding:14px 18px 20px}
+.big{font-size:50px;font-weight:700;line-height:1.05}
+.mid{font-size:29px;font-weight:700;line-height:1.3}
+.meta{font-size:17px;color:var(--mute);margin-top:8px;line-height:1.75}
+.pos{color:var(--jade)}.neg{color:var(--seal)}.sys{color:var(--mute)}
+.hr{height:1px;background:var(--line);margin:14px 0}
+.hr2{height:2px;background:var(--ink);margin:16px 0 14px;opacity:.85}
+
+.row{display:flex;align-items:baseline;gap:10px;padding:12px 0;font-size:19px;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:0}
+.row .k{flex:1;line-height:1.45}
+.row .k small{display:block;color:var(--mute);font-size:15px;margin-top:2px}
+.row .v{font-weight:700;white-space:nowrap}
+.row.tap{cursor:pointer;align-items:center}
+.row .pen{font-size:18px;opacity:.35;padding-left:4px}
+.ico{width:24px;display:inline-block;text-align:center;font-size:17px}
+.tot{display:flex;align-items:baseline;font-size:21px;font-weight:700;padding-top:12px;gap:10px}
+.tot .v{margin-left:auto;font-size:28px}
+
+.item{display:flex;align-items:center;gap:12px;padding:19px 18px;border-top:1px solid var(--line);cursor:pointer}
+.item:first-child{border-top:0}
+.item .t{flex:1;min-width:0}
+.item .t b{font-size:22px;font-weight:700;display:block;line-height:1.35}
+.item .t small{font-size:17px;color:var(--mute);display:block;margin-top:3px;line-height:1.6}
+.item .r{text-align:right;font-weight:700;font-size:23px;white-space:nowrap}
+.item .chev{color:#C3CBD4;font-size:26px}
+
+.due{border-top:1px solid var(--line);padding:18px}
+.due:first-of-type{border-top:0}
+.due .who{font-size:22px;font-weight:700;line-height:1.4}
+.due .amt{font-size:34px;font-weight:700;margin-top:4px;line-height:1.1}
+.tag{font-size:15px;padding:3px 9px;border-radius:6px;font-weight:700;margin-right:8px;display:inline-block;vertical-align:3px}
+.t-due{background:var(--jadebg);color:var(--jade)}
+.t-late{background:var(--sealbg);color:var(--seal)}
+.t-warn{background:#FDF3E2;color:#8A5A0D}
+.acts{display:flex;gap:10px;margin-top:15px}
+
+button.b{font-family:inherit;font-size:21px;font-weight:700;border-radius:12px;padding:16px;
+  border:2px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;flex:1;line-height:1.2}
+button.b.g{background:#fff;color:var(--ink)}
+button.b.d{background:#fff;color:var(--seal);border-color:var(--seal)}
+button.b.w{width:100%}
+button.b:active{transform:scale(.985)}
+.batch{padding:18px;background:var(--ink);color:#fff;display:flex;align-items:center;gap:10px;
+  font-size:21px;font-weight:700;cursor:pointer}
+.batch .n{margin-left:auto;font-size:17px;font-weight:600;opacity:.85}
+
+.stamped{position:relative;background:var(--mutebg)}
+.seal{position:absolute;right:20px;top:50%;width:94px;height:94px;border-radius:50%;border:4px solid var(--seal);
+  color:var(--seal);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;
+  letter-spacing:.12em;opacity:.9;pointer-events:none;animation:st .32s cubic-bezier(.2,1.5,.4,1) forwards}
+@keyframes st{0%{transform:translate(0,-50%) scale(2.4) rotate(-24deg);opacity:0}
+  70%{opacity:1}100%{transform:translate(0,-50%) scale(1) rotate(-13deg);opacity:.9}}
+.undo{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--mutebg);
+  font-size:17px;color:var(--mute);border-top:1px solid var(--line)}
+.undo b{color:var(--jade)}
+.undo button{margin-left:auto;font-family:inherit;font-size:17px;font-weight:700;color:var(--ink);
+  background:#fff;border:2px solid var(--line);border-radius:10px;padding:9px 16px;cursor:pointer}
+
+.empty{padding:34px 18px;text-align:center;color:var(--mute);font-size:18px;line-height:1.6}
+.empty b{display:block;color:var(--ink);font-size:22px;margin-bottom:6px}
+.pill{display:inline-block;font-size:15px;padding:5px 10px;border-radius:7px;background:var(--mutebg);
+  color:var(--mute);font-weight:700;white-space:nowrap}
+.pill.on{background:var(--jadebg);color:var(--jade)}
+.pill.off{background:var(--sealbg);color:var(--seal)}
+
+.seg{display:flex;background:#DFE4EA;border-radius:13px;padding:4px;margin-bottom:14px}
+.seg button{flex:1;border:0;background:transparent;font-family:inherit;font-size:19px;font-weight:700;
+  color:var(--ink2);padding:13px 0;border-radius:10px;cursor:pointer}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(22,40,60,.14)}
+.bar{height:12px;background:#E3E8ED;border-radius:99px;overflow:hidden;margin:12px 0 8px}
+.bar i{display:block;height:100%;background:var(--ink);border-radius:99px}
+
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;
+  background:rgba(255,255,255,.98);border-top:1px solid var(--line);display:flex;
+  padding:9px 0 max(11px,env(safe-area-inset-bottom));z-index:50}
+@media(min-width:768px){nav,.wbar{max-width:560px!important}}
+@media(min-width:1200px){nav,.wbar{max-width:600px!important}}
+nav button{flex:1;border:0;background:transparent;font-family:inherit;cursor:pointer;display:flex;
+  flex-direction:column;align-items:center;gap:4px;color:var(--mute);font-size:15px;font-weight:700}
+nav button .g{font-size:27px;line-height:1}
+nav button.on{color:var(--ink)}
+
+.wiz{padding:6px 4px 0}
+.step{font-size:16px;color:var(--mute);font-weight:700;letter-spacing:.06em;margin-bottom:8px}
+.q{font-size:28px;font-weight:700;line-height:1.4;margin:0 0 6px}
+.hint{font-size:18px;color:var(--mute);line-height:1.65;margin-bottom:20px}
+input,select,textarea{width:100%;font-family:inherit;font-size:23px;color:var(--ink);background:#fff;
+  border:2px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;outline:none}
+input:focus,textarea:focus{border-color:var(--ink)}
+input.num,textarea{font-family:ui-monospace,Menlo,monospace}
+textarea{font-size:19px}
+label.fl{display:block;font-size:17px;font-weight:700;color:var(--mute);margin:4px 0 7px}
+.pre{font-size:16px;color:var(--jade);font-weight:700;margin:-4px 0 16px;line-height:1.5}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.chip{font-family:inherit;font-size:20px;font-weight:700;padding:15px 18px;border-radius:12px;
+  border:2px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;line-height:1.25;text-align:left}
+.chip.on{border-color:var(--ink);background:var(--ink);color:#fff}
+.chip small{display:block;font-size:16px;font-weight:600;opacity:.75;margin-top:3px}
+.bignum{font-family:ui-monospace,Menlo,monospace;font-size:52px;font-weight:700;text-align:center;
+  border:0;border-bottom:3px solid var(--ink);border-radius:0;padding:8px 0 12px;margin:10px 0 22px}
+.wbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;background:#fff;
+  border-top:1px solid var(--line);padding:12px 12px max(14px,env(safe-area-inset-bottom));display:flex;gap:10px;z-index:60}
+
+.note{display:flex;gap:11px;align-items:flex-start;background:#FDF3E2;color:#70490E;border-radius:13px;
+  padding:16px 17px;font-size:17px;line-height:1.65;margin-bottom:14px}
+.note.i{background:var(--mutebg);color:var(--ink2)}
+.note.w{background:var(--sealbg);color:#8A2B22}
+
+#toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:16px 20px;border-radius:13px;font-size:18px;font-weight:600;z-index:99;opacity:0;transition:opacity .2s;
+  pointer-events:none;max-width:400px;width:calc(100% - 32px);text-align:center;line-height:1.55}
+#toast.on{opacity:.97}
+#welcome{padding:34px 22px 40px}
+.wc{background:#fff;border-radius:16px;padding:22px;margin-bottom:14px;cursor:pointer}
+.wc b{font-size:25px;display:block;margin-bottom:8px}
+.wc span{font-size:18px;color:var(--mute);line-height:1.7}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hd"></header>
+  <main id="mn"></main>
+  <nav id="nv"></nav>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   我的收租 · 單機版 v1
+   資料全部存在使用者自己的裝置，不上傳任何地方
+   ══════════════════════════════════════════════════════════ */
+
+const $=s=>document.querySelector(s);
+const money=n=>(n<0?'−$':'$')+Math.abs(Math.round(n)).toLocaleString('en-US');
+const signed=n=>(n<0?'−$':'+$')+Math.abs(Math.round(n)).toLocaleString('en-US');
+const cls=n=>n<0?'neg':'pos';
+const uid=()=>Math.random().toString(36).slice(2,9);
+const today=()=>new Date();
+const ymOf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+const nowYM=()=>ymOf(today());
+const ymAdd=(ym,n)=>{const[y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return ymOf(d);};
+const ymDiff=(a,b)=>{const[y1,m1]=a.split('-').map(Number),[y2,m2]=b.split('-').map(Number);return (y2-y1)*12+(m2-m1);};
+const daysIn=ym=>{const[y,m]=ym.split('-').map(Number);return new Date(y,m,0).getDate();};
+const ymLabel=ym=>{const[y,m]=ym.split('-');return y+' 年 '+Number(m)+' 月';};
+
+/* ───────── 資料 ───────── */
+const KEY='shou-zu-v1';
+let DB, UI={tab:'home',screen:null,wiz:0,tmp:{},period:'month',undo:null,stamp:{}};
+let canSave=true;
+
+function fresh(){
+  return {v:1,started:false,houses:[],rooms:[],bills:[],ledger:[],recurring:[],trash:[],
+          subjUse:{},lastGen:null};
+}
+function save(){
+  if(!canSave||!DB) return;
+  try{ localStorage.setItem(KEY,JSON.stringify(DB)); }catch(e){ canSave=false; }
+}
+function load(){
+  try{
+    const r=localStorage.getItem(KEY);
+    if(!r){ DB=fresh(); return false; }
+    DB=Object.assign(fresh(),JSON.parse(r));
+    return !!DB.started;
+  }catch(e){ canSave=false; DB=fresh(); return false; }
+}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2400);}
+function go(s){UI.screen=s;UI.wiz=0;scrollTo(0,0);draw();}
+function back(){UI.screen=null;UI.wiz=0;UI.tmp={};scrollTo(0,0);draw();}
+function tab(t){UI.tab=t;UI.screen=null;UI.wiz=0;UI.tmp={};scrollTo(0,0);draw();}
+
+/* ───────── 每次打開時補齊該產生的東西 ───────── */
+function generate(){
+  const cur=nowYM();
+  /* 1. 每月租金應收 */
+  DB.rooms.forEach(r=>{
+    if(!r.tenant||!r.rent||!r.startYM) return;
+    if(r.endYM && ymDiff(r.endYM,cur)>0) return;
+    const n=ymDiff(r.startYM,cur); if(n<0) return;
+    for(let i=0;i<=n;i++){
+      const ym=ymAdd(r.startYM,i);
+      const key='rent:'+r.id+':'+ym;
+      if(DB.bills.some(b=>b.key===key)) continue;
+      DB.bills.push({id:uid(),key,roomId:r.id,houseId:r.houseId,ym,kind:'rent',
+        amount:r.rent,paid:0,paidOn:null,day:r.payDay||5});
+    }
+  });
+  /* 2. 房貸：用日期算，不用計數器（漏開幾個月也不會錯） */
+  DB.houses.forEach(h=>{
+    if(!h.loan||!h.loan.pay||!h.loan.firstYM) return;
+    const total=(h.loan.years||20)*12;
+    const n=Math.min(ymDiff(h.loan.firstYM,cur),total-1); if(n<0) return;
+    for(let i=0;i<=n;i++){
+      const ym=ymAdd(h.loan.firstYM,i);
+      const key='loan:'+h.id+':'+ym;
+      if(DB.ledger.some(e=>e.key===key)) continue;
+      DB.ledger.push({id:uid(),key,houseId:h.id,roomId:null,book:'cash',type:'expense',
+        subject:'房貸月付',amount:h.loan.pay,ym,auto:true,src:'loan',alloc:'single'});
+    }
+  });
+  /* 3. 每月／每年重複支出 */
+  DB.recurring.forEach(rr=>{
+    if(!rr.active) return;
+    const n=ymDiff(rr.startYM,cur); if(n<0) return;
+    for(let i=0;i<=n;i++){
+      const ym=ymAdd(rr.startYM,i);
+      if(rr.cycle==='year' && Number(ym.split('-')[1])!==rr.month) continue;
+      const key='rec:'+rr.id+':'+ym;
+      if(DB.ledger.some(e=>e.key===key)) continue;
+      DB.ledger.push({id:uid(),key,houseId:rr.houseId,roomId:rr.roomId||null,book:'cash',
+        type:'expense',subject:rr.subject,amount:rr.amount,ym,auto:true,src:'rec',
+        alloc:rr.alloc||'single'});
+    }
+  });
+  DB.lastGen=cur; save();
+}
+
+/* ───────── 查詢 ───────── */
+const house=id=>DB.houses.find(h=>h.id===id);
+const room=id=>DB.rooms.find(r=>r.id===id);
+const roomsOf=hid=>DB.rooms.filter(r=>r.houseId===hid);
+const roomLabel=r=>{const h=house(r.houseId);return h.name+(r.no&&r.no!=='—'?' · '+r.no:'');};
+
+function dueDate(b){const d=Math.min(b.day||5,daysIn(b.ym));return new Date(b.ym+'-'+String(d).padStart(2,'0')+'T00:00:00');}
+function lateDays(b){return Math.floor((today()-dueDate(b))/864e5);}
+function openBills(){
+  return DB.bills.filter(b=>b.paid<b.amount).sort((a,b)=>dueDate(a)-dueDate(b));
+}
+function actionable(){ return openBills().filter(b=>lateDays(b)>=-3); }
+
+function inPeriod(ym){
+  const c=nowYM();
+  if(UI.period==='month') return ym===c;
+  if(UI.period==='year') return ym.slice(0,4)===c.slice(0,4);
+  return true;
+}
+function incomeOf(hid){
+  return DB.bills.filter(b=>b.paid>0&&(!hid||b.houseId===hid)&&inPeriod(b.paidYM||b.ym))
+    .reduce((a,b)=>a+b.paid,0);
+}
+function expenseOf(hid){
+  return DB.ledger.filter(e=>e.book==='cash'&&e.type==='expense'&&inPeriod(e.ym))
+    .reduce((a,e)=>{
+      if(e.alloc==='all') return a+(hid?e.amount/Math.max(1,DB.houses.length):e.amount);
+      return (!hid||e.houseId===hid)?a+e.amount:a;
+    },0);
+}
+const depositTotal=()=>DB.rooms.filter(r=>r.tenant).reduce((a,r)=>a+(r.dep||0),0);
+
+/* ═══════════════════════════════════════
+   首頁
+   ═══════════════════════════════════════ */
+function home(){
+  let h='';
+  const list=actionable(), late=list.filter(b=>lateDays(b)>0);
+  const sum=list.reduce((a,b)=>a+(b.amount-b.paid),0);
+
+  h+=`<div class="card"><div class="ch">🔔 該收的錢 <span class="sub">${list.length?list.length+' 筆':'都收齊了'}</span></div>`;
+  if(list.length>1) h+=`<div class="batch" onclick="collectAll()">✅ 全部收到了<span class="n">${list.length} 筆 ${money(sum)}</span></div>`;
+  if(!list.length&&!UI.undo){
+    h+= DB.rooms.some(r=>r.tenant)
+      ? `<div class="empty"><b>✅ 這期都收齊了</b>下一筆到期時會自己出現在這裡</div>`
+      : `<div class="empty"><b>還沒有房客</b>建好房子、填上房客與租金，每個月的應收就會自動出現。
+         <div style="height:16px"></div><button class="b w" onclick="tab('house')">去建房子</button></div>`;
+  }
+  list.forEach(b=>{
+    if(UI.stamp[b.id]==='gone') return;
+    const r=room(b.roomId);
+    if(UI.stamp[b.id]==='done'){
+      h+=`<div class="due stamped"><div class="who">${r?r.tenant:''}</div>
+        <div class="meta">${r?roomLabel(r):''} · ${ymLabel(b.ym)}</div><div class="seal serif">收訖</div></div>`;
+      return;
+    }
+    const d=lateDays(b), rest=b.amount-b.paid;
+    const tag=d>0?`<span class="tag t-late">逾期 ${d} 天</span>`
+             :d===0?`<span class="tag t-warn">今天到期</span>`
+             :`<span class="tag t-due">${-d} 天後到期</span>`;
+    h+=`<div class="due"><div class="who">${tag}${r?r.tenant:'（無房客）'}</div>
+      <div class="amt num ${d>0?'neg':''}">${money(rest)}</div>
+      <div class="meta">${r?roomLabel(r):''} · ${ymLabel(b.ym)}租金${b.paid?`<br>已收 ${money(b.paid)}，還差 ${money(rest)}`:''}</div>
+      <div class="acts">
+        <button class="b" onclick="collect('${b.id}')">收到了</button>
+        <button class="b g" style="flex:0 0 122px" onclick="UI.tmp={id:'${b.id}',v:''};go('part')">收一部分</button>
+      </div></div>`;
+  });
+  if(UI.undo) h+=`<div class="undo">✅ <b>${UI.undo.txt}</b><button onclick="undo()">復原</button></div>`;
+  h+=`</div>`;
+
+  if(late.length) h+=`<div class="note w">⚠️ <div><b>有 ${late.length} 筆逾期</b><br>
+    最久的已經 ${Math.max(...late.map(lateDays))} 天。逾期滿 15 天可以考慮寄存證信函。</div></div>`;
+
+  const inc=incomeOf(),exp=expenseOf(),net=inc-exp;
+  UI.period='month';
+  h+=`<div class="card" onclick="tab('pnl')"><div class="ch">📅 這個月 <span class="sub">${ymLabel(nowYM())} ›</span></div>
+    <div class="cb"><div class="big num ${cls(net)}">${signed(net)}</div>
+    <div style="font-size:19px;font-weight:700;color:var(--mute);margin-top:4px">淨賺</div>
+    <div class="hr"></div>
+    <div class="row"><div class="k">已收</div><div class="v num pos">${money(inc)}</div></div>
+    <div class="row"><div class="k">還沒收</div><div class="v num ${sum?'neg':''}">${money(sum)}</div></div>
+    <div class="row"><div class="k">支出</div><div class="v num">${money(exp)}</div></div>
+    </div></div>`;
+
+  const rented=DB.rooms.filter(r=>r.tenant).length;
+  h+=`<div class="card" onclick="tab('house')"><div class="ch">🏠 我的房子 <span class="sub">${DB.houses.length} 個 ›</span></div>
+    <div class="cb">${DB.houses.length
+      ?`<div class="mid num">出租中 ${rented} · 未出租 ${DB.rooms.length-rented}</div>
+        <div class="meta">${DB.houses.map(x=>x.name).join('、')}</div>`
+      :`<div class="meta" style="margin-top:0">還沒有房子</div><div style="height:14px"></div>
+        <button class="b w" onclick="event.stopPropagation();go('nh')">＋ 建立第一間房子</button>`}
+    </div></div>`;
+  return h;
+}
+
+function collect(id){
+  const b=DB.bills.find(x=>x.id===id);
+  b.paid=b.amount; b.paidOn=new Date().toISOString().slice(0,10); b.paidYM=nowYM();
+  UI.stamp[id]='done'; UI.undo={txt:'已收到 '+money(b.amount),ids:[id]};
+  save(); draw();
+  setTimeout(()=>{ if(UI.undo&&UI.undo.ids.includes(id)){UI.undo.ids.forEach(i=>UI.stamp[i]='gone');UI.undo=null;draw();} },3200);
+}
+function collectAll(){
+  const ids=[]; let s=0;
+  actionable().forEach(b=>{ s+=b.amount-b.paid; b.paid=b.amount; b.paidOn=new Date().toISOString().slice(0,10);
+    b.paidYM=nowYM(); ids.push(b.id); UI.stamp[b.id]='done'; });
+  UI.undo={txt:`已收到 ${ids.length} 筆 ${money(s)}`,ids}; save(); draw();
+  setTimeout(()=>{ if(UI.undo){UI.undo.ids.forEach(i=>UI.stamp[i]='gone');UI.undo=null;draw();} },3600);
+}
+function undo(){
+  UI.undo.ids.forEach(i=>{ const b=DB.bills.find(x=>x.id===i); if(b){b.paid=0;b.paidOn=null;b.paidYM=null;} delete UI.stamp[i]; });
+  UI.undo=null; save(); draw(); toast('已復原');
+}
+function partScreen(){
+  const b=DB.bills.find(x=>x.id===UI.tmp.id), r=room(b.roomId);
+  return `<div class="card"><div class="cb">
+    <div style="font-size:25px;font-weight:700">${r?r.tenant:''}</div>
+    <div class="meta">${r?roomLabel(r):''} · ${ymLabel(b.ym)}租金<br>應收 ${money(b.amount)}${b.paid?` · 已收 ${money(b.paid)}`:''}</div>
+  </div></div>
+  <div class="wiz"><div class="q">這次收到多少？</div></div>
+  <input class="bignum" inputmode="numeric" value="${UI.tmp.v}" oninput="UI.tmp.v=this.value">
+  <button class="b w" onclick="savePart()">記下來</button>
+  <div class="note i" style="margin-top:16px">收一部分也沒關係，剩下的會繼續留在「該收的錢」裡提醒你。</div>`;
+}
+function savePart(){
+  const b=DB.bills.find(x=>x.id===UI.tmp.id), v=Number(UI.tmp.v)||0;
+  b.paid=Math.min(b.amount,b.paid+v);
+  if(b.paid>0){b.paidOn=new Date().toISOString().slice(0,10);b.paidYM=nowYM();}
+  save(); back(); toast(b.paid>=b.amount?'這筆收齊了':`已記 ${money(v)}，還差 ${money(b.amount-b.paid)}`);
+}
+
+/* ═══════════════════════════════════════
+   房子
+   ═══════════════════════════════════════ */
+function houseList(){
+  if(!DB.houses.length) return `<div class="card"><div class="empty"><b>還沒有房子</b>
+    建好之後，每一間現在賺多少、賠多少都會列在這裡。</div></div>
+    <button class="b w" onclick="go('nh')">＋ 建立第一間房子</button>`;
+  UI.period='month';
+  let h='<div class="card">';
+  DB.houses.forEach(x=>{
+    const n=incomeOf(x.id)-expenseOf(x.id), rs=roomsOf(x.id), t=rs.filter(r=>r.tenant).length;
+    h+=`<div class="item" onclick="go('h-${x.id}')"><div class="t"><b>${x.name}</b>
+      <small>${x.type}${rs.length>1?` · ${t}／${rs.length} 間出租中`:(rs[0]&&rs[0].tenant?' · '+rs[0].tenant:' · 未出租')}</small></div>
+      <div class="r num ${cls(n)}">${signed(n)}</div><div class="chev">›</div></div>`;
+  });
+  h+=`</div><button class="b w g" onclick="go('nh')">＋ 新增房子</button>
+    <div style="height:12px"></div>
+    <button class="b w g" style="font-size:18px" onclick="go('data')">💾 備份與資料</button>`;
+  return h;
+}
+
+function houseView(id){
+  const x=house(id); if(!x) return '';
+  let h=`<div class="card" onclick="go('eh-${id}')"><div class="cb">
+    <div class="mid serif">${x.name} <span style="font-size:19px;color:var(--mute);font-weight:400">〔改〕</span></div>
+    <div class="meta">${x.addr||'（未填地址）'}<br>${x.type}</div></div></div>`;
+
+  h+=`<div class="ch" style="padding:4px 6px 10px">房間與房客</div><div class="card">`;
+  roomsOf(id).forEach(r=>{
+    h+=`<div class="item" onclick="go('er-${r.id}')"><div class="t">
+      <b>${r.no&&r.no!=='—'?r.no:x.type}</b>
+      <small>${r.tenant?r.tenant:'還沒有房客'} · 月租 ${money(r.rent||0)}${r.dep?' · 押金 '+money(r.dep):''}</small></div>
+      <span class="pill ${r.tenant?'on':'off'}">${r.tenant?'出租中':'空著'}</span></div>`;
+  });
+  h+=`<div class="item" onclick="addRoom('${id}')"><div class="t"><b>＋ 加一個房間</b></div><div class="chev">›</div></div></div>`;
+
+  h+=`<div class="card"><div class="ch">這間房的其他事</div>
+    <div class="item" onclick="go('trade-${id}')"><div class="t"><b>買賣紀錄</b>
+      <small>${x.trade&&x.trade.buy?'買入 '+money(x.trade.buy.price):'還沒填'} · ${x.trade&&x.trade.sell?'已賣出':'尚未賣出'}</small></div><div class="chev">›</div></div>
+    <div class="item" onclick="go('bills-${id}')"><div class="t"><b>收租紀錄</b>
+      <small>${DB.bills.filter(b=>b.houseId===id).length} 筆</small></div><div class="chev">›</div></div>
+  </div>`;
+  return h;
+}
+
+function addRoom(hid){
+  const x=house(hid);
+  DB.rooms.push({id:uid(),houseId:hid,no:'',rent:0,dep:0,tenant:null,payDay:5,startYM:nowYM()});
+  save(); go('er-'+DB.rooms[DB.rooms.length-1].id);
+}
+
+/* 改房子 */
+function houseEdit(id){
+  const x=house(id); if(!x) return '';
+  const types=['分租套房','整層住家','店面','車位'];
+  const L=x.loan||{};
+  return `<div class="note i">改完馬上生效，<b>沒有儲存按鈕</b>。</div>
+  <div class="card"><div class="ch">基本資料</div><div class="cb">
+    <label class="fl">名稱</label><input value="${x.name}" oninput="setH('${id}','name',this.value)">
+    <label class="fl">地址</label><input value="${x.addr||''}" oninput="setH('${id}','addr',this.value)">
+    <label class="fl">型態</label>
+    <div class="chips">${types.map(t=>`<button class="chip ${x.type===t?'on':''}" onclick="setH('${id}','type','${t}',1)">${t}</button>`).join('')}</div>
+  </div></div>
+  <div class="card"><div class="ch">房貸 <span class="sub">改了自動重算</span></div><div class="cb">
+    <label class="fl">月付金（每月自動記成支出）</label>
+    <input class="num" inputmode="numeric" value="${L.pay||''}" placeholder="沒有就留空" oninput="setLoan('${id}','pay',this.value)">
+    <label class="fl">貸款年限（年）</label>
+    <input class="num" inputmode="numeric" value="${L.years||''}" placeholder="20" oninput="setLoan('${id}','years',this.value)">
+    <label class="fl">第一次繳款年月</label>
+    <input value="${L.firstYM||''}" placeholder="2020-04" oninput="setLoan('${id}','firstYM',this.value)">
+    ${loanBox(x)}
+  </div></div>
+  <button class="b w d" onclick="delHouse('${id}')">刪掉這間房</button>`;
+}
+function setH(id,k,v,r){ house(id)[k]=v; save(); if(r)draw(); }
+function setLoan(id,k,v){
+  const x=house(id); x.loan=x.loan||{};
+  x.loan[k]=(k==='firstYM')?v:(Number(v)||0);
+  if(!x.loan.pay){ x.loan=null; DB.ledger=DB.ledger.filter(e=>!(e.src==='loan'&&e.houseId===id)); }
+  else { DB.ledger=DB.ledger.filter(e=>!(e.src==='loan'&&e.houseId===id)); generate(); }
+  save();
+}
+function loanBox(x){
+  const L=x.loan; if(!L||!L.pay||!L.firstYM) return '';
+  const total=(L.years||20)*12, paid=Math.max(0,Math.min(total,ymDiff(L.firstYM,nowYM())+1));
+  const left=total-paid, pct=Math.round(paid/total*100);
+  const end=ymAdd(L.firstYM,total-1);
+  return `<div class="hr"></div>
+    <div class="row"><div class="k">已繳</div><div class="v num">${paid}／${total} 期</div></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="row"><div class="k">還剩</div><div class="v num">${left} 期（${Math.floor(left/12)} 年 ${left%12} 個月）</div></div>
+    <div class="row"><div class="k">預計繳清</div><div class="v num">${end}</div></div>
+    <div class="row"><div class="k">還要繳</div><div class="v num">${money(L.pay*left)}</div></div>`;
+}
+function delHouse(id){
+  if(!confirm('刪掉這間房？相關紀錄會一起進「已刪除」，30 天內可以救回來。')) return;
+  DB.trash.push({id:uid(),kind:'house',when:new Date().toISOString().slice(0,10),
+    label:'整間房：'+house(id).name,
+    data:{house:house(id),rooms:roomsOf(id),
+          bills:DB.bills.filter(b=>b.houseId===id),ledger:DB.ledger.filter(e=>e.houseId===id)}});
+  DB.houses=DB.houses.filter(h=>h.id!==id);
+  DB.rooms=DB.rooms.filter(r=>r.houseId!==id);
+  DB.bills=DB.bills.filter(b=>b.houseId!==id);
+  DB.ledger=DB.ledger.filter(e=>e.houseId!==id);
+  save(); UI.screen=null; UI.tab='house'; draw(); toast('已刪除，30 天內可救回');
+}
+
+/* 改房間 */
+function roomEdit(id){
+  const r=room(id); if(!r) return '';
+  const x=house(r.houseId);
+  return `<div class="note i">改完馬上生效。改了租金，<b>只會影響還沒產生的月份</b>，已經記錄的不動。</div>
+  <div class="card"><div class="ch">${x.name}</div><div class="cb">
+    <label class="fl">房號（整層或店面可以留空）</label>
+    <input value="${r.no||''}" placeholder="A1" oninput="setR('${id}','no',this.value)">
+    <label class="fl">房客姓名</label>
+    <input value="${r.tenant||''}" placeholder="沒有房客就留空" oninput="setTenant('${id}',this.value)">
+    <label class="fl">月租金</label>
+    <input class="num" inputmode="numeric" value="${r.rent||''}" oninput="setR('${id}','rent',Number(this.value)||0)">
+    <label class="fl">押金（保管中，不算損益）</label>
+    <input class="num" inputmode="numeric" value="${r.dep||''}" oninput="setR('${id}','dep',Number(this.value)||0)">
+    <label class="fl">每月幾號繳租</label>
+    <div class="chips">${[1,5,10,15,20,25].map(d=>`<button class="chip ${(r.payDay||5)===d?'on':''}" onclick="setR('${id}','payDay',${d},1)">${d} 號</button>`).join('')}</div>
+    <label class="fl">從哪個月開始收租</label>
+    <input value="${r.startYM||nowYM()}" placeholder="${nowYM()}" oninput="setR('${id}','startYM',this.value)">
+    <label class="fl">租到哪個月（退租後填，會停止產生應收）</label>
+    <input value="${r.endYM||''}" placeholder="還在租就留空" oninput="setR('${id}','endYM',this.value||null)">
+  </div></div>
+  <button class="b w" onclick="regen()">套用，重算應收</button>
+  <div style="height:12px"></div>
+  <button class="b w d" onclick="delRoom('${id}')">刪掉這個房間</button>`;
+}
+function setR(id,k,v,r){ room(id)[k]=v; save(); if(r)draw(); }
+function setTenant(id,v){ room(id).tenant=v||null; save(); }
+function regen(){ generate(); back(); toast('已重算，該收的錢更新好了'); }
+function delRoom(id){
+  if(!confirm('刪掉這個房間？')) return;
+  const r=room(id);
+  DB.trash.push({id:uid(),kind:'room',when:new Date().toISOString().slice(0,10),
+    label:'房間：'+roomLabel(r),data:{room:r,bills:DB.bills.filter(b=>b.roomId===id)}});
+  DB.rooms=DB.rooms.filter(v=>v.id!==id);
+  DB.bills=DB.bills.filter(b=>b.roomId!==id);
+  save(); UI.screen='h-'+r.houseId; draw(); toast('已刪除');
+}
+
+/* 收租紀錄 */
+function billList(hid){
+  const bs=DB.bills.filter(b=>b.houseId===hid).sort((a,b)=>b.ym.localeCompare(a.ym));
+  if(!bs.length) return `<div class="card"><div class="empty"><b>還沒有紀錄</b>填上房客與租金之後，每個月的應收會自動產生。</div></div>`;
+  let h='<div class="card">';
+  bs.forEach(b=>{
+    const r=room(b.roomId), full=b.paid>=b.amount;
+    h+=`<div class="item" onclick="UI.tmp={id:'${b.id}',v:''};go('part')"><div class="t">
+      <b>${ymLabel(b.ym)}</b><small>${r?(r.no&&r.no!=='—'?r.no+' · ':'')+(r.tenant||''):''} · 應收 ${money(b.amount)}</small></div>
+      <div class="r num ${full?'pos':''}">${money(b.paid)}</div>
+      <span class="pill ${full?'on':'off'}">${full?'已收':b.paid?'部分':'未收'}</span></div>`;
+  });
+  return h+'</div>';
+}
+
+/* ═══════════════════════════════════════
+   新增房子精靈
+   ═══════════════════════════════════════ */
+function autoName(a){
+  if(!a) return '';
+  /* 先去掉縣市與行政區，不然會抓成「大安區復興南路」 */
+  let s=a.replace(/^[\u4e00-\u9fa5]{1,3}[市縣]/,'').replace(/^[\u4e00-\u9fa5]{1,4}[區鄉鎮]/,'');
+  const road=s.match(/^([\u4e00-\u9fa5]{1,6}?(路|街|大道))/);
+  const fl=a.match(/(\d+)\s*樓/), no=a.match(/(\d+)\s*號/);
+  let n=road?road[1]:s.slice(0,6);
+  if(fl) n+=' '+fl[1]+'F'; else if(no) n+=' '+no[1]+'號';
+  return n;
+}
+function wizHouse(){
+  const t=UI.tmp, s=UI.wiz;
+  let b='',next='下一步',last=false;
+  if(s===0) b=`<div class="step">第 1 步 / 共 4 步</div><div class="q">這是什麼房子？</div>
+    <div class="chips">${['分租套房','整層住家','店面','車位'].map(v=>
+    `<button class="chip ${t.type===v?'on':''}" onclick="UI.tmp.type='${v}';draw()">${v}</button>`).join('')}</div>`;
+  if(s===1) b=`<div class="step">第 2 步 / 共 4 步</div><div class="q">地址是？</div>
+    <div class="hint">打地址就好，名字我幫你取。</div>
+    <label class="fl">地址</label>
+    <input value="${t.addr||''}" placeholder="台北市大安區復興南路一段100號2樓"
+      oninput="UI.tmp.addr=this.value;UI.tmp.name=autoName(this.value);document.getElementById('nm').value=UI.tmp.name">
+    <label class="fl">名稱</label>
+    <input id="nm" value="${t.name||''}" placeholder="打完地址會自動出現" oninput="UI.tmp.name=this.value">
+    ${t.name?'<div class="pre">✓ 已自動命名，不用自己想</div>':''}`;
+  if(s===2){
+    const sub=t.type==='分租套房';
+    b=`<div class="step">第 3 步 / 共 4 步</div><div class="q">${sub?'有幾間？租金多少？':'月租金多少？'}</div>
+      ${sub?`<label class="fl">房號（空格分開，例：A1 A2 A3）</label>
+      <input value="${t.nos||''}" placeholder="A1 A2 A3 A4" oninput="UI.tmp.nos=this.value">
+      <label class="fl">每間月租（之後可以各別改）</label>`:'<label class="fl">月租金</label>'}
+      <input class="num" inputmode="numeric" value="${t.rent||''}" placeholder="12000" oninput="UI.tmp.rent=this.value">`;
+  }
+  if(s===3){ last=true; next='建好了';
+    b=`<div class="step">第 4 步 / 共 4 步</div><div class="q">有房貸嗎？</div>
+      <div class="hint">填了每個月自動記成支出，還會幫你算還剩幾期。沒有就直接按「建好了」。</div>
+      <label class="fl">房貸月付金</label>
+      <input class="num" inputmode="numeric" value="${t.pay||''}" placeholder="24800" oninput="UI.tmp.pay=this.value">
+      <label class="fl">貸款年限（年）</label>
+      <input class="num" inputmode="numeric" value="${t.years||''}" placeholder="20" oninput="UI.tmp.years=this.value">
+      <label class="fl">第一次繳款年月</label>
+      <input value="${t.firstYM||''}" placeholder="2020-04" oninput="UI.tmp.firstYM=this.value">
+      <div class="note i">不用填利率，也不用算剩下多少本金 — 系統只告訴你<b>還剩幾期</b>和<b>還要繳多少</b>。</div>`;
+  }
+  return `<div class="wiz">${b}</div>
+    <div class="wbar">
+      ${s>0?`<button class="b g" style="flex:0 0 122px" onclick="UI.wiz=${s-1};draw()">上一步</button>`:''}
+      <button class="b" onclick="${last?'doneHouse()':`UI.wiz=${s+1};draw()`}">${next}</button>
+    </div>`;
+}
+function doneHouse(){
+  const t=UI.tmp, hid=uid();
+  DB.houses.push({id:hid,name:t.name||autoName(t.addr)||'新房子',addr:t.addr||'',type:t.type||'整層住家',
+    loan:t.pay?{pay:Number(t.pay)||0,years:Number(t.years)||20,firstYM:t.firstYM||nowYM()}:null,
+    trade:{buy:null,sell:null}});
+  const rent=Number(t.rent)||0;
+  if(t.type==='分租套房'&&t.nos){
+    t.nos.trim().split(/\s+/).forEach(no=>DB.rooms.push({id:uid(),houseId:hid,no,rent,dep:rent*2,
+      tenant:null,payDay:5,startYM:nowYM()}));
+  } else {
+    DB.rooms.push({id:uid(),houseId:hid,no:'—',rent,dep:rent*2,tenant:null,payDay:5,startYM:nowYM()});
+  }
+  generate(); UI.tmp={}; UI.screen='h-'+hid; UI.tab='house'; draw();
+  toast('房子建好了。接下來填上房客姓名，每個月的應收就會自動產生。');
+}
+
+/* ═══════════════════════════════════════
+   記一筆
+   ═══════════════════════════════════════ */
+const SUBJ=['修繕維護','大樓管理費','清潔','房屋稅','地價稅','火險','水電','裝潢整修','代管費','其他'];
+function entry(){
+  if(!DB.houses.length) return `<div class="card"><div class="empty"><b>要先有房子才能記帳</b></div></div>
+    <button class="b w" onclick="go('nh')">＋ 建立第一間房子</button>`;
+  const t=UI.tmp;
+  let h='';
+  if(!t.house){
+    h+=`<div class="wiz"><div class="step">第 1 步 / 共 3 步</div><div class="q">這筆花在哪間房？</div></div><div class="card">`;
+    DB.houses.forEach(x=>h+=`<div class="item" onclick="UI.tmp.house='${x.id}';draw()">
+      <div class="t"><b>${x.name}</b><small>${x.type}</small></div><div class="chev">›</div></div>`);
+    if(DB.houses.length>1) h+=`<div class="item" onclick="UI.tmp.house='all';draw()">
+      <div class="t"><b>全部房屋分攤</b><small>例如共用網路、記帳軟體</small></div><div class="chev">›</div></div>`;
+    return h+'</div>';
+  }
+  const hn=t.house==='all'?'全部房屋分攤':house(t.house).name+(t.room?' · '+t.room:'');
+  h+=`<div class="note i" style="align-items:center">📍 <div style="flex:1"><b>${hn}</b></div>
+    <button class="chip" style="padding:9px 16px;font-size:17px" onclick="UI.tmp={};draw()">改</button></div>`;
+
+  const hx=t.house!=='all'&&house(t.house);
+  const rs=hx?roomsOf(hx.id):[];
+  if(hx&&rs.length>1&&!t.room){
+    h+=`<div class="wiz"><div class="q">哪一間？</div></div><div class="chips">`;
+    rs.forEach(r=>h+=`<button class="chip" onclick="UI.tmp.room='${r.no||'—'}';draw()">${r.no||'—'}<small>${r.tenant||'空著'}</small></button>`);
+    h+=`<button class="chip" onclick="UI.tmp.room='整棟公共';draw()">整棟公共<small>不分到各房間</small></button></div>
+      <div class="note i">公共區域的清潔、電費這類，<b>不會攤到各房間</b> — 攤下去就比不出哪一間房自己賺得多。</div>`;
+    return h;
+  }
+  if(!t.subj){
+    const sorted=[...SUBJ].sort((a,b)=>(DB.subjUse[b]||0)-(DB.subjUse[a]||0));
+    h+=`<div class="wiz"><div class="step">第 2 步 / 共 3 步</div><div class="q">這是什麼支出？</div>
+      <div class="hint">照你最常用的排序。</div></div><div class="chips">`;
+    sorted.forEach((s,i)=>h+=`<button class="chip" onclick="UI.tmp.subj='${s}';draw()">${s}${(i===0&&DB.subjUse[s])?'<small>你最常用</small>':''}</button>`);
+    return h+'</div>';
+  }
+  h+=`<div class="wiz"><div class="step">第 3 步 / 共 3 步</div><div class="q">${t.subj} 花了多少？</div></div>
+    <input class="bignum" inputmode="numeric" value="${t.amt||''}" oninput="UI.tmp.amt=this.value">
+    <button class="b w" onclick="saveEntry()">記好了</button>`;
+  return h;
+}
+function saveEntry(){
+  if(!UI.tmp.amt){ toast('先填金額'); return; }
+  go('rep');
+}
+function repScreen(){
+  const t=UI.tmp;
+  return `<div class="card"><div class="cb" style="text-align:center;padding:26px 20px">
+    <div style="font-size:17px;color:var(--mute);font-weight:700">已記下</div>
+    <div class="big num neg" style="margin:8px 0">${money(Number(t.amt))}</div>
+    <div class="meta">${t.subj} · ${t.house==='all'?'全部房屋分攤':house(t.house).name}${t.room?' · '+t.room:''}</div>
+  </div></div>
+  <div class="wiz"><div class="q">這筆每個月都有嗎？</div>
+  <div class="hint">按「每個月都有」，以後系統自動幫你記，不用再進來這一頁。</div></div>
+  <button class="b w" onclick="finishEntry('month')">每個月都有</button>
+  <div style="height:12px"></div>
+  <button class="b w g" onclick="finishEntry('year')">每年一次（像房屋稅）</button>
+  <div style="height:12px"></div>
+  <button class="b w g" onclick="finishEntry(null)">這次而已</button>`;
+}
+function finishEntry(cycle){
+  const t=UI.tmp, amt=Number(t.amt)||0;
+  const alloc=t.house==='all'?'all':(t.room==='整棟公共'?'building':'single');
+  DB.ledger.push({id:uid(),houseId:t.house==='all'?null:t.house,roomId:null,book:'cash',type:'expense',
+    subject:t.subj,amount:amt,ym:nowYM(),auto:false,src:'manual',alloc,
+    room:t.room&&t.room!=='整棟公共'?t.room:null});
+  DB.subjUse[t.subj]=(DB.subjUse[t.subj]||0)+1;
+  if(cycle){
+    DB.recurring.push({id:uid(),houseId:t.house==='all'?null:t.house,subject:t.subj,amount:amt,
+      cycle:cycle==='month'?'month':'year',month:Number(nowYM().split('-')[1]),
+      startYM:ymAdd(nowYM(),1),active:true,alloc});
+  }
+  save(); UI.tmp={}; UI.screen=null; UI.tab='home'; draw();
+  toast(cycle?`已設定${cycle==='month'?'每月':'每年'}自動記入「${t.subj}」，以後不用再記`:'已記入這個月的支出');
+}
+
+/* ═══════════════════════════════════════
+   損益
+   ═══════════════════════════════════════ */
+function seg(){
+  return `<div class="seg">${[['month','本月'],['year','今年'],['all','累計']].map(([k,n])=>
+    `<button class="${UI.period===k?'on':''}" onclick="UI.period='${k}';draw()">${n}</button>`).join('')}</div>`;
+}
+function pnl(){
+  if(!DB.houses.length) return `<div class="card"><div class="empty"><b>還沒有數字可以算</b>
+    建了房子、記了第一筆之後，這裡會自動長出損益表。</div></div>
+    <button class="b w" onclick="go('nh')">＋ 建立第一間房子</button>`;
+  let h=seg()+'<div class="card">';
+  DB.houses.forEach(x=>{
+    const i=incomeOf(x.id), e=expenseOf(x.id), n=i-e;
+    h+=`<div class="item" onclick="go('p-${x.id}')"><div class="t"><b>${x.name}</b>
+      <small>收 ${money(i)} · 支 ${money(e)}</small></div>
+      <div class="r num ${cls(n)}">${signed(n)}</div><div class="chev">›</div></div>`;
+  });
+  const I=incomeOf(),E=expenseOf(),N=I-E;
+  h+=`</div><div class="card" style="border:2px solid var(--ink)"><div class="cb">
+    <div style="font-size:21px;font-weight:700">📊 全部房屋　總損益</div><div class="hr"></div>
+    <div class="row"><div class="k">總收入</div><div class="v num">${money(I)}</div></div>
+    <div class="row"><div class="k">總支出</div><div class="v num">${money(E)}</div></div>
+    <div class="hr2"></div>
+    <div class="tot"><div>${UI.period==='all'?'現金流累計':'這期淨賺'}</div><div class="v num ${cls(N)}">${signed(N)}</div></div>`;
+  if(UI.period==='all'){
+    let tp=0,sold=false;
+    DB.houses.forEach(x=>{ if(x.trade&&x.trade.sell){sold=true;tp+=tradeProfit(x);} });
+    h+=`<div class="hr"></div>
+      <div class="row"><div class="k">買賣獲利 <small>賣掉的房子才有</small></div>
+      <div class="v num ${sold?cls(tp):'sys'}">${sold?signed(tp):'尚未賣出'}</div></div>
+      <div class="hr2"></div>
+      <div class="tot"><div>合計</div><div class="v num ${cls(N+tp)}">${signed(N+tp)}</div></div>`;
+  }
+  h+=`</div></div>`+depCard();
+  return h;
+}
+function depCard(){
+  const rs=DB.rooms.filter(r=>r.tenant&&r.dep);
+  if(!rs.length) return '';
+  const tot=rs.reduce((a,r)=>a+r.dep,0);
+  return `<div class="card"><div class="ch">🔐 押金保管中 <span class="sub">不算損益</span></div><div class="cb">
+    ${rs.map(r=>`<div class="row"><div class="k">${roomLabel(r)}<small>${r.tenant}</small></div>
+      <div class="v num">${money(r.dep)}</div></div>`).join('')}
+    <div class="hr2"></div>
+    <div class="tot"><div>保管中合計</div><div class="v num">${money(tot)}</div></div>
+    <div class="meta">這筆錢將來要退，所以不算收入。退租時再從這裡扣未繳與賠償。</div></div></div>`;
+}
+function tradeProfit(x){
+  const t=x.trade; if(!t||!t.sell) return 0;
+  const cost=(t.buy?t.buy.price+sumFees(t.buy.fees):0);
+  return t.sell.price - cost - sumFees(t.sell.fees);
+}
+const sumFees=f=>f?Object.values(f).reduce((a,b)=>a+(Number(b)||0),0):0;
+
+function pnlHouse(id){
+  const x=house(id); if(!x) return '';
+  const items=DB.ledger.filter(e=>e.book==='cash'&&inPeriod(e.ym)&&(e.houseId===id||e.alloc==='all'));
+  const inc=DB.bills.filter(b=>b.houseId===id&&b.paid>0&&inPeriod(b.paidYM||b.ym));
+  const I=incomeOf(id),E=expenseOf(id),N=I-E;
+  let h=seg();
+
+  h+=`<div class="card"><div class="ch">💰 收入</div><div class="cb">`;
+  h+= inc.length
+    ? inc.map(b=>{const r=room(b.roomId);return `<div class="row"><div class="k"><span class="ico">🏠</span>
+        ${ymLabel(b.ym)}租金${r&&r.tenant?' · '+r.tenant:''}</div><div class="v num pos">${money(b.paid)}</div></div>`;}).join('')
+    : `<div class="row"><div class="k sys">這期還沒有收到錢</div><div class="v num">$0</div></div>`;
+  h+=`</div><div class="ch">📉 支出 <span class="sub">點一下可以改</span></div><div class="cb">`;
+  h+= items.length
+    ? items.map(e=>{
+        const amt=e.alloc==='all'?e.amount/Math.max(1,DB.houses.length):e.amount;
+        return `<div class="row tap" onclick="go('el-${e.id}')"><div class="k">
+          <span class="ico">${e.auto?'🤖':'✋'}</span>${e.subject}${e.room?' · '+e.room:''}
+          ${e.alloc==='all'?`<small>全部房屋分攤，本物件 1／${DB.houses.length}</small>`:''}
+          ${e.auto?'<small>🔁 每月自動</small>':''}
+          ${e.editedFrom?`<small class="neg">已修改 · 原本 ${money(e.editedFrom)}</small>`:''}</div>
+          <div class="v num">${money(amt)}</div><div class="pen">✏️</div></div>`;}).join('')
+    : `<div class="row"><div class="k sys">這期還沒有支出</div><div class="v num">$0</div></div>`;
+  h+=`<div class="hr2"></div>
+    <div class="tot"><div>${UI.period==='all'?'現金流累計':'這期淨賺'}</div><div class="v num ${cls(N)}">${signed(N)}</div></div>
+    <div class="meta">🤖 系統自己記的　✋ 你手動記的</div></div></div>`;
+
+  if(x.loan&&x.loan.pay) h+=`<div class="card"><div class="ch">🏦 貸款 <span class="sub">參考，不算損益</span></div>
+    <div class="cb"><div class="row"><div class="k">月付金</div><div class="v num">${money(x.loan.pay)}</div></div>
+    ${loanBox(x)}</div></div>`;
+
+  if(UI.period==='all'&&x.trade&&x.trade.buy){
+    const t=x.trade, cost=t.buy.price+sumFees(t.buy.fees);
+    h+=`<div class="card"><div class="ch">🏘️ 買賣 <span class="sub">賣掉才結算</span></div><div class="cb">
+      <div class="row"><div class="k">買入總價</div><div class="v num">${money(t.buy.price)}</div></div>
+      <div class="row"><div class="k">取得費用<small>仲介、代書、契稅、裝潢…</small></div><div class="v num">${money(sumFees(t.buy.fees))}</div></div>
+      <div class="hr2"></div><div class="tot"><div>投入成本</div><div class="v num">${money(cost)}</div></div>`;
+    h+= t.sell
+      ? `<div class="hr"></div>
+         <div class="row"><div class="k">賣出價</div><div class="v num">${money(t.sell.price)}</div></div>
+         <div class="row"><div class="k">賣出費用與稅</div><div class="v num">−${money(sumFees(t.sell.fees))}</div></div>
+         <div class="hr2"></div>
+         <div class="tot"><div>買賣獲利</div><div class="v num ${cls(tradeProfit(x))}">${signed(tradeProfit(x))}</div></div>`
+      : `<div class="note i" style="margin:14px 0 0">⏳ 尚未賣出，這本帳等賣掉才會有損益。買入成本不會拉低你每個月的現金流。</div>`;
+    h+=`</div></div>`;
+  }
+  h+=`<button class="b w g" onclick="UI.tmp={house:'${id}'};tab('entry')">＋ 幫這間房記一筆</button>`;
+  return h;
+}
+
+/* 改一筆 */
+function ledgerEdit(id){
+  const e=DB.ledger.find(v=>v.id===id);
+  if(!e) return `<div class="card"><div class="empty"><b>這筆已經刪掉了</b></div></div>`;
+  const hn=e.houseId?house(e.houseId).name:'全部房屋分攤';
+  const t=UI.tmp;
+  if(t.id!==id) UI.tmp={id,val:String(e.amount),scope:'this'};
+  return `<div class="card"><div class="cb">
+    <div style="font-size:25px;font-weight:700">${e.subject}</div>
+    <div class="meta">${hn}${e.room?' · '+e.room:''} · ${ymLabel(e.ym)}
+    ${e.src==='loan'?'<br>這是房貸自動記的。要改月付金請到「房子 › 改房子」。':''}</div>
+    ${e.editedFrom?`<div class="note w" style="margin:14px 0 0">這筆改過，原本是 ${money(e.editedFrom)}</div>`:''}
+  </div></div>
+  <div class="wiz"><div class="q">金額改成多少？</div></div>
+  <input class="bignum" inputmode="numeric" value="${UI.tmp.val}" oninput="UI.tmp.val=this.value">
+  ${e.auto&&e.src==='rec'?`<div class="wiz"><div class="q" style="font-size:23px">要改哪幾期？</div>
+    <div class="hint">這筆是每月自動帶入的，先決定改的範圍。</div></div>
+    <div class="chips">
+      <button class="chip ${UI.tmp.scope==='this'?'on':''}" onclick="UI.tmp.scope='this';draw()">只改這個月<small>之前跟以後都不動</small></button>
+      <button class="chip ${UI.tmp.scope==='future'?'on':''}" onclick="UI.tmp.scope='future';draw()">這個月起以後都改<small>之前的不動</small></button>
+    </div>`:''}
+  <button class="b w" onclick="saveLedger('${id}')">改好了</button>
+  <div style="height:12px"></div>
+  <button class="b w d" onclick="delLedger('${id}')">刪掉這一筆</button>
+  <div class="note i" style="margin-top:16px">改過的會留下「原本多少」。刪掉的在<b>「房子 › 備份與資料 › 已刪除」</b>可以救回來。</div>`;
+}
+function saveLedger(id){
+  const e=DB.ledger.find(v=>v.id===id), v=Number(UI.tmp.val)||0;
+  if(v===e.amount){ back(); return; }
+  const old=e.amount;
+  if(e.editedFrom==null) e.editedFrom=old;
+  e.amount=v;
+  if(UI.tmp.scope==='future'&&e.src==='rec'){
+    const rid=e.key&&e.key.split(':')[1];
+    const rr=DB.recurring.find(r=>r.id===rid);
+    if(rr){ rr.amount=v; }
+  }
+  save(); back(); toast(`已從 ${money(old)} 改成 ${money(v)}，損益重算好了`);
+}
+function delLedger(id){
+  const i=DB.ledger.findIndex(v=>v.id===id), e=DB.ledger[i];
+  DB.trash.push({id:uid(),kind:'ledger',when:new Date().toISOString().slice(0,10),
+    label:e.subject+' '+money(e.amount),data:e});
+  DB.ledger.splice(i,1); save(); back(); toast('已刪除，30 天內可救回');
+}
+
+/* ═══════════════════════════════════════
+   買賣紀錄（第二本帳）
+   ═══════════════════════════════════════ */
+const BUYF=[['agent','仲介費'],['scrivener','代書費'],['deed','契稅'],['stamp','印花稅'],
+            ['gov','地政規費'],['reno','裝潢整修'],['furni','家具家電'],['other','其他']];
+const SELLF=[['agent','仲介服務費'],['scrivener','代書費'],['landtax','土地增值稅'],
+             ['inctax','房地合一稅'],['stamp','印花稅'],['other','其他']];
+function tradeScreen(id){
+  const x=house(id); x.trade=x.trade||{buy:null,sell:null};
+  const t=x.trade;
+  const f=(side,k,n)=>`<label class="fl">${n}</label><input class="num" inputmode="numeric"
+    value="${(t[side].fees&&t[side].fees[k])||''}" oninput="setFee('${id}','${side}','${k}',this.value)">`;
+  let h=`<div class="note i">這是<b>第二本帳</b>。買入成本不會影響每個月的現金流，賣掉才結算。</div>`;
+
+  h+=`<div class="card"><div class="ch">買入</div><div class="cb">`;
+  if(!t.buy) h+=`<div class="meta" style="margin:0 0 14px">還沒填。填了才能算出這間房到底賺不賺。</div>
+    <button class="b w g" onclick="initTrade('${id}','buy')">＋ 填買入資料</button>`;
+  else h+=`<label class="fl">成交價</label>
+    <input class="num" inputmode="numeric" value="${t.buy.price||''}" oninput="setTrade('${id}','buy','price',this.value)">
+    <label class="fl">成交日</label>
+    <input type="date" value="${t.buy.date||''}" oninput="setTrade('${id}','buy','date',this.value)">
+    ${BUYF.map(([k,n])=>f('buy',k,n)).join('')}
+    <div class="hr2"></div>
+    <div class="tot"><div>投入成本</div><div class="v num">${money((t.buy.price||0)+sumFees(t.buy.fees))}</div></div>`;
+  h+=`</div></div>`;
+
+  h+=`<div class="card"><div class="ch">賣出</div><div class="cb">`;
+  if(!t.sell) h+=`<div class="meta" style="margin:0 0 14px">還沒賣。賣掉之後再填，系統就會算出這間房一生賺多少。</div>
+    <button class="b w g" onclick="initTrade('${id}','sell')">＋ 這間房賣掉了</button>`;
+  else h+=`<label class="fl">成交價</label>
+    <input class="num" inputmode="numeric" value="${t.sell.price||''}" oninput="setTrade('${id}','sell','price',this.value)">
+    <label class="fl">成交日</label>
+    <input type="date" value="${t.sell.date||''}" oninput="setTrade('${id}','sell','date',this.value)">
+    ${SELLF.map(([k,n])=>f('sell',k,n)).join('')}
+    <div class="hr2"></div>
+    <div class="tot"><div>買賣獲利</div><div class="v num ${cls(tradeProfit(x))}">${signed(tradeProfit(x))}</div></div>
+    <div style="height:14px"></div>
+    <button class="b w g" onclick="house('${id}').trade.sell=null;save();draw();toast('已取消賣出紀錄')">其實還沒賣，取消</button>`;
+  h+=`</div></div>
+  <div class="note i">稅費請自己填金額，系統不試算 — 每個人的狀況差太多，算錯反而害你。</div>`;
+  return h;
+}
+function initTrade(id,side){ const x=house(id); x.trade[side]={price:0,date:'',fees:{}}; save(); draw(); }
+function setTrade(id,side,k,v){ house(id).trade[side][k]=(k==='price')?(Number(v)||0):v; save(); }
+function setFee(id,side,k,v){ const t=house(id).trade[side]; t.fees=t.fees||{}; t.fees[k]=Number(v)||0; save(); }
+
+/* ═══════════════════════════════════════
+   備份與資料
+   ═══════════════════════════════════════ */
+function dataScreen(){
+  const n=DB.houses.length, r=DB.rooms.length, b=DB.bills.length, l=DB.ledger.length;
+  return `<div class="note w">⚠️ <div><b>資料只存在這台裝置裡</b><br>
+    換手機、清除瀏覽器資料、或用無痕模式，都會不見。<b>請定期備份。</b></div></div>
+  <div class="card"><div class="ch">現在有這些資料</div><div class="cb">
+    <div class="row"><div class="k">房子</div><div class="v num">${n}</div></div>
+    <div class="row"><div class="k">房間</div><div class="v num">${r}</div></div>
+    <div class="row"><div class="k">收租紀錄</div><div class="v num">${b}</div></div>
+    <div class="row"><div class="k">記帳紀錄</div><div class="v num">${l}</div></div>
+  </div></div>
+  <button class="b w" onclick="exportData()">📥 匯出備份檔</button>
+  <div class="meta" style="margin:8px 4px 18px">會下載一個檔案，存到雲端硬碟或用 LINE 傳給自己，換手機時就用得上。</div>
+  <button class="b w g" onclick="document.getElementById('imp').click()">📤 從備份檔還原</button>
+  <input type="file" id="imp" accept=".json" style="display:none" onchange="importData(this)">
+  <div class="meta" style="margin:8px 4px 18px">還原會<b>覆蓋</b>現在的資料，請先確認。</div>
+  <button class="b w g" onclick="go('trash')">🗑 已刪除的紀錄（${DB.trash.length}）</button>
+  <div style="height:12px"></div>
+  <button class="b w g" style="border-color:var(--line);color:var(--mute);font-size:18px"
+    onclick="if(confirm('全部清空，回到最開始？這個動作無法復原，建議先匯出備份。'))wipeAll()">清空全部資料</button>`;
+}
+function exportData(){
+  try{
+    const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='收租備份-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    toast('備份檔已下載，記得存到雲端硬碟');
+  }catch(e){ toast('這個瀏覽器不支援下載，請換 Safari 或 Chrome 開'); }
+}
+function importData(el){
+  const f=el.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const d=JSON.parse(rd.result);
+      if(!d.houses) throw 0;
+      DB=Object.assign(fresh(),d); DB.started=true; generate(); save();
+      UI.screen=null; UI.tab='home'; draw(); toast('已還原備份');
+    }catch(e){ toast('這個檔案讀不出來，請確認是本 App 匯出的備份'); }
+  };
+  rd.readAsText(f); el.value='';
+}
+function wipeAll(){ DB=fresh(); save(); UI={tab:'home',screen:null,wiz:0,tmp:{},period:'month',undo:null,stamp:{}}; draw(); }
+function trashScreen(){
+  if(!DB.trash.length) return `<div class="card"><div class="empty"><b>沒有刪掉的東西</b>
+    刪掉的會在這裡放 30 天。</div></div>`;
+  let h=`<div class="note i">保留 30 天，過了才真的消失。</div><div class="card">`;
+  DB.trash.forEach((t,i)=>h+=`<div class="item"><div class="t"><b>${t.label}</b><small>${t.when} 刪除</small></div>
+    <button class="b g" style="flex:0 0 118px;font-size:17px;padding:12px 6px" onclick="restore(${i})">救回來</button></div>`);
+  return h+'</div>';
+}
+function restore(i){
+  const t=DB.trash.splice(i,1)[0], d=t.data;
+  if(t.kind==='ledger') DB.ledger.push(d);
+  if(t.kind==='room'){ DB.rooms.push(d.room); DB.bills.push(...d.bills); }
+  if(t.kind==='house'){ DB.houses.push(d.house); DB.rooms.push(...d.rooms);
+    DB.bills.push(...d.bills); DB.ledger.push(...d.ledger); }
+  save(); draw(); toast('已救回來');
+}
+
+/* ═══════════════════════════════════════
+   開場
+   ═══════════════════════════════════════ */
+function welcome(){
+  return `<div id="welcome">
+    <div class="serif" style="font-size:40px;font-weight:700;line-height:1.3">我的收租</div>
+    <div style="font-size:19px;color:var(--mute);line-height:1.75;margin:14px 0 26px">
+      房子、房客、租金、房貸、支出，全部記在一起，<br>每個月賺多少自己算出來。</div>
+    <div class="wc" onclick="start()"><b>開始使用</b>
+      <span>先建一間房子，填上房客與租金。之後每個月的應收會自動出現，你只要按〔收到了〕。</span></div>
+    <div class="wc" onclick="document.getElementById('imp0').click()"><b>我有備份檔</b>
+      <span>換手機或重裝過，從備份檔還原回來。</span></div>
+    <input type="file" id="imp0" accept=".json" style="display:none" onchange="importData(this)">
+    <div class="note i" style="margin-top:22px">資料<b>只存在你自己的裝置裡</b>，不會上傳到任何地方。
+      也因為這樣，換手機前<b>一定要先匯出備份</b>。</div>
+  </div>`;
+}
+function start(){ DB.started=true; save(); UI.tab='house'; UI.screen='nh'; draw(); }
+
+/* ═══════════════════════════════════════
+   繪製
+   ═══════════════════════════════════════ */
+const TABS=[['home','🏠','首頁'],['house','🏢','房子'],['entry','➕','記一筆'],['pnl','📊','損益']];
+const T={home:'我的收租',house:'我的房子',entry:'記一筆',pnl:'損益'};
+
+function draw(){
+  if(!DB.started){
+    $('#hd').innerHTML='<span class="ttl">我的收租</span>';
+    $('#nv').style.display='none';
+    $('#mn').innerHTML=welcome();
+    return;
+  }
+  const s=UI.screen;
+  let title=T[UI.tab], back_=!!s, act='';
+  if(s){
+    if(s.startsWith('h-')) { title=house(s.slice(2))?house(s.slice(2)).name:'房子'; }
+    else if(s.startsWith('eh-')) title='改房子';
+    else if(s.startsWith('er-')) title='改房間';
+    else if(s.startsWith('p-')) title=(house(s.slice(2))||{}).name+' 損益';
+    else if(s.startsWith('el-')) title='改這一筆';
+    else if(s.startsWith('trade-')) title='買賣紀錄';
+    else if(s.startsWith('bills-')) title='收租紀錄';
+    else if(s==='nh') title='新增房子';
+    else if(s==='part') title='收一部分';
+    else if(s==='rep') title='記一筆';
+    else if(s==='data') title='備份與資料';
+    else if(s==='trash') title='已刪除的紀錄';
+  }
+  $('#hd').innerHTML=(back_?`<span class="back" onclick="back()">‹ 返回</span>`:'')+
+    `<span class="ttl">${title}</span>`+act;
+
+  let h='';
+  if(s){
+    if(s.startsWith('h-')) h=houseView(s.slice(2));
+    else if(s.startsWith('eh-')) h=houseEdit(s.slice(3));
+    else if(s.startsWith('er-')) h=roomEdit(s.slice(3));
+    else if(s.startsWith('p-')) h=pnlHouse(s.slice(2));
+    else if(s.startsWith('el-')) h=ledgerEdit(s.slice(3));
+    else if(s.startsWith('trade-')) h=tradeScreen(s.slice(6));
+    else if(s.startsWith('bills-')) h=billList(s.slice(6));
+    else if(s==='nh') h=wizHouse();
+    else if(s==='part') h=partScreen();
+    else if(s==='rep') h=repScreen();
+    else if(s==='data') h=dataScreen();
+    else if(s==='trash') h=trashScreen();
+  }
+  else if(UI.tab==='home') h=home();
+  else if(UI.tab==='house') h=houseList();
+  else if(UI.tab==='entry') h=entry();
+  else if(UI.tab==='pnl') h=pnl();
+  $('#mn').innerHTML=h;
+
+  const hideNav=(s==='nh');
+  $('#nv').style.display=hideNav?'none':'flex';
+  $('#nv').innerHTML=TABS.map(([k,g,n])=>
+    `<button class="${UI.tab===k&&!s?'on':''}" onclick="tab('${k}')"><span class="g">${g}</span>${n}</button>`).join('');
+}
+
+/* 啟動 */
+load();
+if(DB.started) generate();
+draw();
+if(!canSave) setTimeout(()=>toast('這個環境不能存資料，關掉就會消失。請用 Safari 或 Chrome 開。'),700);
+</script>
+</body>
+</html>
