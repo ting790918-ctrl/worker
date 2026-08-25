@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b56</title>
+<title>PlanPad · 平面圖工具 b57</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b56</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b57</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -2400,10 +2400,10 @@
   // find the first candidate position whose label box is clear, and remember it.
   // Returns {x,y,off,free}; callers use `off` to decide whether a leader line is
   // needed (the label has stepped away from where it naturally belongs).
-  function placeLabel(cands, textW, ang, veto){
+  function placeLabel(cands, textW, ang, veto, mkRect){
     let fallback=null;
     for(const c of cands){
-      const r=labelRect(c[0],c[1],textW,ang);
+      const r=(mkRect||labelRect)(c[0],c[1],textW,ang);
       if(veto && veto(r)) continue;              // somewhere it must never go
       if(!fallback) fallback={x:c[0], y:c[1], off:c[2]||0, free:false};
       if(labelFree(r)) return {x:c[0], y:c[1], off:c[2]||0, free:true};
@@ -2411,6 +2411,13 @@
     return fallback;   // crowded but allowed, or null when nowhere is allowed
   }
   function reserveLabel(x,y,textW,ang){ placedLabels.push(labelRect(x,y,textW,ang)); }
+  // labelRect is deliberately generous — it is sized for a dimension that must not
+  // be crowded. A mounting height is a short tag that belongs tight against its
+  // symbol, and the generous box was what kept bouncing it away.
+  function tagRect(cx,cy,textW){
+    const hw=textW/2+3*TS, hh=6.5*TS;
+    return [cx-hw,cy-hh,hw*2,hh*2];
+  }
   function labelFree(r){
     for(const p of placedLabels){
       if(r[0] < p[0]+p[2] && r[0]+r[2] > p[0] && r[1] < p[1]+p[3] && r[1]+r[3] > p[1]) return false;
@@ -3911,7 +3918,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b56';
+  const BUILD='b57';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -5040,28 +5047,34 @@
   const mepName=(kind)=>{ const e=MEP_LIST.find(x=>x[1]===kind); return e?e[2]:kind; };
   const mepColor=(kind)=>MEP_COLOR[MEP_FAMILY[kind]||'outlet'];
 
-  // Smallest centre-to-centre spacing between visible symbols, in screen px.
-  // Recomputed each draw; Infinity when there is nothing to collide with.
-  let mepSpacingPx=Infinity;
+  // Distance from each symbol to its NEAREST neighbour, in screen px. Sized per
+  // symbol, not once for the whole drawing: one crowded pair must not shrink every
+  // other symbol on the sheet, which is what a single global figure did.
+  let mepNear=new Map();
   function mepRecalcSpacing(){
-    mepSpacingPx=Infinity;
+    mepNear=new Map();
     const L=state.mep.filter(m=>layerVisible(m.layer||'elec'));
-    for(let i=0;i<L.length;i++) for(let j=i+1;j<L.length;j++){
-      const d=Math.hypot(L[i].x-L[j].x, L[i].y-L[j].y)*view.scale;
-      if(d>0.5 && d<mepSpacingPx) mepSpacingPx=d;
+    for(const a of L){
+      let best=Infinity;
+      for(const b of L){
+        if(a===b) continue;
+        const d=Math.hypot(a.x-b.x, a.y-b.y)*view.scale;
+        if(d>0.5 && d<best) best=d;
+      }
+      mepNear.set(a.id, best);
     }
   }
-  function mepPx(){
+  function mepPx(m){
     const real=MEP_SIZE*view.scale;          // the symbol at its true 30cm size
     if(TS<=1) return Math.max(MEP_MIN_PX, real);   // on screen: unchanged
     // Printing needs a legibility floor — at 1:200 a true-size symbol is a speck.
-    // But the floor is the dangerous part: a cold and a hot supply drawn touching
-    // at true size get INFLATED past each other and print as one blob, with the
-    // positions perfectly correct. So the floor is capped by the spacing between
-    // the closest pair — a symbol may be enlarged for legibility, never so far
-    // that it swallows its neighbour. Genuine overlap at true size stays as drawn.
-    const floor=Math.min(MEP_MIN_PX*TS*0.55, Math.max(real, mepSpacingPx));
-    return Math.max(real, floor);
+    // But the floor may not push a symbol into its neighbour: a cold and a hot
+    // supply drawn just touching would be inflated past each other and print as one
+    // blob, with the positions perfectly correct. Each symbol is therefore allowed
+    // to grow only as far as its own nearest neighbour, so a crowded pair reproduces
+    // the spacing you drew while everything else still prints full size.
+    const gap = m ? (mepNear.get(m.id) ?? Infinity) : Infinity;
+    return Math.max(real, Math.min(MEP_MIN_PX*TS, gap));
   }
   // A symbol is dimensioned off its surroundings the same way a piece of
   // furniture is — four directions, each to whatever is actually nearest.
@@ -5121,7 +5134,7 @@
     }
   }
   function mepHit(m,wx,wy){
-    const r=mepPx()/view.scale/2;
+    const r=mepPx(m)/view.scale/2;
     return Math.abs(wx-m.x)<=r*1.15 && Math.abs(wy-m.y)<=r*1.15;
   }
   // nearest wall face on each axis — a socket is dimensioned off the wall it is
@@ -5167,11 +5180,14 @@
       if(!layerVisible(m.layer||'elec')) continue;
       const sel = ui.selected && ui.selected.kind==='mep' && ui.selected.id===m.id;
       const [sx,sy]=toScreen(m.x,m.y);
-      const px=mepPx(), col=mepColor(m.kind);
+      const px=mepPx(m), col=mepColor(m.kind);
       // the glyph itself is occupied space — claim it before anything is placed,
       // including this symbol's OWN distance label, which otherwise lands on it
+      // Reserved against OTHER labels at the end of this symbol's block. Claiming
+      // it up front also blocked this symbol's own height tag, which then hopped
+      // off looking for space and ended up nowhere near the symbol it belongs to.
       const gbox=[sx-px*0.6, sy-px*0.6, px*1.2, px*1.2];
-      placedLabels.push(gbox); glyphBoxes.push(gbox);
+      glyphBoxes.push(gbox);
       ctx.save();
       ctx.globalAlpha=layerAlpha(m.layer||'elec');
       // The LEADER goes down before the symbol so the symbol caps it cleanly. The
@@ -5203,6 +5219,35 @@
       const htxt='H'+Math.round(toDisp(m.h||0));
       ctx.font=`700 ${fpx(9)}px -apple-system,system-ui,sans-serif`;
       const htw=ctx.measureText(htxt).width;
+      // The height tag is placed FIRST. It is the more important of the two
+      // annotations and it has only one natural home: directly under the symbol.
+      // The離牆距離 number has an entire leader to slide along, so it yields —
+      // placing it first is what kept stealing the spot and flinging H sideways.
+      // Everything here is measured from the SYMBOL, not in absolute pixels, so
+      // not in absolute pixels, so the gap stays visually the same at any scale —
+      // and the alternatives are only one short hop away. Two symbols close enough
+      // to clash push each other aside; they never wander off across the room.
+      // clear of a NEIGHBOUR's box, or a tag grazing one by three pixels gets
+      // vetoed and thrown to the far side for no reason a reader can see
+      const gap=px*0.62+6.5*TS;
+      const below=sy+gap, above=sy-gap, side=htw/2+px*0.6;
+      // Two symbols a hand's width apart (a cold and a hot supply) have tags wider
+      // than the gap between them, so "directly below" collides. Nudging along the
+      // same line first keeps both tags on the same row, still touching their own
+      // symbol — much easier to read than one of them jumping to the far side.
+      const slide=htw*0.6;
+      const hcands=[[sx,below],[sx,above],
+                    [sx+slide,below],[sx-slide,below],
+                    [sx+slide,above],[sx-slide,above],
+                    [sx+side,sy],[sx-side,sy]];
+      // the height is the one thing that must always print, so it may overlap a
+      // neighbour's label if it truly has to — but never a symbol
+      const notMine=(r)=>glyphBoxes.some(pb=>pb!==gbox &&
+        r[0]<pb[0]+pb[2] && r[0]+r[2]>pb[0] && r[1]<pb[1]+pb[3] && r[1]+r[3]>pb[1]);
+      const hs=placeLabel(hcands, htw, 0, notMine, tagRect) || {x:hcands[0][0], y:hcands[0][1]};
+      plainLabel(htxt, hs.x, hs.y, 0, sel?'#275C7A':col, 9);
+      placedLabels.push(tagRect(hs.x, hs.y, htw));
+      placedLabels.push(gbox);          // now the symbol itself claims its space
       if(pend){
         const {tx,ty}=pend;
         const vertical=Math.abs(ty-sy)>Math.abs(tx-sx);
@@ -5226,22 +5271,6 @@
         if(sp){ plainLabel(txt, sp.x, sp.y, ang, '#5B646E', 10);
                 reserveLabel(sp.x, sp.y, tw, ang); }
       }
-      // Sits directly under the symbol. Everything here is measured from the SYMBOL,
-      // not in absolute pixels, so the gap stays visually the same at any scale —
-      // and the alternatives are only one short hop away. Two symbols close enough
-      // to clash push each other aside; they never wander off across the room.
-      const gap=px*0.5+fpx(5.5);
-      const below=sy+gap, above=sy-gap, side=htw/2+px*0.55;
-      const hcands=[[sx,below],[sx,above],
-                    [sx+side,below],[sx-side,below],
-                    [sx+side,sy],[sx-side,sy],
-                    [sx+side,above],[sx-side,above],
-                    [sx,below+fpx(10)],[sx,above-fpx(10)]];
-      // the height is the one thing that must always print, so it may overlap a
-      // neighbour's label if it truly has to — but never a symbol
-      const hs=placeLabel(hcands, htw, 0, onGlyph) || {x:hcands[0][0], y:hcands[0][1]};
-      plainLabel(htxt, hs.x, hs.y, 0, sel?'#275C7A':col, 9);
-      reserveLabel(hs.x, hs.y, htw, 0);
       ctx.restore();
       if(sel){
         ctx.save(); ctx.strokeStyle='#275C7A'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
