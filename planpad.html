@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b53</title>
+<title>PlanPad · 平面圖工具 b54</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b53</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b54</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -3856,7 +3856,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b53';
+  const BUILD='b54';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4214,11 +4214,12 @@
   // guessed — and it is asymmetric, because only the top and left carry two rows
   // (segments + overall); the bottom and right carry the overall run alone.
   const exportPad = (ts)=>{ const k=(ts||1)*12;
-    // top/left: outer chain line (56) + label offset (11) + half a line of text (13)
-    // bottom/right: inner chain line (26) + the same 24. Nothing more — every extra
-    // millimetre here comes straight out of the floor plan.
-    return { t:Math.max(46,Math.round(k*6.8)), l:Math.max(46,Math.round(k*6.8)),
-             b:Math.max(30,Math.round(k*4.3)), r:Math.max(30,Math.round(k*4.3)) }; };
+    // outer chain line (56) + label offset (11) + half a line of text (13) = 80px
+    // of text-scaled space per side. All four sides now carry a segment row and an
+    // overall run, so all four need the same. Nothing more — every extra millimetre
+    // here comes straight out of the floor plan.
+    const m=Math.max(46,Math.round(k*6.8));
+    return { t:m, l:m, b:m, r:m }; };
   const TEXT_MM = {s:2.8, m:3.6, l:4.6}; // printed height of a dimension label
   function composeSheet(opt, page, pageNo, pageCount, pwMM, phMM){
     const pw=pwMM, ph=phMM;
@@ -4594,18 +4595,6 @@
   // segments along each side, with the overall size on a second line beyond it.
   // Only dimensions the user placed by hand stay where they were put.
   const DIM_TICK = 4;                    // px, the 45° slash at each station
-  function wallFaceStations(axis){
-    // `axis` 'x' collects the vertical faces that divide the plan horizontally
-    const out=[];
-    for(const w of state.walls){
-      if(wallLen(w)<1) continue;
-      const vertical=Math.abs(w.y2-w.y1) >= Math.abs(w.x2-w.x1);
-      if(axis==='x' ? !vertical : vertical) continue;
-      const R=wallRect(w);
-      if(axis==='x'){ out.push(R.x0, R.x1); } else { out.push(R.y0, R.y1); }
-    }
-    return out;
-  }
   function dedupeSorted(vals, tol){
     const s=vals.slice().sort((a,b)=>a-b), out=[];
     for(const v of s) if(!out.length || v-out[out.length-1]>tol) out.push(v);
@@ -4699,21 +4688,74 @@
       reserveLabel(spot.x, spot.y, tw, ang);
     }
   }
+  // Which partitions actually DIE on this side of the plan?
+  //
+  // The old rule projected every vertical wall in the plan onto the top chain and
+  // every horizontal wall onto the left chain, no questions asked. That is wrong,
+  // and badly so: a partition that hangs off the BOTTOM wall had its two faces
+  // printed above the plan, splitting a top edge that is visibly one unbroken run
+  // into four segments with no corresponding break anywhere in the drawing. The
+  // reader hunts for the joint, fails to find it, and eventually works out the
+  // numbers belong to a wall on the far side. Worse, two partitions at different
+  // heights would each drop a pair of faces onto the same chain and the gap
+  // BETWEEN them would be quoted as a dimension — a number measuring nothing.
+  //
+  // A dimension chain describes one edge of the building. It may therefore only
+  // contain walls that meet that edge, and the perimeter walls are the edge, so
+  // they contribute no stations of their own.
+  function sideStations(B, side){
+    const alongX = (side==='t'||side==='b');   // chain runs left-right → vertical walls
+    const tol=2;
+    const walls=state.walls.filter(w=>wallLen(w)>=1);
+    const isVert=(w)=>Math.abs(w.y2-w.y1) >= Math.abs(w.x2-w.x1);
+    // Where the perimeter wall on this side ENDS, measured inwards. A partition
+    // usually stops on that wall's centreline, sometimes on its inner face; either
+    // way it counts as touching, and anything short of it does not.
+    let inner = side==='t'?B.y0 : side==='b'?B.y1 : side==='l'?B.x0 : B.x1;
+    for(const w of walls){
+      const R=wallRect(w), v=isVert(w);
+      if(side==='t' && !v && Math.abs(R.y0-B.y0)<=tol) inner=Math.max(inner,R.y1);
+      if(side==='b' && !v && Math.abs(R.y1-B.y1)<=tol) inner=Math.min(inner,R.y0);
+      if(side==='l' &&  v && Math.abs(R.x0-B.x0)<=tol) inner=Math.max(inner,R.x1);
+      if(side==='r' &&  v && Math.abs(R.x1-B.x1)<=tol) inner=Math.min(inner,R.x0);
+    }
+    const out=[];
+    for(const w of walls){
+      const R=wallRect(w), v=isVert(w);
+      if(alongX ? !v : v) continue;                 // must run across this edge
+      // the perimeter walls ARE this edge — they don't divide it
+      if(alongX){ if(R.x0<=B.x0+tol || R.x1>=B.x1-tol) continue; }
+      else      { if(R.y0<=B.y0+tol || R.y1>=B.y1-tol) continue; }
+      const touches = side==='t' ? R.y0<=inner+tol
+                    : side==='b' ? R.y1>=inner-tol
+                    : side==='l' ? R.x0<=inner+tol
+                    :              R.x1>=inner-tol;
+      if(!touches) continue;                        // it belongs to some other edge
+      if(alongX) out.push(R.x0,R.x1); else out.push(R.y0,R.y1);
+    }
+    return out;
+  }
   function drawExteriorDims(){
     if(!showOpt.dims || !EXPORT_MODE) return;
     const B=planBox(); if(!B) return;
     const tol=Math.max(2, 6/view.scale);
-    const xs=dedupeSorted(wallFaceStations('x').concat([B.x0,B.x1]).filter(v=>v>=B.x0-tol&&v<=B.x1+tol), tol);
-    const ys=dedupeSorted(wallFaceStations('y').concat([B.y0,B.y1]).filter(v=>v>=B.y0-tol&&v<=B.y1+tol), tol);
-    // the two rows have to sit far enough apart that a number pushed out of the
-    // inner row still lands clear of the outer LINE, not on top of it
     const g1=fpx(26), g2=fpx(56);
-    dimChain(xs, B.y0, true,  -1, g1);            // segments above
-    dimChain([B.x0,B.x1], B.y0, true,  -1, g2);   // overall above
-    dimChain(ys, B.x0, false, -1, g1);            // segments left
-    dimChain([B.y0,B.y1], B.x0, false, -1, g2);   // overall left
-    dimChain([B.x0,B.x1], B.y1, true,   1, g1);   // overall below
-    dimChain([B.y0,B.y1], B.x1, false,  1, g1);   // overall right
+    const xs=(side)=>dedupeSorted(sideStations(B,side).concat([B.x0,B.x1])
+                       .filter(v=>v>=B.x0-tol&&v<=B.x1+tol), tol);
+    const ys=(side)=>dedupeSorted(sideStations(B,side).concat([B.y0,B.y1])
+                       .filter(v=>v>=B.y0-tol&&v<=B.y1+tol), tol);
+    // Each edge now carries its own segments plus the overall run. When an edge has
+    // no partitions on it the segment row would just repeat the overall, so the
+    // overall moves in to the near row instead of leaving a blank line.
+    const run=(st, fixed, horiz, sign)=>{
+      const split=st.length>2;
+      if(split) dimChain(st, fixed, horiz, sign, g1);
+      dimChain(horiz?[B.x0,B.x1]:[B.y0,B.y1], fixed, horiz, sign, split?g2:g1);
+    };
+    run(xs('t'), B.y0, true,  -1);
+    run(ys('l'), B.x0, false, -1);
+    run(xs('b'), B.y1, true,   1);
+    run(ys('r'), B.x1, false,  1);
   }
 
   // ================= 水電符號庫 =================
