@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b54</title>
+<title>PlanPad · 平面圖工具 b55</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b54</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b55</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -283,6 +283,9 @@
         <div class="ptitle">單位顯示</div>
         <div class="row"><label>長度單位</label>
           <div class="seg" id="unitSeg"><button data-u="cm">cm</button><button data-u="mm" class="on">mm</button></div>
+        </div>
+        <div class="row"><label>面積單位</label>
+          <div class="seg" id="areaSeg"><button data-a="ping" class="on">坪</button><button data-a="m2">m²</button><button data-a="both">兩者</button></div>
         </div>
       </div>
       <div class="psec" data-tool="wall">
@@ -445,6 +448,10 @@
                     // only differs in how it is drawn, labelled and exported
     beams: [],      // {id,x1,y1,x2,y2,w,h,align,position,distTop}
     roomNames: {},  // key -> name
+    roomLabelOff:{},// key -> {dx,dy} in world cm. The centroid is the right place
+                    // for a room's name most of the time, but not when the space
+                    // is L-shaped or a neighbour's label is already there — so it
+                    // is a starting point you can drag away from, not a rule.
     ceilingH: 280,  // 樓高 cm (whole plan)
     _seq: 1,
   };
@@ -453,6 +460,9 @@
     tool: 'select',
     grid: true, snap: true, angleMode: '45', gridSize: 10,
     thick: 20, unit: 'mm', wallAlign: 'mid',   // wallAlign: 'in'|'mid'|'out'
+    areaUnit: 'ping',                          // 'ping'|'m2'|'both' — 坪 is what a
+                                               // Taiwanese client actually reads
+
     colW: 65, colH: 65,                        // column defaults (cm)
     shaftW: 60, shaftH: 60,                    // pipe shaft defaults (cm)
     doorSub: 'swing', winSub: 'fixed',         // which kind the next tap creates
@@ -514,7 +524,7 @@
 
   // ================= History =================
   const history=[]; let hi=-1;
-  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,roomNames:state.roomNames,ceilingH:state.ceilingH,_seq:state._seq}); }
+  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,ceilingH:state.ceilingH,_seq:state._seq}); }
   function pushHistory(){
     cleanupStrayWalls();
     healJunctions();
@@ -641,6 +651,7 @@
     setTimeout(syncLayerUI,0);
     setTimeout(photoPreloadAll,0);
     state.roomNames=(o.roomNames&&typeof o.roomNames==='object')?o.roomNames:{};
+    state.roomLabelOff=(o.roomLabelOff&&typeof o.roomLabelOff==='object')?o.roomLabelOff:{};
     state.ceilingH=o.ceilingH||280;
     state._seq=o._seq||1000;
     ui.selected=null; draft=null; inkDraft=null; eraser=null; typedNum=''; hideLenBox();
@@ -833,6 +844,22 @@
     const area=Math.abs(s/2); const center=Math.abs(s)>1?{x:ccx/(3*s),y:ccy/(3*s)}:cen;
     return {V,Vout,lens,area,center,edges};
   }
+  // where a room's name/area block is actually drawn, centroid plus any nudge
+  function roomLabelPos(r){
+    const o=(state.roomLabelOff||{})[r.key]||{dx:0,dy:0};
+    return toScreen(r.center.x+(o.dx||0), r.center.y+(o.dy||0));
+  }
+  function roomLabelBox(r){
+    const [cx,cy]=roomLabelPos(r);
+    ctx.save();
+    ctx.font=`600 ${fpx(13)}px -apple-system,system-ui,sans-serif`;
+    const w1=ctx.measureText(r.name||'未命名').width;
+    ctx.font=`600 ${fpx(12)}px -apple-system,system-ui,sans-serif`;
+    const w2=ctx.measureText(fmtArea(r.area)).width;
+    ctx.restore();
+    const hw=Math.max(w1,w2)/2 + 6*TS;
+    return [cx-hw, cy-18*TS, hw*2, 36*TS];
+  }
   function roomKey(edges){ return edges.map(e=>e.wid).filter(x=>x!=null).sort((a,b)=>a-b).join('-'); }
   function recomputeRooms(){
     try{
@@ -864,7 +891,15 @@
       for(const A of roomsCache){ for(const B of roomsCache){ if(A===B) continue; if(B.area<A.area && pip(B.center, A.V)){ A.area-=B.area; A.hole=A.hole||[]; A.hole.push(B.Vout); } } }
     }catch(e){}
   }
-  function fmtArea(cm2){ const m2=cm2/10000; return m2.toFixed(2)+' m²　'+(m2/3.305785).toFixed(2)+' 坪'; }
+  // Printing both units on every room doubled the width of the longest label on
+  // the plan, and that label is the one sitting in the middle of the space where
+  // there is least room to grow. One unit by default; both is still available.
+  function fmtArea(cm2){
+    const m2=cm2/10000, ping=m2/3.305785;
+    if(ui.areaUnit==='m2')   return m2.toFixed(2)+' m²';
+    if(ui.areaUnit==='both') return m2.toFixed(2)+' m²　'+ping.toFixed(2)+' 坪';
+    return ping.toFixed(2)+' 坪';
+  }
 
   // ---- rectangle-preserving edit (keeps room rectangular, opposite wall follows) ----
   function roomIsRect(r){ if(r.edges.length!==4) return false; for(const e of r.edges){ if(Math.abs(e.x1-e.x2)>0.5 && Math.abs(e.y1-e.y2)>0.5) return false; } return true; }
@@ -2217,6 +2252,7 @@
     ctx.clearRect(0,0,W,H);
     hitLabels=[];
     placedLabels=[];
+    glyphBoxes=[];
     drawGrid();
     drawRoomsFill();
     drawWalls(false);
@@ -2342,6 +2378,11 @@
   // screen-space rects of labels already drawn this frame, so lower-priority
   // (grey / secondary) labels can bow out instead of printing on top of another
   let placedLabels=[];
+  // symbol footprints specifically: a dimension may be crowded, but it may never
+  // be printed across the symbol it describes — better to omit the number
+  let glyphBoxes=[];
+  const onGlyph=(r)=>glyphBoxes.some(p=>
+    r[0]<p[0]+p[2] && r[0]+r[2]>p[0] && r[1]<p[1]+p[3] && r[1]+r[3]>p[1]);
   // Footprint of a label on screen. A label rotated to run up a vertical wall is
   // TALL and NARROW, but the collision test was using the horizontal box in every
   // case — so vertical dimensions were compared with a box lying on its side and
@@ -2359,13 +2400,15 @@
   // find the first candidate position whose label box is clear, and remember it.
   // Returns {x,y,off,free}; callers use `off` to decide whether a leader line is
   // needed (the label has stepped away from where it naturally belongs).
-  function placeLabel(cands, textW, ang){
+  function placeLabel(cands, textW, ang, veto){
+    let fallback=null;
     for(const c of cands){
-      if(labelFree(labelRect(c[0],c[1],textW,ang)))
-        return {x:c[0], y:c[1], off:c[2]||0, free:true};
+      const r=labelRect(c[0],c[1],textW,ang);
+      if(veto && veto(r)) continue;              // somewhere it must never go
+      if(!fallback) fallback={x:c[0], y:c[1], off:c[2]||0, free:false};
+      if(labelFree(r)) return {x:c[0], y:c[1], off:c[2]||0, free:true};
     }
-    const last=cands[cands.length-1];
-    return {x:last[0], y:last[1], off:last[2]||0, free:false};
+    return fallback;   // crowded but allowed, or null when nowhere is allowed
   }
   function reserveLabel(x,y,textW,ang){ placedLabels.push(labelRect(x,y,textW,ang)); }
   function labelFree(r){
@@ -2452,15 +2495,7 @@
     // before it — so a number could still land on a name further down the list.
     if(showOpt.rooms){
       for(const r of roomsCache){ if(r.V.length<3) continue;
-        const [cx,cy]=toScreen(r.center.x,r.center.y);
-        ctx.save();
-        ctx.font=`600 ${fpx(13)}px -apple-system,system-ui,sans-serif`;
-        const w1=ctx.measureText(r.name||'未命名').width;
-        ctx.font=`600 ${fpx(12)}px -apple-system,system-ui,sans-serif`;
-        const w2=ctx.measureText(fmtArea(r.area)).width;
-        ctx.restore();
-        const bw2=Math.max(w1,w2)/2 + 6*TS;
-        placedLabels.push([cx-bw2, cy-18*TS, bw2*2, 36*TS]);
+        placedLabels.push(roomLabelBox(r));
       }
     }
     for(const r of roomsCache){ if(r.V.length<3) continue;
@@ -2552,7 +2587,7 @@
       }
       // name + area at centroid
       if(!showOpt.rooms) continue;
-      const [cx,cy]=toScreen(r.center.x,r.center.y);
+      const [cx,cy]=roomLabelPos(r);
       ctx.textAlign='center'; ctx.textBaseline='middle';
       const nm=r.name||'未命名';
       ctx.font=`600 ${fpx(13)}px -apple-system,system-ui,sans-serif`; ctx.fillStyle=r.name?'#2A2E33':'#8A9199';
@@ -2825,6 +2860,16 @@
     // tap a room dimension / name label first (works in any tool EXCEPT wall,
     // where we must let you draw through/inside labels — tap-vs-drag decided on release)
     const lab=hitLabel(px,py);
+    // A room's name block is the one label you also want to MOVE — the centroid is
+    // often the wrong spot (an L-shaped space, or two rooms whose labels collide).
+    // Press and drag moves it; press and release without moving still renames it.
+    if(lab && lab.kind==='name' && ui.tool!=='wall'){
+      dragging={hit:{kind:'roomname', key:lab.room.key}, start:[wx,wy], moved:false,
+                orig:Object.assign({dx:0,dy:0},(state.roomLabelOff||{})[lab.room.key]),
+                lab, downPx:[px,py]};
+      draw();
+      return;
+    }
     if(lab && ui.tool!=='wall'){ dbg(`  -> hit label kind=${lab.kind}`); try{stage.releasePointerCapture(e.pointerId);}catch(_){}
       pointers.delete(e.pointerId);
       openLabelEditor(lab,px,py);
@@ -2964,6 +3009,11 @@
       // onto it for real — so the loop closes and the space appears
       if(dragging.moved && dragging.hit.kind==='wallEndpoint'){
         const w=state.walls.find(v=>v.id===dragging.hit.id); if(w) weldWall(w);
+      }
+      if(dragging.hit.kind==='roomname'){
+        const d=dragging; dragging=null;
+        if(d.moved) pushHistory(); else openLabelEditor(d.lab, d.downPx[0], d.downPx[1]);
+        draw(); return;
       }
       if(dragging.moved) pushHistory();
       else if(dragging.hit.kind==='note'){
@@ -3220,6 +3270,10 @@
     else if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); const w=state.walls.find(v=>v.id===o.wallId); const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,pr.t)); }
     else if(hit.kind==='dim'){ const d=state.dims.find(v=>v.id===hit.id); d.x1=orig.x1+dx;d.y1=orig.y1+dy;d.x2=orig.x2+dx;d.y2=orig.y2+dy; }
     else if(hit.kind==='text'){ const t=state.texts.find(v=>v.id===hit.id); t.x=orig.x+dx;t.y=orig.y+dy; }
+    else if(hit.kind==='roomname'){
+      if(!state.roomLabelOff) state.roomLabelOff={};
+      state.roomLabelOff[hit.key]={dx:(orig.dx||0)+dx, dy:(orig.dy||0)+dy};
+    }
     else if(hit.kind==='mep'){
       const m=state.mep.find(v=>v.id===hit.id); m.x=orig.x+dx; m.y=orig.y+dy;
     }
@@ -3789,6 +3843,7 @@
   document.getElementById('gridSize').onchange=e=>{ ui.gridSize=Math.max(1,parseInt(e.target.value)||10); draw(); };
   document.getElementById('ceilingH').onchange=e=>{ const v=fromDisp(parseFloat(e.target.value)||280); state.ceilingH=Math.max(150,v); pushHistory(); };
   document.getElementById('unitSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>applyUnit(b.dataset.u));
+  document.getElementById('areaSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>applyAreaUnit(b.dataset.a));
 
   // ================= Keyboard =================
   window.addEventListener('keydown',e=>{
@@ -3856,7 +3911,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b54';
+  const BUILD='b55';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4383,7 +4438,7 @@
     // map isn't replaced by coordinates from the (differently scaled) export
     const sHits=hitLabels, sPlaced=placedLabels;
     const sDims=showOpt.dims, sRooms=showOpt.rooms, sNotes=showOpt.notes, sPhotos=showOpt.photos;
-    hitLabels=[]; placedLabels=[];
+    hitLabels=[]; placedLabels=[]; glyphBoxes=[];
     const sSel=ui.selected; ui.selected=null;   // no selection chrome in an export
     const sExp=EXPORT_MODE; EXPORT_MODE=true;
     // an export is a finished sheet: nothing is "the layer you are editing", so
@@ -4413,7 +4468,7 @@
     // restore in a finally: a throw part-way through used to leave the app running
     // with the export's layer visibility, and no way back except a reload
     ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid;
-    hitLabels=sHits; placedLabels=sPlaced; ui.selected=sSel; TS=sTS; state.layer=sLayer;
+    hitLabels=sHits; placedLabels=sPlaced; glyphBoxes=[]; ui.selected=sSel; TS=sTS; state.layer=sLayer;
     state.layerVis=sVis; EXPORT_MODE=sExp;
     showOpt.dims=sDims; showOpt.rooms=sRooms; showOpt.notes=sNotes; showOpt.photos=sPhotos;
     }
@@ -4595,6 +4650,15 @@
   // segments along each side, with the overall size on a second line beyond it.
   // Only dimensions the user placed by hand stay where they were put.
   const DIM_TICK = 4;                    // px, the 45° slash at each station
+  // Screen rect of the building outline, set while the chains are drawn. No
+  // dimension number may be placed over it — a number sitting inside a room reads
+  // as that room's dimension, which is exactly the wrong thing to say.
+  let planNoGo=null;
+  function insidePlan(r){
+    if(!planNoGo) return false;
+    return r[0] < planNoGo[0]+planNoGo[2] && r[0]+r[2] > planNoGo[0]
+        && r[1] < planNoGo[1]+planNoGo[3] && r[1]+r[3] > planNoGo[1];
+  }
   function dedupeSorted(vals, tol){
     const s=vals.slice().sort((a,b)=>a-b), out=[];
     for(const v of s) if(!out.length || v-out[out.length-1]>tol) out.push(v);
@@ -4660,8 +4724,11 @@
       ctx.save(); ctx.font=`700 ${fpx(12)}px -apple-system,system-ui,sans-serif`;
       const tw=ctx.measureText(txt).width; ctx.restore();
       const tight = px < tw + fpx(7);
+      // OUTWARD is away from the plan. The number belongs on the far side of its
+      // own dimension line: put it on the near side and a cramped one that has to
+      // step further has nowhere to go but into the drawing, which is how 1729 and
+      // 1500 ended up printed inside the rooms they were supposed to be measuring.
       const near = fpx(11);
-      // positions along the chain: centred, then just past each tick, then further
       const pA = horiz ? S(stations[i],fixed)[0]   : S(fixed,stations[i])[1];
       const pB = horiz ? S(stations[i+1],fixed)[0] : S(fixed,stations[i+1])[1];
       const ctr = horiz ? p[0] : p[1];
@@ -4669,19 +4736,24 @@
       const alongs = tight ? [ctr, Math.min(pA,pB)-step, Math.max(pA,pB)+step,
                               Math.min(pA,pB)-step*2, Math.max(pA,pB)+step*2]
                            : [ctr];
-      // ...and only if the whole line is full does anything move outward at all
-      const outs = tight ? [near, near+fpx(15)] : [near, near+fpx(15), near+fpx(29)];
+      const outs = [near, near+fpx(16), near+fpx(31)];
       const cands=[];
       for(const o of outs) for(const al of alongs)
-        cands.push([ horiz ? al : base - sign*o, horiz ? base - sign*o : al, o, al ]);
-      const spot = placeLabel(cands, tw, ang);
+        cands.push([ horiz ? al : base + sign*o, horiz ? base + sign*o : al, o, al ]);
+      // and a last resort that is guaranteed clear of everything
+      cands.push([ horiz ? ctr : base + sign*(near+fpx(46)),
+                   horiz ? base + sign*(near+fpx(46)) : ctr, near+fpx(46), ctr ]);
+      // A dimension must never be printed over the thing it dimensions.
+      const last=cands[cands.length-1];
+      const spot = placeLabel(cands, tw, ang, insidePlan)
+                || {x:last[0], y:last[1], off:last[2], free:false};
       // a number that is no longer over its own segment gets a leader back to it
       const moved = Math.abs((horiz?spot.x:spot.y) - ctr) > 1 || spot.off > near + 1;
       if(moved){
         ctx.save(); ctx.strokeStyle='#9AA1A8'; ctx.lineWidth=0.9; ctx.setLineDash([]);
         ctx.beginPath();
-        if(horiz){ ctx.moveTo(p[0], base); ctx.lineTo(spot.x, spot.y + sign*fpx(6)); }
-        else     { ctx.moveTo(base, p[1]); ctx.lineTo(spot.x + sign*fpx(6), spot.y); }
+        if(horiz){ ctx.moveTo(p[0], base); ctx.lineTo(spot.x, spot.y - sign*fpx(6)); }
+        else     { ctx.moveTo(base, p[1]); ctx.lineTo(spot.x - sign*fpx(6), spot.y); }
         ctx.stroke(); ctx.restore();
       }
       plainLabel(txt, spot.x, spot.y, ang, '#3A4148', tight?11:12);
@@ -4740,6 +4812,9 @@
     const B=planBox(); if(!B) return;
     const tol=Math.max(2, 6/view.scale);
     const g1=fpx(26), g2=fpx(56);
+    const c0=toScreen(B.x0,B.y0), c1=toScreen(B.x1,B.y1);
+    planNoGo=[Math.min(c0[0],c1[0])-2, Math.min(c0[1],c1[1])-2,
+              Math.abs(c1[0]-c0[0])+4, Math.abs(c1[1]-c0[1])+4];
     const xs=(side)=>dedupeSorted(sideStations(B,side).concat([B.x0,B.x1])
                        .filter(v=>v>=B.x0-tol&&v<=B.x1+tol), tol);
     const ys=(side)=>dedupeSorted(sideStations(B,side).concat([B.y0,B.y1])
@@ -4756,6 +4831,7 @@
     run(ys('l'), B.x0, false, -1);
     run(xs('b'), B.y1, true,   1);
     run(ys('r'), B.x1, false,  1);
+    planNoGo=null;
   }
 
   // ================= 水電符號庫 =================
@@ -4964,7 +5040,11 @@
   const mepName=(kind)=>{ const e=MEP_LIST.find(x=>x[1]===kind); return e?e[2]:kind; };
   const mepColor=(kind)=>MEP_COLOR[MEP_FAMILY[kind]||'outlet'];
 
-  function mepPx(){ return Math.max(MEP_MIN_PX, MEP_SIZE*view.scale); }
+  // The floor-plan minimum is a SCREEN minimum. An export draws everything else
+  // TS times larger, so leaving the symbol pinned at 22px made a socket print at
+  // under 2mm — a dot next to numbers three times its height. The floor scales
+  // with the rest of the sheet's annotation.
+  function mepPx(){ return Math.max(MEP_MIN_PX*TS, MEP_SIZE*view.scale); }
   // A symbol is dimensioned off its surroundings the same way a piece of
   // furniture is — four directions, each to whatever is actually nearest.
   function mepBox(m){ const r=MEP_SIZE/2;
@@ -5071,10 +5151,15 @@
       const px=mepPx(), col=mepColor(m.kind);
       // the glyph itself is occupied space — claim it before anything is placed,
       // including this symbol's OWN distance label, which otherwise lands on it
-      placedLabels.push([sx-px*0.6, sy-px*0.6, px*1.2, px*1.2]);
+      const gbox=[sx-px*0.6, sy-px*0.6, px*1.2, px*1.2];
+      placedLabels.push(gbox); glyphBoxes.push(gbox);
       ctx.save();
       ctx.globalAlpha=layerAlpha(m.layer||'elec');
-      // the wall dimension first, so the symbol sits on top of its own leader
+      // The LEADER goes down before the symbol so the symbol caps it cleanly. The
+      // number does NOT: drawn here it was painted over by the very symbol it
+      // belongs to, which is why a 200 came out reading "0". It is deferred until
+      // after the glyph.
+      let pend=null;
       if(m.showDim!==false && showOpt.dims){
         const g=mepWallGap(m);
         if(g && g.dist>1){
@@ -5082,18 +5167,7 @@
           ctx.strokeStyle='#8A9199'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
           ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(tx,ty); ctx.stroke();
           ctx.setLineDash([]);
-          const vertical=Math.abs(ty-sy)>Math.abs(tx-sx);
-          const ang=vertical?Math.PI/2:0;
-          const txt=fmtLen(g.dist);
-          ctx.save(); ctx.font=`700 ${fpx(10)}px -apple-system,system-ui,sans-serif`;
-          const tw=ctx.measureText(txt).width; ctx.restore();
-          // slide along the leader instead of always sitting at its midpoint: the
-          // midpoint is very often exactly where the room name or another symbol's
-          // number already is, and two numbers in one place are worse than none
-          const cands=[0.5,0.34,0.66,0.22,0.78].map(f=>[sx+(tx-sx)*f, sy+(ty-sy)*f]);
-          const spot=placeLabel(cands, tw, ang);
-          plainLabel(txt, spot.x, spot.y, ang, '#5B646E', 10);
-          reserveLabel(spot.x, spot.y, tw, ang);
+          pend={tx,ty,dist:g.dist};
         }
       }
       ctx.translate(sx,sy); ctx.rotate((m.rot||0)*Math.PI/180);
@@ -5110,15 +5184,43 @@
       const htxt='H'+Math.round(toDisp(m.h||0));
       ctx.font=`700 ${fpx(9)}px -apple-system,system-ui,sans-serif`;
       const htw=ctx.measureText(htxt).width;
-      const below=sy+px*0.55+fpx(6);
-      const above=sy-px*0.55-fpx(6);
-      // stay NEXT TO the symbol at all costs — a mounting height parked three
-      // lines away is worse than useless on site, so try above and to the sides
-      // before drifting further down the sheet
+      if(pend){
+        const {tx,ty}=pend;
+        const vertical=Math.abs(ty-sy)>Math.abs(tx-sx);
+        const ang=vertical?Math.PI/2:0;
+        const txt=fmtLen(pend.dist);
+        ctx.save(); ctx.font=`700 ${fpx(10)}px -apple-system,system-ui,sans-serif`;
+        const tw=ctx.measureText(txt).width; ctx.restore();
+        // along the leader first; then, when the leader is too short to hold the
+        // number (200 off a wall is a few pixels at 1:70), sideways off it
+        const LL=Math.hypot(tx-sx,ty-sy)||1;
+        // far enough sideways to actually clear the glyph box, or the candidate
+        // gets vetoed and the number is dropped for no good reason
+        const nx2=-(ty-sy)/LL, ny2=(tx-sx)/LL, sd=px*0.62+fpx(11);
+        const cands=[0.5,0.34,0.66,0.22,0.78].map(f=>[sx+(tx-sx)*f, sy+(ty-sy)*f]);
+        for(const k of [1,-1]) for(const f of [0.5,0.75])
+          cands.push([sx+(tx-sx)*f+nx2*sd*k, sy+(ty-sy)*f+ny2*sd*k]);
+        // If every option would land on a symbol, print nothing. A distance
+        // stamped across the socket it measures is unreadable AND it hides the
+        // symbol — two pieces of information lost to save one.
+        const sp=placeLabel(cands, tw, ang, onGlyph);
+        if(sp){ plainLabel(txt, sp.x, sp.y, ang, '#5B646E', 10);
+                reserveLabel(sp.x, sp.y, tw, ang); }
+      }
+      // Sits directly under the symbol. Everything here is measured from the SYMBOL,
+      // not in absolute pixels, so the gap stays visually the same at any scale —
+      // and the alternatives are only one short hop away. Two symbols close enough
+      // to clash push each other aside; they never wander off across the room.
+      const gap=px*0.5+fpx(5.5);
+      const below=sy+gap, above=sy-gap, side=htw/2+px*0.55;
       const hcands=[[sx,below],[sx,above],
-                    [sx+htw/2+px*0.62,sy],[sx-htw/2-px*0.62,sy],
-                    [sx,below+fpx(11)],[sx,above-fpx(11)],[sx,below+fpx(22)]];
-      const hs=placeLabel(hcands, htw, 0);
+                    [sx+side,below],[sx-side,below],
+                    [sx+side,sy],[sx-side,sy],
+                    [sx+side,above],[sx-side,above],
+                    [sx,below+fpx(10)],[sx,above-fpx(10)]];
+      // the height is the one thing that must always print, so it may overlap a
+      // neighbour's label if it truly has to — but never a symbol
+      const hs=placeLabel(hcands, htw, 0, onGlyph) || {x:hcands[0][0], y:hcands[0][1]};
       plainLabel(htxt, hs.x, hs.y, 0, sel?'#275C7A':col, 9);
       reserveLabel(hs.x, hs.y, htw, 0);
       ctx.restore();
@@ -6185,6 +6287,12 @@
             roomNames:state.roomNames, ceilingH:state.ceilingH,_seq:state._seq, unit:ui.unit};
   }
   // applies a unit without touching geometry (internal storage is always cm)
+  function applyAreaUnit(a){
+    ui.areaUnit = (a==='m2'||a==='both') ? a : 'ping';
+    try{ localStorage.setItem('planpad.areaUnit', ui.areaUnit); }catch(_){}
+    document.querySelectorAll('#areaSeg button').forEach(x=>x.classList.toggle('on',x.dataset.a===ui.areaUnit));
+    refreshProp(); draw();
+  }
   function applyUnit(u){
     if(u!=='cm' && u!=='mm') return;
     ui.unit=u;
@@ -6296,7 +6404,7 @@
   function blankPlan(){
     state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
     state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[];
-    state.layer='plan'; state.layerVis={}; state.baseLock=false; state.roomNames={};
+    state.layer='plan'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={};
     // the studio name survives a new project; the client and sheet number do not
     state.meta={firm:(state.meta&&state.meta.firm)||'', designer:(state.meta&&state.meta.designer)||''};
     syncMetaUI();
@@ -6355,6 +6463,9 @@
   // default has to be pushed through the same code path a manual switch uses
   let bootUnit=ui.unit;
   try{ const u=localStorage.getItem('planpad.unit'); if(u==='cm'||u==='mm') bootUnit=u; }catch(_){}
+  let bootArea=ui.areaUnit;
+  try{ const a=localStorage.getItem('planpad.areaUnit'); if(a) bootArea=a; }catch(_){}
+  applyAreaUnit(bootArea);
   applyUnit(bootUnit);
   syncToolSections(); syncLayerUI(); syncFurnUI(); syncMepUI(); syncMetaUI();
   projCountRefresh(); markSaved();
