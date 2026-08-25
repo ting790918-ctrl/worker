@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b50</title>
+<title>PlanPad · 平面圖工具 b51</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b50</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b51</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -1724,7 +1724,14 @@
   // ================= Units & Formatting =================
   function toDisp(cm){ return ui.unit==='mm' ? cm*10 : cm; }   // cm(internal) -> display value
   function fromDisp(v){ return ui.unit==='mm' ? v/10 : v; }    // display value -> cm(internal)
-  function fmtLen(cm){ return Math.round(toDisp(cm)) + ' ' + ui.unit; }
+  // Numbers ON THE DRAWING carry no unit — that is how a construction drawing is
+  // written (the unit belongs in the title block, not beside every dimension), and
+  // repeating " mm" on forty labels was both wrong and the single biggest cause of
+  // labels colliding: it made every number roughly twice as wide as it needed.
+  function fmtLen(cm){ return String(Math.round(toDisp(cm))); }
+  // ...the panels and the live drag readout DO keep the unit: there the number is
+  // out of context and you need to know what you are typing.
+  function fmtLenU(cm){ return fmtLen(cm) + ' ' + ui.unit; }
 
   // ================= Drawing =================
   function resize(){
@@ -2109,7 +2116,7 @@
       const txt=fmtLen(g.gap);
       const tw=boxedLabel(txt,lx,ly,vertical?Math.PI/2:0,11);
       // register the tap target (rotated label -> swap the box dimensions)
-      const hw = vertical ? 12 : tw/2+8, hh = vertical ? tw/2+8 : 12;
+      const hw = (vertical ? 12 : tw/2+8)*TS, hh = (vertical ? tw/2+8 : 12)*TS;
       hitLabels.push({kind:'coldist', rect:[lx-hw,ly-hh,hw*2,hh*2], cid:c.id, dir:g.dir});
       placedLabels.push([lx-hw,ly-hh,hw*2,hh*2]);
     }
@@ -2125,7 +2132,7 @@
       const my = horiz ? (g.dir==='up' ? cy-bm.w/2-g.gap/2 : cy+bm.w/2+g.gap/2) : cy;
       const [lx,ly]=toScreen(mx,my);
       const tw=boxedLabel(fmtLen(g.gap),lx,ly,vertical?Math.PI/2:0,11);
-      const hw = vertical ? 12 : tw/2+8, hh = vertical ? tw/2+8 : 12;
+      const hw = (vertical ? 12 : tw/2+8)*TS, hh = (vertical ? tw/2+8 : 12)*TS;
       hitLabels.push({kind:'beamdist', rect:[lx-hw,ly-hh,hw*2,hh*2], bid:bm.id, dir:g.dir});
       placedLabels.push([lx-hw,ly-hh,hw*2,hh*2]);
     }
@@ -2339,12 +2346,28 @@
   // TALL and NARROW, but the collision test was using the horizontal box in every
   // case — so vertical dimensions were compared with a box lying on its side and
   // happily printed on top of one another.
+  // An export draws the same labels at TS× the size, so a footprint measured in
+  // fixed pixels was up to half the real thing — which is precisely why numbers
+  // that never touch on screen came out printed on top of each other on the sheet.
   function labelRect(cx,cy,textW,ang){
     const vertical=Math.abs(Math.abs(ang)-Math.PI/2)<0.4;
-    const half=Math.max(textW/2+9,14);
-    const hw=vertical?14:half, hh=vertical?half:14;
+    const half=Math.max(textW/2+7*TS, 13*TS);
+    const thin=9*TS;
+    const hw=vertical?thin:half, hh=vertical?half:thin;
     return [cx-hw,cy-hh,hw*2,hh*2];
   }
+  // find the first candidate position whose label box is clear, and remember it.
+  // Returns {x,y,off,free}; callers use `off` to decide whether a leader line is
+  // needed (the label has stepped away from where it naturally belongs).
+  function placeLabel(cands, textW, ang){
+    for(const c of cands){
+      if(labelFree(labelRect(c[0],c[1],textW,ang)))
+        return {x:c[0], y:c[1], off:c[2]||0, free:true};
+    }
+    const last=cands[cands.length-1];
+    return {x:last[0], y:last[1], off:last[2]||0, free:false};
+  }
+  function reserveLabel(x,y,textW,ang){ placedLabels.push(labelRect(x,y,textW,ang)); }
   function labelFree(r){
     for(const p of placedLabels){
       if(r[0] < p[0]+p[2] && r[0]+r[2] > p[0] && r[1] < p[1]+p[3] && r[1]+r[3] > p[1]) return false;
@@ -2424,6 +2447,22 @@
     ctx.restore();
   }
   function drawRoomsInfo(){
+    // Claim all the name/坪數 blocks up front. Doing it as each room is drawn was
+    // too late for that same room's own dimensions, and for every room drawn
+    // before it — so a number could still land on a name further down the list.
+    if(showOpt.rooms){
+      for(const r of roomsCache){ if(r.V.length<3) continue;
+        const [cx,cy]=toScreen(r.center.x,r.center.y);
+        ctx.save();
+        ctx.font=`600 ${fpx(13)}px -apple-system,system-ui,sans-serif`;
+        const w1=ctx.measureText(r.name||'未命名').width;
+        ctx.font=`600 ${fpx(12)}px -apple-system,system-ui,sans-serif`;
+        const w2=ctx.measureText(fmtArea(r.area)).width;
+        ctx.restore();
+        const bw2=Math.max(w1,w2)/2 + 6*TS;
+        placedLabels.push([cx-bw2, cy-18*TS, bw2*2, 36*TS]);
+      }
+    }
     for(const r of roomsCache){ if(r.V.length<3) continue;
       // interior side from the polygon's winding — the old centroid test put labels
       // on the OUTSIDE of some walls in L- and U-shaped rooms (the centroid of such
@@ -2896,7 +2935,7 @@
       const len=dist(from.x,from.y,sp.x,sp.y);
       if(dbgOn) dbg(`  draft.cur updated len=${len.toFixed(0)}cm pendingLabel=${!!draft.pendingLabel}`);
       const [sx,sy]=toScreen(sp.x,sp.y);
-      showLenBox(sx,sy, ((draft.kind==='wall'||draft.kind==='beam')&&typedNum!=='')?('⌨ '+typedNum+' cm'):fmtLen(len));
+      showLenBox(sx,sy, ((draft.kind==='wall'||draft.kind==='beam')&&typedNum!=='')?('⌨ '+typedNum+' cm'):fmtLenU(len));
       draw();
       return;
     }
@@ -3419,7 +3458,7 @@
     }
     else if(s.kind==='dim'){ const d=state.dims.find(v=>v.id===s.id);
       propBody.innerHTML=`
-      <div class="row"><label>量測長度</label><span style="font-size:13px;color:var(--muted)">${fmtLen(dist(d.x1,d.y1,d.x2,d.y2))}</span></div>
+      <div class="row"><label>量測長度</label><span style="font-size:13px;color:var(--muted)">${fmtLenU(dist(d.x1,d.y1,d.x2,d.y2))}</span></div>
       <div class="row"><label>標註偏移</label><div class="field"><input type="number" id="pDoff" value="${Math.round(toDisp(d.off))}" step="5"><span class="unit">${U}</span></div></div>
       <button class="del-btn" id="pDel">刪除標註</button>`;
       document.getElementById('pDoff').onchange=ev=>{ d.off=fromDisp(parseFloat(ev.target.value)||0); pushHistory(); draw(); };
@@ -3458,7 +3497,7 @@
       const gapRows=gaps.map(g=>
         `<div class="row"><label>離牆(${DIRTXT[g.dir]})</label><div class="field"><input type="number" class="pBgap" data-dir="${g.dir}" min="0" value="${Math.round(toDisp(g.gap))}" step="1"><span class="unit">${U}</span></div></div>`).join('');
       propBody.innerHTML=`
-      <div class="row"><label>樑長</label><span style="font-size:13px;color:var(--muted)">${fmtLen(wallLen(bm))}</span></div>
+      <div class="row"><label>樑長</label><span style="font-size:13px;color:var(--muted)">${fmtLenU(wallLen(bm))}</span></div>
       <div class="row"><label>樑寬</label><div class="field"><input type="number" id="pBw" value="${Math.round(toDisp(bm.w))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>樑高</label><div class="field"><input type="number" id="pBh" value="${Math.round(toDisp(bm.h))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>離頂距離</label><div class="field"><input type="number" id="pBdt" value="${Math.round(toDisp(bm.distTop||0))}" step="1"><span class="unit">${U}</span></div></div>
@@ -3817,7 +3856,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b50';
+  const BUILD='b51';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4162,7 +4201,10 @@
   // wide enough for them. Once the text is scaled up for print, a fixed 60px is no
   // longer enough and the outermost numbers get clipped at the sheet edge.
   // the chains sit outside the walls, so the render needs room for them
-  const exportPad = (ts)=> Math.max(60, Math.round((ts||1)*12*6.4));
+  // Room for the dimension chains OUTSIDE the plan outline: two rows of numbers
+  // per side, plus however far a cramped one has had to step out to stay legible.
+  // Too small a margin and the outermost row simply runs off the edge of the sheet.
+  const exportPad = (ts)=> Math.max(60, Math.round((ts||1)*12*9.6));
   const TEXT_MM = {s:2.8, m:3.6, l:4.6}; // printed height of a dimension label
   function composeSheet(opt, page, pageNo, pageCount, pwMM, phMM){
     const pw=pwMM, ph=phMM;
@@ -4587,18 +4629,33 @@
       // A partition only 120mm thick has no room for its number between the ticks.
       // Dropping it silently loses information and makes the chain not add up, so
       // the number steps out to its own line with a leader instead.
-      const tight = px < fpx(17);
-      const off = tight ? fpx(15) : fpx(6);
-      const lx = horiz ? p[0] : base - sign*off;
-      const ly = horiz ? base - sign*off : p[1];
-      if(tight){
+      const txt=fmtLen(len);
+      const ang = horiz?0:Math.PI/2;
+      // width of the number measured along the chain: for a vertical chain the text
+      // is rotated, so what has to fit between two ticks is still its LENGTH
+      ctx.save(); ctx.font=`700 ${fpx(12)}px -apple-system,system-ui,sans-serif`;
+      const tw=ctx.measureText(txt).width; ctx.restore();
+      const tight = px < tw + fpx(6);
+      // Candidate positions, nearest first, stepping outward away from the plan.
+      // Two adjacent thin walls therefore end up on DIFFERENT lines instead of
+      // printing over each other, which is what the 200/200 pile-up was.
+      const near = fpx(11);
+      const offs = tight ? [fpx(21), fpx(35), fpx(49), fpx(63)]
+                         : [near, fpx(25), fpx(39)];
+      const cands = offs.map(o=>[ horiz ? p[0] : base - sign*o,
+                                  horiz ? base - sign*o : p[1], o ]);
+      const spot = placeLabel(cands, tw, ang);
+      // anything that had to step away from its own segment gets a leader, so the
+      // number can still be traced back to the gap it measures
+      if(spot.off > near + 1){
         ctx.save(); ctx.strokeStyle='#9AA1A8'; ctx.lineWidth=0.9; ctx.setLineDash([]);
         ctx.beginPath();
-        if(horiz){ ctx.moveTo(p[0], base); ctx.lineTo(lx, ly + sign*fpx(4)); }
-        else     { ctx.moveTo(base, p[1]); ctx.lineTo(lx + sign*fpx(4), ly); }
+        if(horiz){ ctx.moveTo(p[0], base); ctx.lineTo(spot.x, spot.y + sign*fpx(7)); }
+        else     { ctx.moveTo(base, p[1]); ctx.lineTo(spot.x + sign*fpx(7), spot.y); }
         ctx.stroke(); ctx.restore();
       }
-      plainLabel(fmtLen(len), lx, ly, horiz?0:Math.PI/2, '#3A4148', tight?11:12);
+      plainLabel(txt, spot.x, spot.y, ang, '#3A4148', tight?11:12);
+      reserveLabel(spot.x, spot.y, tw, ang);
     }
   }
   function drawExteriorDims(){
@@ -4607,7 +4664,9 @@
     const tol=Math.max(2, 6/view.scale);
     const xs=dedupeSorted(wallFaceStations('x').concat([B.x0,B.x1]).filter(v=>v>=B.x0-tol&&v<=B.x1+tol), tol);
     const ys=dedupeSorted(wallFaceStations('y').concat([B.y0,B.y1]).filter(v=>v>=B.y0-tol&&v<=B.y1+tol), tol);
-    const g1=fpx(26), g2=fpx(52);
+    // the two rows have to sit far enough apart that a number pushed out of the
+    // inner row still lands clear of the outer LINE, not on top of it
+    const g1=fpx(30), g2=fpx(74);
     dimChain(xs, B.y0, true,  -1, g1);            // segments above
     dimChain([B.x0,B.x1], B.y0, true,  -1, g2);   // overall above
     dimChain(ys, B.x0, false, -1, g1);            // segments left
@@ -4875,7 +4934,7 @@
       ctx.save(); ctx.strokeStyle='#8A9199'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
       ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(fx,fy); ctx.stroke(); ctx.restore();
       const tw=boxedLabel(fmtLen(g.gap),lx,ly,vertical?Math.PI/2:0,11);
-      const hw = vertical ? 12 : tw/2+8, hh = vertical ? tw/2+8 : 12;
+      const hw = (vertical ? 12 : tw/2+8)*TS, hh = (vertical ? tw/2+8 : 12)*TS;
       hitLabels.push({kind:'mepdist', rect:[lx-hw,ly-hh,hw*2,hh*2], mid:m.id, dir:g.dir});
       placedLabels.push([lx-hw,ly-hh,hw*2,hh*2]);
     }
@@ -4937,9 +4996,18 @@
           ctx.strokeStyle='#8A9199'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
           ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(tx,ty); ctx.stroke();
           ctx.setLineDash([]);
-          const mx=(sx+tx)/2, my=(sy+ty)/2;
           const vertical=Math.abs(ty-sy)>Math.abs(tx-sx);
-          plainLabel(fmtLen(g.dist), mx, my, vertical?Math.PI/2:0, '#5B646E', 10);
+          const ang=vertical?Math.PI/2:0;
+          const txt=fmtLen(g.dist);
+          ctx.save(); ctx.font=`700 ${fpx(10)}px -apple-system,system-ui,sans-serif`;
+          const tw=ctx.measureText(txt).width; ctx.restore();
+          // slide along the leader instead of always sitting at its midpoint: the
+          // midpoint is very often exactly where the room name or another symbol's
+          // number already is, and two numbers in one place are worse than none
+          const cands=[0.5,0.34,0.66,0.22,0.78].map(f=>[sx+(tx-sx)*f, sy+(ty-sy)*f]);
+          const spot=placeLabel(cands, tw, ang);
+          plainLabel(txt, spot.x, spot.y, ang, '#5B646E', 10);
+          reserveLabel(spot.x, spot.y, tw, ang);
         }
       }
       ctx.translate(sx,sy); ctx.rotate((m.rot||0)*Math.PI/180);
@@ -4948,13 +5016,27 @@
       ctx.setLineDash([]);
       (MEP_SY[m.kind]||MEP_SY.outlet2)(px, ctx);
       ctx.restore();
-      // mounting height, always shown — it is half the information on this sheet
+      // the glyph itself is occupied space — nothing else may print over it
+      placedLabels.push([sx-px*0.6, sy-px*0.6, px*1.2, px*1.2]);
+      // mounting height, always shown — it is half the information on this sheet.
+      // Two sockets side by side used to stamp their heights on top of one another;
+      // now the second one drops to the next line down (or goes above) instead.
       ctx.save();
       ctx.globalAlpha=layerAlpha(m.layer||'elec');
-      ctx.fillStyle=sel?'#275C7A':col;
+      const htxt='H'+Math.round(toDisp(m.h||0));
       ctx.font=`700 ${fpx(9)}px -apple-system,system-ui,sans-serif`;
-      ctx.textAlign='center'; ctx.textBaseline='top';
-      ctx.fillText('H'+Math.round(toDisp(m.h||0)), sx, sy+px*0.55);
+      const htw=ctx.measureText(htxt).width;
+      const below=sy+px*0.55+fpx(6);
+      const above=sy-px*0.55-fpx(6);
+      // stay NEXT TO the symbol at all costs — a mounting height parked three
+      // lines away is worse than useless on site, so try above and to the sides
+      // before drifting further down the sheet
+      const hcands=[[sx,below],[sx,above],
+                    [sx+htw/2+px*0.62,sy],[sx-htw/2-px*0.62,sy],
+                    [sx,below+fpx(11)],[sx,above-fpx(11)],[sx,below+fpx(22)]];
+      const hs=placeLabel(hcands, htw, 0);
+      plainLabel(htxt, hs.x, hs.y, 0, sel?'#275C7A':col, 9);
+      reserveLabel(hs.x, hs.y, htw, 0);
       ctx.restore();
       if(sel){
         ctx.save(); ctx.strokeStyle='#275C7A'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
@@ -5236,7 +5318,7 @@
       const vertical=(g.dir==='up'||g.dir==='down');
       const [lx,ly]=toScreen(mx,my);
       const tw=boxedLabel(fmtLen(g.gap),lx,ly,vertical?Math.PI/2:0,11);
-      const hw = vertical ? 12 : tw/2+8, hh = vertical ? tw/2+8 : 12;
+      const hw = (vertical ? 12 : tw/2+8)*TS, hh = (vertical ? tw/2+8 : 12)*TS;
       hitLabels.push({kind:'furndist', rect:[lx-hw,ly-hh,hw*2,hh*2], fid:f.id, dir:g.dir});
       placedLabels.push([lx-hw,ly-hh,hw*2,hh*2]);
     }
