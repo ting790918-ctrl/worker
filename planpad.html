@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b55</title>
+<title>PlanPad · 平面圖工具 b56</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b55</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b56</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -3911,7 +3911,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b55';
+  const BUILD='b56';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -5040,11 +5040,29 @@
   const mepName=(kind)=>{ const e=MEP_LIST.find(x=>x[1]===kind); return e?e[2]:kind; };
   const mepColor=(kind)=>MEP_COLOR[MEP_FAMILY[kind]||'outlet'];
 
-  // The floor-plan minimum is a SCREEN minimum. An export draws everything else
-  // TS times larger, so leaving the symbol pinned at 22px made a socket print at
-  // under 2mm — a dot next to numbers three times its height. The floor scales
-  // with the rest of the sheet's annotation.
-  function mepPx(){ return Math.max(MEP_MIN_PX*TS, MEP_SIZE*view.scale); }
+  // Smallest centre-to-centre spacing between visible symbols, in screen px.
+  // Recomputed each draw; Infinity when there is nothing to collide with.
+  let mepSpacingPx=Infinity;
+  function mepRecalcSpacing(){
+    mepSpacingPx=Infinity;
+    const L=state.mep.filter(m=>layerVisible(m.layer||'elec'));
+    for(let i=0;i<L.length;i++) for(let j=i+1;j<L.length;j++){
+      const d=Math.hypot(L[i].x-L[j].x, L[i].y-L[j].y)*view.scale;
+      if(d>0.5 && d<mepSpacingPx) mepSpacingPx=d;
+    }
+  }
+  function mepPx(){
+    const real=MEP_SIZE*view.scale;          // the symbol at its true 30cm size
+    if(TS<=1) return Math.max(MEP_MIN_PX, real);   // on screen: unchanged
+    // Printing needs a legibility floor — at 1:200 a true-size symbol is a speck.
+    // But the floor is the dangerous part: a cold and a hot supply drawn touching
+    // at true size get INFLATED past each other and print as one blob, with the
+    // positions perfectly correct. So the floor is capped by the spacing between
+    // the closest pair — a symbol may be enlarged for legibility, never so far
+    // that it swallows its neighbour. Genuine overlap at true size stays as drawn.
+    const floor=Math.min(MEP_MIN_PX*TS*0.55, Math.max(real, mepSpacingPx));
+    return Math.max(real, floor);
+  }
   // A symbol is dimensioned off its surroundings the same way a piece of
   // furniture is — four directions, each to whatever is actually nearest.
   function mepBox(m){ const r=MEP_SIZE/2;
@@ -5144,6 +5162,7 @@
   }
   function drawMEP(){
     if(!state.mep.length) return;
+    mepRecalcSpacing();
     for(const m of state.mep){
       if(!layerVisible(m.layer||'elec')) continue;
       const sel = ui.selected && ui.selected.kind==='mep' && ui.selected.id===m.id;
