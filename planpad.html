@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b51</title>
+<title>PlanPad · 平面圖工具 b53</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b51</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b53</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -3856,7 +3856,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b51';
+  const BUILD='b53';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4143,13 +4143,19 @@
   // An interior-construction title block: studio at the top, then the fields a
   // contractor looks for. Everything is filled from the project, so the drawing
   // name always matches the sheet you actually exported.
-  function drawTitleBlock(g, pwMM, phMM, mMM, opt, page, pageNo, pageCount){
+  const TB_W=112, TB_ROWS=[11,10,10,10];
+  // Where the title block WILL be, without drawing it. The sheet has to know how
+  // much room the plan gets — and therefore what scale it ends up at — before it
+  // can print that scale in the block itself.
+  function tbRect(pwMM, phMM, mMM){
+    const h=TB_ROWS.reduce((a,b)=>a+b,0), inset=mMM+4.5;
+    return {xMM:pwMM-inset-TB_W, yMM:phMM-inset-h, wMM:TB_W, hMM:h};
+  }
+  function drawTitleBlock(g, pwMM, phMM, mMM, opt, page, pageNo, pageCount, scaleTxt){
     const M=state.meta||{};
-    const tbwMM=112, rowMM=[11,10,10,10];
+    const tbwMM=TB_W, rowMM=TB_ROWS;
     const tbhMM=rowMM.reduce((a,b)=>a+b,0);
-    // tuck the block inside the inner rule rather than straddling the frame
-    const inset=mMM+4.5;
-    const xMM=pwMM-inset-tbwMM, yMM=phMM-inset-tbhMM;
+    const {xMM,yMM}=tbRect(pwMM,phMM,mMM);
     const x=MM(xMM), y=MM(yMM), tbw=MM(tbwMM), tbh=MM(tbhMM);
     g.strokeStyle='#24282E'; g.lineWidth=MM(0.4);
     g.strokeRect(x,y,tbw,tbh);
@@ -4183,7 +4189,7 @@
     cell(0,1,'專案名稱 PROJECT', fname());
     cell(1,1,'業主 CLIENT', M.client||'');
     cell(0,2,'圖名 DRAWING', page.title || '平面配置圖');
-    cell(1,2,'比例 SCALE', opt.scale==='fit' ? 'NTS' : ('1:'+opt.scale));
+    cell(1,2,'比例 SCALE', scaleTxt || (opt.scale==='fit' ? 'NTS' : ('1:'+opt.scale)));
     cell(0,3,'日期 DATE', new Date().toISOString().slice(0,10));
     cell(1,3,'圖號 SHEET', (M.sheet||'A') + '-' + String(pageNo).padStart(2,'0')
                             + (pageCount>1 ? ' / '+pageCount : ''));
@@ -4201,16 +4207,25 @@
   // wide enough for them. Once the text is scaled up for print, a fixed 60px is no
   // longer enough and the outermost numbers get clipped at the sheet edge.
   // the chains sit outside the walls, so the render needs room for them
-  // Room for the dimension chains OUTSIDE the plan outline: two rows of numbers
-  // per side, plus however far a cramped one has had to step out to stay legible.
-  // Too small a margin and the outermost row simply runs off the edge of the sheet.
-  const exportPad = (ts)=> Math.max(60, Math.round((ts||1)*12*9.6));
+  // Room for the dimension chains OUTSIDE the plan outline. This margin is pure
+  // overhead: every millimetre of it is a millimetre the floor plan does NOT get,
+  // and since it is sized off the TEXT while the plan is sized to fit, a generous
+  // margin quietly squeezes the drawing down to a stamp. So it is measured, not
+  // guessed — and it is asymmetric, because only the top and left carry two rows
+  // (segments + overall); the bottom and right carry the overall run alone.
+  const exportPad = (ts)=>{ const k=(ts||1)*12;
+    // top/left: outer chain line (56) + label offset (11) + half a line of text (13)
+    // bottom/right: inner chain line (26) + the same 24. Nothing more — every extra
+    // millimetre here comes straight out of the floor plan.
+    return { t:Math.max(46,Math.round(k*6.8)), l:Math.max(46,Math.round(k*6.8)),
+             b:Math.max(30,Math.round(k*4.3)), r:Math.max(30,Math.round(k*4.3)) }; };
   const TEXT_MM = {s:2.8, m:3.6, l:4.6}; // printed height of a dimension label
   function composeSheet(opt, page, pageNo, pageCount, pwMM, phMM){
     const pw=pwMM, ph=phMM;
     const {c:sheet,g}=sheetCanvas(pw,ph);
     const custom=frameCurrent();
     let availW, availH, ox, oy;                 // all in mm
+    let tb=null, tbM=8;
     if(custom){
       g.drawImage(customImg(custom), 0,0, MM(pw),MM(ph));
       const mg=custom.margins;
@@ -4223,19 +4238,29 @@
       g.strokeRect(MM(m),MM(m),MM(pw-2*m),MM(ph-2*m));
       g.lineWidth=MM(0.25);
       g.strokeRect(MM(m+2.5),MM(m+2.5),MM(pw-2*m-5),MM(ph-2*m-5));
-      const tb=drawTitleBlock(g,pw,ph,m,opt,page,pageNo,pageCount);
+      tb=tbRect(pw,ph,m);
       const lg=drawLegend(g,pw,ph,m,tb,page.layers);
+      tbM=m;
       ox=m+4; oy=m+4;
       // Two ways to fit around the title block: the full width above it, or the
-      // full height beside it. With a legend the block gets tall and the second
-      // shape is much larger, so take whichever actually gives the bigger drawing.
-      // With the legend bottom-left and the title block bottom-right, the whole
-      // band above them is free — that is the biggest single rectangle available,
-      // so the plan simply takes it.
+      // full height beside it.
       const blockTop=Math.min(tb.yMM, lg?lg.yMM:tb.yMM);
-      const above={w:pw-2*m-8, h:(blockTop-3)-oy};
-      const beside={w:((lg?lg.xMM:tb.xMM)-4)-ox, h:ph-2*m-8};
-      const pick = (above.w*above.h >= beside.w*beside.h) ? above : beside;
+      const above={x:ox, y:oy, w:pw-2*m-8, h:(blockTop-3)-oy};
+      const beside={x:ox, y:oy, w:((lg?lg.xMM:tb.xMM)-4)-ox, h:ph-2*m-8};
+      // Pick by the SIZE OF DRAWING each one produces, not by the area of the
+      // rectangle. A plan is limited by whichever side runs out first, so the
+      // roomier-looking region is regularly the one that prints the smaller plan:
+      // a tall narrow plan wants the tall region even though the wide one has more
+      // square millimetres in it.
+      const bT=bounds()||{x0:0,y0:0,x1:400,y1:300};
+      const bwT=Math.max(1,bT.x1-bT.x0), bhT=Math.max(1,bT.y1-bT.y0);
+      const pad0=exportPad((TEXT_MM[opt.textSize||'m']||TEXT_MM.m)*SHEET_PPM/12);
+      const yield_=(R)=>Math.min((MM(R.w)-pad0.l-pad0.r)/bwT, (MM(R.h)-pad0.t-pad0.b)/bhT);
+      // ...but only switch away from the conventional placement when it is worth
+      // it. A 2% bigger plan tucked into the left column, with a large empty
+      // corner left over, reads as a mistake; the band above wins ties.
+      const pick = yield_(beside) > yield_(above)*1.06 ? beside : above;
+      ox=pick.x; oy=pick.y;
       availW=Math.max(20,pick.w); availH=Math.max(20,pick.h);
     }
     // Render the plan at exactly the pixel size it will occupy. The old code always
@@ -4246,12 +4271,13 @@
     const pxW=MM(availW), pxH=MM(availH);
     const targetMM0=TEXT_MM[opt.textSize||'m']||TEXT_MM.m;
     const TSv=targetMM0*SHEET_PPM/12, PADp=exportPad(TSv);
+    const padX=PADp.l+PADp.r, padY=PADp.t+PADp.b;
     let S;                                       // px per cm for the plan render
-    const fitS=()=>Math.min((pxW-2*PADp)/bw, (pxH-2*PADp)/bh);
+    const fitS=()=>Math.min((pxW-padX)/bw, (pxH-padY)/bh);
     if(opt.scale==='fit'){ S=fitS(); }
     else {
       S = 10*SHEET_PPM/parseFloat(opt.scale);    // 1cm real -> 10/N mm -> px
-      if(bw*S+2*PADp>pxW || bh*S+2*PADp>pxH){
+      if(bw*S+padX>pxW || bh*S+padY>pxH){
         uiAlert('此比例在所選紙張放不下，已改用「適應頁面」。建議換成 A3 或較小的比例。');
         S=fitS();
       }
@@ -4265,6 +4291,14 @@
     const iw=cw/SHEET_PPM, ih=ch/SHEET_PPM;      // 1:1 pixels, no resampling
     const ix=ox+(availW-iw)/2, iy=oy+(availH-ih)/2;
     g.drawImage(oc, MM(ix),MM(iy), MM(iw),MM(ih));
+    // The block is printed LAST, now that the plan's real scale is known. "NTS" on
+    // a sheet that is in fact at a consistent ratio is a lie of omission — a builder
+    // who wants to check a dimension by measuring it off the paper needs the number.
+    if(tb){
+      const ratio=10*SHEET_PPM/S;
+      const txt = opt.scale==='fit' ? ('≈1:'+Math.round(ratio)) : ('1:'+opt.scale);
+      drawTitleBlock(g,pw,ph,tbM,opt,page,pageNo,pageCount,txt);
+    }
     return sheet;
   }
   // A legend the contractor can count from. It is built from the symbols actually
@@ -4338,7 +4372,7 @@
     const pad=exportPad(o.textScale!==undefined ? o.textScale : EXPORT_TEXT_SCALE);
     let bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0);
     if(!Number.isFinite(bw)||!Number.isFinite(bh)){ bw=400; bh=300; }
-    const cw=Math.ceil(bw*scale)+pad*2, ch=Math.ceil(bh*scale)+pad*2;
+    const cw=Math.ceil(bw*scale)+pad.l+pad.r, ch=Math.ceil(bh*scale)+pad.t+pad.b;
     if(!Number.isFinite(cw)||!Number.isFinite(ch)||cw<1||ch<1)
       throw new Error('圖面範圍計算異常（'+cw+'x'+ch+'），請按 🐞 複製記錄回報');
     const oc=document.createElement('canvas'); oc.width=cw; oc.height=ch;
@@ -4363,7 +4397,7 @@
     if(o.rooms!==undefined) showOpt.rooms=!!o.rooms;
     if(o.notes!==undefined) showOpt.notes=!!o.notes;
     if(o.photos!==undefined) showOpt.photos=!!o.photos;
-    ctx=g; view.scale=scale; view.ox=pad-b.x0*scale; view.oy=pad-b.y0*scale; W=cw; H=ch; ui.grid=false;
+    ctx=g; view.scale=scale; view.ox=pad.l-b.x0*scale; view.oy=pad.t-b.y0*scale; W=cw; H=ch; ui.grid=false;
     try{
     drawWalls(true); drawBeams(true); drawColumns();
     // these two were missing entirely, which is why an exported PNG came out with
@@ -4626,32 +4660,39 @@
       const p = horiz ? S(mid,fixed) : S(fixed,mid);
       const px = horiz ? Math.abs(S(stations[i+1],fixed)[0]-S(stations[i],fixed)[0])
                        : Math.abs(S(fixed,stations[i+1])[1]-S(fixed,stations[i])[1]);
-      // A partition only 120mm thick has no room for its number between the ticks.
-      // Dropping it silently loses information and makes the chain not add up, so
-      // the number steps out to its own line with a leader instead.
+      // A partition only 200 thick has no room for its number between the ticks.
+      // The old answer was to step the number OUTWARD onto its own line, and with
+      // four thin walls per side that built a four-storey stack of numbers — which
+      // is what forced the margin wide and the floor plan small. A draughtsman does
+      // the opposite: the number stays on the SAME line and slides sideways past
+      // the tick, into the empty space beside a neighbouring longer dimension.
       const txt=fmtLen(len);
       const ang = horiz?0:Math.PI/2;
-      // width of the number measured along the chain: for a vertical chain the text
-      // is rotated, so what has to fit between two ticks is still its LENGTH
       ctx.save(); ctx.font=`700 ${fpx(12)}px -apple-system,system-ui,sans-serif`;
       const tw=ctx.measureText(txt).width; ctx.restore();
-      const tight = px < tw + fpx(6);
-      // Candidate positions, nearest first, stepping outward away from the plan.
-      // Two adjacent thin walls therefore end up on DIFFERENT lines instead of
-      // printing over each other, which is what the 200/200 pile-up was.
+      const tight = px < tw + fpx(7);
       const near = fpx(11);
-      const offs = tight ? [fpx(21), fpx(35), fpx(49), fpx(63)]
-                         : [near, fpx(25), fpx(39)];
-      const cands = offs.map(o=>[ horiz ? p[0] : base - sign*o,
-                                  horiz ? base - sign*o : p[1], o ]);
+      // positions along the chain: centred, then just past each tick, then further
+      const pA = horiz ? S(stations[i],fixed)[0]   : S(fixed,stations[i])[1];
+      const pB = horiz ? S(stations[i+1],fixed)[0] : S(fixed,stations[i+1])[1];
+      const ctr = horiz ? p[0] : p[1];
+      const step = tw/2 + fpx(5);
+      const alongs = tight ? [ctr, Math.min(pA,pB)-step, Math.max(pA,pB)+step,
+                              Math.min(pA,pB)-step*2, Math.max(pA,pB)+step*2]
+                           : [ctr];
+      // ...and only if the whole line is full does anything move outward at all
+      const outs = tight ? [near, near+fpx(15)] : [near, near+fpx(15), near+fpx(29)];
+      const cands=[];
+      for(const o of outs) for(const al of alongs)
+        cands.push([ horiz ? al : base - sign*o, horiz ? base - sign*o : al, o, al ]);
       const spot = placeLabel(cands, tw, ang);
-      // anything that had to step away from its own segment gets a leader, so the
-      // number can still be traced back to the gap it measures
-      if(spot.off > near + 1){
+      // a number that is no longer over its own segment gets a leader back to it
+      const moved = Math.abs((horiz?spot.x:spot.y) - ctr) > 1 || spot.off > near + 1;
+      if(moved){
         ctx.save(); ctx.strokeStyle='#9AA1A8'; ctx.lineWidth=0.9; ctx.setLineDash([]);
         ctx.beginPath();
-        if(horiz){ ctx.moveTo(p[0], base); ctx.lineTo(spot.x, spot.y + sign*fpx(7)); }
-        else     { ctx.moveTo(base, p[1]); ctx.lineTo(spot.x + sign*fpx(7), spot.y); }
+        if(horiz){ ctx.moveTo(p[0], base); ctx.lineTo(spot.x, spot.y + sign*fpx(6)); }
+        else     { ctx.moveTo(base, p[1]); ctx.lineTo(spot.x + sign*fpx(6), spot.y); }
         ctx.stroke(); ctx.restore();
       }
       plainLabel(txt, spot.x, spot.y, ang, '#3A4148', tight?11:12);
@@ -4666,7 +4707,7 @@
     const ys=dedupeSorted(wallFaceStations('y').concat([B.y0,B.y1]).filter(v=>v>=B.y0-tol&&v<=B.y1+tol), tol);
     // the two rows have to sit far enough apart that a number pushed out of the
     // inner row still lands clear of the outer LINE, not on top of it
-    const g1=fpx(30), g2=fpx(74);
+    const g1=fpx(26), g2=fpx(56);
     dimChain(xs, B.y0, true,  -1, g1);            // segments above
     dimChain([B.x0,B.x1], B.y0, true,  -1, g2);   // overall above
     dimChain(ys, B.x0, false, -1, g1);            // segments left
@@ -4986,6 +5027,9 @@
       const sel = ui.selected && ui.selected.kind==='mep' && ui.selected.id===m.id;
       const [sx,sy]=toScreen(m.x,m.y);
       const px=mepPx(), col=mepColor(m.kind);
+      // the glyph itself is occupied space — claim it before anything is placed,
+      // including this symbol's OWN distance label, which otherwise lands on it
+      placedLabels.push([sx-px*0.6, sy-px*0.6, px*1.2, px*1.2]);
       ctx.save();
       ctx.globalAlpha=layerAlpha(m.layer||'elec');
       // the wall dimension first, so the symbol sits on top of its own leader
@@ -5016,8 +5060,6 @@
       ctx.setLineDash([]);
       (MEP_SY[m.kind]||MEP_SY.outlet2)(px, ctx);
       ctx.restore();
-      // the glyph itself is occupied space — nothing else may print over it
-      placedLabels.push([sx-px*0.6, sy-px*0.6, px*1.2, px*1.2]);
       // mounting height, always shown — it is half the information on this sheet.
       // Two sockets side by side used to stamp their heights on top of one another;
       // now the second one drops to the next line down (or goes above) instead.
