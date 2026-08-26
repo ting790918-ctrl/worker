@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b59</title>
+<title>PlanPad · 平面圖工具 b60</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b59</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b60</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -1756,6 +1756,18 @@
     for(let i=state.walls.length-1;i>=0;i--){ const w=state.walls[i]; const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); if(pr.d<Math.max(w.t/2,thr)) return {kind:'wall',id:w.id}; }
     return null;
   }
+  // Generous on purpose: a dimension is a hairline plus a small number, and it is
+  // reached with a fingertip. Being able to grab it matters more than precision,
+  // since the only things it competes with here are labels it sits on top of.
+  function hitDimOnly(wx,wy){
+    const thr=Math.max(8, 24/view.scale);
+    for(let i=state.dims.length-1;i>=0;i--){
+      const d=state.dims[i];
+      const o=dimOffsetPoints(d);
+      if(projPointToSeg(wx,wy,o.ax,o.ay,o.bx,o.by).d<thr) return {kind:'dim',id:d.id};
+    }
+    return null;
+  }
   function findWallNear(wx,wy){
     let best=null,bd=1e9;
     for(const w of state.walls){ const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); if(pr.d<bd){bd=pr.d;best={w,pr};} }
@@ -1971,7 +1983,9 @@
   function drawDims(){
     if(!showOpt.dims) return;
     ctx.strokeStyle='#A23B2D'; ctx.fillStyle='#A23B2D';
-    ctx.lineWidth=1;
+    // a hair heavier than a wall outline so it reads as an annotation you can grab,
+    // not as part of the drawing
+    ctx.lineWidth=Math.max(1.3, 1.3*TS);
     for(const d of state.dims){
       const o=dimOffsetPoints(d);
       const [ax,ay]=toScreen(o.ax,o.ay),[bx,by]=toScreen(o.bx,o.by);
@@ -2866,6 +2880,23 @@
       if(dbgOn) dbg(`  select-tool down: ui.selected=${ui.selected?ui.selected.kind+'#'+ui.selected.id:'null'} epHit=${epHit?epHit.kind+'('+epHit.which+')':'null'}`);
       if(epHit){
         dragging={hit:epHit, start:[wx,wy], moved:false, orig:cloneForDrag(epHit)};
+        draw();
+        return;
+      }
+    }
+
+    // A dimension YOU drew outranks everything else under the finger.
+    //
+    // This is why dimensions felt immovable. The automatic room-edge length labels
+    // are checked first and they blanket the wall lines — exactly where a dimension
+    // gets drawn. Every tap aimed at a dimension was being swallowed by one of those
+    // labels, which opened the "edit this wall's length" editor instead. Nothing was
+    // wrong with dragging or deleting; the tap simply never reached the dimension.
+    if(ui.tool==='select'){
+      const dh=hitDimOnly(wx,wy);
+      if(dh){
+        ui.selected=dh; refreshProp();
+        dragging={hit:dh, start:[wx,wy], moved:false, orig:cloneForDrag(dh)};
         draw();
         return;
       }
@@ -3936,7 +3967,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b59';
+  const BUILD='b60';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -5273,8 +5304,12 @@
       // number does NOT: drawn here it was painted over by the very symbol it
       // belongs to, which is why a 200 came out reading "0". It is deferred until
       // after the glyph.
+      // On screen this run tells you where the device sits while you place it. On a
+      // sheet it is noise: it duplicates dimensions the drafter wants to control,
+      // and there is one of them beside every socket. Exports carry only the
+      // dimensions someone actually chose to draw.
       let pend=null;
-      if(m.showDim!==false && showOpt.dims){
+      if(m.showDim!==false && showOpt.dims && !EXPORT_MODE){
         const g=mepWallGap(m);
         if(g && g.dist>1){
           if(g.along){
