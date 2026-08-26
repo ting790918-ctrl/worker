@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b60</title>
+<title>PlanPad · 平面圖工具 b61</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b60</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b61</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -3827,11 +3827,20 @@
   document.getElementById('zout').onclick=()=>zoomAt(1/1.15);
   function zoomAt(f){ const cx=W/2,cy=H/2; const[wx,wy]=toWorld(cx,cy); view.scale=Math.max(0.03,Math.min(6,view.scale*f)); view.ox=cx-wx*view.scale; view.oy=cy-wy*view.scale; updateZoom(); draw(); }
   document.getElementById('fit').onclick=fitAll;
-  function bounds(){ if(!state.walls.length&&!state.dims.length&&!state.texts.length&&!state.ink.length&&!state.notes.length&&!state.furniture.length&&!state.mep.length) return null; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; const acc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}; for(const w of state.walls){acc(w.x1,w.y1);acc(w.x2,w.y2);} for(const d of state.dims){acc(d.x1,d.y1);acc(d.x2,d.y2);} for(const t of state.texts){acc(t.x,t.y);}
+  // `o` mirrors the export options. A sticky note pinned two metres outside the
+  // building is still part of the drawing set and must not be clipped — but when
+  // the export is not printing notes at all, letting them stretch the bounding box
+  // anyway shrinks the floor plan for nothing. In the report that prompted this, a
+  // single note cost 25% of the drawing scale.
+  function bounds(o){
+    const has=(k)=> !o || !(k in o) || !!o[k];
+    const inclNotes=has('notes'), inclPhotos=has('photos');
+    if(!state.walls.length&&!state.dims.length&&!state.texts.length&&!state.ink.length&&!state.notes.length&&!state.furniture.length&&!state.mep.length) return null; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; const acc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}; for(const w of state.walls){acc(w.x1,w.y1);acc(w.x2,w.y2);} for(const d of state.dims){acc(d.x1,d.y1);acc(d.x2,d.y2);} for(const t of state.texts){acc(t.x,t.y);}
     for(const s2 of state.ink){ const b=strokeBBox(s2); acc(b.x0,b.y0); acc(b.x1,b.y1); }
     for(const f of state.furniture) for(const c of furnCorners(f)) acc(c.x,c.y);
     for(const m of state.mep){ acc(m.x-MEP_SIZE,m.y-MEP_SIZE); acc(m.x+MEP_SIZE,m.y+MEP_SIZE); }
     for(const n of state.notes){
+      if(isPin(n) ? !inclPhotos : !inclNotes) continue;
       acc(n.ax,n.ay); acc(n.x,n.y);
       // a photo PIN has no `h` — its height comes from the width and the photo
       // ratio. Reading n.h on one produced NaN here, which propagated into the
@@ -3967,7 +3976,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b60';
+  const BUILD='b61';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4332,6 +4341,22 @@
     const m=Math.max(46,Math.round(k*6.8));
     return { t:m, l:m, b:m, r:m }; };
   const TEXT_MM = {s:2.8, m:3.6, l:4.6}; // printed height of a dimension label
+  // Which sheet WOULD hold this scale? "Try A3" is not much help when the answer
+  // might be A3 portrait, or no sheet at all.
+  function scaleFailMsg(opt, bw, bh, padX, padY){
+    const need=10*SHEET_PPM/parseFloat(opt.scale);
+    const names={a4:'A4', a3:'A3'};
+    const fits=[];
+    for(const pk of ['a4','a3']) for(const or of ['l','p']){
+      if(pk===opt.paper && or===opt.orient) continue;
+      const [w2,h2]=paperMM({paper:pk,orient:or});
+      const aw=w2-24, ah=h2-24-45;      // margins, inner rule, title-block band
+      if(bw*need+padX<=MM(aw) && bh*need+padY<=MM(ah)) fits.push(names[pk]+(or==='l'?' 橫式':' 直式'));
+    }
+    const head='1:'+opt.scale+' 在這張紙上放不下，已改用「適應頁面」，圖框會標示實際比例。';
+    return fits.length ? head+'\n\n改用 '+fits.join(' 或 ')+' 就放得下。'
+                       : head+'\n\n目前沒有紙張放得下這個比例，請選較小的比例。';
+  }
   function composeSheet(opt, page, pageNo, pageCount, pwMM, phMM){
     const pw=pwMM, ph=phMM;
     const {c:sheet,g}=sheetCanvas(pw,ph);
@@ -4364,7 +4389,7 @@
       // roomier-looking region is regularly the one that prints the smaller plan:
       // a tall narrow plan wants the tall region even though the wide one has more
       // square millimetres in it.
-      const bT=bounds()||{x0:0,y0:0,x1:400,y1:300};
+      const bT=bounds(opt)||{x0:0,y0:0,x1:400,y1:300};
       const bwT=Math.max(1,bT.x1-bT.x0), bhT=Math.max(1,bT.y1-bT.y0);
       const pad0=exportPad((TEXT_MM[opt.textSize||'m']||TEXT_MM.m)*SHEET_PPM/12);
       const yield_=(R)=>Math.min((MM(R.w)-pad0.l-pad0.r)/bwT, (MM(R.h)-pad0.t-pad0.b)/bhT);
@@ -4378,7 +4403,7 @@
     // Render the plan at exactly the pixel size it will occupy. The old code always
     // rendered at 3 px/cm and then stretched the result to fit the sheet, which is
     // why the PDF looked soft — it was an upscaled bitmap.
-    const b=bounds()||{x0:0,y0:0,x1:400,y1:300};
+    const b=bounds(opt)||{x0:0,y0:0,x1:400,y1:300};
     const bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0);
     const pxW=MM(availW), pxH=MM(availH);
     const targetMM0=TEXT_MM[opt.textSize||'m']||TEXT_MM.m;
@@ -4386,11 +4411,16 @@
     const padX=PADp.l+PADp.r, padY=PADp.t+PADp.b;
     let S;                                       // px per cm for the plan render
     const fitS=()=>Math.min((pxW-padX)/bw, (pxH-padY)/bh);
+    let scaleKept=true;
     if(opt.scale==='fit'){ S=fitS(); }
     else {
       S = 10*SHEET_PPM/parseFloat(opt.scale);    // 1cm real -> 10/N mm -> px
       if(bw*S+padX>pxW || bh*S+padY>pxH){
-        uiAlert('此比例在所選紙張放不下，已改用「適應頁面」。建議換成 A3 或較小的比例。');
+        // Falling back is fine. Falling back and then printing the REQUESTED ratio
+        // in the title block is not: the sheet claims a scale it is not drawn at,
+        // and anyone measuring off it gets wrong numbers.
+        scaleKept=false;
+        uiAlert(scaleFailMsg(opt, bw, bh, padX, padY));
         S=fitS();
       }
     }
@@ -4408,7 +4438,8 @@
     // who wants to check a dimension by measuring it off the paper needs the number.
     if(tb){
       const ratio=10*SHEET_PPM/S;
-      const txt = opt.scale==='fit' ? ('≈1:'+Math.round(ratio)) : ('1:'+opt.scale);
+      const txt = (opt.scale!=='fit' && scaleKept) ? ('1:'+opt.scale)
+                                                   : ('≈1:'+Math.round(ratio));
       drawTitleBlock(g,pw,ph,tbM,opt,page,pageNo,pageCount,txt);
     }
     return sheet;
@@ -4480,7 +4511,7 @@
   // export renderer: temporarily swap ctx to an offscreen canvas
   function renderExport(scale,opt){
     const o=opt||{};
-    const b=bounds()||{x0:0,y0:0,x1:400,y1:300};
+    const b=bounds(o)||{x0:0,y0:0,x1:400,y1:300};
     const pad=exportPad(o.textScale!==undefined ? o.textScale : EXPORT_TEXT_SCALE);
     let bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0);
     if(!Number.isFinite(bw)||!Number.isFinite(bh)){ bw=400; bh=300; }
