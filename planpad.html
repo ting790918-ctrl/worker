@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b57</title>
+<title>PlanPad · 平面圖工具 b58</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b57</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b58</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -3282,7 +3282,9 @@
       state.roomLabelOff[hit.key]={dx:(orig.dx||0)+dx, dy:(orig.dy||0)+dy};
     }
     else if(hit.kind==='mep'){
-      const m=state.mep.find(v=>v.id===hit.id); m.x=orig.x+dx; m.y=orig.y+dy;
+      const m=state.mep.find(v=>v.id===hit.id);
+      const sp=mepSnap(orig.x+dx, orig.y+dy);
+      m.x=sp.x; m.y=sp.y;
     }
     else if(hit.kind==='furn'){
       const f=state.furniture.find(v=>v.id===hit.id);
@@ -3918,7 +3920,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b57';
+  const BUILD='b58';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -5139,7 +5141,39 @@
   }
   // nearest wall face on each axis — a socket is dimensioned off the wall it is
   // mounted on, which is what the electrician actually needs
+  // What a fitter actually needs to know about a device.
+  //
+  // A symbol mounted ON a wall used to be dimensioned ACROSS that wall — from its
+  // centreline to the wall's own face — which is half a wall thickness, the same
+  // meaningless "100" beside every socket in the building. What matters for a wall
+  // device is where it sits ALONG the wall, measured from the corner. Only a device
+  // that is genuinely off the wall (a floor box, an island outlet) gets a
+  // perpendicular distance.
+  function mepHostWall(m){
+    let best=null, bd=Infinity;
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const cl=wallCenterline(w);
+      const pr=projPointToSeg(m.x,m.y,cl.x1,cl.y1,cl.x2,cl.y2);
+      if(pr.d<=w.t/2+1 && pr.t>0.0001 && pr.t<0.9999 && pr.d<bd){ bd=pr.d; best={w,pr}; }
+    }
+    return best;
+  }
   function mepWallGap(m){
+    const host=mepHostWall(m);
+    if(host){
+      // distance along the wall to the nearer corner, measured from the face you
+      // would actually put a tape against
+      const w=host.w, L=wallLen(w)||1, ins=wallEndInset(w);
+      const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L;
+      const d=host.pr.t*L;
+      const fromS=d-ins.s, fromE=(L-d)-ins.e;
+      const near = fromS<=fromE;
+      const dist = Math.max(0, near?fromS:fromE);
+      const at = near ? ins.s : L-ins.e;
+      const cl=wallCenterline(w);
+      return {dist, tx:cl.x1+ux*at, ty:cl.y1+uy*at, along:true};
+    }
     let bx=null, by=null;
     for(const w of state.walls){
       if(wallLen(w)<1) continue;
@@ -5152,11 +5186,8 @@
         for(const fy of [R.y0,R.y1]){ const d=m.y-fy;
           if(!by || Math.abs(d)<Math.abs(by.d)) by={d, face:fy}; }
       }
-      // also consider walls the point is not inside the span of, on the near side
-      if(!(m.y>=R.y0-1 && m.y<=R.y1+1) && !(m.x>=R.x0-1 && m.x<=R.x1+1)) continue;
     }
     if(!bx && !by){
-      // fall back: nearest wall face overall
       let best=null;
       for(const w of state.walls){
         if(wallLen(w)<1) continue;
@@ -5220,28 +5251,22 @@
       ctx.font=`700 ${fpx(9)}px -apple-system,system-ui,sans-serif`;
       const htw=ctx.measureText(htxt).width;
       // The height tag is placed FIRST. It is the more important of the two
-      // annotations and it has only one natural home: directly under the symbol.
-      // The離牆距離 number has an entire leader to slide along, so it yields —
-      // placing it first is what kept stealing the spot and flinging H sideways.
-      // Everything here is measured from the SYMBOL, not in absolute pixels, so
-      // not in absolute pixels, so the gap stays visually the same at any scale —
-      // and the alternatives are only one short hop away. Two symbols close enough
-      // to clash push each other aside; they never wander off across the room.
-      // clear of a NEIGHBOUR's box, or a tag grazing one by three pixels gets
-      // vetoed and thrown to the far side for no reason a reader can see
-      const gap=px*0.62+6.5*TS;
-      const below=sy+gap, above=sy-gap, side=htw/2+px*0.6;
-      // Two symbols a hand's width apart (a cold and a hot supply) have tags wider
-      // than the gap between them, so "directly below" collides. Nudging along the
-      // same line first keeps both tags on the same row, still touching their own
-      // symbol — much easier to read than one of them jumping to the far side.
-      const slide=htw*0.6;
-      const hcands=[[sx,below],[sx,above],
-                    [sx+slide,below],[sx-slide,below],
-                    [sx+slide,above],[sx-slide,above],
-                    [sx+side,sy],[sx-side,sy]];
-      // the height is the one thing that must always print, so it may overlap a
-      // neighbour's label if it truly has to — but never a symbol
+      // annotations and it has only one natural home: tucked into the symbol's
+      // top-right corner, the way an electrician's drawing tags a device. The
+      // 離牆距離 number has an entire leader to slide along, so it yields — placing
+      // it first is what kept stealing the spot and flinging H sideways.
+      // Everything is measured from the SYMBOL, so the tag hugs it at any scale.
+      const rx=px*0.55, ry=px*0.52;              // just outside the glyph, diagonally
+      const dxo=rx+htw/2, dyo=ry+2*TS;
+      // Top-right by default; a neighbour crowding that corner sends it to the
+      // top-left, then below. Four corners is enough for a row of switches to
+      // alternate cleanly instead of stacking on one another.
+      const hcands=[[sx+dxo,sy-dyo],[sx-dxo,sy-dyo],
+                    [sx+dxo,sy+dyo],[sx-dxo,sy+dyo],
+                    [sx,sy-ry-6.5*TS],[sx,sy+ry+6.5*TS],
+                    [sx+dxo+htw*0.5,sy-dyo],[sx-dxo-htw*0.5,sy-dyo]];
+      // the height must always print, so it may crowd a neighbour's label if it
+      // truly has to — but never a symbol
       const notMine=(r)=>glyphBoxes.some(pb=>pb!==gbox &&
         r[0]<pb[0]+pb[2] && r[0]+r[2]>pb[0] && r[1]<pb[1]+pb[3] && r[1]+r[3]>pb[1]);
       const hs=placeLabel(hcands, htw, 0, notMine, tagRect) || {x:hcands[0][0], y:hcands[0][1]};
@@ -5280,11 +5305,30 @@
       }
     }
   }
+  // A socket, a switch, a tap: every one of them is mounted ON a wall. Free-floating
+  // placement is almost always a near miss, so the symbol is pulled onto the nearest
+  // wall's centreline once it is close enough — the same magnetic feel as snapping a
+  // door into a wall. Beyond that reach it stays wherever you put it (an island
+  // hob outlet or a floor box is a real case), falling back to the grid.
+  function mepSnap(wx,wy){
+    let best=null, bd=Infinity;
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const cl=wallCenterline(w);
+      const pr=projPointToSeg(wx,wy,cl.x1,cl.y1,cl.x2,cl.y2);
+      // reach: the wall's own band plus a finger's width of slack on screen
+      const reach=w.t/2 + Math.max(14, 20/view.scale);
+      if(pr.d<=reach && pr.d<bd){ bd=pr.d; best={x:pr.x, y:pr.y}; }
+    }
+    if(best) return best;
+    if(ui.snap){ const g=ui.gridSize; return {x:Math.round(wx/g)*g, y:Math.round(wy/g)*g}; }
+    return {x:wx, y:wy};
+  }
   function placeMEP(wx,wy){
     if(!ui.mepPick){ flashHint('先在右邊的水電圖示庫點一個符號'); return; }
     const kind=ui.mepPick;
-    let x=wx,y=wy;
-    if(ui.snap){ const g=ui.gridSize; x=Math.round(x/g)*g; y=Math.round(y/g)*g; }
+    const sp=mepSnap(wx,wy);
+    const x=sp.x, y=sp.y;
     const m={id:uid(), kind, x, y, rot:0, h:mepDefH(kind), showDim:true, layer:'elec'};
     state.mep.push(m);
     ui.selected={kind:'mep',id:m.id};
