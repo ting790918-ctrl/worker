@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b58</title>
+<title>PlanPad · 平面圖工具 b59</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b58</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b59</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -1458,6 +1458,10 @@
     }
     for(const bm of state.beams){ if(wallLen(bm)>=1) rect(beamCorners(bm)); }
     for(const f of state.furniture){ if(layerVisible(f.layer||'plan')) rect(furnCorners(f)); }
+    // The centre of a socket or a switch is the point a dimension is nearly always
+    // taken TO — it is the thing the離牆距離 already measures — so it snaps like a
+    // corner. Without it you are aiming at a circle by eye and the number drifts.
+    for(const m of state.mep){ if(layerVisible(m.layer||'elec')) pts.push([m.x,m.y]); }
     return {pts,segs};
   }
   function snapToObjects(wx,wy){
@@ -1744,7 +1748,10 @@
     // openings
     for(let i=state.openings.length-1;i>=0;i--){ const o=state.openings[i]; const w=state.walls.find(v=>v.id===o.wallId); if(!w)continue; const [cx,cy]=wallPointAt(w,o.pos); if(Math.hypot(cx-wx,cy-wy)<Math.max(o.width/2,thr)) return {kind:'opening',id:o.id}; }
     // dims
-    for(let i=state.dims.length-1;i>=0;i--){ const d=state.dims[i]; const off=dimOffsetPoints(d); const pr=projPointToSeg(wx,wy,off.ax,off.ay,off.bx,off.by); if(pr.d<thr) return {kind:'dim',id:d.id}; }
+    // A dimension is a hairline with a number on it. At finger resolution the old
+    // tolerance meant you mostly missed it, which is why it felt like dimensions
+    // could not be moved or deleted at all — they could, you just could not grab one.
+    for(let i=state.dims.length-1;i>=0;i--){ const d=state.dims[i]; const off=dimOffsetPoints(d); const pr=projPointToSeg(wx,wy,off.ax,off.ay,off.bx,off.by); if(pr.d<thr*1.8) return {kind:'dim',id:d.id}; }
     // walls
     for(let i=state.walls.length-1;i>=0;i--){ const w=state.walls[i]; const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); if(pr.d<Math.max(w.t/2,thr)) return {kind:'wall',id:w.id}; }
     return null;
@@ -3275,7 +3282,16 @@
     // square every time it was dragged.
     if(hit.kind==='wall'){ const w=state.walls.find(v=>v.id===hit.id); let ddx=dx,ddy=dy; if(ui.snap){const g=ui.gridSize; ddx=Math.round((orig.x1+dx)/g)*g-orig.x1; ddy=Math.round((orig.y1+dy)/g)*g-orig.y1;} w.x1=orig.x1+ddx;w.y1=orig.y1+ddy;w.x2=orig.x2+ddx;w.y2=orig.y2+ddy; recomputeRooms(); }
     else if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); const w=state.walls.find(v=>v.id===o.wallId); const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,pr.t)); }
-    else if(hit.kind==='dim'){ const d=state.dims.find(v=>v.id===hit.id); d.x1=orig.x1+dx;d.y1=orig.y1+dy;d.x2=orig.x2+dx;d.y2=orig.y2+dy; }
+    else if(hit.kind==='dim'){
+      // Dragging a dimension moves the LINE, not the measurement. Translating the
+      // whole thing dragged its two reference points off the very features they
+      // were measuring — the number stayed the same while the dimension quietly
+      // stopped meaning anything. The offset slides; the endpoints stay put.
+      const d=state.dims.find(v=>v.id===hit.id);
+      const L=Math.hypot(orig.x2-orig.x1, orig.y2-orig.y1)||1;
+      const nx=-(orig.y2-orig.y1)/L, ny=(orig.x2-orig.x1)/L;
+      d.off=(orig.off||0) + (dx*nx + dy*ny);
+    }
     else if(hit.kind==='text'){ const t=state.texts.find(v=>v.id===hit.id); t.x=orig.x+dx;t.y=orig.y+dy; }
     else if(hit.kind==='roomname'){
       if(!state.roomLabelOff) state.roomLabelOff={};
@@ -3920,7 +3936,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b58';
+  const BUILD='b59';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -5149,6 +5165,18 @@
   // device is where it sits ALONG the wall, measured from the corner. Only a device
   // that is genuinely off the wall (a floor box, an island outlet) gets a
   // perpendicular distance.
+  function pointInAnyRoom(x,y){
+    for(const r of roomsCache){
+      const V=r.V; if(!V || V.length<3) continue;
+      let inside=false;
+      for(let i=0,j=V.length-1;i<V.length;j=i++){
+        const xi=V[i].x, yi=V[i].y, xj=V[j].x, yj=V[j].y;
+        if((yi>y)!==(yj>y) && x < (xj-xi)*(y-yi)/((yj-yi)||1e-9)+xi) inside=!inside;
+      }
+      if(inside) return true;
+    }
+    return false;
+  }
   function mepHostWall(m){
     let best=null, bd=Infinity;
     for(const w of state.walls){
@@ -5162,17 +5190,35 @@
   function mepWallGap(m){
     const host=mepHostWall(m);
     if(host){
-      // distance along the wall to the nearer corner, measured from the face you
-      // would actually put a tape against
+      // Distance along the wall to the nearer corner. The RUN is what matters, and
+      // it is the same whether you measure it down the centreline or down a face —
+      // but a tape is held against the FACE, and a dimension drawn from a symbol
+      // diagonally down to a dot buried inside the wall reads as neither. So the
+      // dimension is built on the face the device serves and runs parallel to it.
       const w=host.w, L=wallLen(w)||1, ins=wallEndInset(w);
       const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L;
+      const nx=-uy, ny=ux, half=w.t/2;
       const d=host.pr.t*L;
       const fromS=d-ins.s, fromE=(L-d)-ins.e;
       const near = fromS<=fromE;
       const dist = Math.max(0, near?fromS:fromE);
       const at = near ? ins.s : L-ins.e;
       const cl=wallCenterline(w);
-      return {dist, tx:cl.x1+ux*at, ty:cl.y1+uy*at, along:true};
+      // Which of the two faces? The one the device is closest to; a device snapped
+      // dead on the centreline is a tie, and then it is the side that opens into a
+      // room — that is the side someone will stand on with the tape.
+      const face=(sg)=>({sg, x:cl.x1+ux*d+nx*half*sg, y:cl.y1+uy*d+ny*half*sg});
+      const A=face(1), B=face(-1);
+      const dA=Math.hypot(m.x-A.x,m.y-A.y), dB=Math.hypot(m.x-B.x,m.y-B.y);
+      let sg;
+      if(Math.abs(dA-dB)>1) sg = dA<dB ? 1 : -1;
+      else sg = pointInAnyRoom(A.x+nx*4, A.y+ny*4) ? 1
+              : pointInAnyRoom(B.x-nx*4, B.y-ny*4) ? -1 : 1;
+      const fx=nx*half*sg, fy=ny*half*sg;
+      return {dist, along:true, ux, uy, nx:nx*sg, ny:ny*sg,
+              ax:cl.x1+ux*at+fx, ay:cl.y1+uy*at+fy,      // corner, on the face
+              bx:cl.x1+ux*d +fx, by:cl.y1+uy*d +fy,      // device, on the face
+              tx:cl.x1+ux*at+fx, ty:cl.y1+uy*at+fy};
     }
     let bx=null, by=null;
     for(const w of state.walls){
@@ -5204,9 +5250,11 @@
       ? {dist:Math.abs(bx.d), tx:bx.face, ty:m.y}
       : {dist:Math.abs(by.d), tx:m.x, ty:by.face};
   }
+  let alongRuns=[];
   function drawMEP(){
     if(!state.mep.length) return;
     mepRecalcSpacing();
+    alongRuns=[];
     for(const m of state.mep){
       if(!layerVisible(m.layer||'elec')) continue;
       const sel = ui.selected && ui.selected.kind==='mep' && ui.selected.id===m.id;
@@ -5229,11 +5277,52 @@
       if(m.showDim!==false && showOpt.dims){
         const g=mepWallGap(m);
         if(g && g.dist>1){
-          const [tx,ty]=toScreen(g.tx,g.ty);
-          ctx.strokeStyle='#8A9199'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
-          ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(tx,ty); ctx.stroke();
-          ctx.setLineDash([]);
-          pend={tx,ty,dist:g.dist};
+          if(g.along){
+            // A proper dimension: parallel to the wall face, standing just off it,
+            // with witness lines at both ends and the same 45° ticks the exterior
+            // chains use. Not a diagonal string to a dot buried inside the wall.
+            const [ax,ay]=toScreen(g.ax, g.ay);
+            const [bx,by]=toScreen(g.bx, g.by);
+            const [nx2,ny2]=toScreen(g.nx, g.ny), [zx,zy]=toScreen(0,0);
+            let vx=nx2-zx, vy=ny2-zy; const vl=Math.hypot(vx,vy)||1; vx/=vl; vy/=vl;
+            // Two devices near the same corner produce two runs down the same face.
+            // Drawn at the same offset they lie on top of each other; each one that
+            // clashes steps out a line, the way a draughtsman stacks them.
+            let off=fpx(10);
+            const lo=Math.min(ax,bx)+Math.min(ay,by), hi=Math.max(ax,bx)+Math.max(ay,by);
+            for(let guard=0; guard<6; guard++){
+              const clash=alongRuns.some(r=>Math.abs(r.off-off)<fpx(9) &&
+                Math.abs(r.vx-vx)<0.01 && Math.abs(r.vy-vy)<0.01 &&
+                r.lo < hi-2 && r.hi > lo+2);
+              if(!clash) break;
+              off += fpx(12);
+            }
+            alongRuns.push({off, vx, vy, lo, hi});
+            const dax=ax+vx*off, day=ay+vy*off, dbx=bx+vx*off, dby=by+vy*off;
+            ctx.save();
+            ctx.strokeStyle='#8A9199'; ctx.lineWidth=Math.max(0.8,0.9*TS);
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(ax,ay); ctx.lineTo(dax+vx*fpx(3), day+vy*fpx(3));  // witness
+            ctx.moveTo(sx,sy); ctx.lineTo(dbx+vx*fpx(3), dby+vy*fpx(3));  // witness
+            ctx.moveTo(dax,day); ctx.lineTo(dbx,dby);                     // the run
+            ctx.stroke();
+            const tk=fpx(DIM_TICK), ex=(dbx-dax), ey=(dby-day);
+            const el=Math.hypot(ex,ey)||1, uxs=ex/el, uys=ey/el;
+            const tx2=(uxs+vx)*tk, ty2=(uys+vy)*tk;   // 45° between run and normal
+            ctx.beginPath();
+            ctx.moveTo(dax-tx2,day-ty2); ctx.lineTo(dax+tx2,day+ty2);
+            ctx.moveTo(dbx-tx2,dby-ty2); ctx.lineTo(dbx+tx2,dby+ty2);
+            ctx.stroke();
+            ctx.restore();
+            pend={ax:dax,ay:day,bx:dbx,by:dby,dist:g.dist,along:true};
+          } else {
+            const [tx,ty]=toScreen(g.tx,g.ty);
+            ctx.strokeStyle='#8A9199'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+            ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(tx,ty); ctx.stroke();
+            ctx.setLineDash([]);
+            pend={tx,ty,dist:g.dist};
+          }
         }
       }
       ctx.translate(sx,sy); ctx.rotate((m.rot||0)*Math.PI/180);
@@ -5273,7 +5362,19 @@
       plainLabel(htxt, hs.x, hs.y, 0, sel?'#275C7A':col, 9);
       placedLabels.push(tagRect(hs.x, hs.y, htw));
       placedLabels.push(gbox);          // now the symbol itself claims its space
-      if(pend){
+      if(pend && pend.along){
+        const {ax,ay,bx,by}=pend;
+        const ang=Math.abs(bx-ax)>=Math.abs(by-ay) ? 0 : Math.PI/2;
+        const txt=fmtLen(pend.dist);
+        ctx.save(); ctx.font=`700 ${fpx(10)}px -apple-system,system-ui,sans-serif`;
+        const tw=ctx.measureText(txt).width; ctx.restore();
+        // centred on the run, sliding toward either end if the middle is taken
+        const cands=[0.5,0.35,0.65,0.2,0.8].map(f=>[ax+(bx-ax)*f, ay+(by-ay)*f]);
+        const sp=placeLabel(cands, tw, ang, onGlyph);
+        if(sp){ plainLabel(txt, sp.x, sp.y, ang, '#5B646E', 10);
+                reserveLabel(sp.x, sp.y, tw, ang); }
+      }
+      else if(pend){
         const {tx,ty}=pend;
         const vertical=Math.abs(ty-sy)>Math.abs(tx-sx);
         const ang=vertical?Math.PI/2:0;
