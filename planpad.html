@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b64</title>
+<title>PlanPad · 平面圖工具 b66</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b64</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b66</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -332,6 +332,23 @@
         <div id="layerList"></div>
         <div class="lay-note">在哪一層就畫在哪一層。其他層變淡且不能選取，結構永遠當底圖。</div>
       </div>
+      <div class="psec">
+        <div class="ptitle">底圖描繪</div>
+        <div id="ulNone">
+          <button class="btn" id="ulImport" style="width:100%">匯入圖紙…</button>
+          <div class="lay-note">匯入平面圖當底圖，校正比例後直接描。</div>
+        </div>
+        <div id="ulHas" style="display:none">
+          <div class="row"><label>檔名</label><span id="ulName" style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis"></span></div>
+          <div class="row"><label>比例</label><span id="ulScale" style="font-size:12px;color:var(--muted)"></span></div>
+          <div class="row"><label>淡化</label><input type="range" id="ulOpacity" min="10" max="100" value="60" style="flex:1"></div>
+          <div class="row"><label>鎖定位置</label><div class="seg" id="ulLockSeg"><button data-v="1" class="on">鎖定</button><button data-v="0">可移動</button></div></div>
+          <div class="row"><label>顯示</label><div class="seg" id="ulShowSeg"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
+          <button class="btn" id="ulCalib" style="width:100%;margin-top:6px">兩點校正比例…</button>
+          <button class="btn" id="ulRemove" style="width:100%;margin-top:6px">移除底圖</button>
+          <div class="lay-note" id="ulHint">校正後就可以直接用牆工具描圖。</div>
+        </div>
+      </div>
       <div class="psec" data-layer="elec">
         <div class="ptitle">水電圖示庫</div>
         <div class="furn-cats" id="mepCats"></div>
@@ -405,6 +422,7 @@
     </div>
     <input type="file" id="frameInput" accept="image/*,.svg" style="display:none">
 <input type="file" id="photoInput" accept="image/*" style="display:none">
+<input type="file" id="underlayInput" accept="image/png,image/jpeg,image/webp" style="display:none">
     <div class="mrow pdfonly"><span>比例</span><div class="seg" id="mScale"><button data-v="fit" class="on">適應</button><button data-v="50">1:50</button><button data-v="100">1:100</button><button data-v="150">1:150</button><button data-v="200">1:200</button></div></div>
     <div class="mrow"><span>尺寸標註</span><div class="seg" id="mDims"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow"><span>空間名稱 / 坪數</span><div class="seg" id="mRooms"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
@@ -447,6 +465,10 @@
                     // rotate, resize, distance-to-wall), so it shares the array and
                     // only differs in how it is drawn, labelled and exported
     beams: [],      // {id,x1,y1,x2,y2,w,h,align,position,distTop}
+    // An imported drawing to trace over. It is not a photo pin and not a layer of
+    // objects: it is one image pinned to world coordinates, so once its scale is
+    // set every wall drawn on top of it comes out at true size.
+    underlay: null, // {img, w, h, x, y, mmPerPx, rot, opacity, locked, name, note}
     roomNames: {},  // key -> name
     roomLabelOff:{},// key -> {dx,dy} in world cm. The centroid is the right place
                     // for a room's name most of the time, but not when the space
@@ -524,7 +546,7 @@
 
   // ================= History =================
   const history=[]; let hi=-1;
-  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,ceilingH:state.ceilingH,_seq:state._seq}); }
+  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,underlay:state.underlay,ceilingH:state.ceilingH,_seq:state._seq}); }
   function pushHistory(){
     cleanupStrayWalls();
     healJunctions();
@@ -652,6 +674,8 @@
     setTimeout(photoPreloadAll,0);
     state.roomNames=(o.roomNames&&typeof o.roomNames==='object')?o.roomNames:{};
     state.roomLabelOff=(o.roomLabelOff&&typeof o.roomLabelOff==='object')?o.roomLabelOff:{};
+    state.underlay=o.underlay||null; underlayImg=null;
+    try{ refreshUnderlayUI(); }catch(_){}
     state.ceilingH=o.ceilingH||280;
     state._seq=o._seq||1000;
     ui.selected=null; draft=null; inkDraft=null; eraser=null; typedNum=''; hideLenBox();
@@ -1751,7 +1775,7 @@
     // A dimension is a hairline with a number on it. At finger resolution the old
     // tolerance meant you mostly missed it, which is why it felt like dimensions
     // could not be moved or deleted at all — they could, you just could not grab one.
-    for(let i=state.dims.length-1;i>=0;i--){ const d=state.dims[i]; const off=dimOffsetPoints(d); const pr=projPointToSeg(wx,wy,off.ax,off.ay,off.bx,off.by); if(pr.d<thr*1.8) return {kind:'dim',id:d.id}; }
+    for(let i=state.dims.length-1;i>=0;i--){ const d=state.dims[i]; if(!itemLive(d)) continue; const off=dimOffsetPoints(d); const pr=projPointToSeg(wx,wy,off.ax,off.ay,off.bx,off.by); if(pr.d<thr*1.8) return {kind:'dim',id:d.id}; }
     // walls
     for(let i=state.walls.length-1;i>=0;i--){ const w=state.walls[i]; const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); if(pr.d<Math.max(w.t/2,thr)) return {kind:'wall',id:w.id}; }
     return null;
@@ -1764,6 +1788,7 @@
     for(let i=state.dims.length-1;i>=0;i--){
       const d=state.dims[i];
       const o=dimOffsetPoints(d);
+      if(!itemLive(d)) continue;
       if(projPointToSeg(wx,wy,o.ax,o.ay,o.bx,o.by).d<thr) return {kind:'dim',id:d.id};
     }
     return null;
@@ -1796,6 +1821,50 @@
     draw();
   }
 
+  // The decoded bitmap, kept out of state so it never lands in the undo history
+  // or in a saved project (the bytes live in IndexedDB, keyed by id).
+  let underlayImg=null, underlayLoading=false;
+  function underlayEnsure(){
+    const u=state.underlay;
+    if(!u || underlayImg || underlayLoading) return;
+    underlayLoading=true;
+    photoGet(u.img).then(blob=>{
+      const im=new Image();
+      im.onload=()=>{ underlayImg=im; underlayLoading=false; draw(); };
+      im.onerror=()=>{ underlayLoading=false; };
+      im.src=URL.createObjectURL(blob);
+    }).catch(()=>{ underlayLoading=false; });
+  }
+  function drawUnderlay(){
+    const u=state.underlay; if(!u || u.hidden) return;
+    underlayEnsure();
+    if(!underlayImg) return;
+    const [sx,sy]=toScreen(u.x,u.y);
+    const w=u.w*(u.mmPerPx/10)*view.scale, h=u.h*(u.mmPerPx/10)*view.scale;
+    ctx.save();
+    ctx.globalAlpha=(u.opacity==null?0.6:u.opacity);
+    ctx.imageSmoothingQuality='high';
+    ctx.drawImage(underlayImg, sx, sy, w, h);
+    ctx.restore();
+  }
+  function drawCalibMark(){
+    if(ui.tool!=='ulcalib' || !calibA) return;
+    const [ax,ay]=toScreen(calibA.x,calibA.y);
+    ctx.save();
+    ctx.strokeStyle='#2E6E8E'; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.arc(ax,ay,7,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ax-11,ay); ctx.lineTo(ax+11,ay);
+    ctx.moveTo(ax,ay-11); ctx.lineTo(ax,ay+11); ctx.stroke();
+    if(hoverPt){
+      const [bx,by]=toScreen(hoverPt.x,hoverPt.y);
+      ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+      ctx.setLineDash([]);
+      const d=Math.hypot(hoverPt.x-calibA.x, hoverPt.y-calibA.y);
+      boxedLabel(fmtLen(d)+' ?', (ax+bx)/2, (ay+by)/2, 0, 12);
+    }
+    ctx.restore();
+  }
   function drawGrid(){
     if(!ui.grid) return;
     const g=ui.gridSize;
@@ -1983,10 +2052,16 @@
   function drawDims(){
     if(!showOpt.dims) return;
     ctx.strokeStyle='#A23B2D'; ctx.fillStyle='#A23B2D';
+    // A dimension belongs to the drawing it annotates. A clearance you measured on
+    // the furniture layout says nothing about the electrical layout, so hiding the
+    // layout has to take its dimensions with it — otherwise they float over the
+    // wrong drawing and read as if they belonged to it.
     // a hair heavier than a wall outline so it reads as an annotation you can grab,
     // not as part of the drawing
     ctx.lineWidth=Math.max(1.3, 1.3*TS);
     for(const d of state.dims){
+      if(!layerVisible(d.layer||'plan')) continue;
+      ctx.globalAlpha=layerAlpha(d.layer||'plan');
       const o=dimOffsetPoints(d);
       const [ax,ay]=toScreen(o.ax,o.ay),[bx,by]=toScreen(o.bx,o.by);
       const [ex1,ey1]=toScreen(d.x1,d.y1),[ex2,ey2]=toScreen(d.x2,d.y2);
@@ -2008,6 +2083,7 @@
       ctx.fillStyle='#A23B2D'; ctx.fillText(txt,0,-3);
       ctx.restore();
     }
+    ctx.globalAlpha=1;
   }
   function arrow(x,y,ang){
     const s=6;
@@ -2279,6 +2355,7 @@
     placedLabels=[];
     glyphBoxes=[];
     drawGrid();
+    drawUnderlay();          // below everything you draw, above the grid
     drawRoomsFill();
     drawWalls(false);
     drawBeams(false);
@@ -2290,6 +2367,7 @@
     drawFurniture();
     drawMEP();
     drawTexts();
+    drawCalibMark();
     drawNotes();
     drawInk();
     drawGuides();
@@ -2917,6 +2995,22 @@
 
     // tap a room dimension / name label first (works in any tool EXCEPT wall,
     // where we must let you draw through/inside labels — tap-vs-drag decided on release)
+    // two-point calibration takes the tap before anything else
+    if(ui.tool==='ulcalib'){
+      const p={x:wx,y:wy};
+      if(!calibA){ calibA=p; flashHint('點選第二個已知點'); draw(); }
+      else underlayCalibApply(calibA, p, px, py);
+      return;
+    }
+    // an unlocked underlay can be dragged into position, but only when nothing
+    // you have drawn is under the finger — the drawing always wins the tap
+    if(ui.tool==='select' && state.underlay && state.underlay.locked===false
+       && !state.underlay.hidden && !hitTest(wx,wy) && !hitLabel(px,py)){
+      const u=state.underlay;
+      dragging={hit:{kind:'underlay'}, start:[wx,wy], moved:false, orig:{x:u.x,y:u.y}};
+      draw();
+      return;
+    }
     const lab=hitLabel(px,py);
     // A room's name block is the one label you also want to MOVE — the centroid is
     // often the wrong spot (an L-shaped space, or two rooms whose labels collide).
@@ -2978,6 +3072,7 @@
     const [px,py]=evtPos(e);
     let [wx,wy]=toWorld(px,py);
     coordEl.textContent=`X ${Math.round(wx)}　Y ${Math.round(wy)}`;
+    if(ui.tool==='ulcalib' && calibA){ hoverPt={x:wx,y:wy}; draw(); }
 
     if(panStart && pointers.size<2){ view.ox=panStart.ox+(px-panStart.px); view.oy=panStart.oy+(py-panStart.py); draw(); return; }
 
@@ -3110,7 +3205,7 @@
           draft=null; typedNum=''; hideLenBox(); draw();
           return;
         } else if(draft.kind==='dim'){
-          const d={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,off:30}; state.dims.push(d); ui.selected={kind:'dim',id:d.id}; refreshProp(); pushHistory();
+          const d={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,off:30,layer:state.layer}; state.dims.push(d); ui.selected={kind:'dim',id:d.id}; refreshProp(); pushHistory();
         }
       } else { dbg(`  -> too short, NOT created`); }
       draft=null; typedNum=''; hideLenBox(); draw();
@@ -3138,7 +3233,7 @@
         state.walls.push(w); weldWall(w); pushHistory();
         dbg(`  -> WALL CREATED (on cancel) id=${w.id}`);
       } else if(len>15 && draft.kind==='dim'){
-        const d={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,off:30}; state.dims.push(d); pushHistory();
+        const d={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,off:30,layer:state.layer}; state.dims.push(d); pushHistory();
       } else { dbg(`  -> too short, discarded`); }
       draft=null; typedNum=''; hideLenBox(); draw();
     }
@@ -3260,12 +3355,12 @@
     if(ui.snap){ const g=ui.gridSize; x=Math.round(x/g)*g; y=Math.round(y/g)*g; }
     const shaft = kind==='shaft';
     const c={id:uid(),x,y,w:shaft?ui.shaftW:ui.colW,h:shaft?ui.shaftH:ui.colH,rot:0,
-             kind:shaft?'shaft':'col'};
+             kind:shaft?'shaft':'col', layer:state.layer};
     state.columns.push(c); ui.selected={kind:'column',id:c.id}; refreshProp(); pushHistory(); draw(); afterPlace();
   }
 
   function placeText(wx,wy){
-    const t={id:uid(),x:wx,y:wy,text:'',size:16};
+    const t={id:uid(),x:wx,y:wy,text:'',size:16,layer:state.layer};
     state.texts.push(t); ui.selected={kind:'text',id:t.id};
     const [sx,sy]=toScreen(wx,wy);
     showTextInput(sx,sy-14, '', (val)=>{
@@ -3337,6 +3432,9 @@
       d.off=(orig.off||0) + (dx*nx + dy*ny);
     }
     else if(hit.kind==='text'){ const t=state.texts.find(v=>v.id===hit.id); t.x=orig.x+dx;t.y=orig.y+dy; }
+    else if(hit.kind==='underlay'){
+      const u=state.underlay; u.x=orig.x+dx; u.y=orig.y+dy;
+    }
     else if(hit.kind==='roomname'){
       if(!state.roomLabelOff) state.roomLabelOff={};
       state.roomLabelOff[hit.key]={dx:(orig.dx||0)+dx, dy:(orig.dy||0)+dy};
@@ -3989,7 +4087,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b64';
+  const BUILD='b66';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4186,7 +4284,13 @@
   bindToggle('mPngFrame','pngFrame');
   function expLayerUI(){
     const box=document.getElementById('mLayers'); if(!box) return;
-    if(!pdfOpt.layers){ pdfOpt.layers={}; for(const L of LAYERS) pdfOpt.layers[L.id]=layerVisible(L.id); }
+    // Default to the STRUCTURE only. An export is one drawing — 平面配置圖, or
+    // 水電圖 — and carrying every layer at once produces a sheet nobody asked for.
+    // Starting from the shell means you switch on exactly the trade you are issuing.
+    if(!pdfOpt.layers){
+      pdfOpt.layers={};
+      for(const L of LAYERS) pdfOpt.layers[L.id] = L.fixed ? true : (L.id===state.layer);
+    }
     box.innerHTML='';
     for(const L of LAYERS){
       const b=document.createElement('button');
@@ -4220,6 +4324,35 @@
     }
     if(wasPin) pushHistory();
   });
+  document.getElementById('ulImport').onclick=()=>document.getElementById('underlayInput').click();
+  document.getElementById('underlayInput').addEventListener('change',ev=>{
+    const f=ev.target.files[0]; ev.target.value='';
+    if(f) underlayImport(f).catch(err=>uiAlert('圖紙匯入失敗：'+err.message));
+  });
+  document.getElementById('ulOpacity').addEventListener('input',ev=>{
+    if(!state.underlay) return;
+    state.underlay.opacity=Math.max(0.05,Math.min(1,(+ev.target.value)/100));
+    draw();
+  });
+  document.getElementById('ulOpacity').addEventListener('change',()=>pushHistory());
+  document.querySelectorAll('#ulLockSeg button').forEach(b=>b.onclick=()=>{
+    if(!state.underlay) return;
+    state.underlay.locked = b.dataset.v==='1';
+    refreshUnderlayUI(); pushHistory(); draw();
+  });
+  document.querySelectorAll('#ulShowSeg button').forEach(b=>b.onclick=()=>{
+    if(!state.underlay) return;
+    state.underlay.hidden = b.dataset.v!=='1';
+    refreshUnderlayUI(); pushHistory(); draw();
+  });
+  document.getElementById('ulCalib').onclick=underlayCalibStart;
+  document.getElementById('ulRemove').onclick=()=>{
+    uiConfirm('移除底圖？描好的牆不會受影響。',{danger:true,okText:'移除'}).then(yes=>{
+      if(!yes) return;
+      state.underlay=null; underlayImg=null;
+      pushHistory(); refreshUnderlayUI(); draw();
+    });
+  };
   document.getElementById('frameInput').addEventListener('change',ev=>{
     const f=ev.target.files[0]; ev.target.value='';
     if(f) frameAdd(f).catch(err=>uiAlert('圖框匯入失敗：'+err.message));
@@ -4243,12 +4376,18 @@
     // One sheet per layer is what layers are FOR: a set of drawings a contractor
     // can work from, each trade over the same walls.
     const sel=opt.layers||{};
+    // Every layer must be named explicitly, including the ones being turned OFF.
+    // layerVisible() treats "not mentioned" as visible, so a page that only listed
+    // {base, plan} left the electrical and lighting layers switched on: the 平面配置
+    // sheet came out with every socket, switch and light fitting on it, and each
+    // page was a near-copy of the others.
+    const allOff = LAYERS.reduce((m,L)=>{ m[L.id]=false; return m; }, {});
     const pages = opt.perLayer
       ? LAYERS.filter(L=>!L.fixed && sel[L.id]).map(L=>({
           title:L.name,
-          layers:Object.assign({}, {base:sel.base!==false}, {[L.id]:true})
+          layers:Object.assign({}, allOff, {base:sel.base!==false}, {[L.id]:true})
         }))
-      : [{title:'', layers:opt.layers}];
+      : [{title:'', layers:Object.assign({}, allOff, opt.layers)}];
     if(!pages.length) pages.push({title:'', layers:opt.layers});
     pages.forEach((pg,i)=>{ if(i) pdf.addPage(opt.paper, landscape?'l':'p');
                             pdfPage(pdf,opt,pg,i+1,pages.length); });
@@ -4689,6 +4828,100 @@
       };
       fr.readAsDataURL(file);
     }), 20000, '照片處理');
+  }
+  // ---- underlay: an imported drawing you trace over ----
+  // A plan is traced at high zoom, so it keeps far more resolution than a site
+  // photo and stays PNG — JPEG artefacts on hairlines make edges hard to follow.
+  const UL_MAX_PX=3000;
+  function underlayPrepare(file){
+    return withDeadline(new Promise((res,rej)=>{
+      const fr=new FileReader();
+      fr.onerror=()=>rej(new Error('圖檔讀取失敗'));
+      fr.onload=()=>{
+        const im=new Image();
+        im.onerror=()=>rej(new Error('無法解讀這個影像格式（'+(file.type||'未知')+'）'));
+        im.onload=()=>{
+          let w=im.naturalWidth||UL_MAX_PX, h=im.naturalHeight||UL_MAX_PX;
+          const k=Math.min(1, UL_MAX_PX/Math.max(w,h));
+          w=Math.max(1,Math.round(w*k)); h=Math.max(1,Math.round(h*k));
+          const c=document.createElement('canvas'); c.width=w; c.height=h;
+          const g=c.getContext('2d');
+          g.imageSmoothingQuality='high';
+          g.drawImage(im,0,0,w,h);
+          const done=(b)=>b?res({blob:b,w,h}):rej(new Error('圖檔處理失敗'));
+          try{
+            if(c.toBlob) c.toBlob(done,'image/png');
+            else done(dataURLtoBlob(c.toDataURL('image/png')));
+          }catch(err){ rej(new Error('圖檔處理失敗：'+err.message)); }
+        };
+        im.src=String(fr.result);
+      };
+      fr.readAsDataURL(file);
+    }), 30000, '圖紙處理');
+  }
+  async function underlayImport(file){
+    flashHint('圖紙處理中…');
+    const {blob,w,h}=await underlayPrepare(file);
+    const id='ul'+Date.now()+Math.floor(Math.random()*10000);
+    await photoPut(id,blob);
+    // Land it at a guessed scale so it is visible immediately: assume the drawing
+    // spans about 12m across. It is wrong on purpose — calibration comes next.
+    const mmPerPx = 12000/w;
+    const b=bounds();
+    const cx = b ? (b.x0+b.x1)/2 : 0, cy = b ? (b.y0+b.y1)/2 : 0;
+    state.underlay={ img:id, w, h, name:file.name||'圖紙',
+                     x: cx - w*mmPerPx/20, y: cy - h*mmPerPx/20,
+                     mmPerPx, opacity:0.6, locked:true, hidden:false, calibrated:false };
+    underlayImg=null;
+    pushHistory(); refreshUnderlayUI(); draw();
+    flashHint('圖紙已匯入 — 請先做兩點校正');
+  }
+  function underlayScaleTxt(){
+    const u=state.underlay; if(!u) return '';
+    if(!u.calibrated) return '未校正';
+    return Math.round(u.w*u.mmPerPx)+' × '+Math.round(u.h*u.mmPerPx)+' mm';
+  }
+  function refreshUnderlayUI(){
+    const u=state.underlay;
+    const none=document.getElementById('ulNone'), has=document.getElementById('ulHas');
+    if(!none||!has) return;
+    none.style.display=u?'none':'';
+    has.style.display=u?'':'none';
+    if(!u) return;
+    document.getElementById('ulName').textContent=u.name||'圖紙';
+    document.getElementById('ulScale').textContent=underlayScaleTxt();
+    document.getElementById('ulOpacity').value=Math.round((u.opacity==null?0.6:u.opacity)*100);
+    document.querySelectorAll('#ulLockSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.v==='1')===(u.locked!==false)));
+    document.querySelectorAll('#ulShowSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.v==='1')===!u.hidden));
+    document.getElementById('ulHint').textContent = u.calibrated
+      ? '比例已校正，可以直接描圖。'
+      : '還沒校正 — 現在描出來的尺寸不準。';
+  }
+  // Two-point calibration. You point at two things whose real distance you know
+  // (an overall dimension is ideal) and type it in; the image is scaled about the
+  // first point so that pair comes out right, and everything else follows.
+  let calibA=null, hoverPt=null;
+  function underlayCalibStart(){
+    if(!state.underlay) return;
+    calibA=null; setTool('ulcalib');
+    flashHint('點選第一個已知點');
+  }
+  function underlayCalibApply(p1,p2,sx,sy){
+    const dCm=Math.hypot(p2.x-p1.x,p2.y-p1.y);
+    if(dCm<0.5){ flashHint('兩點太近，請重新點'); calibA=null; draw(); return; }
+    showNumInput(sx,sy, Math.round(toDisp(dCm)), (v)=>{
+      const targetCm=fromDisp(v);
+      if(!isFinite(targetCm)||targetCm<=0) return;
+      const k=targetCm/dCm, u=state.underlay;
+      // scale about the first point so it stays where you put it
+      u.mmPerPx*=k;
+      u.x = p1.x + (u.x-p1.x)*k;
+      u.y = p1.y + (u.y-p1.y)*k;
+      u.calibrated=true;
+      calibA=null; setTool('select');
+      pushHistory(); refreshUnderlayUI(); draw();
+      flashHint('比例已校正');
+    });
   }
   async function photoAttach(note,file){
     dbg('photo: 開始處理 '+(file.name||'?')+' '+(file.type||'?')+' '+Math.round((file.size||0)/1024)+'KB');
@@ -6669,7 +6902,7 @@
   function blankPlan(){
     state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
     state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[];
-    state.layer='plan'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={};
+    state.layer='plan'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.underlay=null; underlayImg=null;
     // the studio name survives a new project; the client and sheet number do not
     state.meta={firm:(state.meta&&state.meta.firm)||'', designer:(state.meta&&state.meta.designer)||''};
     syncMetaUI();
@@ -6731,6 +6964,7 @@
   let bootArea=ui.areaUnit;
   try{ const a=localStorage.getItem('planpad.areaUnit'); if(a) bootArea=a; }catch(_){}
   applyAreaUnit(bootArea);
+  refreshUnderlayUI();
   applyUnit(bootUnit);
   syncToolSections(); syncLayerUI(); syncFurnUI(); syncMepUI(); syncMetaUI();
   projCountRefresh(); markSaved();
