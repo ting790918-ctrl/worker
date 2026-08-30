@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b67</title>
+<title>PlanPad · 平面圖工具 b68</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -21,10 +21,20 @@
   html,body{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
   input,textarea,select,[contenteditable]{-webkit-user-select:text; user-select:text;}
   html,body{margin:0; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC",system-ui,sans-serif; color:var(--text); background:var(--canvas-bg);}
-  #app{display:flex; flex-direction:column; height:100%;}
+  /* overflow:hidden here is load-bearing. Safari remembers a per-site page zoom,
+     and at 125% the CSS viewport shrinks to roughly 944x568 — smaller than the
+     chrome needs. Without this the document simply grows past the screen and you
+     can pan the whole app around, with the tool rail or the panel parked off the
+     edge. It looks exactly like the app is broken. */
+  #app{display:flex; flex-direction:column; height:100%; overflow:hidden;}
 
   /* ---- Top bar ---- */
-  #topbar{display:flex; align-items:center; gap:10px; height:52px; padding:0 12px; background:var(--panel); border-bottom:1px solid var(--line); flex:0 0 auto; z-index:20;}
+  /* the bar must never be wider than the screen: the brand gives way first, and
+     what is left scrolls rather than pushing the page sideways */
+  #topbar{display:flex; align-items:center; gap:10px; height:52px; min-height:52px; padding:0 12px; background:var(--panel); border-bottom:1px solid var(--line); flex:0 0 auto; z-index:20; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;}
+  #topbar::-webkit-scrollbar{display:none;}
+  #topbar > *{flex:0 0 auto;}
+  .brand{min-width:0; overflow:hidden;}
   .brand{display:flex; align-items:baseline; gap:8px; user-select:none;}
   .brand .mark{font-weight:700; letter-spacing:-.02em; font-size:17px; color:var(--ink);}
   .brand .sub{font-size:11px; color:var(--muted);}
@@ -49,10 +59,15 @@
   .menu-sep{height:1px; background:var(--line); margin:5px 4px;}
 
   /* ---- Body ---- */
-  #body{display:flex; flex:1; min-height:0;}
+  #body{display:flex; flex:1; min-height:0; min-width:0; overflow:hidden;}
 
   /* ---- Tool rail ---- */
-  #rail{width:56px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:8px 0; gap:4px; flex:0 0 auto; z-index:15;}
+  /* twelve tools need about 670px of height. A short viewport — Safari page zoom,
+     Split View, a phone in landscape — leaves less than that, and the tools below
+     the fold used to be simply unreachable. Now the rail scrolls. */
+  #rail{width:56px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:8px 0; gap:4px; flex:0 0 auto; z-index:15; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;}
+  #rail::-webkit-scrollbar{display:none;}
+  #rail > *{flex:0 0 auto;}
   .tool{width:42px; height:42px; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; color:#4B5158; border:1px solid transparent; user-select:none;}
   .tool:hover{background:#F4F5F7;}
   .tool.active{background:var(--accent-soft); color:var(--accent); border-color:#CDE0EA;}
@@ -175,10 +190,35 @@
   .proj-row button.go{background:#275C7A; border-color:#275C7A; color:#fff;}
   .proj-row button.del{color:var(--danger); border-color:#F0D6D2;}
   .proj-empty{padding:22px 4px; text-align:center; font-size:13px; color:var(--muted); line-height:1.7;}
+  #zoomWarn{display:none; position:fixed; left:8px; right:8px; bottom:8px; z-index:9999;
+    align-items:center; gap:10px; background:#24282E; color:#fff; font-size:12px;
+    line-height:1.5; padding:8px 12px; border-radius:10px; box-shadow:var(--shadow);}
+  #zoomWarn b{color:#8FD0EE;}
+  #zoomWarn button{flex:0 0 auto; background:#3A4148; color:#fff; border:0; border-radius:7px; padding:5px 10px; font-size:12px;}
   @media (max-width:880px){
     #panel{position:absolute; right:0; top:0; bottom:0; transform:translateX(100%); transition:transform .2s; box-shadow:-4px 0 20px rgba(0,0,0,.08);}
     #panel.open{transform:translateX(0);}
     .panel-toggle{display:inline-flex;}
+  }
+  /* A cramped viewport: drop the wordmark before anything functional goes. */
+  @media (max-width:1020px){
+    .brand .sub{display:none;}
+  }
+  @media (max-width:900px){
+    .brand{display:none;}
+  }
+  /* A short viewport (Safari page zoom, Split View) — tighten the rail so the
+     whole tool set still reaches the bottom of the screen. */
+  @media (max-height:700px){
+    .tool{height:38px;}
+    .tool svg{width:18px; height:18px;}
+    .rail-sep{margin:2px 0;}
+    #topbar{height:46px; min-height:46px;}
+  }
+  @media (max-height:600px){
+    .tool{height:32px; gap:0;}
+    .tool .lbl{font-size:8px;}
+    #rail{padding:4px 0; gap:2px;}
   }
 </style>
 </head>
@@ -186,7 +226,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b67</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b68</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -421,6 +461,7 @@
       <button class="tbtn" id="mFrameDel" style="margin-top:10px;width:100%;color:var(--danger);border-color:#F0D6D2">刪除這個圖框</button>
     </div>
     <input type="file" id="frameInput" accept="image/*,.svg" style="display:none">
+<div id="zoomWarn"><span>畫面比螢幕大 — 這是 Safari 記住的頁面縮放。請點網址列左邊的 <b>ᴀA</b> → 選 <b>100%</b>。</span><button id="zoomWarnClose">知道了</button></div>
 <input type="file" id="photoInput" accept="image/*" style="display:none">
 <input type="file" id="underlayInput" accept="image/png,image/jpeg,image/webp" style="display:none">
     <div class="mrow pdfonly"><span>比例</span><div class="seg" id="mScale"><button data-v="fit" class="on">適應</button><button data-v="50">1:50</button><button data-v="100">1:100</button><button data-v="150">1:150</button><button data-v="200">1:200</button></div></div>
@@ -4062,18 +4103,29 @@
   }
   // Belt and braces: if the page ends up zoomed anyway, say so, because otherwise
   // there is nothing on screen to explain why the buttons vanished.
-  if(window.visualViewport){
-    let warned=0;
-    const vvCheck=()=>{
-      const sc=window.visualViewport.scale||1;
-      if(sc>1.05 && Date.now()-warned>4000){
-        warned=Date.now();
-        flashHint('畫面被縮放了 — 請用兩指縮小回原大小');
-      }
-    };
-    window.visualViewport.addEventListener('resize', vvCheck);
-    window.visualViewport.addEventListener('scroll', vvCheck);
+  // Safari stores a page-zoom level PER SITE and reuses it on every visit, so a
+  // single stray pinch keeps the app oversized after every reload. The app cannot
+  // read or reset that setting, so the only useful thing it can do is notice the
+  // symptom and say where the switch is — otherwise it just looks broken.
+  function zoomWatch(){
+    const el=document.getElementById('zoomWarn'); if(!el) return;
+    const dw=document.documentElement.clientWidth||0;
+    const vw=window.innerWidth||dw;
+    const vvs=(window.visualViewport&&window.visualViewport.scale)||1;
+    // pinched in, or the layout viewport is narrower than the device suggests
+    const zoomed = vvs>1.05 || (window.screen && window.screen.width && dw && dw < window.screen.width*0.75);
+    const cramped = window.innerHeight>0 && window.innerHeight<560;
+    el.style.display = (zoomed||cramped) ? 'flex' : 'none';
   }
+  window.addEventListener('resize', zoomWatch);
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', zoomWatch);
+    window.visualViewport.addEventListener('scroll', zoomWatch);
+  }
+  document.getElementById('zoomWarnClose').onclick=()=>{
+    document.getElementById('zoomWarn').style.display='none';
+  };
+  zoomWatch();
 
   // Saving a file from an iPad is not the same as from a desktop browser. The
   // classic `<a download>` + blob trick works in desktop browsers and in full
@@ -4119,7 +4171,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b67';
+  const BUILD='b68';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
