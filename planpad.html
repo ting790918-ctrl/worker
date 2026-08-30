@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b68</title>
+<title>PlanPad · 平面圖工具 b69</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -226,7 +226,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b68</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b69</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -376,7 +376,7 @@
         <div class="ptitle">底圖描繪</div>
         <div id="ulNone">
           <button class="btn" id="ulImport" style="width:100%">匯入圖紙…</button>
-          <div class="lay-note">匯入平面圖當底圖，校正比例後直接描。</div>
+          <div class="lay-note">支援 PDF、PNG、JPG。匯入後先做兩點校正，再直接描。</div>
         </div>
         <div id="ulHas" style="display:none">
           <div class="row"><label>檔名</label><span id="ulName" style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis"></span></div>
@@ -463,7 +463,7 @@
     <input type="file" id="frameInput" accept="image/*,.svg" style="display:none">
 <div id="zoomWarn"><span>畫面比螢幕大 — 這是 Safari 記住的頁面縮放。請點網址列左邊的 <b>ᴀA</b> → 選 <b>100%</b>。</span><button id="zoomWarnClose">知道了</button></div>
 <input type="file" id="photoInput" accept="image/*" style="display:none">
-<input type="file" id="underlayInput" accept="image/png,image/jpeg,image/webp" style="display:none">
+<input type="file" id="underlayInput" accept="application/pdf,image/png,image/jpeg,image/webp" style="display:none">
     <div class="mrow pdfonly"><span>比例</span><div class="seg" id="mScale"><button data-v="fit" class="on">適應</button><button data-v="50">1:50</button><button data-v="100">1:100</button><button data-v="150">1:150</button><button data-v="200">1:200</button></div></div>
     <div class="mrow"><span>尺寸標註</span><div class="seg" id="mDims"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow"><span>空間名稱 / 坪數</span><div class="seg" id="mRooms"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
@@ -4171,7 +4171,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b68';
+  const BUILD='b69';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4411,7 +4411,13 @@
   document.getElementById('ulImport').onclick=()=>document.getElementById('underlayInput').click();
   document.getElementById('underlayInput').addEventListener('change',ev=>{
     const f=ev.target.files[0]; ev.target.value='';
-    if(f) underlayImport(f).catch(err=>uiAlert('圖紙匯入失敗：'+err.message));
+    if(f) underlayImport(f).catch(err=>{
+      const pdf=/\.pdf$/i.test(f.name||'')||f.type==='application/pdf';
+      uiAlert((pdf?'PDF 匯入失敗：':'圖紙匯入失敗：')+err.message
+        + (pdf&&/元件|網路/.test(err.message)
+           ? '\n\nPDF 需要連網下載一次轉檔元件。離線的話，可以先在其他 app 把該頁存成圖片再匯入。'
+           : ''));
+    });
   });
   document.getElementById('ulOpacity').addEventListener('input',ev=>{
     if(!state.underlay) return;
@@ -4917,6 +4923,56 @@
   // A plan is traced at high zoom, so it keeps far more resolution than a site
   // photo and stays PNG — JPEG artefacts on hairlines make edges hard to follow.
   const UL_MAX_PX=3000;
+  // pdf.js is a megabyte, and most sessions never import a PDF — so it is fetched
+  // the first time one is picked, not on every cold start.
+  const PDFJS_VER='3.11.174';
+  const PDFJS_BASE='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/'+PDFJS_VER+'/';
+  let pdfjsReady=null;
+  function pdfjsLoad(){
+    if(pdfjsReady) return pdfjsReady;
+    pdfjsReady=new Promise((res,rej)=>{
+      if(window.pdfjsLib) return res(window.pdfjsLib);
+      const sc=document.createElement('script');
+      sc.src=PDFJS_BASE+'pdf.min.js';
+      sc.onload=()=>{
+        if(!window.pdfjsLib) return rej(new Error('PDF 元件載入了但無法使用'));
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_BASE+'pdf.worker.min.js';
+        res(window.pdfjsLib);
+      };
+      sc.onerror=()=>rej(new Error('無法下載 PDF 元件，請確認網路連線'));
+      document.head.appendChild(sc);
+    });
+    return pdfjsReady;
+  }
+  // Render one page to a bitmap at a resolution worth tracing over. A plan is
+  // examined at high zoom, so the page is rasterised well above screen density
+  // and the result is capped, not the input.
+  async function pdfPageToBlob(file, wantPage){
+    const lib=await pdfjsLoad();
+    const buf=await file.arrayBuffer();
+    const pdf=await lib.getDocument({data:buf}).promise;
+    const total=pdf.numPages;
+    let pno=wantPage||1;
+    if(total>1 && !wantPage){
+      const ans=await uiPrompt('這份 PDF 有 '+total+' 頁，要匯入第幾頁？','1','選擇頁面');
+      if(ans==null) return null;
+      pno=Math.min(total, Math.max(1, parseInt(ans,10)||1));
+    }
+    const page=await pdf.getPage(pno);
+    const base=page.getViewport({scale:1});
+    const scale=Math.min(6, UL_MAX_PX/Math.max(base.width, base.height));
+    const vp=page.getViewport({scale});
+    const c=document.createElement('canvas');
+    c.width=Math.round(vp.width); c.height=Math.round(vp.height);
+    const g=c.getContext('2d');
+    g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height);      // PDFs have no background
+    await page.render({canvasContext:g, viewport:vp}).promise;
+    const blob=await new Promise(r=>{
+      if(c.toBlob) c.toBlob(r,'image/png'); else r(dataURLtoBlob(c.toDataURL('image/png')));
+    });
+    if(!blob) throw new Error('PDF 轉圖失敗');
+    return {blob, w:c.width, h:c.height, page:pno, pages:total};
+  }
   function underlayPrepare(file){
     return withDeadline(new Promise((res,rej)=>{
       const fr=new FileReader();
@@ -4944,8 +5000,11 @@
     }), 30000, '圖紙處理');
   }
   async function underlayImport(file){
-    flashHint('圖紙處理中…');
-    const {blob,w,h}=await underlayPrepare(file);
+    const isPdf = (file.type==='application/pdf') || /\.pdf$/i.test(file.name||'');
+    flashHint(isPdf?'PDF 處理中…':'圖紙處理中…');
+    const r = isPdf ? await pdfPageToBlob(file) : await underlayPrepare(file);
+    if(!r) return;                       // page picker cancelled
+    const {blob,w,h}=r;
     const id='ul'+Date.now()+Math.floor(Math.random()*10000);
     await photoPut(id,blob);
     // Land it at a guessed scale so it is visible immediately: assume the drawing
@@ -4953,7 +5012,8 @@
     const mmPerPx = 12000/w;
     const b=bounds();
     const cx = b ? (b.x0+b.x1)/2 : 0, cy = b ? (b.y0+b.y1)/2 : 0;
-    state.underlay={ img:id, w, h, name:file.name||'圖紙',
+    state.underlay={ img:id, w, h,
+                     name:(file.name||'圖紙')+(r.pages>1?(' p.'+r.page):''),
                      x: cx - w*mmPerPx/20, y: cy - h*mmPerPx/20,
                      mmPerPx, opacity:0.6, locked:true, hidden:false, calibrated:false };
     underlayImg=null;
