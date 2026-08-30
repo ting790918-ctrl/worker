@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b70</title>
+<title>PlanPad · 平面圖工具 b72</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -21,20 +21,10 @@
   html,body{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
   input,textarea,select,[contenteditable]{-webkit-user-select:text; user-select:text;}
   html,body{margin:0; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC",system-ui,sans-serif; color:var(--text); background:var(--canvas-bg);}
-  /* overflow:hidden here is load-bearing. Safari remembers a per-site page zoom,
-     and at 125% the CSS viewport shrinks to roughly 944x568 — smaller than the
-     chrome needs. Without this the document simply grows past the screen and you
-     can pan the whole app around, with the tool rail or the panel parked off the
-     edge. It looks exactly like the app is broken. */
-  #app{display:flex; flex-direction:column; height:100%; overflow:hidden;}
+  #app{display:flex; flex-direction:column; height:100%;}
 
   /* ---- Top bar ---- */
-  /* the bar must never be wider than the screen: the brand gives way first, and
-     what is left scrolls rather than pushing the page sideways */
-  #topbar{display:flex; align-items:center; gap:10px; height:52px; min-height:52px; padding:0 12px; background:var(--panel); border-bottom:1px solid var(--line); flex:0 0 auto; z-index:20; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;}
-  #topbar::-webkit-scrollbar{display:none;}
-  #topbar > *{flex:0 0 auto;}
-  .brand{min-width:0; overflow:hidden;}
+  #topbar{display:flex; align-items:center; gap:10px; height:52px; padding:0 12px; background:var(--panel); border-bottom:1px solid var(--line); flex:0 0 auto; z-index:20;}
   .brand{display:flex; align-items:baseline; gap:8px; user-select:none;}
   .brand .mark{font-weight:700; letter-spacing:-.02em; font-size:17px; color:var(--ink);}
   .brand .sub{font-size:11px; color:var(--muted);}
@@ -59,15 +49,10 @@
   .menu-sep{height:1px; background:var(--line); margin:5px 4px;}
 
   /* ---- Body ---- */
-  #body{display:flex; flex:1; min-height:0; min-width:0; overflow:hidden;}
+  #body{display:flex; flex:1; min-height:0;}
 
   /* ---- Tool rail ---- */
-  /* twelve tools need about 670px of height. A short viewport — Safari page zoom,
-     Split View, a phone in landscape — leaves less than that, and the tools below
-     the fold used to be simply unreachable. Now the rail scrolls. */
-  #rail{width:56px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:8px 0; gap:4px; flex:0 0 auto; z-index:15; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;}
-  #rail::-webkit-scrollbar{display:none;}
-  #rail > *{flex:0 0 auto;}
+  #rail{width:56px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:8px 0; gap:4px; flex:0 0 auto; z-index:15;}
   .tool{width:42px; height:42px; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; color:#4B5158; border:1px solid transparent; user-select:none;}
   .tool:hover{background:#F4F5F7;}
   .tool.active{background:var(--accent-soft); color:var(--accent); border-color:#CDE0EA;}
@@ -125,11 +110,16 @@
        display:flex; align-items:center; justify-content:center; gap:6px;
        touch-action:manipulation; -webkit-appearance:none; appearance:none;}
   .btn:active{background:#EEF2F5;}
+  /* A file input that is display:none cannot always be opened by script on iOS —
+     Safari has refused it in several versions, and there is no error, the tap just
+     does nothing. So the control the finger lands on IS the input: it is stretched
+     invisibly over the label. No programmatic .click(), nothing to be blocked. */
+  .filepick{position:relative; overflow:hidden; cursor:pointer;}
+  .filepick > input[type=file]{position:absolute; inset:0; width:100%; height:100%;
+    opacity:0; font-size:0; cursor:pointer; -webkit-appearance:none;}
   .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
   .btn.primary:active{background:var(--accent-dark);}
   .btn.warn{background:#FCF3F2; border-color:#E7C7C3; color:var(--danger);}
-  /* the delete button lives in the same stack, so give it room too */
-  .del-btn{min-height:40px;}
   .del-btn:hover{background:#F9E9E7;}
 
   /* ---- Status bar ---- */
@@ -205,40 +195,10 @@
   .proj-row button.go{background:#275C7A; border-color:#275C7A; color:#fff;}
   .proj-row button.del{color:var(--danger); border-color:#F0D6D2;}
   .proj-empty{padding:22px 4px; text-align:center; font-size:13px; color:var(--muted); line-height:1.7;}
-  #zoomWarn{display:none; position:fixed; left:8px; right:8px; bottom:8px; z-index:9999;
-    align-items:center; gap:10px; background:#24282E; color:#fff; font-size:12px;
-    line-height:1.5; padding:8px 12px; border-radius:10px; box-shadow:var(--shadow);}
-  #zoomWarn b{color:#8FD0EE;}
-  #zoomWarn button{flex:0 0 auto; background:#3A4148; color:#fff; border:0; border-radius:7px; padding:5px 10px; font-size:12px;}
   @media (max-width:880px){
-    /* the closed drawer sits outside the viewport, so its parent must clip it —
-       otherwise the document itself becomes 248px wider than the screen and the
-       whole app can be dragged sideways, which is what made the tool rail
-       disappear off the left edge */
-    #body{position:relative; overflow:hidden;}
     #panel{position:absolute; right:0; top:0; bottom:0; transform:translateX(100%); transition:transform .2s; box-shadow:-4px 0 20px rgba(0,0,0,.08);}
     #panel.open{transform:translateX(0);}
     .panel-toggle{display:inline-flex;}
-  }
-  /* A cramped viewport: drop the wordmark before anything functional goes. */
-  @media (max-width:1020px){
-    .brand .sub{display:none;}
-  }
-  @media (max-width:900px){
-    .brand{display:none;}
-  }
-  /* A short viewport (Safari page zoom, Split View) — tighten the rail so the
-     whole tool set still reaches the bottom of the screen. */
-  @media (max-height:700px){
-    .tool{height:38px;}
-    .tool svg{width:18px; height:18px;}
-    .rail-sep{margin:2px 0;}
-    #topbar{height:46px; min-height:46px;}
-  }
-  @media (max-height:600px){
-    .tool{height:32px; gap:0;}
-    .tool .lbl{font-size:8px;}
-    #rail{padding:4px 0; gap:2px;}
   }
 </style>
 </head>
@@ -246,7 +206,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b70</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b72</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -267,7 +227,9 @@
         <div class="menu-item" data-act="openproj">開啟專案<span class="k" id="projCount"></span></div>
         <div class="menu-sep"></div>
         <div class="menu-label">底圖描繪</div>
-        <div class="menu-item" data-act="underlay">匯入圖紙<span class="k">PDF / 圖片</span></div>
+        <label class="menu-item filepick" id="ulImportMenu">匯入圖紙<span class="k">PDF / 圖片</span>
+          <input type="file" id="underlayInput2" accept="application/pdf,image/png,image/jpeg,image/webp">
+        </label>
         <div class="menu-sep"></div>
         <div class="menu-label">輸出圖面</div>
         <div class="menu-item" data-act="png">匯出 PNG 圖片</div>
@@ -398,7 +360,9 @@
       <div class="psec">
         <div class="ptitle">底圖描繪</div>
         <div id="ulNone">
-          <button class="btn primary" id="ulImport">匯入圖紙…</button>
+          <label class="btn primary filepick" id="ulImport">匯入圖紙…
+            <input type="file" id="underlayInput" accept="application/pdf,image/png,image/jpeg,image/webp">
+          </label>
           <div class="lay-note">支援 PDF、PNG、JPG。匯入後先做兩點校正，再直接描。</div>
         </div>
         <div id="ulHas" style="display:none">
@@ -484,9 +448,7 @@
       <button class="tbtn" id="mFrameDel" style="margin-top:10px;width:100%;color:var(--danger);border-color:#F0D6D2">刪除這個圖框</button>
     </div>
     <input type="file" id="frameInput" accept="image/*,.svg" style="display:none">
-<div id="zoomWarn"><span>畫面比螢幕大 — 這是 Safari 記住的頁面縮放。請點網址列左邊的 <b>ᴀA</b> → 選 <b>100%</b>。</span><button id="zoomWarnClose">知道了</button></div>
 <input type="file" id="photoInput" accept="image/*" style="display:none">
-<input type="file" id="underlayInput" accept="application/pdf,image/png,image/jpeg,image/webp" style="display:none">
     <div class="mrow pdfonly"><span>比例</span><div class="seg" id="mScale"><button data-v="fit" class="on">適應</button><button data-v="50">1:50</button><button data-v="100">1:100</button><button data-v="150">1:150</button><button data-v="200">1:200</button></div></div>
     <div class="mrow"><span>尺寸標註</span><div class="seg" id="mDims"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow"><span>空間名稱 / 坪數</span><div class="seg" id="mRooms"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
@@ -4104,51 +4066,12 @@
   document.addEventListener('click',()=>exportMenu.classList.remove('open'));
   // e.target can be the little ".json" hint SPAN inside the row, which carries no
   // data-act — tapping exactly on that text used to do nothing at all.
-  exportMenu.addEventListener('click',e=>{ const row=e.target.closest('[data-act]'); if(!row)return; const act=row.dataset.act; exportMenu.classList.remove('open'); doExport(act); });
+  exportMenu.addEventListener('click',e=>{
+    if(e.target.closest('.filepick')) return;   // the label opens its own picker
+    const row=e.target.closest('[data-act]'); if(!row)return;
+    const act=row.dataset.act; exportMenu.classList.remove('open'); doExport(act); });
   document.getElementById('panelToggle').onclick=()=>document.getElementById('panel').classList.toggle('open');
 
-  // ---- guard against Safari zooming the PAGE instead of the drawing ----
-  //
-  // iOS has ignored user-scalable=no since iOS 10, so the meta tag is decoration.
-  // #stage has touch-action:none, which stops a pinch that starts ON the canvas —
-  // but a pinch that begins on the toolbar, the top bar, or in the margin is
-  // handled by Safari and zooms the whole document.
-  //
-  // That failure is nasty because it is invisible and unrecoverable-looking: with
-  // html,body{overflow:hidden} there are no scrollbars, so the top bar and the
-  // tool rail simply are not on screen any more and nothing responds where it
-  // used to. It looks exactly like the app broke.
-  //
-  // These three events are the pinch, and preventing them is the only thing that
-  // actually stops it on iOS.
-  for(const ev of ['gesturestart','gesturechange','gestureend']){
-    document.addEventListener(ev, e=>e.preventDefault(), {passive:false});
-  }
-  // Belt and braces: if the page ends up zoomed anyway, say so, because otherwise
-  // there is nothing on screen to explain why the buttons vanished.
-  // Safari stores a page-zoom level PER SITE and reuses it on every visit, so a
-  // single stray pinch keeps the app oversized after every reload. The app cannot
-  // read or reset that setting, so the only useful thing it can do is notice the
-  // symptom and say where the switch is — otherwise it just looks broken.
-  function zoomWatch(){
-    const el=document.getElementById('zoomWarn'); if(!el) return;
-    const dw=document.documentElement.clientWidth||0;
-    const vw=window.innerWidth||dw;
-    const vvs=(window.visualViewport&&window.visualViewport.scale)||1;
-    // pinched in, or the layout viewport is narrower than the device suggests
-    const zoomed = vvs>1.05 || (window.screen && window.screen.width && dw && dw < window.screen.width*0.75);
-    const cramped = window.innerHeight>0 && window.innerHeight<560;
-    el.style.display = (zoomed||cramped) ? 'flex' : 'none';
-  }
-  window.addEventListener('resize', zoomWatch);
-  if(window.visualViewport){
-    window.visualViewport.addEventListener('resize', zoomWatch);
-    window.visualViewport.addEventListener('scroll', zoomWatch);
-  }
-  document.getElementById('zoomWarnClose').onclick=()=>{
-    document.getElementById('zoomWarn').style.display='none';
-  };
-  zoomWatch();
 
   // Saving a file from an iPad is not the same as from a desktop browser. The
   // classic `<a download>` + blob trick works in desktop browsers and in full
@@ -4194,7 +4117,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b70';
+  const BUILD='b72';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4341,7 +4264,6 @@
     // Importing a drawing is a file action, so it belongs in the file menu. It was
     // only reachable from the bottom of a long scrolling panel, which meant hunting
     // for it every time.
-    else if(act==='underlay'){ document.getElementById('underlayInput').click(); }
   }
 
   function exportPNG(){
@@ -4435,8 +4357,7 @@
     }
     if(wasPin) pushHistory();
   });
-  document.getElementById('ulImport').onclick=()=>document.getElementById('underlayInput').click();
-  document.getElementById('underlayInput').addEventListener('change',ev=>{
+  const onUnderlayPicked=ev=>{
     const f=ev.target.files[0]; ev.target.value='';
     if(f) underlayImport(f).catch(err=>{
       const pdf=/\.pdf$/i.test(f.name||'')||f.type==='application/pdf';
@@ -4445,6 +4366,11 @@
            ? '\n\nPDF 需要連網下載一次轉檔元件。離線的話，可以先在其他 app 把該頁存成圖片再匯入。'
            : ''));
     });
+  };
+  document.getElementById('underlayInput').addEventListener('change', onUnderlayPicked);
+  document.getElementById('underlayInput2').addEventListener('change', ev=>{
+    document.getElementById('exportMenu').classList.remove('open');
+    onUnderlayPicked(ev);
   });
   document.getElementById('ulOpacity').addEventListener('input',ev=>{
     if(!state.underlay) return;
