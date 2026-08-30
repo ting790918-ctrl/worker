@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b69</title>
+<title>PlanPad · 平面圖工具 b70</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -115,6 +115,21 @@
   .chip.on{background:var(--accent); border-color:var(--accent); color:#fff;}
   .empty{font-size:12px; color:var(--muted); line-height:1.6;}
   .del-btn{width:100%; height:34px; border:1px solid #E7C7C3; background:#FCF3F2; color:var(--danger); border-radius:8px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;}
+  /* `.btn` never existed — buttons written with it fell back to browser defaults
+     and came out 24px tall. Inside a scrollable panel a 24px target is barely
+     tappable with a finger: a couple of pixels of movement and the gesture is
+     read as a scroll, so the button appears not to work at all. 44px is Apple's
+     minimum for a reason, and touch-action stops the tap being stolen. */
+  .btn{width:100%; min-height:44px; padding:0 12px; border:1px solid var(--line-strong);
+       background:#fff; color:var(--text); border-radius:9px; font-size:14px; cursor:pointer;
+       display:flex; align-items:center; justify-content:center; gap:6px;
+       touch-action:manipulation; -webkit-appearance:none; appearance:none;}
+  .btn:active{background:#EEF2F5;}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:active{background:var(--accent-dark);}
+  .btn.warn{background:#FCF3F2; border-color:#E7C7C3; color:var(--danger);}
+  /* the delete button lives in the same stack, so give it room too */
+  .del-btn{min-height:40px;}
   .del-btn:hover{background:#F9E9E7;}
 
   /* ---- Status bar ---- */
@@ -196,6 +211,11 @@
   #zoomWarn b{color:#8FD0EE;}
   #zoomWarn button{flex:0 0 auto; background:#3A4148; color:#fff; border:0; border-radius:7px; padding:5px 10px; font-size:12px;}
   @media (max-width:880px){
+    /* the closed drawer sits outside the viewport, so its parent must clip it —
+       otherwise the document itself becomes 248px wider than the screen and the
+       whole app can be dragged sideways, which is what made the tool rail
+       disappear off the left edge */
+    #body{position:relative; overflow:hidden;}
     #panel{position:absolute; right:0; top:0; bottom:0; transform:translateX(100%); transition:transform .2s; box-shadow:-4px 0 20px rgba(0,0,0,.08);}
     #panel.open{transform:translateX(0);}
     .panel-toggle{display:inline-flex;}
@@ -226,7 +246,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b69</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b70</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -245,6 +265,9 @@
         <div class="menu-item" data-act="newproj">新增專案<span class="k">換一個案場</span></div>
         <div class="menu-item" data-act="saveproj">儲存專案<span class="k">存到這台裝置</span></div>
         <div class="menu-item" data-act="openproj">開啟專案<span class="k" id="projCount"></span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-label">底圖描繪</div>
+        <div class="menu-item" data-act="underlay">匯入圖紙<span class="k">PDF / 圖片</span></div>
         <div class="menu-sep"></div>
         <div class="menu-label">輸出圖面</div>
         <div class="menu-item" data-act="png">匯出 PNG 圖片</div>
@@ -375,7 +398,7 @@
       <div class="psec">
         <div class="ptitle">底圖描繪</div>
         <div id="ulNone">
-          <button class="btn" id="ulImport" style="width:100%">匯入圖紙…</button>
+          <button class="btn primary" id="ulImport">匯入圖紙…</button>
           <div class="lay-note">支援 PDF、PNG、JPG。匯入後先做兩點校正，再直接描。</div>
         </div>
         <div id="ulHas" style="display:none">
@@ -384,8 +407,8 @@
           <div class="row"><label>淡化</label><input type="range" id="ulOpacity" min="10" max="100" value="60" style="flex:1"></div>
           <div class="row"><label>鎖定位置</label><div class="seg" id="ulLockSeg"><button data-v="1" class="on">鎖定</button><button data-v="0">可移動</button></div></div>
           <div class="row"><label>顯示</label><div class="seg" id="ulShowSeg"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
-          <button class="btn" id="ulCalib" style="width:100%;margin-top:6px">兩點校正比例…</button>
-          <button class="btn" id="ulRemove" style="width:100%;margin-top:6px">移除底圖</button>
+          <button class="btn primary" id="ulCalib" style="margin-top:8px">兩點校正比例…</button>
+          <button class="btn warn" id="ulRemove" style="margin-top:8px">移除底圖</button>
           <div class="lay-note" id="ulHint">校正後就可以直接用牆工具描圖。</div>
         </div>
       </div>
@@ -4171,7 +4194,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b69';
+  const BUILD='b70';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4315,6 +4338,10 @@
     else if(act==='newproj'){ newProject(); }
     else if(act==='saveproj'){ openProjModal('save'); }
     else if(act==='openproj'){ openProjModal('open'); }
+    // Importing a drawing is a file action, so it belongs in the file menu. It was
+    // only reachable from the bottom of a long scrolling panel, which meant hunting
+    // for it every time.
+    else if(act==='underlay'){ document.getElementById('underlayInput').click(); }
   }
 
   function exportPNG(){
