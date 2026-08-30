@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b66</title>
+<title>PlanPad · 平面圖工具 b67</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -186,7 +186,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b66</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b67</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -4043,6 +4043,38 @@
   exportMenu.addEventListener('click',e=>{ const row=e.target.closest('[data-act]'); if(!row)return; const act=row.dataset.act; exportMenu.classList.remove('open'); doExport(act); });
   document.getElementById('panelToggle').onclick=()=>document.getElementById('panel').classList.toggle('open');
 
+  // ---- guard against Safari zooming the PAGE instead of the drawing ----
+  //
+  // iOS has ignored user-scalable=no since iOS 10, so the meta tag is decoration.
+  // #stage has touch-action:none, which stops a pinch that starts ON the canvas —
+  // but a pinch that begins on the toolbar, the top bar, or in the margin is
+  // handled by Safari and zooms the whole document.
+  //
+  // That failure is nasty because it is invisible and unrecoverable-looking: with
+  // html,body{overflow:hidden} there are no scrollbars, so the top bar and the
+  // tool rail simply are not on screen any more and nothing responds where it
+  // used to. It looks exactly like the app broke.
+  //
+  // These three events are the pinch, and preventing them is the only thing that
+  // actually stops it on iOS.
+  for(const ev of ['gesturestart','gesturechange','gestureend']){
+    document.addEventListener(ev, e=>e.preventDefault(), {passive:false});
+  }
+  // Belt and braces: if the page ends up zoomed anyway, say so, because otherwise
+  // there is nothing on screen to explain why the buttons vanished.
+  if(window.visualViewport){
+    let warned=0;
+    const vvCheck=()=>{
+      const sc=window.visualViewport.scale||1;
+      if(sc>1.05 && Date.now()-warned>4000){
+        warned=Date.now();
+        flashHint('畫面被縮放了 — 請用兩指縮小回原大小');
+      }
+    };
+    window.visualViewport.addEventListener('resize', vvCheck);
+    window.visualViewport.addEventListener('scroll', vvCheck);
+  }
+
   // Saving a file from an iPad is not the same as from a desktop browser. The
   // classic `<a download>` + blob trick works in desktop browsers and in full
   // Safari, but inside an iOS IN-APP browser (a WKWebView — what you get when a
@@ -4087,7 +4119,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b66';
+  const BUILD='b67';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
