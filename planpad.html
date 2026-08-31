@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b72</title>
+<title>PlanPad · 平面圖工具 b73</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -114,6 +114,15 @@
      Safari has refused it in several versions, and there is no error, the tap just
      does nothing. So the control the finger lands on IS the input: it is stretched
      invisibly over the label. No programmatic .click(), nothing to be blocked. */
+  /* a one-off toast is no use for a two-step operation you have to aim carefully
+     at — the instruction stays on screen until the step is done */
+  #calibBar{display:none; position:absolute; left:50%; top:12px; transform:translateX(-50%);
+    align-items:center; gap:12px; background:#275C7A; color:#fff; font-size:13px;
+    padding:8px 10px 8px 14px; border-radius:20px; box-shadow:var(--shadow); z-index:6;
+    white-space:nowrap; max-width:calc(100% - 24px);}
+  #calibBar.on{display:flex;}
+  #calibBar button{background:rgba(255,255,255,.18); color:#fff; border:0; border-radius:14px;
+    padding:5px 12px; font-size:12px; cursor:pointer;}
   .filepick{position:relative; overflow:hidden; cursor:pointer;}
   .filepick > input[type=file]{position:absolute; inset:0; width:100%; height:100%;
     opacity:0; font-size:0; cursor:pointer; -webkit-appearance:none;}
@@ -206,7 +215,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b72</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b73</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -266,6 +275,7 @@
     <div id="stage">
       <canvas id="c"></canvas>
       <div id="hint"></div>
+      <div id="calibBar"><span id="calibStep"></span><button id="calibCancel">取消</button></div>
       <div id="lenbox"></div>
       <input id="numIn" inputmode="decimal" autocomplete="off">
       <input id="txtIn" type="text" autocomplete="off" placeholder="輸入文字…">
@@ -2798,14 +2808,28 @@
     try{ numIn.focus(); numIn.select(); }catch(e){}
     requestAnimationFrame(()=>{ try{ numIn.focus(); numIn.select(); }catch(e){} });
   }
+  // When a field near the bottom of the screen gets focus, iOS scrolls the whole
+  // page up to clear the keyboard — and because the document cannot scroll, it
+  // never scrolls back down when the keyboard closes. The app is left squashed
+  // into the top of the screen with white space below, and the tool rail and top
+  // bar are gone. Putting the window back is the only cure.
+  function restoreViewport(){
+    if(window.scrollX||window.scrollY) window.scrollTo(0,0);
+    setTimeout(()=>{ if(window.scrollX||window.scrollY) window.scrollTo(0,0); resize(); }, 120);
+    setTimeout(()=>{ if(window.scrollX||window.scrollY) window.scrollTo(0,0); resize(); }, 400);
+  }
   function hideNumInput(commit){
     if(numIn.style.display==='none') return;
     const v=parseFloat(numIn.value); numIn.style.display='none';
     const cb=numCommit; numCommit=null; const mn=numMin; numMin=0.0001;
     if(commit && cb && !isNaN(v) && v>=mn) cb(v);
+    restoreViewport();
   }
   numIn.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); hideNumInput(true); } else if(e.key==='Escape'){ hideNumInput(false); } });
   numIn.addEventListener('blur',()=>hideNumInput(true));
+  window.addEventListener('focusout',e=>{
+    if(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) restoreViewport();
+  });
 
   // ---- inline text input ----
   let txtCommit=null;
@@ -3024,8 +3048,8 @@
     // two-point calibration takes the tap before anything else
     if(ui.tool==='ulcalib'){
       const p={x:wx,y:wy};
-      if(!calibA){ calibA=p; flashHint('點選第二個已知點'); draw(); }
-      else underlayCalibApply(calibA, p, px, py);
+      if(!calibA){ calibA=p; calibBar('② 點它的終點'); draw(); }
+      else { calibBar('③ 輸入這兩點的實際距離（'+ui.unit+'）後按 Enter'); underlayCalibApply(calibA, p, px, py); }
       return;
     }
     // an unlocked underlay can be dragged into position, but only when nothing
@@ -4117,7 +4141,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b72';
+  const BUILD='b73';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4389,6 +4413,7 @@
     refreshUnderlayUI(); pushHistory(); draw();
   });
   document.getElementById('ulCalib').onclick=underlayCalibStart;
+  document.getElementById('calibCancel').onclick=underlayCalibCancel;
   document.getElementById('ulRemove').onclick=()=>{
     uiConfirm('移除底圖？描好的牆不會受影響。',{danger:true,okText:'移除'}).then(yes=>{
       if(!yes) return;
@@ -4970,8 +4995,21 @@
                      x: cx - w*mmPerPx/20, y: cy - h*mmPerPx/20,
                      mmPerPx, opacity:0.6, locked:true, hidden:false, calibrated:false };
     underlayImg=null;
+    underlayFocus();
     pushHistory(); refreshUnderlayUI(); draw();
-    flashHint('圖紙已匯入 — 請先做兩點校正');
+    flashHint('圖紙已匯入 — 接著按「兩點校正比例」');
+  }
+  // After importing, and again after calibrating, the drawing is a different size
+  // and usually off-screen. Framing it removes the "where did it go" step.
+  function underlayFocus(){
+    const u=state.underlay; if(!u) return;
+    const w=u.w*(u.mmPerPx/10), h=u.h*(u.mmPerPx/10);      // cm
+    const pad=40;
+    const s=Math.min((W-pad*2)/Math.max(1,w), (H-pad*2)/Math.max(1,h));
+    view.scale=Math.max(0.02, Math.min(3, s));
+    view.ox=W/2-(u.x+w/2)*view.scale;
+    view.oy=H/2-(u.y+h/2)*view.scale;
+    updateZoom();
   }
   function underlayScaleTxt(){
     const u=state.underlay; if(!u) return '';
@@ -4998,14 +5036,28 @@
   // (an overall dimension is ideal) and type it in; the image is scaled about the
   // first point so that pair comes out right, and everything else follows.
   let calibA=null, hoverPt=null;
+  function calibBar(step){
+    const bar=document.getElementById('calibBar'), t=document.getElementById('calibStep');
+    if(!bar) return;
+    if(!step){ bar.classList.remove('on'); return; }
+    t.textContent=step; bar.classList.add('on');
+  }
   function underlayCalibStart(){
     if(!state.underlay) return;
-    calibA=null; setTool('ulcalib');
-    flashHint('點選第一個已知點');
+    calibA=null; hoverPt=null; setTool('ulcalib');
+    // Tell them what to aim at, not just "pick a point". The overall dimension on
+    // the drawing is the best pair to use because it is the longest — any error in
+    // where you tap is divided by the biggest number on the sheet.
+    calibBar('① 點圖上一段已知尺寸的起點（建議用最長的那道總尺寸）');
+    draw();
+  }
+  function underlayCalibCancel(){
+    calibA=null; hoverPt=null; calibBar(null); setTool('select'); draw();
   }
   function underlayCalibApply(p1,p2,sx,sy){
     const dCm=Math.hypot(p2.x-p1.x,p2.y-p1.y);
-    if(dCm<0.5){ flashHint('兩點太近，請重新點'); calibA=null; draw(); return; }
+    if(dCm<0.5){ flashHint('兩點太近，請重新點');
+                 calibA=null; calibBar('① 點圖上一段已知尺寸的起點'); draw(); return; }
     showNumInput(sx,sy, Math.round(toDisp(dCm)), (v)=>{
       const targetCm=fromDisp(v);
       if(!isFinite(targetCm)||targetCm<=0) return;
@@ -5015,9 +5067,10 @@
       u.x = p1.x + (u.x-p1.x)*k;
       u.y = p1.y + (u.y-p1.y)*k;
       u.calibrated=true;
-      calibA=null; setTool('select');
+      calibA=null; calibBar(null); setTool('select');
+      underlayFocus();
       pushHistory(); refreshUnderlayUI(); draw();
-      flashHint('比例已校正');
+      flashHint('比例已校正 — 可以開始描圖了');
     });
   }
   async function photoAttach(note,file){
