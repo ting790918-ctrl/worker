@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b73</title>
+<title>PlanPad · 平面圖工具 b75</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -215,7 +215,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b73</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b75</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -381,6 +381,7 @@
           <div class="row"><label>淡化</label><input type="range" id="ulOpacity" min="10" max="100" value="60" style="flex:1"></div>
           <div class="row"><label>鎖定位置</label><div class="seg" id="ulLockSeg"><button data-v="1" class="on">鎖定</button><button data-v="0">可移動</button></div></div>
           <div class="row"><label>顯示</label><div class="seg" id="ulShowSeg"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
+          <div class="row"><label>校正線</label><div class="seg" id="ulCalibSeg"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
           <button class="btn primary" id="ulCalib" style="margin-top:8px">兩點校正比例…</button>
           <button class="btn warn" id="ulRemove" style="margin-top:8px">移除底圖</button>
           <div class="lay-note" id="ulHint">校正後就可以直接用牆工具描圖。</div>
@@ -1883,6 +1884,24 @@
     ctx.drawImage(underlayImg, sx, sy, w, h);
     ctx.restore();
   }
+  // the span the scale was set from, drawn over the plan so it can be checked
+  function drawCalibSpan(){
+    const u=state.underlay;
+    if(!u || u.hidden || !u.calib || !u.showCalib) return;
+    const f=u.mmPerPx/10;
+    const A=toScreen(u.x+u.calib.a.ix*f, u.y+u.calib.a.iy*f);
+    const B=toScreen(u.x+u.calib.b.ix*f, u.y+u.calib.b.iy*f);
+    ctx.save();
+    ctx.strokeStyle='#C2185B'; ctx.fillStyle='#C2185B'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
+    for(const P of [A,B]){
+      ctx.beginPath(); ctx.moveTo(P[0]-7,P[1]-7); ctx.lineTo(P[0]+7,P[1]+7);
+      ctx.moveTo(P[0]+7,P[1]-7); ctx.lineTo(P[0]-7,P[1]+7); ctx.stroke();
+    }
+    ctx.restore();
+    boxedLabel('校正 '+fmtLen(u.calib.mm/10), (A[0]+B[0])/2, (A[1]+B[1])/2,
+               Math.abs(B[0]-A[0])>=Math.abs(B[1]-A[1])?0:Math.PI/2, 12);
+  }
   function drawCalibMark(){
     if(ui.tool!=='ulcalib' || !calibA) return;
     const [ax,ay]=toScreen(calibA.x,calibA.y);
@@ -1896,8 +1915,10 @@
       ctx.setLineDash([5,4]);
       ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
       ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(bx,by,5,0,Math.PI*2); ctx.stroke();
       const d=Math.hypot(hoverPt.x-calibA.x, hoverPt.y-calibA.y);
-      boxedLabel(fmtLen(d)+' ?', (ax+bx)/2, (ay+by)/2, 0, 12);
+      const horiz=Math.abs(bx-ax)>=Math.abs(by-ay);
+      boxedLabel(fmtLen(d)+' ?', (ax+bx)/2, (ay+by)/2, horiz?0:Math.PI/2, 12);
     }
     ctx.restore();
   }
@@ -2403,6 +2424,7 @@
     drawFurniture();
     drawMEP();
     drawTexts();
+    drawCalibSpan();
     drawCalibMark();
     drawNotes();
     drawInk();
@@ -3048,8 +3070,12 @@
     // two-point calibration takes the tap before anything else
     if(ui.tool==='ulcalib'){
       const p={x:wx,y:wy};
-      if(!calibA){ calibA=p; calibBar('② 點它的終點'); draw(); }
-      else { calibBar('③ 輸入這兩點的實際距離（'+ui.unit+'）後按 Enter'); underlayCalibApply(calibA, p, px, py); }
+      if(!calibA){ calibA=p; calibBar('② 點它的終點（自動水平／垂直對齊）'); draw(); }
+      else {
+        const q=calibOrtho(p);
+        calibBar('③ 輸入這兩點的實際距離（'+ui.unit+'）後按 Enter');
+        underlayCalibApply(calibA, q, px, py);
+      }
       return;
     }
     // an unlocked underlay can be dragged into position, but only when nothing
@@ -3122,7 +3148,7 @@
     const [px,py]=evtPos(e);
     let [wx,wy]=toWorld(px,py);
     coordEl.textContent=`X ${Math.round(wx)}　Y ${Math.round(wy)}`;
-    if(ui.tool==='ulcalib' && calibA){ hoverPt={x:wx,y:wy}; draw(); }
+    if(ui.tool==='ulcalib' && calibA){ hoverPt=calibOrtho({x:wx,y:wy}); draw(); }
 
     if(panStart && pointers.size<2){ view.ox=panStart.ox+(px-panStart.px); view.oy=panStart.oy+(py-panStart.py); draw(); return; }
 
@@ -4141,7 +4167,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b73';
+  const BUILD='b75';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4411,6 +4437,11 @@
     if(!state.underlay) return;
     state.underlay.hidden = b.dataset.v!=='1';
     refreshUnderlayUI(); pushHistory(); draw();
+  });
+  document.querySelectorAll('#ulCalibSeg button').forEach(b=>b.onclick=()=>{
+    if(!state.underlay) return;
+    state.underlay.showCalib = b.dataset.v==='1';
+    refreshUnderlayUI(); draw();
   });
   document.getElementById('ulCalib').onclick=underlayCalibStart;
   document.getElementById('calibCancel').onclick=underlayCalibCancel;
@@ -4949,7 +4980,9 @@
       if(c.toBlob) c.toBlob(r,'image/png'); else r(dataURLtoBlob(c.toDataURL('image/png')));
     });
     if(!blob) throw new Error('PDF 轉圖失敗');
-    return {blob, w:c.width, h:c.height, page:pno, pages:total};
+    // the page's true paper size, so we can state the drawing scale afterwards
+    const paper={w:base.width*25.4/72, h:base.height*25.4/72};
+    return {blob, w:c.width, h:c.height, page:pno, pages:total, paper};
   }
   function underlayPrepare(file){
     return withDeadline(new Promise((res,rej)=>{
@@ -4990,7 +5023,7 @@
     const mmPerPx = 12000/w;
     const b=bounds();
     const cx = b ? (b.x0+b.x1)/2 : 0, cy = b ? (b.y0+b.y1)/2 : 0;
-    state.underlay={ img:id, w, h,
+    state.underlay={ img:id, w, h, paper:r.paper||null,
                      name:(file.name||'圖紙')+(r.pages>1?(' p.'+r.page):''),
                      x: cx - w*mmPerPx/20, y: cy - h*mmPerPx/20,
                      mmPerPx, opacity:0.6, locked:true, hidden:false, calibrated:false };
@@ -5011,10 +5044,21 @@
     view.oy=H/2-(u.y+h/2)*view.scale;
     updateZoom();
   }
+  // The drawing scale the calibration implies. For a PDF we know the real paper
+  // size, so this is exact — and it is the number that makes a mistake obvious:
+  // 1:62 is a normal plan, 1:123 means you measured across two segments and typed
+  // the value of one.
+  function underlayRatio(){
+    const u=state.underlay;
+    if(!u || !u.calibrated || !u.paper || !u.paper.w) return null;
+    return (u.w*u.mmPerPx)/u.paper.w;
+  }
   function underlayScaleTxt(){
     const u=state.underlay; if(!u) return '';
     if(!u.calibrated) return '未校正';
-    return Math.round(u.w*u.mmPerPx)+' × '+Math.round(u.h*u.mmPerPx)+' mm';
+    const r=underlayRatio();
+    const size=Math.round(u.w*u.mmPerPx)+' × '+Math.round(u.h*u.mmPerPx)+' mm';
+    return r ? ('1:'+Math.round(r)+' · '+size) : size;
   }
   function refreshUnderlayUI(){
     const u=state.underlay;
@@ -5028,14 +5072,26 @@
     document.getElementById('ulOpacity').value=Math.round((u.opacity==null?0.6:u.opacity)*100);
     document.querySelectorAll('#ulLockSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.v==='1')===(u.locked!==false)));
     document.querySelectorAll('#ulShowSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.v==='1')===!u.hidden));
+    document.querySelectorAll('#ulCalibSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.v==='1')===!!u.showCalib));
     document.getElementById('ulHint').textContent = u.calibrated
-      ? '比例已校正，可以直接描圖。'
+      ? '桃紅色那條就是你校正的那一段 — 對照圖上印的數字確認沒跨錯段，再開始描。'
       : '還沒校正 — 現在描出來的尺寸不準。';
   }
   // Two-point calibration. You point at two things whose real distance you know
   // (an overall dimension is ideal) and type it in; the image is scaled about the
   // first point so that pair comes out right, and everything else follows.
   let calibA=null, hoverPt=null;
+  // A dimension on a plan runs along a wall — horizontal or vertical, never
+  // diagonal. Letting the second point go anywhere means a slightly-off tap
+  // measures the hypotenuse, which is always longer than the run you typed and
+  // silently shrinks the whole drawing. So the second point is locked to whichever
+  // axis you moved along.
+  function calibOrtho(p){
+    if(!calibA) return p;
+    return Math.abs(p.x-calibA.x) >= Math.abs(p.y-calibA.y)
+      ? {x:p.x, y:calibA.y}
+      : {x:calibA.x, y:p.y};
+  }
   function calibBar(step){
     const bar=document.getElementById('calibBar'), t=document.getElementById('calibStep');
     if(!bar) return;
@@ -5062,15 +5118,22 @@
       const targetCm=fromDisp(v);
       if(!isFinite(targetCm)||targetCm<=0) return;
       const k=targetCm/dCm, u=state.underlay;
+      // Record WHICH span was measured, in image-pixel coordinates so it stays
+      // glued to the drawing however the underlay is later moved or rescaled.
+      // A wrong calibration is almost always "I spanned two segments and typed
+      // one" — invisible in a number, obvious the moment the span is drawn.
+      const toImg=(pt)=>({ix:(pt.x-u.x)/(u.mmPerPx/10), iy:(pt.y-u.y)/(u.mmPerPx/10)});
+      u.calib={a:toImg(p1), b:toImg(p2), mm:Math.round(targetCm*10)};
       // scale about the first point so it stays where you put it
       u.mmPerPx*=k;
       u.x = p1.x + (u.x-p1.x)*k;
       u.y = p1.y + (u.y-p1.y)*k;
-      u.calibrated=true;
+      u.calibrated=true; u.showCalib=true;
       calibA=null; calibBar(null); setTool('select');
       underlayFocus();
       pushHistory(); refreshUnderlayUI(); draw();
-      flashHint('比例已校正 — 可以開始描圖了');
+      const rr=underlayRatio();
+      flashHint('比例已校正'+(rr?('（1:'+Math.round(rr)+'）'):'')+' — 請對照校正線確認');
     });
   }
   async function photoAttach(note,file){
