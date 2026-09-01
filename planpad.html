@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b75</title>
+<title>PlanPad · 平面圖工具 b78</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -215,7 +215,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b75</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b78</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -378,6 +378,10 @@
         <div id="ulHas" style="display:none">
           <div class="row"><label>檔名</label><span id="ulName" style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis"></span></div>
           <div class="row"><label>比例</label><span id="ulScale" style="font-size:12px;color:var(--muted)"></span></div>
+          <div class="row" id="ulRatioRow"><label>圖面比例</label>
+            <div class="field"><span class="unit" style="margin-right:2px">1 :</span>
+            <input type="number" id="ulRatio" min="1" step="1" placeholder="50"></div></div>
+          <div class="lay-note" id="ulRatioNote" style="margin-top:-4px"></div>
           <div class="row"><label>淡化</label><input type="range" id="ulOpacity" min="10" max="100" value="60" style="flex:1"></div>
           <div class="row"><label>鎖定位置</label><div class="seg" id="ulLockSeg"><button data-v="1" class="on">鎖定</button><button data-v="0">可移動</button></div></div>
           <div class="row"><label>顯示</label><div class="seg" id="ulShowSeg"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
@@ -3073,8 +3077,20 @@
       if(!calibA){ calibA=p; calibBar('② 點它的終點（自動水平／垂直對齊）'); draw(); }
       else {
         const q=calibOrtho(p);
+        // Hand the pair over and LEAVE the tool immediately.
+        //
+        // Leaving calibA set while the number box is open was a trap: the box
+        // commits on blur (that is how every numeric field in the app behaves), so
+        // one stray tap on the canvas both committed whatever was in the box AND
+        // started a second calibration from the same first point. Two corrections
+        // then multiplied together and the scale ended up somewhere between the
+        // old and the right one — the drawing looked "half corrected".
+        const a0=calibA;
+        dbg(`  CALIB p2 set: p1=(${a0.x.toFixed(1)},${a0.y.toFixed(1)}) p2=(${q.x.toFixed(1)},${q.y.toFixed(1)}) d=${Math.hypot(q.x-a0.x,q.y-a0.y).toFixed(1)}cm`);
+        calibA=null; hoverPt=null;
+        setTool('select');
         calibBar('③ 輸入這兩點的實際距離（'+ui.unit+'）後按 Enter');
-        underlayCalibApply(calibA, q, px, py);
+        underlayCalibApply(a0, q, px, py);
       }
       return;
     }
@@ -4167,7 +4183,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b75';
+  const BUILD='b78';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4442,6 +4458,14 @@
     if(!state.underlay) return;
     state.underlay.showCalib = b.dataset.v==='1';
     refreshUnderlayUI(); draw();
+  });
+  const ulRatioApply=()=>{
+    const v=parseFloat(document.getElementById('ulRatio').value);
+    if(v>0) underlaySetRatio(v);
+  };
+  document.getElementById('ulRatio').addEventListener('change', ulRatioApply);
+  document.getElementById('ulRatio').addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); e.target.blur(); ulRatioApply(); }
   });
   document.getElementById('ulCalib').onclick=underlayCalibStart;
   document.getElementById('calibCancel').onclick=underlayCalibCancel;
@@ -5053,6 +5077,24 @@
     if(!u || !u.calibrated || !u.paper || !u.paper.w) return null;
     return (u.w*u.mmPerPx)/u.paper.w;
   }
+  // Setting the ratio directly. A construction drawing states its scale in the
+  // title block, and for a PDF we know the real paper size from the page itself —
+  // so the scale can be entered as a fact instead of being inferred from two taps.
+  // No aiming, no chance of spanning the wrong segment. Two-point calibration is
+  // for photos and for sheets whose stated scale you do not trust.
+  function underlaySetRatio(R){
+    const u=state.underlay;
+    if(!u || !u.paper || !u.paper.w || !(R>0)) return;
+    dbg(`  CALIB ratio set 1:${R} (paper ${u.paper.w.toFixed(0)}mm, img ${u.w}px)`);
+    const cx=u.x + u.w*(u.mmPerPx/10)/2, cy=u.y + u.h*(u.mmPerPx/10)/2;
+    u.mmPerPx = (u.paper.w*R)/u.w;
+    u.x = cx - u.w*(u.mmPerPx/10)/2;
+    u.y = cy - u.h*(u.mmPerPx/10)/2;
+    u.calibrated=true; u.calib=null;          // the old span no longer means anything
+    underlayFocus();
+    pushHistory(); refreshUnderlayUI(); draw();
+    flashHint('比例設為 1:'+Math.round(R));
+  }
   function underlayScaleTxt(){
     const u=state.underlay; if(!u) return '';
     if(!u.calibrated) return '未校正';
@@ -5068,14 +5110,30 @@
     has.style.display=u?'':'none';
     if(!u) return;
     document.getElementById('ulName').textContent=u.name||'圖紙';
+    const rr=underlayRatio();
+    const row=document.getElementById('ulRatioRow');
+    const ri=document.getElementById('ulRatio');
+    const known=!!(u.paper&&u.paper.w);
+    // An underlay imported before this feature existed has no recorded page size,
+    // so the field cannot work — say so instead of silently hiding it, or the
+    // upgrade looks like the feature is missing.
+    row.style.display='';
+    ri.disabled=!known;
+    ri.placeholder = known ? '50' : '需重新匯入';
+    if(document.activeElement!==ri) ri.value = (known&&rr) ? String(Math.round(rr)) : '';
+    const note=document.getElementById('ulRatioNote');
+    if(note) note.textContent = known ? '' : '（這張是舊版匯入的，重新匯入一次 PDF 才讀得到紙張尺寸）';
     document.getElementById('ulScale').textContent=underlayScaleTxt();
     document.getElementById('ulOpacity').value=Math.round((u.opacity==null?0.6:u.opacity)*100);
     document.querySelectorAll('#ulLockSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.v==='1')===(u.locked!==false)));
     document.querySelectorAll('#ulShowSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.v==='1')===!u.hidden));
     document.querySelectorAll('#ulCalibSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.v==='1')===!!u.showCalib));
     document.getElementById('ulHint').textContent = u.calibrated
-      ? '桃紅色那條就是你校正的那一段 — 對照圖上印的數字確認沒跨錯段，再開始描。'
-      : '還沒校正 — 現在描出來的尺寸不準。';
+      ? (u.calib ? '桃紅色那條就是你校正的那一段 — 對照圖上印的數字確認沒跨錯段。'
+                 : '比例已設定，可以直接描圖。')
+      : ((u.paper&&u.paper.w)
+          ? '最快：直接填圖框上寫的「圖面比例」。不知道比例才用兩點校正。'
+          : '圖片看不出紙張尺寸，請用兩點校正。');
   }
   // Two-point calibration. You point at two things whose real distance you know
   // (an overall dimension is ideal) and type it in; the image is scaled about the
@@ -5108,16 +5166,22 @@
     draw();
   }
   function underlayCalibCancel(){
-    calibA=null; hoverPt=null; calibBar(null); setTool('select'); draw();
+    calibA=null; hoverPt=null; calibPending=false; calibBar(null); setTool('select'); draw();
   }
+  let calibPending=false;
   function underlayCalibApply(p1,p2,sx,sy){
+    if(calibPending) return;              // one pending question at a time
     const dCm=Math.hypot(p2.x-p1.x,p2.y-p1.y);
     if(dCm<0.5){ flashHint('兩點太近，請重新點');
-                 calibA=null; calibBar('① 點圖上一段已知尺寸的起點'); draw(); return; }
+                 calibA=null; setTool('ulcalib');
+                 calibBar('① 點圖上一段已知尺寸的起點'); draw(); return; }
+    calibPending=true;
     showNumInput(sx,sy, Math.round(toDisp(dCm)), (v)=>{
+      calibPending=false;
       const targetCm=fromDisp(v);
       if(!isFinite(targetCm)||targetCm<=0) return;
       const k=targetCm/dCm, u=state.underlay;
+      dbg(`  CALIB apply: 量到 ${(dCm*10).toFixed(0)}mm 輸入 ${(targetCm*10).toFixed(0)}mm k=${k.toFixed(4)} mmPerPx ${u.mmPerPx.toFixed(4)} -> ${(u.mmPerPx*k).toFixed(4)}`);
       // Record WHICH span was measured, in image-pixel coordinates so it stays
       // glued to the drawing however the underlay is later moved or rescaled.
       // A wrong calibration is almost always "I spanned two segments and typed
