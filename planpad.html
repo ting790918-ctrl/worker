@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b78</title>
+<title>PlanPad · 平面圖工具 b80</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -215,7 +215,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b78</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b80</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -622,6 +622,8 @@
       if(opt.input!==undefined){
         input=document.createElement('input');
         input.type='text'; input.className='dlg-input'; input.value=opt.input||'';
+        if(opt.numeric){ input.inputMode='decimal'; input.autocomplete='off'; }
+        if(opt.placeholder) input.placeholder=opt.placeholder;
         card.appendChild(input);
       }
       const row=document.createElement('div'); row.className='dlg-btns';
@@ -647,7 +649,10 @@
       row.appendChild(ok);
       card.appendChild(row);
       back.appendChild(card);
-      back.addEventListener('click',e=>{ if(e.target===back) done(input?null:(opt.cancel===false?true:false)); });
+      // Some dialogs must not be dismissed by a stray touch on the backdrop: if you
+      // have just aimed two points at a drawing, losing them to a misplaced finger
+      // means doing the whole thing again.
+      if(!opt.sticky) back.addEventListener('click',e=>{ if(e.target===back) done(input?null:(opt.cancel===false?true:false)); });
       document.addEventListener('keydown',onKey);
       document.body.appendChild(back);
       if(input){ input.focus(); input.select(); } else ok.focus();
@@ -3074,7 +3079,11 @@
     // two-point calibration takes the tap before anything else
     if(ui.tool==='ulcalib'){
       const p={x:wx,y:wy};
-      if(!calibA){ calibA=p; calibBar('② 點它的終點（自動水平／垂直對齊）'); draw(); }
+      if(!calibA){
+        calibA=p; calibDrag={id:e.pointerId, px, py};
+        calibBar('② 拖到終點再放開，或再點一下終點（自動水平／垂直對齊）');
+        draw();
+      }
       else {
         const q=calibOrtho(p);
         // Hand the pair over and LEAVE the tool immediately.
@@ -3164,7 +3173,7 @@
     const [px,py]=evtPos(e);
     let [wx,wy]=toWorld(px,py);
     coordEl.textContent=`X ${Math.round(wx)}　Y ${Math.round(wy)}`;
-    if(ui.tool==='ulcalib' && calibA){ hoverPt=calibOrtho({x:wx,y:wy}); draw(); }
+    if(ui.tool==='ulcalib' && calibA){ hoverPt=calibOrtho({x:wx,y:wy}); draw(); return; }
 
     if(panStart && pointers.size<2){ view.ox=panStart.ox+(px-panStart.px); view.oy=panStart.oy+(py-panStart.py); draw(); return; }
 
@@ -3236,6 +3245,25 @@
     pointers.delete(e.pointerId);
     if(pointers.size<2){ pinch=null; }
     if(panStart){ panStart=null; }
+    // Every other tool in this app is press-drag-release. Calibration was the one
+    // exception — tap, then tap again — so a drag set only the FIRST point and the
+    // second came from wherever the next press happened to land. The line looked
+    // right while dragging and then measured something else entirely.
+    if(ui.tool==='ulcalib' && calibA && calibDrag && calibDrag.id===e.pointerId){
+      const [ux,uy]=evtPos(e);
+      const moved=Math.hypot(ux-calibDrag.px, uy-calibDrag.py);
+      calibDrag=null;
+      if(moved>12){
+        const [wx2,wy2]=toWorld(ux,uy);
+        const q=calibOrtho({x:wx2,y:wy2});
+        const a0=calibA;
+        dbg(`  CALIB p2 by DRAG: p1=(${a0.x.toFixed(1)},${a0.y.toFixed(1)}) p2=(${q.x.toFixed(1)},${q.y.toFixed(1)}) d=${Math.hypot(q.x-a0.x,q.y-a0.y).toFixed(1)}cm`);
+        calibA=null; hoverPt=null; setTool('select');
+        calibBar('③ 輸入這兩點的實際距離（'+ui.unit+'）後按 Enter');
+        underlayCalibApply(a0, q, ux, uy);
+        draw(); return;
+      }
+    }
     if(eraser && eraser.pointerId===e.pointerId){
       const had=eraser.changed; eraser=null;
       if(had) pushHistory(); else flashHint('沒有擦到筆畫');
@@ -4183,7 +4211,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b78';
+  const BUILD='b80';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -5138,7 +5166,7 @@
   // Two-point calibration. You point at two things whose real distance you know
   // (an overall dimension is ideal) and type it in; the image is scaled about the
   // first point so that pair comes out right, and everything else follows.
-  let calibA=null, hoverPt=null;
+  let calibA=null, hoverPt=null, calibDrag=null;
   // A dimension on a plan runs along a wall — horizontal or vertical, never
   // diagonal. Letting the second point go anywhere means a slightly-off tap
   // measures the hypotenuse, which is always longer than the run you typed and
@@ -5175,25 +5203,37 @@
     if(dCm<0.5){ flashHint('兩點太近，請重新點');
                  calibA=null; setTool('ulcalib');
                  calibBar('① 點圖上一段已知尺寸的起點'); draw(); return; }
+    // A proper dialog, not the little inline field.
+    //
+    // The inline number box is anchored to the canvas and commits on blur, which is
+    // fine for editing a wall you can see. For calibration it was unusable on iPad:
+    // the debug log shows the box being committed 40ms after it opened, with its own
+    // pre-filled reading, because a second finger touched down. From the outside it
+    // looks like tapping the number does nothing. A dialog cannot be dismissed by
+    // touching the drawing, and it has an explicit button.
     calibPending=true;
-    showNumInput(sx,sy, Math.round(toDisp(dCm)), (v)=>{
+    const reading=Math.round(toDisp(dCm));
+    uiDialog({
+      title:'設定比例',
+      message:'這兩點在圖上的實際距離是多少？（'+ui.unit+'）\n目前量到 '+reading+' '+ui.unit+'。',
+      input:'', numeric:true, placeholder:String(reading), sticky:true,
+      okText:'套用', cancelText:'取消'
+    }).then(txt=>{
       calibPending=false;
+      calibBar(null);
+      if(txt==null){ draw(); return; }
+      const v=parseFloat(String(txt).replace(/[^0-9.]/g,''));
       const targetCm=fromDisp(v);
-      if(!isFinite(targetCm)||targetCm<=0) return;
+      if(!isFinite(targetCm)||targetCm<=0){ flashHint('請輸入數字'); draw(); return; }
       const k=targetCm/dCm, u=state.underlay;
       dbg(`  CALIB apply: 量到 ${(dCm*10).toFixed(0)}mm 輸入 ${(targetCm*10).toFixed(0)}mm k=${k.toFixed(4)} mmPerPx ${u.mmPerPx.toFixed(4)} -> ${(u.mmPerPx*k).toFixed(4)}`);
-      // Record WHICH span was measured, in image-pixel coordinates so it stays
-      // glued to the drawing however the underlay is later moved or rescaled.
-      // A wrong calibration is almost always "I spanned two segments and typed
-      // one" — invisible in a number, obvious the moment the span is drawn.
       const toImg=(pt)=>({ix:(pt.x-u.x)/(u.mmPerPx/10), iy:(pt.y-u.y)/(u.mmPerPx/10)});
       u.calib={a:toImg(p1), b:toImg(p2), mm:Math.round(targetCm*10)};
-      // scale about the first point so it stays where you put it
       u.mmPerPx*=k;
       u.x = p1.x + (u.x-p1.x)*k;
       u.y = p1.y + (u.y-p1.y)*k;
       u.calibrated=true; u.showCalib=true;
-      calibA=null; calibBar(null); setTool('select');
+      calibA=null; setTool('select');
       underlayFocus();
       pushHistory(); refreshUnderlayUI(); draw();
       const rr=underlayRatio();
