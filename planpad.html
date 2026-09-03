@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PlanPad · 平面圖工具 b80</title>
+<title>PlanPad · 平面圖工具 b81</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -215,7 +215,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b80</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b81</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -386,7 +386,8 @@
           <div class="row"><label>鎖定位置</label><div class="seg" id="ulLockSeg"><button data-v="1" class="on">鎖定</button><button data-v="0">可移動</button></div></div>
           <div class="row"><label>顯示</label><div class="seg" id="ulShowSeg"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
           <div class="row"><label>校正線</label><div class="seg" id="ulCalibSeg"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
-          <button class="btn primary" id="ulCalib" style="margin-top:8px">兩點校正比例…</button>
+          <button class="btn" id="ulEditCalib" style="margin-top:8px">修改校正值…</button>
+          <button class="btn primary" id="ulCalib" style="margin-top:8px">重新兩點校正…</button>
           <button class="btn warn" id="ulRemove" style="margin-top:8px">移除底圖</button>
           <div class="lay-note" id="ulHint">校正後就可以直接用牆工具描圖。</div>
         </div>
@@ -1908,8 +1909,12 @@
       ctx.moveTo(P[0]+7,P[1]-7); ctx.lineTo(P[0]-7,P[1]+7); ctx.stroke();
     }
     ctx.restore();
-    boxedLabel('校正 '+fmtLen(u.calib.mm/10), (A[0]+B[0])/2, (A[1]+B[1])/2,
-               Math.abs(B[0]-A[0])>=Math.abs(B[1]-A[1])?0:Math.PI/2, 12);
+    const ang=Math.abs(B[0]-A[0])>=Math.abs(B[1]-A[1])?0:Math.PI/2;
+    const mx=(A[0]+B[0])/2, my=(A[1]+B[1])/2;
+    const tw=boxedLabel('校正 '+fmtLen(u.calib.mm/10), mx, my, ang, 12);
+    // tapping the number is how you fix a wrong value — the span was the hard part
+    const hw=(ang?18:(tw/2+10)), hh=(ang?(tw/2+10):18);
+    hitLabels.push({kind:'calibval', rect:[mx-hw,my-hh,hw*2,hh*2]});
   }
   function drawCalibMark(){
     if(ui.tool!=='ulcalib' || !calibA) return;
@@ -3116,6 +3121,12 @@
     // A room's name block is the one label you also want to MOVE — the centroid is
     // often the wrong spot (an L-shaped space, or two rooms whose labels collide).
     // Press and drag moves it; press and release without moving still renames it.
+    if(lab && lab.kind==='calibval' && ui.tool!=='wall'){
+      try{stage.releasePointerCapture(e.pointerId);}catch(_){}
+      pointers.delete(e.pointerId);
+      underlayEditCalib();
+      return;
+    }
     if(lab && lab.kind==='name' && ui.tool!=='wall'){
       dragging={hit:{kind:'roomname', key:lab.room.key}, start:[wx,wy], moved:false,
                 orig:Object.assign({dx:0,dy:0},(state.roomLabelOff||{})[lab.room.key]),
@@ -4211,7 +4222,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b80';
+  const BUILD='b81';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -4496,6 +4507,7 @@
     if(e.key==='Enter'){ e.preventDefault(); e.target.blur(); ulRatioApply(); }
   });
   document.getElementById('ulCalib').onclick=underlayCalibStart;
+  document.getElementById('ulEditCalib').onclick=underlayEditCalib;
   document.getElementById('calibCancel').onclick=underlayCalibCancel;
   document.getElementById('ulRemove').onclick=()=>{
     uiConfirm('移除底圖？描好的牆不會受影響。',{danger:true,okText:'移除'}).then(yes=>{
@@ -5123,6 +5135,37 @@
     pushHistory(); refreshUnderlayUI(); draw();
     flashHint('比例設為 1:'+Math.round(R));
   }
+  // Change the number, keep the two points. Re-aiming a pair you already got right
+  // just to fix a typo is the kind of thing that makes people give up on a tool.
+  function underlayEditCalib(){
+    const u=state.underlay;
+    if(!u || !u.calib) return;
+    const f=u.mmPerPx/10;
+    const ax=u.x+u.calib.a.ix*f, ay=u.y+u.calib.a.iy*f;
+    const bx=u.x+u.calib.b.ix*f, by=u.y+u.calib.b.iy*f;
+    const curCm=Math.hypot(bx-ax,by-ay);
+    if(curCm<0.01) return;
+    uiDialog({ title:'修改校正值',
+      message:'這一段（桃紅線）的實際距離是多少？（'+ui.unit+'）',
+      input:String(Math.round(toDisp(curCm))), numeric:true, sticky:true,
+      okText:'套用', cancelText:'取消' }).then(txt=>{
+      if(txt==null) return;
+      const v=parseFloat(String(txt).replace(/[^0-9.]/g,''));
+      const targetCm=fromDisp(v);
+      if(!isFinite(targetCm)||targetCm<=0){ flashHint('請輸入數字'); return; }
+      const k=targetCm/curCm;
+      dbg(`  CALIB edit: ${(curCm*10).toFixed(0)}mm -> ${(targetCm*10).toFixed(0)}mm k=${k.toFixed(4)}`);
+      // rescale about the first calibration point so that end stays put
+      u.mmPerPx*=k;
+      u.x = ax + (u.x-ax)*k;
+      u.y = ay + (u.y-ay)*k;
+      u.calib.mm=Math.round(targetCm*10);
+      underlayFocus();
+      pushHistory(); refreshUnderlayUI(); draw();
+      const rr=underlayRatio();
+      flashHint('已更新'+(rr?('（1:'+Math.round(rr)+'）'):''));
+    });
+  }
   function underlayScaleTxt(){
     const u=state.underlay; if(!u) return '';
     if(!u.calibrated) return '未校正';
@@ -5138,6 +5181,7 @@
     has.style.display=u?'':'none';
     if(!u) return;
     document.getElementById('ulName').textContent=u.name||'圖紙';
+    document.getElementById('ulEditCalib').style.display = u.calib ? '' : 'none';
     const rr=underlayRatio();
     const row=document.getElementById('ulRatioRow');
     const ri=document.getElementById('ulRatio');
