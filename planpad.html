@@ -259,7 +259,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b82</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b83</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -336,6 +336,7 @@
         <button id="fbRot">旋轉 90°</button>
         <button id="fbCancel">取消</button>
         <button id="fbDrop" class="pri">放下</button>
+        <button id="fbDropAll" class="pri" style="display:none">全部放下</button>
       </div>
       <div id="focusbar">
         <button class="fbk" id="focusBack" title="回到整層">‹</button>
@@ -919,7 +920,7 @@
     state.ceilingH=o.ceilingH||280;
     state._seq=o._seq||1000;
     ui.selected=null; draft=null; inkDraft=null; eraser=null; typedNum=''; hideLenBox();
-    chain=null; floatGrp=null; syncFloatBar(); if(typeof kpad!=='undefined') kpad.close();
+    chain=null; floats=[]; floatGrp=null; syncFloatBar(); kpad.close();
     if(ui.focusRoom && !state.rooms.some(r=>r.id===ui.focusRoom)) ui.focusRoom=null;
     recomputeRooms(); syncFocusBar(); refreshProp(); draw();
   }
@@ -1924,7 +1925,8 @@
   // The snap deliberately aligns CENTRELINES, not faces. Faces meeting would leave
   // a double-thickness boundary; centrelines meeting is exactly the shared-wall
   // condition, so what you see while dragging is already the final geometry.
-  let floatGrp=null;          // {kind:'rect'|'poly', rect?, segs:[], guides:[]}
+  let floats=[];              // every room drawn but not yet committed
+  let floatGrp=null;          // the active one — {kind:'rect'|'poly', rect?, segs:[], guides:[]}
   const FBAR=document.getElementById('floatbar');
 
   function rectCenterSegs(ix,iy,iw,ih,t){
@@ -1938,10 +1940,11 @@
     const r=floatGrp.rect;
     floatGrp.segs=rectCenterSegs(r.x,r.y,r.w,r.h,r.t);
   }
-  function floatBounds(){
-    if(!floatGrp) return null;
+  function floatBounds(grp){
+    grp=grp||floatGrp;
+    if(!grp) return null;
     let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
-    for(const g of floatGrp.segs){
+    for(const g of grp.segs){
       const h=(g.t||20)/2;
       x0=Math.min(x0,g.x1-h,g.x2-h); x1=Math.max(x1,g.x1+h,g.x2+h);
       y0=Math.min(y0,g.y1-h,g.y2-h); y1=Math.max(y1,g.y1+h,g.y2+h);
@@ -1996,7 +1999,11 @@
     const span=(g,vert)=> vert ? [Math.min(g.y1,g.y2),Math.max(g.y1,g.y2)]
                                : [Math.min(g.x1,g.x2),Math.max(g.x1,g.x2)];
     const thr=Math.max(20, snapRadius(16,60));
-    const host=state.walls.filter(w=>wallLen(w)>=1);
+    // Other floating rooms are just as valid a thing to click against as a wall
+    // that has already landed — otherwise assembling before committing is half
+    // blind, and you'd have to drop rooms one at a time just to snap to them.
+    const host=state.walls.filter(w=>wallLen(w)>=1)
+      .concat(floats.filter(f=>f!==floatGrp).flatMap(f=>f.segs));
     const pick=(vert)=>{
       let best=null, bd=thr;
       for(const g of floatGrp.segs){
@@ -2035,62 +2042,118 @@
     floatRebase(); floatPlace(0,0);
   }
   function beginFloat(grp){
-    floatGrp=grp;
-    floatRebase(); floatPlace(0,0);
-    syncFloatBar();
+    floats.push(grp);
+    setActiveFloat(grp);
     draw();
   }
-  function cancelFloat(){
-    floatGrp=null; kpad.close(); syncFloatBar(); draw();
+  function setActiveFloat(grp){
+    floatGrp=grp||null;
+    if(floatGrp){ floatRebase(); floatPlace(0,0); }
+    syncFloatBar();
   }
-  function dropFloat(){
+  // pick up whichever floating room the finger landed on (topmost first)
+  function floatAt(wx,wy){
+    const pad=12/view.scale;
+    for(let i=floats.length-1;i>=0;i--){
+      const b=floatBounds(floats[i]); if(!b) continue;
+      if(wx>=b.x0-pad && wx<=b.x1+pad && wy>=b.y0-pad && wy<=b.y1+pad) return floats[i];
+    }
+    return null;
+  }
+  function removeFloat(grp){
+    const i=floats.indexOf(grp);
+    if(i>=0) floats.splice(i,1);
+    kpad.close();
+    setActiveFloat(floats.length ? floats[floats.length-1] : null);
+  }
+  function cancelFloat(){
     if(!floatGrp) return;
-    const segs=floatGrp.segs.filter(g=>Math.hypot(g.x2-g.x1,g.y2-g.y1)>=3);
-    floatGrp=null; kpad.close(); syncFloatBar();
-    if(!segs.length){ draw(); return; }
+    removeFloat(floatGrp);
+    draw();
+  }
+  // commit a group's walls without touching history — the caller decides when to
+  // push, so dropping five rooms at once is ONE undo step, not five
+  function commitFloatWalls(grp){
+    const segs=grp.segs.filter(g=>Math.hypot(g.x2-g.x1,g.y2-g.y1)>=3);
     for(const g of segs) state.walls.push({id:uid(),x1:g.x1,y1:g.y1,x2:g.x2,y2:g.y2,t:g.t,align:g.align||'mid'});
+    return segs.length;
+  }
+  function dropFloat(grp){
+    grp=grp||floatGrp;
+    if(!grp) return;
+    const n=commitFloatWalls(grp);
+    removeFloat(grp);
+    if(!n){ draw(); return; }
     // pushHistory runs cleanup → merge → heal, which is exactly the weld we want
     pushHistory();
     draw();
-    flashHint('已放下並接合');
+    flashHint(floats.length ? ('已放下並接合，還有 '+floats.length+' 間待放下') : '已放下並接合');
+  }
+  function dropAllFloats(){
+    if(!floats.length) return;
+    const n=floats.length;
+    let any=0;
+    for(const g of floats) any+=commitFloatWalls(g);
+    floats=[]; kpad.close(); setActiveFloat(null);
+    if(!any){ draw(); return; }
+    pushHistory();
+    draw();
+    flashHint('已放下 '+n+' 間並接合');
   }
   function syncFloatBar(){
     if(!FBAR) return;
-    FBAR.classList.toggle('show', !!floatGrp);
+    FBAR.classList.toggle('show', floats.length>0);
+    const note=document.getElementById('fbNote');
+    if(note) note.textContent = floats.length>1
+      ? (floats.length+' 間待放下，點一間來選它')
+      : '拖曳擺放，靠近既有牆會自動吸附';
+    const all=document.getElementById('fbDropAll');
+    if(all) all.style.display = floats.length>1 ? '' : 'none';
   }
   if(FBAR){
     FBAR.addEventListener('pointerdown',e=>e.stopPropagation());
     document.getElementById('fbRot').onclick=()=>rotateFloat90();
     document.getElementById('fbCancel').onclick=()=>cancelFloat();
     document.getElementById('fbDrop').onclick=()=>dropFloat();
+    document.getElementById('fbDropAll').onclick=()=>dropAllFloats();
   }
   function drawFloat(){
-    if(!floatGrp) return;
+    if(!floats.length) return;
     ctx.save();
-    // green alignment guides, same language as the wall tool's
-    ctx.strokeStyle='#2E9E6B'; ctx.lineWidth=1; ctx.setLineDash([6,4]);
-    for(const g of (floatGrp.guides||[])){
-      if(g.axis==='v'){ const [sx]=toScreen(g.coord,0); ctx.beginPath(); ctx.moveTo(sx+.5,0); ctx.lineTo(sx+.5,H); ctx.stroke(); }
-      else { const [,sy]=toScreen(0,g.coord); ctx.beginPath(); ctx.moveTo(0,sy+.5); ctx.lineTo(W,sy+.5); ctx.stroke(); }
-    }
-    ctx.setLineDash([]);
-    for(const g of floatGrp.segs){
-      const A=toScreen(g.x1,g.y1), B=toScreen(g.x2,g.y2);
-      ctx.strokeStyle='rgba(39,92,122,0.30)'; ctx.lineWidth=Math.max(2,(g.t||20)*view.scale); ctx.lineCap='butt';
-      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
-      ctx.strokeStyle='#275C7A'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
-      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
+    // guides belong to the room you are actually moving
+    if(floatGrp){
+      ctx.strokeStyle='#2E9E6B'; ctx.lineWidth=1; ctx.setLineDash([6,4]);
+      for(const g of (floatGrp.guides||[])){
+        if(g.axis==='v'){ const [sx]=toScreen(g.coord,0); ctx.beginPath(); ctx.moveTo(sx+.5,0); ctx.lineTo(sx+.5,H); ctx.stroke(); }
+        else { const [,sy]=toScreen(0,g.coord); ctx.beginPath(); ctx.moveTo(0,sy+.5); ctx.lineTo(W,sy+.5); ctx.stroke(); }
+      }
       ctx.setLineDash([]);
     }
-    if(floatGrp.kind==='rect'){
-      const r=floatGrp.rect;
-      const c=toScreen(r.x+r.w/2, r.y+r.h/2);
-      ctx.font=`600 ${fpx(13)}px -apple-system,system-ui,sans-serif`;
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      const txt=fmtLen(r.w)+' × '+fmtLen(r.h)+' '+ui.unit;
-      const tw=ctx.measureText(txt).width;
-      ctx.fillStyle='rgba(255,255,255,.92)'; roundRect(c[0]-tw/2-8,c[1]-13,tw+16,26,6); ctx.fill();
-      ctx.fillStyle='#275C7A'; ctx.fillText(txt,c[0],c[1]);
+    // inactive rooms sit further back so it is obvious which one the bar drives
+    for(const grp of floats){
+      const on = grp===floatGrp;
+      for(const g of grp.segs){
+        const A=toScreen(g.x1,g.y1), B=toScreen(g.x2,g.y2);
+        ctx.strokeStyle= on ? 'rgba(39,92,122,0.30)' : 'rgba(39,92,122,0.14)';
+        ctx.lineWidth=Math.max(2,(g.t||20)*view.scale); ctx.lineCap='butt';
+        ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
+        ctx.strokeStyle= on ? '#275C7A' : 'rgba(39,92,122,0.45)';
+        ctx.lineWidth= on ? 1.5 : 1; ctx.setLineDash([5,4]);
+        ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      if(grp.kind==='rect'){
+        const r=grp.rect;
+        const c=toScreen(r.x+r.w/2, r.y+r.h/2);
+        ctx.font=`600 ${fpx(on?13:11)}px -apple-system,system-ui,sans-serif`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        const txt=fmtLen(r.w)+' × '+fmtLen(r.h)+' '+ui.unit;
+        const tw=ctx.measureText(txt).width;
+        ctx.fillStyle= on ? 'rgba(255,255,255,.92)' : 'rgba(255,255,255,.70)';
+        roundRect(c[0]-tw/2-8,c[1]-13,tw+16,26,6); ctx.fill();
+        ctx.fillStyle= on ? '#275C7A' : 'rgba(39,92,122,0.55)';
+        ctx.fillText(txt,c[0],c[1]);
+      }
     }
     ctx.restore();
   }
@@ -2379,7 +2442,9 @@
     state, ui, view, get rooms(){ return roomsCache; },
     toScreen, toWorld, wallLen,
     get float(){ return floatGrp; },
+    get floats(){ return floats; },
     api:{ enterFocus, exitFocus, mergeCoincidentWalls, healJunctions, recomputeRooms,
+          dropFloat, dropAllFloats, cancelFloat,
           draw, pushHistory, renderExport, exportPDF,
           get LAYERS(){ return LAYERS; }, get pdfOpt(){ return pdfOpt; } }
   };
@@ -4002,10 +4067,15 @@
     // A room waiting to be placed owns the canvas. Pressing anywhere on it slides
     // the whole group; pressing off it still pans, so you can reach the spot you
     // are aiming for without dropping the room first.
-    if(floatGrp){
-      const b=floatBounds(), pad=12/view.scale;
-      if(b && wx>=b.x0-pad && wx<=b.x1+pad && wy>=b.y0-pad && wy<=b.y1+pad){
+    if(floats.length){
+      const hit=floatAt(wx,wy);
+      if(hit){
+        if(hit!==floatGrp){
+          setActiveFloat(hit);
+          if(hit.kind==='rect') openRectKeypad(); else kpad.close();
+        }
         floatDrag={pointerId:e.pointerId, wx, wy, dx0:floatGrp.raw.dx, dy0:floatGrp.raw.dy};
+        draw();
         return;
       }
     }
