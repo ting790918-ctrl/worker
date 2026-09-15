@@ -83,7 +83,7 @@
   #kpad{position:absolute; left:50%; bottom:14px; transform:translateX(-50%); display:none;
         background:#fff; border:1px solid var(--line-strong); border-radius:14px; padding:10px;
         box-shadow:0 8px 28px rgba(0,0,0,.20); z-index:20; touch-action:manipulation; user-select:none;
-        width:246px;}
+        width:288px;}
   #kpad.show{display:block;}
   #kpad .kf{display:flex; gap:6px; margin-bottom:8px;}
   #kpad .kfield{flex:1; border:1.5px solid var(--line-strong); border-radius:8px; padding:4px 6px; cursor:pointer; background:#FBFBFC; min-width:0;}
@@ -92,7 +92,7 @@
   #kpad .kfield .kv{font-size:16px; font-variant-numeric:tabular-nums; color:var(--ink); line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   #kpad .kfield.on .kv{color:var(--accent);}
   #kpad .kfield .kv.ghost{color:#9AA2AA;}
-  #kpad .kg{display:grid; grid-template-columns:repeat(3,1fr); gap:6px;}
+  #kpad .kg{display:grid; grid-template-columns:repeat(4,1fr); gap:6px;}
   #kpad .kb{height:40px; border:1px solid var(--line-strong); background:#fff; border-radius:8px; font-size:17px;
             color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; font-variant-numeric:tabular-nums;}
   #kpad .kb:active{background:var(--accent-soft); border-color:var(--accent);}
@@ -105,6 +105,10 @@
             background:#fff; border:1px solid var(--line-strong); border-radius:10px; padding:6px;
             box-shadow:0 4px 18px rgba(0,0,0,.18); z-index:19; touch-action:manipulation;}
   #floatbar.show{display:flex;}
+  #floatbar{flex-wrap:wrap; max-width:min(92vw,760px); justify-content:center;}
+  #floatbar .fbsep{width:1px; align-self:stretch; background:var(--line-strong); opacity:.5; margin:2px 2px;}
+  #floatbar .fbnote.warn{color:#A23B2D; font-weight:600;}
+  #floatbar button.danger{background:#F7E4E0; border-color:#D9A197; color:#8A3325;}
   #floatbar button{height:34px; padding:0 12px; border:1px solid var(--line-strong); background:#fff; border-radius:7px;
                    font-size:13px; color:var(--text); cursor:pointer; white-space:nowrap;}
   #floatbar button.pri{background:var(--accent); border-color:var(--accent); color:#fff;}
@@ -259,7 +263,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b83</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b84</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -333,6 +337,12 @@
       </div>
       <div id="floatbar">
         <span class="fbnote" id="fbNote">拖曳擺放，靠近既有牆會自動吸附</span>
+        <span class="fbsep"></span>
+        <button id="fbAlignL" title="往左推到碰到牆">靠左</button>
+        <button id="fbAlignR" title="往右推到碰到牆">靠右</button>
+        <button id="fbAlignU" title="往上推到碰到牆">靠上</button>
+        <button id="fbAlignD" title="往下推到碰到牆">靠下</button>
+        <span class="fbsep"></span>
         <button id="fbRot">旋轉 90°</button>
         <button id="fbCancel">取消</button>
         <button id="fbDrop" class="pri">放下</button>
@@ -346,11 +356,10 @@
       <div id="kpad">
         <div class="kf" id="kpadFields"></div>
         <div class="kg">
-          <div class="kb" data-k="7">7</div><div class="kb" data-k="8">8</div><div class="kb" data-k="9">9</div>
-          <div class="kb" data-k="4">4</div><div class="kb" data-k="5">5</div><div class="kb" data-k="6">6</div>
-          <div class="kb" data-k="1">1</div><div class="kb" data-k="2">2</div><div class="kb" data-k="3">3</div>
-          <div class="kb mut" data-k=".">.</div><div class="kb" data-k="0">0</div><div class="kb mut" data-k="bs">⌫</div>
-          <div class="kb mut" data-k="tab">⇥</div><div class="kb mut" data-k="esc">✕</div><div class="kb ok" data-k="ok">✓</div>
+          <div class="kb" data-k="7">7</div><div class="kb" data-k="8">8</div><div class="kb" data-k="9">9</div><div class="kb mut" data-k="bs">⌫</div>
+          <div class="kb" data-k="4">4</div><div class="kb" data-k="5">5</div><div class="kb" data-k="6">6</div><div class="kb mut" data-k="neg">±</div>
+          <div class="kb" data-k="1">1</div><div class="kb" data-k="2">2</div><div class="kb" data-k="3">3</div><div class="kb mut" data-k=".">.</div>
+          <div class="kb mut" data-k="tab">⇥</div><div class="kb" data-k="0">0</div><div class="kb mut" data-k="esc">✕</div><div class="kb ok" data-k="ok">✓</div>
         </div>
         <div class="khint" id="kpadHint"></div>
       </div>
@@ -716,6 +725,13 @@
       if(k==='esc'){ const c=cfg.onCancel; close(); if(c) c(); return; }
       if(k==='ok'){ const c=cfg.onCommit, v=vals(); if(c) c(v); return; }
       if(k==='tab'){ act=(act+1)%cfg.fields.length; render(); return; }
+      if(k==='neg'){
+        if(!f.typed){ f.typed=true; f.val=String(f.live||''); }
+        f.fresh=false;
+        f.val = f.val.startsWith('-') ? f.val.slice(1) : ('-'+(f.val||'0'));
+        render(); if(cfg.onInput) cfg.onInput(vals());
+        return;
+      }
       if(k==='bs'){
         if(!f.typed){ f.typed=true; f.val=''; }
         else f.val=f.val.slice(0,-1);
@@ -770,6 +786,7 @@
       if(/^[0-9]$/.test(e.key)){ press(e.key); return true; }
       if(e.key==='.'){ press('.'); return true; }
       if(e.key==='Backspace'){ press('bs'); return true; }
+      if(e.key==='-'){ press('neg'); return true; }
       if(e.key==='Tab'){ press('tab'); return true; }
       if(e.key==='Enter'){ press('ok'); return true; }
       if(e.key==='Escape'){ press('esc'); return true; }
@@ -1940,6 +1957,23 @@
     const r=floatGrp.rect;
     floatGrp.segs=rectCenterSegs(r.x,r.y,r.w,r.h,r.t);
   }
+  function segProperCross(a,b){
+    const ax=a.x2-a.x1, ay=a.y2-a.y1, bx=b.x2-b.x1, by=b.y2-b.y1;
+    const la=Math.hypot(ax,ay), lb=Math.hypot(bx,by);
+    if(la<1||lb<1) return false;
+    const eps=0.35;                           // ~3mm of slack, in normalised units
+    const c=(px,py,qx,qy)=>px*qy-py*qx;
+    const d1=c(bx,by,a.x1-b.x1,a.y1-b.y1)/lb, d2=c(bx,by,a.x2-b.x1,a.y2-b.y1)/lb;
+    const d3=c(ax,ay,b.x1-a.x1,b.y1-a.y1)/la, d4=c(ax,ay,b.x2-a.x1,b.y2-a.y1)/la;
+    return ((d1>eps&&d2<-eps)||(d1<-eps&&d2>eps)) && ((d3>eps&&d4<-eps)||(d3<-eps&&d4>eps));
+  }
+  function floatCrosses(grp){
+    grp=grp||floatGrp; if(!grp) return false;
+    const others=state.walls.filter(w=>wallLen(w)>=1)
+      .concat(floats.filter(f=>f!==grp).flatMap(f=>f.segs));
+    for(const g of grp.segs) for(const w of others) if(segProperCross(g,w)) return true;
+    return false;
+  }
   function floatBounds(grp){
     grp=grp||floatGrp;
     if(!grp) return null;
@@ -1974,6 +2008,8 @@
     const sn=floatSnap();
     if(sn.dx||sn.dy) translateFloat(sn.dx,sn.dy);
     floatGrp.guides=sn.guides;
+    floatGrp.snapRef=sn;                      // which wall we are flush against
+    floatGrp.bad=floatCrosses(floatGrp);
   }
   function rotateFloat90(){
     if(!floatGrp) return;
@@ -1998,7 +2034,7 @@
     const isV=g=>Math.abs(g.x1-g.x2)<0.8, isH=g=>Math.abs(g.y1-g.y2)<0.8;
     const span=(g,vert)=> vert ? [Math.min(g.y1,g.y2),Math.max(g.y1,g.y2)]
                                : [Math.min(g.x1,g.x2),Math.max(g.x1,g.x2)];
-    const thr=Math.max(20, snapRadius(16,60));
+    const thr=Math.max(35, snapRadius(26,90));
     // Other floating rooms are just as valid a thing to click against as a wall
     // that has already landed — otherwise assembling before committing is half
     // blind, and you'd have to drop rooms one at a time just to snap to them.
@@ -2016,7 +2052,7 @@
           const [wl,wh]=span(w,vert);
           if(Math.min(gh,wh)-Math.max(gl,wl) < 10) continue;   // not actually alongside
           const d=Math.abs(wc-gc);
-          if(d<bd){ bd=d; best={delta:wc-gc, coord:wc}; }
+          if(d<bd){ bd=d; best={delta:wc-gc, coord:wc, lo:wl, hi:wh, t:(w.t||20), flush:true}; }
         }
       }
       return best;
@@ -2027,19 +2063,121 @@
       const gv=[], hv=[];
       for(const g of floatGrp.segs){ const [a,b]=span(g,!vert); gv.push(a,b); }
       for(const w of host){ const [a,b]=span(w,!vert); hv.push(a,b); }
-      for(const a of gv) for(const b of hv){ const d=Math.abs(b-a); if(d<bd){ bd=d; best={delta:b-a, coord:b}; } }
+      for(const a of gv) for(const b of hv){ const d=Math.abs(b-a); if(d<bd){ bd=d; best={delta:b-a, coord:b, flush:false}; } }
       return best;
     };
     const vx=pick(true)  || pickEnd(true);
     const hy=pick(false) || pickEnd(false);
     const guides=[];
-    if(vx) guides.push({axis:'v',coord:vx.coord});
-    if(hy) guides.push({axis:'h',coord:hy.coord});
-    return {dx:vx?vx.delta:0, dy:hy?hy.delta:0, guides};
+    if(vx) guides.push({axis:'v',coord:vx.coord,flush:!!vx.flush});
+    if(hy) guides.push({axis:'h',coord:hy.coord,flush:!!hy.flush});
+    return {dx:vx?vx.delta:0, dy:hy?hy.delta:0, guides, vx, hy};
   }
   function applyFloatSnap(){
     if(!floatGrp) return;
     floatRebase(); floatPlace(0,0);
+  }
+  // "靠右" is not "find the wall on my right" — it is PUSH right until something
+  // stops you. Those differ in exactly the case that matters: when the room is
+  // sitting on top of its neighbour, pushing right is what lands its LEFT wall on
+  // the neighbour's right wall. The first version looked for a wall beyond the
+  // room's right edge, found nothing, and did nothing at all.
+  // Two different jobs hide behind one button. Pushing a room that sits ON TOP of
+  // its neighbour rightwards means its LEFT wall lands on the neighbour's right
+  // wall — a collision. Pushing a room that already sits BESIDE its neighbour
+  // upwards means lining the two top edges up — no collision involved, the rooms
+  // never touch on that axis. So the named edge is tried first (靠上 really does
+  // mean "my top edge"), and only if that has nowhere to go does any wall of the
+  // room count as the thing that makes contact.
+  function alignCandidates(vert, onlyEdge){
+    if(!floatGrp) return [];
+    const segs=floatGrp.segs;
+    const isV=g=>Math.abs(g.x1-g.x2)<0.8, isH=g=>Math.abs(g.y1-g.y2)<0.8;
+    const lines=segs.filter(g=>vert?isV(g):isH(g));
+    if(!lines.length) return [];
+    let use=lines;
+    if(onlyEdge){
+      const cls=lines.map(g=>vert?g.x1:g.y1);
+      const pickC = (onlyEdge==='min') ? Math.min(...cls) : Math.max(...cls);
+      use=lines.filter(g=>Math.abs((vert?g.x1:g.y1)-pickC)<0.6);
+    }
+    const host=state.walls.filter(w=>wallLen(w)>=1)
+      .concat(floats.filter(f=>f!==floatGrp).flatMap(f=>f.segs));
+    const out=[];
+    for(const g of use){
+      const gc = vert ? g.x1 : g.y1;
+      const gl = vert ? Math.min(g.y1,g.y2) : Math.min(g.x1,g.x2);
+      const gh = vert ? Math.max(g.y1,g.y2) : Math.max(g.x1,g.x2);
+      for(const w of host){
+        if(vert ? Math.abs(w.x1-w.x2)>=0.8 : Math.abs(w.y1-w.y2)>=0.8) continue;
+        const wc = vert ? w.x1 : w.y1;
+        const wl = vert ? Math.min(w.y1,w.y2) : Math.min(w.x1,w.x2);
+        const wh = vert ? Math.max(w.y1,w.y2) : Math.max(w.x1,w.x2);
+        // overlapping, touching, or near-touching on the other axis — a room two
+        // rooms away is not something you are trying to line up with
+        if(Math.min(gh,wh)-Math.max(gl,wl) < -40) continue;
+        out.push(wc-gc);
+      }
+    }
+    return out;
+  }
+  function alignFloat(side){
+    if(!floatGrp) return;
+    const vert=(side==='left'||side==='right');
+    const forward=(side==='right'||side==='down');
+    const edgeSide=(side==='left'||side==='up') ? 'min' : 'max';
+    const filt=(a)=>a.filter(d=>forward ? d>0.5 : d<-0.5).sort((x,y)=>Math.abs(x)-Math.abs(y));
+    let cand=filt(alignCandidates(vert, edgeSide));     // my named edge, first
+    if(!cand.length) cand=filt(alignCandidates(vert));  // then any wall of mine
+    if(!cand.length){ flashHint('這個方向沒有可以靠的牆'); return; }
+    // Walk outwards until we find a resting place that doesn't put walls through
+    // the middle of somebody. The nearest contact is usually right, but when the
+    // room starts on top of its neighbour the nearest one is still an overlap.
+    const dx0=floatGrp.raw.dx, dy0=floatGrp.raw.dy;
+    let placed=false;
+    for(const d of cand){
+      floatPlace(dx0 + (vert?d:0), dy0 + (vert?0:d));
+      if(!floatCrosses(floatGrp)){ placed=true; break; }
+    }
+    if(!placed) floatPlace(dx0 + (vert?cand[0]:0), dy0 + (vert?0:cand[0]));
+    floatRebase(); floatPlace(0,0);
+    syncFloatBar(); syncFloatKeypad(); draw();
+    const nm=({left:'靠左',right:'靠右',up:'靠上',down:'靠下'})[side];
+    flashHint(placed ? (nm+'貼齊') : (nm+'貼齊了，但還是和別人交疊'));
+  }
+
+  // ---- offset along the wall we are flush against ----
+  // Once one side is flush, the room can still slide along that wall, and THAT is
+  // the number nobody could set by dragging. It is measured outer face to outer
+  // face, so two rooms flush at the corner read 0 — the way it would be called
+  // out on site ("從左牆進來 800"), not as a raw coordinate.
+  function floatOffsetAxis(){
+    const sr=floatGrp&&floatGrp.snapRef;
+    if(sr&&sr.vx&&sr.vx.flush) return 'y';      // flush on a vertical wall -> slides vertically
+    if(sr&&sr.hy&&sr.hy.flush) return 'x';
+    return null;
+  }
+  function floatOffsetRef(){
+    const sr=floatGrp&&floatGrp.snapRef; if(!sr) return null;
+    const ax=floatOffsetAxis(); if(!ax) return null;
+    const m = ax==='y' ? sr.vx : sr.hy;
+    if(m.lo==null) return null;
+    return m.lo - (m.t||20)/2;                  // the neighbour's outer face
+  }
+  function floatOffsetValue(){
+    const ax=floatOffsetAxis(), ref=floatOffsetRef();
+    if(!ax || ref==null) return null;
+    const b=floatBounds(); if(!b) return null;
+    return (ax==='y' ? b.y0 : b.x0) - ref;
+  }
+  function setFloatOffset(v){
+    const ax=floatOffsetAxis(), ref=floatOffsetRef();
+    if(!ax || ref==null || !isFinite(v)) return false;
+    const b=floatBounds(); if(!b) return false;
+    const d = (ref + v) - (ax==='y' ? b.y0 : b.x0);
+    floatPlace(floatGrp.raw.dx + (ax==='x'?d:0), floatGrp.raw.dy + (ax==='y'?d:0));
+    floatRebase(); floatPlace(0,0);
+    return true;
   }
   function beginFloat(grp){
     floats.push(grp);
@@ -2081,6 +2219,13 @@
   function dropFloat(grp){
     grp=grp||floatGrp;
     if(!grp) return;
+    // Refuse rather than produce rubbish. Two rooms that half-cover each other
+    // weld into walls running through the middle of both, and the space detector
+    // then reports overlapping areas that add up to more floor than exists.
+    if(floatCrosses(grp)){
+      flashHint('這間和既有房間交疊，放下會有牆穿過房間中間。先移開，或用靠左／靠右對齊');
+      setActiveFloat(grp); draw(); return;
+    }
     const n=commitFloatWalls(grp);
     removeFloat(grp);
     if(!n){ draw(); return; }
@@ -2091,6 +2236,12 @@
   }
   function dropAllFloats(){
     if(!floats.length) return;
+    const clash=floats.find(f=>floatCrosses(f));
+    if(clash){
+      setActiveFloat(clash); draw();
+      flashHint('有一間和別人交疊（已幫你選起來），處理完再按全部放下');
+      return;
+    }
     const n=floats.length;
     let any=0;
     for(const g of floats) any+=commitFloatWalls(g);
@@ -2104,9 +2255,28 @@
     if(!FBAR) return;
     FBAR.classList.toggle('show', floats.length>0);
     const note=document.getElementById('fbNote');
-    if(note) note.textContent = floats.length>1
-      ? (floats.length+' 間待放下，點一間來選它')
-      : '拖曳擺放，靠近既有牆會自動吸附';
+    const drop=document.getElementById('fbDrop');
+    const bad=floatGrp&&floatGrp.bad;
+    if(note){
+      // Say out loud what the magnet has caught. Silent snapping is why it was
+      // impossible to tell a room that had locked on from one that merely looked close.
+      let txt;
+      if(bad) txt='和既有房間交疊了，放下會產生穿牆';
+      else {
+        const g=(floatGrp&&floatGrp.guides)||[];
+        const v=g.find(x=>x.axis==='v'&&x.flush), h=g.find(x=>x.axis==='h'&&x.flush);
+        const parts=[];
+        if(v) parts.push('左右已貼齊');
+        if(h) parts.push('上下已貼齊');
+        const off=floatOffsetValue();
+        if(off!=null) parts.push('沿牆偏移 '+fmtLen(off)+' '+ui.unit);
+        txt = parts.length ? parts.join('・') : '拖曳擺放，或按靠左／靠上直接貼齊';
+      }
+      if(floats.length>1) txt = floats.length+' 間待放下・'+txt;
+      note.textContent=txt;
+      note.classList.toggle('warn', !!bad);
+    }
+    if(drop) drop.classList.toggle('danger', !!bad);
     const all=document.getElementById('fbDropAll');
     if(all) all.style.display = floats.length>1 ? '' : 'none';
   }
@@ -2116,14 +2286,20 @@
     document.getElementById('fbCancel').onclick=()=>cancelFloat();
     document.getElementById('fbDrop').onclick=()=>dropFloat();
     document.getElementById('fbDropAll').onclick=()=>dropAllFloats();
+    document.getElementById('fbAlignL').onclick=()=>alignFloat('left');
+    document.getElementById('fbAlignR').onclick=()=>alignFloat('right');
+    document.getElementById('fbAlignU').onclick=()=>alignFloat('up');
+    document.getElementById('fbAlignD').onclick=()=>alignFloat('down');
   }
   function drawFloat(){
     if(!floats.length) return;
     ctx.save();
     // guides belong to the room you are actually moving
     if(floatGrp){
-      ctx.strokeStyle='#2E9E6B'; ctx.lineWidth=1; ctx.setLineDash([6,4]);
       for(const g of (floatGrp.guides||[])){
+        ctx.strokeStyle='#2E9E6B';
+        ctx.lineWidth = g.flush ? 2 : 1;                 // solid+thick = welded to that wall
+        ctx.setLineDash(g.flush ? [] : [6,4]);
         if(g.axis==='v'){ const [sx]=toScreen(g.coord,0); ctx.beginPath(); ctx.moveTo(sx+.5,0); ctx.lineTo(sx+.5,H); ctx.stroke(); }
         else { const [,sy]=toScreen(0,g.coord); ctx.beginPath(); ctx.moveTo(0,sy+.5); ctx.lineTo(W,sy+.5); ctx.stroke(); }
       }
@@ -2132,13 +2308,14 @@
     // inactive rooms sit further back so it is obvious which one the bar drives
     for(const grp of floats){
       const on = grp===floatGrp;
+      const bad=grp.bad;
       for(const g of grp.segs){
         const A=toScreen(g.x1,g.y1), B=toScreen(g.x2,g.y2);
-        ctx.strokeStyle= on ? 'rgba(39,92,122,0.30)' : 'rgba(39,92,122,0.14)';
+        ctx.strokeStyle= bad ? 'rgba(162,59,45,0.26)' : (on ? 'rgba(39,92,122,0.30)' : 'rgba(39,92,122,0.14)');
         ctx.lineWidth=Math.max(2,(g.t||20)*view.scale); ctx.lineCap='butt';
         ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
-        ctx.strokeStyle= on ? '#275C7A' : 'rgba(39,92,122,0.45)';
-        ctx.lineWidth= on ? 1.5 : 1; ctx.setLineDash([5,4]);
+        ctx.strokeStyle= bad ? '#A23B2D' : (on ? '#275C7A' : 'rgba(39,92,122,0.45)');
+        ctx.lineWidth= (on||bad) ? 1.5 : 1; ctx.setLineDash([5,4]);
         ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -2170,20 +2347,45 @@
     rebuildFloatRect();
     floatRebase(); floatPlace(0,0); draw();
   }
-  function syncRectKeypad(){
-    if(!floatGrp||floatGrp.kind!=='rect'||!kpad.isOpen()) return;
-    kpad.set({w:Math.round(toDisp(floatGrp.rect.w)), d:Math.round(toDisp(floatGrp.rect.h))});
+  function syncFloatKeypad(){
+    if(!floatGrp||!kpad.isOpen()) return;
+    const o={};
+    if(floatGrp.kind==='rect'){ o.w=Math.round(toDisp(floatGrp.rect.w)); o.d=Math.round(toDisp(floatGrp.rect.h)); }
+    const off=floatOffsetValue();
+    if(off!=null) o.off=Math.round(toDisp(off));
+    kpad.set(o);
   }
+  const syncRectKeypad=syncFloatKeypad;   // old name, same job
   function openRectKeypad(){
-    if(!floatGrp||floatGrp.kind!=='rect') return;
+    if(!floatGrp) return;
+    const fields=[];
+    if(floatGrp.kind==='rect'){
+      fields.push({key:'w',label:'寬',unit:ui.unit},{key:'d',label:'深',unit:ui.unit});
+    }
+    fields.push({key:'off',label:'沿牆偏移',unit:ui.unit});
     kpad.open({
-      fields:[{key:'w',label:'寬',unit:ui.unit},{key:'d',label:'深',unit:ui.unit}],
-      hint:'室內淨尺寸。改好後拖到定位，按上面的「放下」接合',
-      onInput:(o)=>applyRectDims(o),
-      onCommit:(o)=>applyRectDims(o),
+      fields,
+      hint:'寬深＝室內淨尺寸。先按上面的靠左／靠上貼齊，再打偏移調位置',
+      onInput:(o)=>applyFloatNums(o),
+      onCommit:(o)=>applyFloatNums(o),
       onCancel:()=>kpad.close()
     });
-    syncRectKeypad();
+    syncFloatKeypad();
+  }
+  function applyFloatNums(o){
+    if(!floatGrp) return;
+    if(floatGrp.kind==='rect'){
+      const r=floatGrp.rect;
+      if(o.w!=null && o.w>0) r.w=fromDisp(o.w);
+      if(o.d!=null && o.d>0) r.h=fromDisp(o.d);
+      rebuildFloatRect();
+      floatRebase(); floatPlace(0,0);
+    }
+    if(o.off!=null){
+      if(!setFloatOffset(fromDisp(o.off)) && floatOffsetAxis()==null)
+        flashHint('還沒貼齊任何一面牆，偏移沒有基準。先按靠左／靠右／靠上／靠下');
+    }
+    syncFloatBar(); draw();
   }
 
   // ---- corner-by-corner chains (房間·描角點, and the 牆 tool's running chain) ----
@@ -2444,7 +2646,8 @@
     get float(){ return floatGrp; },
     get floats(){ return floats; },
     api:{ enterFocus, exitFocus, mergeCoincidentWalls, healJunctions, recomputeRooms,
-          dropFloat, dropAllFloats, cancelFloat,
+          dropFloat, dropAllFloats, cancelFloat, alignFloat, floatCrosses,
+          floatOffsetValue, setFloatOffset, floatOffsetAxis,
           draw, pushHistory, renderExport, exportPDF,
           get LAYERS(){ return LAYERS; }, get pdfOpt(){ return pdfOpt; } }
   };
@@ -4244,7 +4447,7 @@
     if(floatDrag && floatDrag.pointerId===e.pointerId){
       const [mx,my]=evtPos(e); const [mwx,mwy]=toWorld(mx,my);
       floatPlace(floatDrag.dx0 + (mwx-floatDrag.wx), floatDrag.dy0 + (mwy-floatDrag.wy));
-      draw(); return;
+      syncFloatBar(); draw(); return;
     }
     if(pendingRoomTap && pendingRoomTap.pointerId===e.pointerId){
       const [mx,my]=evtPos(e);
@@ -4399,7 +4602,7 @@
       }
       dragging=null;
     }
-    if(floatDrag && floatDrag.pointerId===e.pointerId){ floatDrag=null; return; }
+    if(floatDrag && floatDrag.pointerId===e.pointerId){ floatDrag=null; syncFloatKeypad(); syncFloatBar(); draw(); return; }
     if(pendingRoomTap && pendingRoomTap.pointerId===e.pointerId){
       const [ux,uy]=evtPos(e);
       const near=Math.hypot(ux-pendingRoomTap.downPx[0], uy-pendingRoomTap.downPx[1])<=8;
