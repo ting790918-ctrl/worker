@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>PlanPad · 平面圖工具 b81</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
@@ -20,8 +20,15 @@
      selected by dragging — only the real text fields are. */
   html,body{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
   input,textarea,select,[contenteditable]{-webkit-user-select:text; user-select:text;}
+  /* Safari has ignored user-scalable=no since iOS 10, and only #stage carried
+     touch-action:none — so a pinch that happened to land on the tool rail or the
+     properties panel zoomed the whole DOCUMENT instead. The chrome ballooned past
+     the screen edges and the controls needed to get back were off-screen too.
+     manipulation kills both pinch and the double-tap zoom; the panel keeps pan-y
+     because it genuinely scrolls. */
+  html,body{touch-action:manipulation; overscroll-behavior:none;}
   html,body{margin:0; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC",system-ui,sans-serif; color:var(--text); background:var(--canvas-bg);}
-  #app{display:flex; flex-direction:column; height:100%;}
+  #app{display:flex; flex-direction:column; height:100%; touch-action:manipulation;}
 
   /* ---- Top bar ---- */
   #topbar{display:flex; align-items:center; gap:10px; height:52px; padding:0 12px; background:var(--panel); border-bottom:1px solid var(--line); flex:0 0 auto; z-index:20;}
@@ -52,7 +59,8 @@
   #body{display:flex; flex:1; min-height:0;}
 
   /* ---- Tool rail ---- */
-  #rail{width:56px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:8px 0; gap:4px; flex:0 0 auto; z-index:15;}
+  #rail{width:56px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:8px 0; gap:4px; flex:0 0 auto; z-index:15;
+        touch-action:pan-y; overscroll-behavior:contain; overflow-y:auto;}
   .tool{width:42px; height:42px; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; color:#4B5158; border:1px solid transparent; user-select:none;}
   .tool:hover{background:#F4F5F7;}
   .tool.active{background:var(--accent-soft); color:var(--accent); border-color:#CDE0EA;}
@@ -100,20 +108,6 @@
   #kpad .kb.mut{font-size:14px; color:var(--muted);}
   #kpad .khint{font-size:10px; color:var(--muted); text-align:center; margin-top:7px; line-height:1.4;}
 
-  /* ---- floating room placement bar ---- */
-  #floatbar{position:absolute; left:50%; top:10px; transform:translateX(-50%); display:none; gap:6px;
-            background:#fff; border:1px solid var(--line-strong); border-radius:10px; padding:6px;
-            box-shadow:0 4px 18px rgba(0,0,0,.18); z-index:19; touch-action:manipulation;}
-  #floatbar.show{display:flex;}
-  #floatbar{flex-wrap:wrap; max-width:min(92vw,760px); justify-content:center;}
-  #floatbar .fbsep{width:1px; align-self:stretch; background:var(--line-strong); opacity:.5; margin:2px 2px;}
-  #floatbar .fbnote.warn{color:#A23B2D; font-weight:600;}
-  #floatbar button.danger{background:#F7E4E0; border-color:#D9A197; color:#8A3325;}
-  #floatbar button{height:34px; padding:0 12px; border:1px solid var(--line-strong); background:#fff; border-radius:7px;
-                   font-size:13px; color:var(--text); cursor:pointer; white-space:nowrap;}
-  #floatbar button.pri{background:var(--accent); border-color:var(--accent); color:#fff;}
-  #floatbar .fbnote{font-size:11px; color:var(--muted); align-self:center; padding:0 6px; max-width:200px;}
-
   /* ---- focus (room-level) bar ---- */
   #focusbar{position:absolute; left:10px; top:10px; display:none; align-items:center; gap:8px;
             background:#fff; border:1px solid var(--line-strong); border-radius:10px; padding:5px 10px 5px 6px;
@@ -125,7 +119,8 @@
   #focusbar .far{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
 
   /* ---- Right panel ---- */
-  #panel{width:248px; background:var(--panel); border-left:1px solid var(--line); flex:0 0 auto; overflow-y:auto; z-index:15;}
+  #panel{width:248px; background:var(--panel); border-left:1px solid var(--line); flex:0 0 auto; overflow-y:auto; z-index:15;
+         touch-action:pan-y; overscroll-behavior:contain;}
   .psec{padding:14px 16px; border-bottom:1px solid var(--line);}
   .ptitle{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 10px; font-weight:600;}
   .row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
@@ -263,7 +258,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b85</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b88</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -305,7 +300,6 @@
       <div class="tool active" data-tool="select" title="選取／移動 (V)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3l7 17 2.5-7L20 10.5 4 3z"/></svg><span class="lbl">選取</span></div>
       <div class="rail-sep"></div>
       <div class="tool" data-tool="wall" title="畫牆 (W)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="9" width="18" height="6"/><path d="M8 9v6M14 9v6"/></svg><span class="lbl">牆</span></div>
-      <div class="tool" data-tool="room" title="房間 (R)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16"/><path d="M3 12h9v8"/></svg><span class="lbl">房間</span></div>
       <div class="tool" data-tool="door" title="門 (D)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 20V5a1 1 0 0 1 1-1h8v16"/><path d="M14 20a9 9 0 0 0-9-9" stroke-dasharray="2 2"/></svg><span class="lbl">門</span></div>
       <div class="tool" data-tool="window" title="窗 (N)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="18" height="4"/><path d="M12 10v4"/></svg><span class="lbl">窗</span></div>
       <div class="rail-sep"></div>
@@ -334,14 +328,6 @@
         <button class="dim-dir-btn" id="dimDirBoth" title="兩端同時延伸，中心不動">↔</button>
         <button class="dim-dir-btn" id="dimDirMax" title="固定右/下端，往左/上延伸">→</button>
         <button class="dim-dir-btn" id="dimLock" title="鎖住這道尺寸，之後別的編輯不會動到它">鎖</button>
-      </div>
-      <div id="floatbar">
-        <span class="fbnote" id="fbNote">拖曳擺放，靠近既有牆會自動吸附</span>
-        <span class="fbsep"></span>
-        <button id="fbRot">旋轉 90°</button>
-        <button id="fbCancel">取消</button>
-        <button id="fbDrop" class="pri">放下</button>
-        <button id="fbDropAll" class="pri" style="display:none">全部放下</button>
       </div>
       <div id="focusbar">
         <button class="fbk" id="focusBack" title="回到整層">‹</button>
@@ -404,19 +390,6 @@
         <div class="row"><label>自訂牆厚</label>
           <div class="field"><input type="number" id="thickCustom" min="1" step="1"><span class="unit" id="thickUnit">cm</span></div>
         </div>
-      </div>
-      <div class="psec" data-tool="room">
-        <div class="ptitle">畫房間設定</div>
-        <div class="row"><label>畫法</label>
-          <div class="seg" id="roomShapeSeg"><button data-v="rect" class="on">矩形</button><button data-v="chain">描角點</button></div>
-        </div>
-        <div class="row"><label>牆厚</label>
-          <div class="chips" id="roomThickChips"></div>
-        </div>
-        <div class="row"><label>自訂牆厚</label>
-          <div class="field"><input type="number" id="roomThickCustom" min="1" step="1"><span class="unit" id="roomThickUnit">cm</span></div>
-        </div>
-        <div class="row"><label style="color:var(--muted);font-size:11px;line-height:1.5">矩形：拖出對角線就是一間房。放開後可直接打數字改寬深，再拖去跟別的房間吸在一起。</label></div>
       </div>
       <div class="psec" data-tool="ink">
         <div class="ptitle">手寫設定</div>
@@ -566,6 +539,14 @@
     <div class="mrow"><span>現場照片</span><div class="seg" id="mPhotos"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow" id="mEmbedWarn" style="display:none"><span style="font-size:11.5px;line-height:1.6;color:#8A5B2E;background:#FFF6E8;border:1px solid #F0D9B5;border-radius:8px;padding:9px 10px;display:block;width:100%">目前在其他 App 的內嵌瀏覽器中，iOS 不允許網頁存檔或叫出分享選單。PNG 可以長按預覽圖存到相簿，PDF／DXF 則要在 Safari 開啟才存得下來。</span></div>
     <div class="mrow dxfonly" style="display:none"><span style="font-size:11px;color:var(--muted);line-height:1.5">DXF 為 CAD 通用交換格式，AutoCAD／BricsCAD／SketchUp 皆可直接開啟，開啟後另存即為 .dwg。牆、柱、樑、門窗、標註各自分層。</span></div>
+    <div class="mrow" style="align-items:flex-start" id="mPreviewRow"><span>預覽</span>
+      <div style="flex:1 1 auto;min-width:0">
+        <div id="mPreviewWrap" style="border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden;min-height:90px;display:flex;align-items:center;justify-content:center">
+          <img id="mPreviewImg" alt="匯出預覽" style="max-width:100%;display:block">
+          <span id="mPreviewMsg" style="font-size:11px;color:var(--muted);padding:14px">產生中…</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px" id="mPreviewNote">這就是實際輸出，含標註避讓結果</div>
+      </div></div>
     <div class="modal-btns"><button class="tbtn" id="mCancel">取消</button><button class="tbtn primary" id="mExport">匯出</button></div>
   </div>
 </div>
@@ -626,7 +607,6 @@
     inkColor: '#C0392B', inkWidth: 1.2,        // pen colour / stroke width (cm)
     inkErase: false,                           // tap-a-stroke-to-delete mode
     beamW: 30, beamH: 60,                       // beam defaults (cm)
-    roomShape: 'rect',                          // 'rect' | 'chain' — how the 房間 tool draws
     focusRoom: null,                            // room id being edited at "room level"
     selected: null,   // {kind,id}
   };
@@ -646,7 +626,6 @@
   let EXPORT_MODE = false;
   const TOOL_HINT = {
     select:'選取工具：灰色圓點＝牆已接合，紅色空心圈＝該端沒接到東西（不會形成空間）。點牆體選取後，圓形握把＝拉伸端點，方形握把＝整面牆平行推移',
-    room:'畫房間：矩形＝拖出對角線一次成四面牆；描角點＝一點一點點出形狀，回到起點自動封閉。畫完會變成半透明的「浮動房間」，拖去靠近既有牆會自動吸附，按「放下」就併進圖面（交界處自動合成一面共用牆）',
     wall:'畫牆：按住拖曳＝畫線。只要牆體看起來有貼在一起（牆身有重疊），放開後就會自動接合並形成空間；輕點數字不拖曳＝改尺寸，會出現移動方向箭頭',
     door:'放門：點在牆上放置。右側「畫門設定」可先選門／推拉門／門洞，放好後也能隨時改',
     window:'放窗：點在牆上放置。右側「畫窗設定」可先選窗／落地窗／外凸窗，落地窗離地固定為 0',
@@ -679,6 +658,52 @@
   let W=0,H=0;
 
   function uid(){ return state._seq++; }
+
+  // ================= Keep the interface at 1:1 =================
+  // touch-action alone is not enough on iOS: Safari still runs its own pinch
+  // handler through the gesture events, and because the page has no way back to
+  // scale 1 on its own, one accidental two-finger touch on the rail left the
+  // whole app blown up with its controls off-screen. Cancelling the gesture at
+  // the document level is the only reliable stop.
+  for(const ev of ['gesturestart','gesturechange','gestureend']){
+    document.addEventListener(ev, e=>{ e.preventDefault(); }, {passive:false});
+  }
+  // Belt and braces: any two-finger touch that did NOT start on the drawing
+  // canvas is not a gesture this app has a use for.
+  document.addEventListener('touchmove', e=>{
+    if(e.touches.length>1 && !e.target.closest('#stage')) e.preventDefault();
+  }, {passive:false});
+  // A double tap outside the canvas must not zoom the page either. (Inside the
+  // canvas, dblclick is a real command — entering a room — so it is left alone.)
+  let lastTapT=0;
+  document.addEventListener('touchend', e=>{
+    const now=Date.now();
+    if(now-lastTapT < 320 && !e.target.closest('#stage')) e.preventDefault();
+    lastTapT=now;
+  }, {passive:false});
+
+  // Recovery. If the page has somehow ended up zoomed anyway — an older iOS, or a
+  // gesture that started before the listeners were attached — re-writing the
+  // viewport tag forces Safari back to 1:1. Without this there is genuinely no
+  // way out except closing the tab, which is what happened.
+  (function watchPageZoom(){
+    const vv = window.visualViewport;
+    if(!vv) return;
+    const meta = document.getElementById('vp');
+    let fixing=false;
+    const snapBack=()=>{
+      if(fixing || vv.scale <= 1.02) return;
+      fixing=true;
+      const base='width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover';
+      meta.setAttribute('content', base+', maximum-scale=0.99');
+      setTimeout(()=>{
+        meta.setAttribute('content', base+', maximum-scale=1.0');
+        fixing=false;
+      }, 60);
+    };
+    vv.addEventListener('resize', snapBack);
+    vv.addEventListener('scroll', snapBack);
+  })();
 
   // ================= On-screen numeric keypad =================
   // The old "type a length while dragging" only listened to keydown, so on an iPad
@@ -935,7 +960,7 @@
     state.ceilingH=o.ceilingH||280;
     state._seq=o._seq||1000;
     ui.selected=null; draft=null; inkDraft=null; eraser=null; typedNum=''; hideLenBox();
-    chain=null; floats=[]; floatGrp=null; syncFloatBar(); kpad.close();
+    chain=null; kpad.close();
     if(ui.focusRoom && !state.rooms.some(r=>r.id===ui.focusRoom)) ui.focusRoom=null;
     recomputeRooms(); syncFocusBar(); refreshProp(); draw();
   }
@@ -1931,397 +1956,7 @@
     });
   }
 
-  // ================= Floating room group (magicplan-style assembly) =================
-  // A newly drawn room does not go straight into the plan. It hovers as a group you
-  // can slide and spin until it clicks against what is already there — the part of
-  // magicplan that actually feels good. The difference is what happens on release:
-  // instead of parking a second wall against the neighbour's, the group is welded
-  // in and the touching walls are fused into one (see mergeCoincidentWalls).
-  //
-  // The snap deliberately aligns CENTRELINES, not faces. Faces meeting would leave
-  // a double-thickness boundary; centrelines meeting is exactly the shared-wall
-  // condition, so what you see while dragging is already the final geometry.
-  let floats=[];              // every room drawn but not yet committed
-  let floatGrp=null;          // the active one — {kind:'rect'|'poly', rect?, segs:[], guides:[]}
-  const FBAR=document.getElementById('floatbar');
-
-  function rectCenterSegs(ix,iy,iw,ih,t){
-    const x0=ix-t/2, y0=iy-t/2, x1=ix+iw+t/2, y1=iy+ih+t/2;
-    return [{x1:x0,y1:y0,x2:x1,y2:y0},{x1:x1,y1:y0,x2:x1,y2:y1},
-            {x1:x1,y1:y1,x2:x0,y2:y1},{x1:x0,y1:y1,x2:x0,y2:y0}]
-           .map(g=>({x1:g.x1,y1:g.y1,x2:g.x2,y2:g.y2,t,align:'mid'}));
-  }
-  function rebuildFloatRect(){
-    if(!floatGrp||floatGrp.kind!=='rect') return;
-    const r=floatGrp.rect;
-    floatGrp.segs=rectCenterSegs(r.x,r.y,r.w,r.h,r.t);
-  }
-  function segProperCross(a,b){
-    const ax=a.x2-a.x1, ay=a.y2-a.y1, bx=b.x2-b.x1, by=b.y2-b.y1;
-    const la=Math.hypot(ax,ay), lb=Math.hypot(bx,by);
-    if(la<1||lb<1) return false;
-    const eps=0.35;                           // ~3mm of slack, in normalised units
-    const c=(px,py,qx,qy)=>px*qy-py*qx;
-    const d1=c(bx,by,a.x1-b.x1,a.y1-b.y1)/lb, d2=c(bx,by,a.x2-b.x1,a.y2-b.y1)/lb;
-    const d3=c(ax,ay,b.x1-a.x1,b.y1-a.y1)/la, d4=c(ax,ay,b.x2-a.x1,b.y2-a.y1)/la;
-    return ((d1>eps&&d2<-eps)||(d1<-eps&&d2>eps)) && ((d3>eps&&d4<-eps)||(d3<-eps&&d4>eps));
-  }
-  function floatCrosses(grp){
-    grp=grp||floatGrp; if(!grp) return false;
-    const others=state.walls.filter(w=>wallLen(w)>=1)
-      .concat(floats.filter(f=>f!==grp).flatMap(f=>f.segs));
-    for(const g of grp.segs) for(const w of others) if(segProperCross(g,w)) return true;
-    return false;
-  }
-  function floatBounds(grp){
-    grp=grp||floatGrp;
-    if(!grp) return null;
-    let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
-    for(const g of grp.segs){
-      const h=(g.t||20)/2;
-      x0=Math.min(x0,g.x1-h,g.x2-h); x1=Math.max(x1,g.x1+h,g.x2+h);
-      y0=Math.min(y0,g.y1-h,g.y2-h); y1=Math.max(y1,g.y1+h,g.y2+h);
-    }
-    return {x0,y0,x1,y1};
-  }
-  function translateFloat(dx,dy){
-    if(!floatGrp) return;
-    for(const g of floatGrp.segs){ g.x1+=dx; g.y1+=dy; g.x2+=dx; g.y2+=dy; }
-    if(floatGrp.rect){ floatGrp.rect.x+=dx; floatGrp.rect.y+=dy; }
-  }
-  // The group's true position under your finger is kept separate from the snapped
-  // position it is DRAWN at. Without that split, every snap nudges the geometry,
-  // the next move measures from the nudged position, and the room walks away from
-  // the finger — or worse, sticks to a guide and refuses to come off it.
-  function floatRebase(){
-    if(!floatGrp) return;
-    floatGrp.base=floatGrp.segs.map(g=>({x1:g.x1,y1:g.y1,x2:g.x2,y2:g.y2,t:g.t,align:g.align}));
-    floatGrp.rect0=floatGrp.rect?Object.assign({},floatGrp.rect):null;
-    floatGrp.raw={dx:0,dy:0};
-  }
-  function floatPlace(dx,dy){
-    if(!floatGrp||!floatGrp.base) return;
-    floatGrp.raw={dx,dy};
-    floatGrp.segs=floatGrp.base.map(g=>({x1:g.x1+dx,y1:g.y1+dy,x2:g.x2+dx,y2:g.y2+dy,t:g.t,align:g.align}));
-    if(floatGrp.rect0) floatGrp.rect=Object.assign({},floatGrp.rect0,{x:floatGrp.rect0.x+dx, y:floatGrp.rect0.y+dy});
-    const sn=floatSnap();
-    if(sn.dx||sn.dy) translateFloat(sn.dx,sn.dy);
-    floatGrp.guides=sn.guides;
-    floatGrp.snapRef=sn;                      // which wall we are flush against
-    floatGrp.bad=floatCrosses(floatGrp);
-  }
-  function rotateFloat90(){
-    if(!floatGrp) return;
-    const b=floatBounds(); const cx=(b.x0+b.x1)/2, cy=(b.y0+b.y1)/2;
-    const rot=(x,y)=>[cx-(y-cy), cy+(x-cx)];
-    for(const g of floatGrp.segs){
-      const [a1,b1]=rot(g.x1,g.y1), [a2,b2]=rot(g.x2,g.y2);
-      g.x1=a1; g.y1=b1; g.x2=a2; g.y2=b2;
-    }
-    if(floatGrp.rect){
-      const r=floatGrp.rect, sw=r.w; r.w=r.h; r.h=sw;
-      const nb=floatBounds();
-      r.x=nb.x0+r.t/2; r.y=nb.y0+r.t/2;
-      rebuildFloatRect();
-      syncRectKeypad();
-    }
-    applyFloatSnap(); draw();
-  }
-  // gather the axis coordinates the group could click onto
-  function floatSnap(){
-    if(!floatGrp) return {dx:0,dy:0,guides:[]};
-    const isV=g=>Math.abs(g.x1-g.x2)<0.8, isH=g=>Math.abs(g.y1-g.y2)<0.8;
-    const span=(g,vert)=> vert ? [Math.min(g.y1,g.y2),Math.max(g.y1,g.y2)]
-                               : [Math.min(g.x1,g.x2),Math.max(g.x1,g.x2)];
-    const thr=Math.max(35, snapRadius(26,90));
-    // Other floating rooms are just as valid a thing to click against as a wall
-    // that has already landed — otherwise assembling before committing is half
-    // blind, and you'd have to drop rooms one at a time just to snap to them.
-    const host=state.walls.filter(w=>wallLen(w)>=1)
-      .concat(floats.filter(f=>f!==floatGrp).flatMap(f=>f.segs));
-    const pick=(vert)=>{
-      let best=null, bd=thr;
-      for(const g of floatGrp.segs){
-        if(vert? !isV(g) : !isH(g)) continue;
-        const gc = vert ? g.x1 : g.y1;
-        const [gl,gh]=span(g,vert);
-        for(const w of host){
-          if(vert? Math.abs(w.x1-w.x2)>=0.8 : Math.abs(w.y1-w.y2)>=0.8) continue;
-          const wc = vert ? w.x1 : w.y1;
-          const [wl,wh]=span(w,vert);
-          if(Math.min(gh,wh)-Math.max(gl,wl) < 10) continue;   // not actually alongside
-          const d=Math.abs(wc-gc);
-          if(d<bd){ bd=d; best={delta:wc-gc, coord:wc, lo:wl, hi:wh, t:(w.t||20), flush:true}; }
-        }
-      }
-      return best;
-    };
-    // ...and line the ENDS up too, so a new room sits flush with the run it joins
-    const pickEnd=(vert)=>{
-      let best=null, bd=thr;
-      const gv=[], hv=[];
-      for(const g of floatGrp.segs){ const [a,b]=span(g,!vert); gv.push(a,b); }
-      for(const w of host){ const [a,b]=span(w,!vert); hv.push(a,b); }
-      for(const a of gv) for(const b of hv){ const d=Math.abs(b-a); if(d<bd){ bd=d; best={delta:b-a, coord:b, flush:false}; } }
-      return best;
-    };
-    const vx=pick(true)  || pickEnd(true);
-    const hy=pick(false) || pickEnd(false);
-    const guides=[];
-    if(vx) guides.push({axis:'v',coord:vx.coord,flush:!!vx.flush});
-    if(hy) guides.push({axis:'h',coord:hy.coord,flush:!!hy.flush});
-    return {dx:vx?vx.delta:0, dy:hy?hy.delta:0, guides, vx, hy};
-  }
-  function applyFloatSnap(){
-    if(!floatGrp) return;
-    floatRebase(); floatPlace(0,0);
-  }
-  // "靠右" is not "find the wall on my right" — it is PUSH right until something
-  // stops you. Those differ in exactly the case that matters: when the room is
-  // sitting on top of its neighbour, pushing right is what lands its LEFT wall on
-  // the neighbour's right wall. The first version looked for a wall beyond the
-  // room's right edge, found nothing, and did nothing at all.
-  // ---- offset along the wall we are flush against ----
-  // Once one side is flush, the room can still slide along that wall, and THAT is
-  // the number nobody could set by dragging. It is measured outer face to outer
-  // face, so two rooms flush at the corner read 0 — the way it would be called
-  // out on site ("從左牆進來 800"), not as a raw coordinate.
-  function floatOffsetAxis(){
-    const sr=floatGrp&&floatGrp.snapRef;
-    if(sr&&sr.vx&&sr.vx.flush) return 'y';      // flush on a vertical wall -> slides vertically
-    if(sr&&sr.hy&&sr.hy.flush) return 'x';
-    return null;
-  }
-  function floatOffsetRef(){
-    const sr=floatGrp&&floatGrp.snapRef; if(!sr) return null;
-    const ax=floatOffsetAxis(); if(!ax) return null;
-    const m = ax==='y' ? sr.vx : sr.hy;
-    if(m.lo==null) return null;
-    return m.lo - (m.t||20)/2;                  // the neighbour's outer face
-  }
-  function floatOffsetValue(){
-    const ax=floatOffsetAxis(), ref=floatOffsetRef();
-    if(!ax || ref==null) return null;
-    const b=floatBounds(); if(!b) return null;
-    return (ax==='y' ? b.y0 : b.x0) - ref;
-  }
-  function setFloatOffset(v){
-    const ax=floatOffsetAxis(), ref=floatOffsetRef();
-    if(!ax || ref==null || !isFinite(v)) return false;
-    const b=floatBounds(); if(!b) return false;
-    const d = (ref + v) - (ax==='y' ? b.y0 : b.x0);
-    floatPlace(floatGrp.raw.dx + (ax==='x'?d:0), floatGrp.raw.dy + (ax==='y'?d:0));
-    floatRebase(); floatPlace(0,0);
-    return true;
-  }
-  function beginFloat(grp){
-    floats.push(grp);
-    setActiveFloat(grp);
-    draw();
-  }
-  function setActiveFloat(grp){
-    floatGrp=grp||null;
-    if(floatGrp){ floatRebase(); floatPlace(0,0); }
-    syncFloatBar();
-  }
-  // pick up whichever floating room the finger landed on (topmost first)
-  function floatAt(wx,wy){
-    const pad=12/view.scale;
-    for(let i=floats.length-1;i>=0;i--){
-      const b=floatBounds(floats[i]); if(!b) continue;
-      if(wx>=b.x0-pad && wx<=b.x1+pad && wy>=b.y0-pad && wy<=b.y1+pad) return floats[i];
-    }
-    return null;
-  }
-  function removeFloat(grp){
-    const i=floats.indexOf(grp);
-    if(i>=0) floats.splice(i,1);
-    kpad.close();
-    setActiveFloat(floats.length ? floats[floats.length-1] : null);
-  }
-  function cancelFloat(){
-    if(!floatGrp) return;
-    removeFloat(floatGrp);
-    draw();
-  }
-  // commit a group's walls without touching history — the caller decides when to
-  // push, so dropping five rooms at once is ONE undo step, not five
-  function commitFloatWalls(grp){
-    const segs=grp.segs.filter(g=>Math.hypot(g.x2-g.x1,g.y2-g.y1)>=3);
-    for(const g of segs) state.walls.push({id:uid(),x1:g.x1,y1:g.y1,x2:g.x2,y2:g.y2,t:g.t,align:g.align||'mid'});
-    return segs.length;
-  }
-  function dropFloat(grp){
-    grp=grp||floatGrp;
-    if(!grp) return;
-    // Refuse rather than produce rubbish. Two rooms that half-cover each other
-    // weld into walls running through the middle of both, and the space detector
-    // then reports overlapping areas that add up to more floor than exists.
-    if(floatCrosses(grp)){
-      flashHint('這間和既有房間交疊，放下會有牆穿過房間中間。先拖開一點');
-      setActiveFloat(grp); draw(); return;
-    }
-    const n=commitFloatWalls(grp);
-    removeFloat(grp);
-    if(!n){ draw(); return; }
-    // pushHistory runs cleanup → merge → heal, which is exactly the weld we want
-    pushHistory();
-    draw();
-    flashHint(floats.length ? ('已放下並接合，還有 '+floats.length+' 間待放下') : '已放下並接合');
-  }
-  function dropAllFloats(){
-    if(!floats.length) return;
-    const clash=floats.find(f=>floatCrosses(f));
-    if(clash){
-      setActiveFloat(clash); draw();
-      flashHint('有一間和別人交疊（已幫你選起來），處理完再按全部放下');
-      return;
-    }
-    const n=floats.length;
-    let any=0;
-    for(const g of floats) any+=commitFloatWalls(g);
-    floats=[]; kpad.close(); setActiveFloat(null);
-    if(!any){ draw(); return; }
-    pushHistory();
-    draw();
-    flashHint('已放下 '+n+' 間並接合');
-  }
-  function syncFloatBar(){
-    if(!FBAR) return;
-    FBAR.classList.toggle('show', floats.length>0);
-    const note=document.getElementById('fbNote');
-    const drop=document.getElementById('fbDrop');
-    const bad=floatGrp&&floatGrp.bad;
-    if(note){
-      // Say out loud what the magnet has caught. Silent snapping is why it was
-      // impossible to tell a room that had locked on from one that merely looked close.
-      let txt;
-      if(bad) txt='和既有房間交疊了，放下會產生穿牆';
-      else {
-        const g=(floatGrp&&floatGrp.guides)||[];
-        const v=g.find(x=>x.axis==='v'&&x.flush), h=g.find(x=>x.axis==='h'&&x.flush);
-        const parts=[];
-        if(v) parts.push('左右已貼齊');
-        if(h) parts.push('上下已貼齊');
-        const off=floatOffsetValue();
-        if(off!=null) parts.push('外緣偏移 '+fmtLen(off)+' '+ui.unit+'（可在下方鍵盤輸入）');
-        txt = parts.length ? parts.join('・') : '拖曳擺放，靠近既有牆會自動吸附';
-      }
-      if(floats.length>1) txt = floats.length+' 間待放下・'+txt;
-      note.textContent=txt;
-      note.classList.toggle('warn', !!bad);
-    }
-    if(drop) drop.classList.toggle('danger', !!bad);
-    const all=document.getElementById('fbDropAll');
-    if(all) all.style.display = floats.length>1 ? '' : 'none';
-  }
-  if(FBAR){
-    FBAR.addEventListener('pointerdown',e=>e.stopPropagation());
-    document.getElementById('fbRot').onclick=()=>rotateFloat90();
-    document.getElementById('fbCancel').onclick=()=>cancelFloat();
-    document.getElementById('fbDrop').onclick=()=>dropFloat();
-    document.getElementById('fbDropAll').onclick=()=>dropAllFloats();
-  }
-  function drawFloat(){
-    if(!floats.length) return;
-    ctx.save();
-    // guides belong to the room you are actually moving
-    if(floatGrp){
-      for(const g of (floatGrp.guides||[])){
-        ctx.strokeStyle='#2E9E6B';
-        ctx.lineWidth = g.flush ? 2 : 1;                 // solid+thick = welded to that wall
-        ctx.setLineDash(g.flush ? [] : [6,4]);
-        if(g.axis==='v'){ const [sx]=toScreen(g.coord,0); ctx.beginPath(); ctx.moveTo(sx+.5,0); ctx.lineTo(sx+.5,H); ctx.stroke(); }
-        else { const [,sy]=toScreen(0,g.coord); ctx.beginPath(); ctx.moveTo(0,sy+.5); ctx.lineTo(W,sy+.5); ctx.stroke(); }
-      }
-      ctx.setLineDash([]);
-    }
-    // inactive rooms sit further back so it is obvious which one the bar drives
-    for(const grp of floats){
-      const on = grp===floatGrp;
-      const bad=grp.bad;
-      for(const g of grp.segs){
-        const A=toScreen(g.x1,g.y1), B=toScreen(g.x2,g.y2);
-        ctx.strokeStyle= bad ? 'rgba(162,59,45,0.26)' : (on ? 'rgba(39,92,122,0.30)' : 'rgba(39,92,122,0.14)');
-        ctx.lineWidth=Math.max(2,(g.t||20)*view.scale); ctx.lineCap='butt';
-        ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
-        ctx.strokeStyle= bad ? '#A23B2D' : (on ? '#275C7A' : 'rgba(39,92,122,0.45)');
-        ctx.lineWidth= (on||bad) ? 1.5 : 1; ctx.setLineDash([5,4]);
-        ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
-        ctx.setLineDash([]);
-      }
-      if(grp.kind==='rect'){
-        const r=grp.rect;
-        const c=toScreen(r.x+r.w/2, r.y+r.h/2);
-        ctx.font=`600 ${fpx(on?13:11)}px -apple-system,system-ui,sans-serif`;
-        ctx.textAlign='center'; ctx.textBaseline='middle';
-        const txt=fmtLen(r.w)+' × '+fmtLen(r.h)+' '+ui.unit;
-        const tw=ctx.measureText(txt).width;
-        ctx.fillStyle= on ? 'rgba(255,255,255,.92)' : 'rgba(255,255,255,.70)';
-        roundRect(c[0]-tw/2-8,c[1]-13,tw+16,26,6); ctx.fill();
-        ctx.fillStyle= on ? '#275C7A' : 'rgba(39,92,122,0.55)';
-        ctx.fillText(txt,c[0],c[1]);
-      }
-    }
-    ctx.restore();
-  }
-
-  // ---- number pad bound to a floating rectangular room ----
-  // The order matters and is forced by touch: you cannot hold a drag with one
-  // finger and tap digits with another, so every numeric flow here is "draw it
-  // roughly, then type the real number at the shape that already exists".
-  function applyRectDims(o){
-    if(!floatGrp||floatGrp.kind!=='rect') return;
-    const r=floatGrp.rect;
-    if(o.w!=null && o.w>0) r.w=fromDisp(o.w);
-    if(o.d!=null && o.d>0) r.h=fromDisp(o.d);
-    rebuildFloatRect();
-    floatRebase(); floatPlace(0,0); draw();
-  }
-  function syncFloatKeypad(){
-    if(!floatGrp||!kpad.isOpen()) return;
-    const o={};
-    if(floatGrp.kind==='rect'){ o.w=Math.round(toDisp(floatGrp.rect.w)); o.d=Math.round(toDisp(floatGrp.rect.h)); }
-    const off=floatOffsetValue();
-    if(off!=null) o.off=Math.round(toDisp(off));
-    kpad.set(o);
-  }
-  const syncRectKeypad=syncFloatKeypad;   // old name, same job
-  function openRectKeypad(){
-    if(!floatGrp) return;
-    const fields=[];
-    if(floatGrp.kind==='rect'){
-      fields.push({key:'w',label:'寬',unit:ui.unit},{key:'d',label:'深',unit:ui.unit});
-    }
-    fields.push({key:'off',label:'偏移·外緣',unit:ui.unit});
-    kpad.open({
-      owner:'float',
-      fields,
-      hint:'寬深＝室內淨尺寸。偏移＝兩間房外牆面對外牆面，齊頭為 0。拖到貼齊後才有基準',
-      onInput:(o)=>applyFloatNums(o),
-      onCommit:(o)=>applyFloatNums(o),
-      onCancel:()=>kpad.close()
-    });
-    syncFloatKeypad();
-  }
-  function applyFloatNums(o){
-    if(!floatGrp) return;
-    if(floatGrp.kind==='rect'){
-      const r=floatGrp.rect;
-      if(o.w!=null && o.w>0) r.w=fromDisp(o.w);
-      if(o.d!=null && o.d>0) r.h=fromDisp(o.d);
-      rebuildFloatRect();
-      floatRebase(); floatPlace(0,0);
-    }
-    if(o.off!=null){
-      if(!setFloatOffset(fromDisp(o.off)) && floatOffsetAxis()==null)
-        flashHint('還沒貼齊任何一面牆，偏移沒有基準。先把房間拖到貼住既有牆');
-    }
-    syncFloatBar(); draw();
-  }
-
-  // ---- corner-by-corner chains (房間·描角點, and the 牆 tool's running chain) ----
-  let roomChain=null;      // {pts:[{x,y}], cur:{x,y}}
+  // ---- the 牆 tool's running chain ----
   let chain=null;          // {x,y} — where the wall tool will carry on from
   let chainCur=null;       // hover point, desktop only
 
@@ -2334,108 +1969,33 @@
     kpad.open({
       owner:'chain',
       fields:[{key:'len',label:'長度',unit:ui.unit},{key:'ang',label:'角度',unit:'°'}],
-      hint: kind==='room'
-        ? '點下一個角落，或打長度＋角度按 ✓。回到起點自動封閉，✕ 結束'
-        : '點下一段的終點，或打長度＋角度按 ✓。✕ 結束連續畫牆',
+      hint:'點下一段的終點，或打長度＋角度按 ✓。✕ 結束連續畫牆',
       onCommit:(o)=>chainStep(kind,o),
-      onCancel:()=> kind==='room' ? closeRoomChain() : endWallChain()
+      onCancel:()=>endWallChain()
     });
     chainKeypadLive(kind);
   }
   function chainKeypadLive(kind){
-    let ang=0;
-    if(kind==='room' && roomChain && roomChain.pts.length>=2){
-      const n=roomChain.pts.length; ang=chainAngleOf(roomChain.pts[n-2], roomChain.pts[n-1]);
-    } else if(kind==='wall' && chain && chain.prev){
-      ang=chainAngleOf(chain.prev, chain);
-    }
+    const ang = (chain && chain.prev) ? chainAngleOf(chain.prev, chain) : 0;
     kpad.live({ang:ang, len:''});
   }
   function chainStep(kind,o){
     if(o.len==null || !(o.len>0)) return;
     const ang = o.ang==null ? 0 : o.ang;
-    if(kind==='room'){
-      if(!roomChain) return;
-      const from=roomChain.pts[roomChain.pts.length-1];
-      const p=chainStepPoint(from,o.len,ang);
-      roomChain.pts.push(p); roomChain.cur=p;
-      openChainKeypad('room');
-      draw();
-    } else {
-      if(!chain) return;
-      const from={x:chain.x,y:chain.y};
-      const p=chainStepPoint(from,o.len,ang);
-      const w={id:uid(),x1:from.x,y1:from.y,x2:p.x,y2:p.y,t:ui.thick,align:ui.wallAlign};
-      state.walls.push(w); weldWall(w); pushHistory();
-      chain={x:w.x2,y:w.y2,prev:{x:w.x1,y:w.y1}};
-      openChainKeypad('wall');
-      draw();
-    }
-  }
-  function roomChainTap(wx,wy){
-    const last = roomChain && roomChain.pts.length ? roomChain.pts[roomChain.pts.length-1] : null;
-    const r=computeWallEnd(last,wx,wy);
-    const p={x:r.x,y:r.y};
-    if(!roomChain){ roomChain={pts:[p],cur:p}; openChainKeypad('room'); draw(); return; }
-    const first=roomChain.pts[0];
-    if(roomChain.pts.length>=3 && Math.hypot(p.x-first.x,p.y-first.y) < Math.max(25, snapRadius(22,60))){ closeRoomChain(); return; }
-    if(last && Math.hypot(p.x-last.x,p.y-last.y)<3) return;
-    roomChain.pts.push(p); roomChain.cur=p;
-    openChainKeypad('room');
+    if(!chain) return;
+    const from={x:chain.x,y:chain.y};
+    const p=chainStepPoint(from,o.len,ang);
+    const w={id:uid(),x1:from.x,y1:from.y,x2:p.x,y2:p.y,t:ui.thick,align:ui.wallAlign};
+    state.walls.push(w); weldWall(w); pushHistory();
+    chain={x:w.x2,y:w.y2,prev:{x:w.x1,y:w.y1}};
+    openChainKeypad('wall');
     draw();
-  }
-  function closeRoomChain(){
-    if(!roomChain || roomChain.pts.length<3){ roomChain=null; kpad.close(); draw(); return; }
-    const pts=roomChain.pts.slice(); roomChain=null; kpad.close();
-    const segs=[];
-    for(let i=0;i<pts.length;i++){
-      const a=pts[i], b=pts[(i+1)%pts.length];
-      if(Math.hypot(b.x-a.x,b.y-a.y)<3) continue;
-      segs.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,t:ui.thick,align:'mid'});
-    }
-    if(segs.length<3){ flashHint('至少需要三個角落才能圍出一個空間'); draw(); return; }
-    let a2=0;
-    for(let i=0;i<pts.length;i++){ const q=pts[i], r=pts[(i+1)%pts.length]; a2+=q.x*r.y-r.x*q.y; }
-    if(Math.abs(a2/2) < 400){        // under 0.04 m² — the corners collapsed onto each other
-      flashHint('這些角落幾乎在同一條線上，圍不出空間。放大一點再點會準很多');
-      draw(); return;
-    }
-    beginFloat({kind:'poly', segs});
   }
   function endWallChain(){ chain=null; chainCur=null; kpad.close(); draw(); }
   function startWallChain(w){
     chain={x:w.x2,y:w.y2,prev:{x:w.x1,y:w.y1}};
     chainCur=null;
     openChainKeypad('wall');
-  }
-  function drawRoomChain(){
-    if(!roomChain) return;
-    const pts=roomChain.pts;
-    ctx.save();
-    ctx.strokeStyle='#275C7A'; ctx.lineWidth=Math.max(2, ui.thick*view.scale*0.9);
-    ctx.globalAlpha=.28; ctx.lineJoin='round'; ctx.lineCap='butt';
-    ctx.beginPath();
-    for(let i=0;i<pts.length;i++){ const p=toScreen(pts[i].x,pts[i].y); i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }
-    if(roomChain.cur && pts.length){ const c=toScreen(roomChain.cur.x,roomChain.cur.y); ctx.lineTo(c[0],c[1]); }
-    ctx.stroke();
-    ctx.globalAlpha=1;
-    ctx.strokeStyle='#275C7A'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
-    ctx.beginPath();
-    for(let i=0;i<pts.length;i++){ const p=toScreen(pts[i].x,pts[i].y); i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }
-    if(roomChain.cur && pts.length){ const c=toScreen(roomChain.cur.x,roomChain.cur.y); ctx.lineTo(c[0],c[1]); }
-    ctx.stroke(); ctx.setLineDash([]);
-    for(let i=0;i<pts.length;i++){
-      const p=toScreen(pts[i].x,pts[i].y);
-      ctx.fillStyle= i===0 ? '#2E9E6B' : '#fff';
-      ctx.strokeStyle= i===0 ? '#1F7A50' : '#275C7A';
-      ctx.lineWidth=2; ctx.beginPath(); ctx.arc(p[0],p[1], i===0?7:5, 0, 7); ctx.fill(); ctx.stroke();
-    }
-    if(pts.length>=3){
-      const f=toScreen(pts[0].x,pts[0].y);
-      ctx.font=`600 11px -apple-system,system-ui,sans-serif`; ctx.textAlign='center'; ctx.textBaseline='bottom';
-      ctx.fillStyle='#1F7A50'; ctx.fillText('點這裡封閉', f[0], f[1]-11);
-    }
-    ctx.restore();
   }
   function drawChainMark(){
     if(!chain) return;
@@ -2576,11 +2136,7 @@
   window.__planpad = {
     state, ui, view, get rooms(){ return roomsCache; },
     toScreen, toWorld, wallLen,
-    get float(){ return floatGrp; },
-    get floats(){ return floats; },
     api:{ enterFocus, exitFocus, mergeCoincidentWalls, healJunctions, recomputeRooms,
-          dropFloat, dropAllFloats, cancelFloat, floatCrosses,
-          floatOffsetValue, setFloatOffset, floatOffsetAxis,
           draw, pushHistory, renderExport, exportPDF,
           get LAYERS(){ return LAYERS; }, get pdfOpt(){ return pdfOpt; } }
   };
@@ -3573,6 +3129,7 @@
     drawJunctions();
     drawRoomsInfo();
     drawWallLabels();
+    drawExteriorDims();      // the sheet always drew these; now the screen does too
     drawDims();
     drawFurniture();
     drawMEP();
@@ -3584,9 +3141,7 @@
     drawFocusVeil();
     drawGuides();
     drawDraft();
-    drawRoomChain();
     drawChainMark();
-    drawFloat();
     drawSelection();
   }
   // A beam is ABOVE the cut plane — you are looking up at it, not through it. The
@@ -4081,8 +3636,6 @@
   let panStart=null;
   let pinch=null;
   let typedNum='';
-  let floatDrag=null;       // sliding a floating room group
-  let pendingRoomTap=null;  // press/release pair for a 描角點 corner
 
   function evtPos(e){ const r=cv.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; }
 
@@ -4201,20 +3754,6 @@
     const [wx,wy]=toWorld(px,py);
     if(e.button===1){ panStart={px,py,ox:view.ox,oy:view.oy}; return; }
 
-    // A room waiting to be placed owns the canvas. Pressing anywhere on it slides
-    // the whole group; pressing off it still pans, so you can reach the spot you
-    // are aiming for without dropping the room first.
-    if(floats.length){
-      const hit=floatAt(wx,wy);
-      if(hit){
-        if(hit!==floatGrp) setActiveFloat(hit);
-        if(kpad.ownerOf()!=='float') openRectKeypad();   // whatever closed it, bring it back
-        else syncFloatKeypad();
-        floatDrag={pointerId:e.pointerId, wx, wy, dx0:floatGrp.raw.dx, dy0:floatGrp.raw.dy};
-        draw();
-        return;
-      }
-    }
 
     // if a wall/beam is already selected, its endpoint handles take priority
     // over any nearby dimension label — you selected it, so a tap near its own
@@ -4327,16 +3866,6 @@
       }
       draw();
     }
-    else if(ui.tool==='room'){
-      if(ui.roomShape==='rect'){
-        const sp=snapWorld(wx,wy,null);
-        draft={kind:'roomrect',a:{x:sp.x,y:sp.y},cur:{x:sp.x,y:sp.y},downPx:[px,py],pointerId:e.pointerId,pointerType:e.pointerType};
-      } else {
-        // decided on RELEASE, so a pan gesture doesn't drop a corner every time
-        pendingRoomTap={downPx:[px,py], pointerId:e.pointerId};
-        panStart={px,py,ox:view.ox,oy:view.oy};
-      }
-    }
     else if(ui.tool==='wall'){
       // Once a wall has been drawn the chain stays live at its far end, so the
       // next wall starts exactly where the last one finished — tap, tap, tap —
@@ -4377,24 +3906,10 @@
   });
 
   stage.addEventListener('pointermove',e=>{
-    if(floatDrag && floatDrag.pointerId===e.pointerId){
-      const [mx,my]=evtPos(e); const [mwx,mwy]=toWorld(mx,my);
-      floatPlace(floatDrag.dx0 + (mwx-floatDrag.wx), floatDrag.dy0 + (mwy-floatDrag.wy));
-      syncFloatBar(); draw(); return;
-    }
-    if(pendingRoomTap && pendingRoomTap.pointerId===e.pointerId){
-      const [mx,my]=evtPos(e);
-      if(Math.hypot(mx-pendingRoomTap.downPx[0], my-pendingRoomTap.downPx[1])>8) pendingRoomTap=null;
-    }
     if(!draft && ui.tool==='wall' && chain && e.pointerType!=='touch' && !pointers.size){
       const [mx,my]=evtPos(e); const [mwx,mwy]=toWorld(mx,my);
       const r=computeWallEnd({x:chain.x,y:chain.y}, mwx, mwy);
       chainCur={x:r.x,y:r.y}; draw();
-    }
-    if(!draft && ui.tool==='room' && ui.roomShape==='chain' && roomChain && e.pointerType!=='touch' && !pointers.size){
-      const [mx,my]=evtPos(e); const [mwx,mwy]=toWorld(mx,my);
-      const r=computeWallEnd(roomChain.pts[roomChain.pts.length-1], mwx, mwy);
-      roomChain.cur={x:r.x,y:r.y}; draw();
     }
     if(dbgOn && draft){ dbg(`move id=${e.pointerId} (draft owner=${draft.pointerId}) pointers.size=${pointers.size}`); }
     if(!pointers.has(e.pointerId)) { /* hover */ }
@@ -4439,12 +3954,7 @@
           const r=(draft.kind==='beam')?computeBeamEnd(from,wx,wy):computeWallEnd(from,wx,wy);
           sp={x:r.x,y:r.y}; draft.guides=r.guides; draft.snap=r.snap;
         }
-      } else if(draft.kind==='roomrect'){
-        const s0=snapWorld(wx,wy,null);
-        draft.cur={x:s0.x,y:s0.y}; draft.guides=[];
-        const iw=Math.abs(draft.cur.x-draft.a.x), ih=Math.abs(draft.cur.y-draft.a.y);
-        showLenBox(px,py, fmtLen(iw)+' × '+fmtLen(ih)+' '+ui.unit);
-        draw(); return;
+      } else if(false){
       } else if(draft.kind==='dim'){
         // a dimension measures real geometry, so it snaps to real geometry —
         // and to nothing at all otherwise. Rounding to the grid is what made
@@ -4534,25 +4044,6 @@
         }
       }
       dragging=null;
-    }
-    if(floatDrag && floatDrag.pointerId===e.pointerId){ floatDrag=null; syncFloatKeypad(); syncFloatBar(); draw(); return; }
-    if(pendingRoomTap && pendingRoomTap.pointerId===e.pointerId){
-      const [ux,uy]=evtPos(e);
-      const near=Math.hypot(ux-pendingRoomTap.downPx[0], uy-pendingRoomTap.downPx[1])<=8;
-      pendingRoomTap=null; panStart=null;
-      if(near){ const [rwx,rwy]=toWorld(ux,uy); roomChainTap(rwx,rwy); return; }
-    }
-    if(draft && draft.kind==='roomrect'){
-      const a=draft.a, c=draft.cur||draft.a;
-      const iw=Math.abs(c.x-a.x), ih=Math.abs(c.y-a.y);
-      draft=null; hideLenBox();
-      if(iw>=20 && ih>=20){
-        const ix=Math.min(a.x,c.x), iy=Math.min(a.y,c.y), t=ui.thick;
-        beginFloat({kind:'rect', rect:{x:ix,y:iy,w:iw,h:ih,t}, segs:rectCenterSegs(ix,iy,iw,ih,t)});
-        openRectKeypad();
-        flashHint('拖曳擺放，或直接打數字改寬深');
-      } else draw();
-      return;
     }
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> UP IGNORED, not draft owner`); return; }
     if(draft && draft.kind==='wall' && draft.pendingLabel){
@@ -5203,7 +4694,7 @@
         draw:()=>draw(), recompute:()=>recomputeRooms(), toScreen:(x,y)=>toScreen(x,y),
         editDimLabel:(l,x,y)=>editDimLabel(l,x,y), pushHistory:()=>pushHistory(),
         hitLabel:(x,y)=>hitLabel(x,y), openLabelEditor:(l,x,y)=>openLabelEditor(l,x,y) }; }catch(_){ }
-  function setHint(){ statusHint.textContent=({select:'選取工具',room:'畫房間',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑'})[ui.tool]||''; }
+  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑'})[ui.tool]||''; }
   function flashHint(msg){ hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
   function showToolHint(){ flashHint(TOOL_HINT[ui.tool]); }
 
@@ -5365,7 +4856,6 @@
     // leaving a tool abandons whatever half-finished chain it owned, so the next
     // tool never inherits a stray start point
     if(chain) endWallChain();
-    if(roomChain){ roomChain=null; kpad.close(); }
     ui.tool=t; draft=null; typedNum=''; hideLenBox();
     document.querySelectorAll('.tool').forEach(el=>el.classList.toggle('active',el.dataset.tool===t));
     syncToolSections(); syncFurnUI(); syncMepUI();
@@ -5415,25 +4905,7 @@
     THICKS.forEach(t=>{ const c=document.createElement('div'); c.className='chip'+(t===ui.thick?' on':''); c.textContent=Math.round(toDisp(t)); c.onclick=()=>{ ui.thick=t; document.getElementById('thickCustom').value=''; renderThickChips(); }; thickChips.appendChild(c); });
   }
   renderThickChips();
-  document.getElementById('thickCustom').oninput=e=>{ const v=parseFloat(e.target.value); if(v>0){ ui.thick=fromDisp(v); renderThickChips(); renderRoomThickChips(); } };
-  // the 房間 tool shares ui.thick with the 牆 tool — one wall thickness, two ways in
-  const roomThickChips=document.getElementById('roomThickChips');
-  function renderRoomThickChips(){
-    if(!roomThickChips) return;
-    roomThickChips.innerHTML='';
-    THICKS.forEach(t=>{ const c=document.createElement('div'); c.className='chip'+(t===ui.thick?' on':''); c.textContent=Math.round(toDisp(t));
-      c.onclick=()=>{ ui.thick=t; const rc=document.getElementById('roomThickCustom'); if(rc) rc.value=''; renderRoomThickChips(); renderThickChips(); };
-      roomThickChips.appendChild(c); });
-  }
-  renderRoomThickChips();
-  document.getElementById('roomThickCustom').oninput=e=>{ const v=parseFloat(e.target.value); if(v>0){ ui.thick=fromDisp(v); renderRoomThickChips(); renderThickChips(); } };
-  document.querySelectorAll('#roomShapeSeg button').forEach(b=>b.onclick=()=>{
-    ui.roomShape=b.dataset.v;
-    document.querySelectorAll('#roomShapeSeg button').forEach(x=>x.classList.toggle('on',x===b));
-    if(roomChain){ roomChain=null; kpad.close(); }
-    flashHint(ui.roomShape==='rect'?'矩形：拖出對角線':'描角點：一點一點點出形狀，回到起點封閉');
-    draw();
-  });
+  document.getElementById('thickCustom').oninput=e=>{ const v=parseFloat(e.target.value); if(v>0){ ui.thick=fromDisp(v); renderThickChips(); } };
   // 定位線 (draw setting)
   // (align/内外线 selection removed — all walls use a single unified centerline model now)
   document.querySelectorAll('#doorSubSeg button').forEach(b=>b.onclick=()=>{
@@ -5490,15 +4962,13 @@
     if(kpad.isOpen() && kpad.key(e)){ e.preventDefault(); return; }
     if(draft&&draft.kind==='wall'){ if(/[0-9]/.test(e.key)){ typedNum+=e.key; return; } if(e.key==='.'&&!typedNum.includes('.')){ typedNum+='.'; return; } if(e.key==='Backspace'){ typedNum=typedNum.slice(0,-1); return; } }
     if(e.key==='Escape'){
-      if(floatGrp){ cancelFloat(); return; }
-      if(roomChain){ closeRoomChain(); return; }
       if(chain){ endWallChain(); return; }
       if(ui.focusRoom){ exitFocus(); return; }
       draft=null; typedNum=''; hideLenBox(); ui.selected=null; refreshProp(); draw(); return;
     }
     if(e.key==='Delete'||e.key==='Backspace'){ if(ui.selected){ deleteSelected(); return; } }
     if(e.key===' '||e.code==='Space'){ e.preventDefault(); setTool('select'); return; }
-    const map={v:'select',w:'wall',r:'room',d:'door',n:'window',m:'dim',t:'text',p:'shaft',i:'ink',a:'note',o:'photo'};
+    const map={v:'select',w:'wall',d:'door',n:'window',m:'dim',t:'text',p:'shaft',i:'ink',a:'note',o:'photo'};
     if(map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]);
   });
 
@@ -5744,14 +5214,47 @@
     expLayerUI();
     frameRefreshUI();
     pdfModal.classList.add('open');
+    refreshPreview();
   }
-  function closePdfModal(){ pdfModal.classList.remove('open'); }
-  function bindSeg(id,key){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{ pdfOpt[key]=b.dataset.v; document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); }); }
+  let previewTimer=null;
+  function refreshPreview(){
+    const row=document.getElementById('mPreviewRow');
+    const img=document.getElementById('mPreviewImg'), msg=document.getElementById('mPreviewMsg');
+    if(!row) return;
+    if(exportKind==='dxf'){ row.style.display='none'; return; }
+    row.style.display='';
+    clearTimeout(previewTimer);
+    previewTimer=setTimeout(()=>{
+      try{
+        const sel=pdfOpt.layers||{};
+        const allOff={}; for(const L of LAYERS) allOff[L.id]=false;
+        // per-layer PDFs produce several sheets; preview the first one, which is
+        // the one people are about to be surprised by
+        let layers=Object.assign({}, allOff, sel);
+        if(exportKind==='pdf' && pdfOpt.perLayer){
+          const first=LAYERS.filter(L=>!L.fixed && sel[L.id])[0];
+          if(first) layers=Object.assign({}, allOff, {base:sel.base!==false}, {[first.id]:true});
+        }
+        const r=renderExport(1, {dims:pdfOpt.dims, rooms:pdfOpt.rooms, notes:pdfOpt.notes,
+                                 photos:pdfOpt.photos, layers});
+        img.src=r.oc.toDataURL('image/png');
+        img.style.display='block'; msg.style.display='none';
+        const note=document.getElementById('mPreviewNote');
+        if(note) note.textContent = (exportKind==='pdf'&&pdfOpt.perLayer)
+          ? '每層一頁：這是第一頁，其餘頁只換圖層' : '這就是實際輸出，含標註避讓結果';
+      }catch(e){
+        img.style.display='none'; msg.style.display='block';
+        msg.textContent='預覽產生失敗：'+(e&&e.message||e);
+      }
+    }, 60);
+  }
+  function closePdfModal(){ pdfModal.classList.remove('open'); clearTimeout(previewTimer); }
+  function bindSeg(id,key){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{ pdfOpt[key]=b.dataset.v; document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); refreshPreview(); }); }
   function bindToggle(id,key){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{
     pdfOpt[key]=b.dataset.v==='1';
     document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b));
     // turning the PNG frame on reveals the paper and frame choices it needs
-    if(key==='pngFrame') openExportModal(exportKind);
+    if(key==='pngFrame') openExportModal(exportKind); else refreshPreview();
   }); }
   bindSeg('mPaper','paper'); bindSeg('mOrient','orient'); bindSeg('mScale','scale'); bindSeg('mTextSize','textSize');
   bindToggle('mDims','dims'); bindToggle('mRooms','rooms');
@@ -5774,7 +5277,7 @@
       const b=document.createElement('button');
       b.textContent=L.name;
       if(pdfOpt.layers[L.id]) b.className='on';
-      b.onclick=()=>{ pdfOpt.layers[L.id]=!pdfOpt.layers[L.id]; expLayerUI(); };
+      b.onclick=()=>{ pdfOpt.layers[L.id]=!pdfOpt.layers[L.id]; expLayerUI(); refreshPreview(); };
       box.appendChild(b);
     }
   }
@@ -6193,11 +5696,13 @@
     drawWalls(true); drawBeams(true); drawColumns();
     // these two were missing entirely, which is why an exported PNG came out with
     // no room dimensions and no name/坪數 even though the screen showed them
+    // EXACTLY the order draw() uses — see the note there
     drawRoomsInfo(); drawWallLabels();
     drawExteriorDims();
+    drawDims();
     drawFurniture();
     drawMEP();
-    drawDims(); drawTexts();
+    drawTexts();
     drawNotes(); drawInk();
     } finally {
     // restore in a finally: a throw part-way through used to leave the app running
@@ -6879,6 +6384,7 @@
   };
   const MEP_LW=3.4;                 // stroke weight, in the symbol's own units
   let MEP_LINE=MEP_COLOR.outlet;    // current family colour
+  let MEP_CAP_BELOW=true;      // legends still want the caption under the glyph
   function mepSymbols(){
    // every glyph draws in the colour of its family
    const paint=(g,key)=>{ MEP_LINE=MEP_COLOR[key]; g.strokeStyle=MEP_LINE; };
@@ -6953,14 +6459,14 @@
      const r=s*0.34;
      g.beginPath(); g.arc(0,0,r,0,Math.PI*2); g.fillStyle=hot?'#fff':'#fff'; g.fill(); g.stroke();
      g.beginPath(); g.moveTo(-r,0); g.lineTo(r,0); g.moveTo(0,-r); g.lineTo(0,r); g.stroke();
-     T(g,txt,0,r*1.55,s*0.30,700);
+     if(MEP_CAP_BELOW) T(g,txt,0,r*1.55,s*0.30,700);
    };
    const drain=(g,s,txt)=>{
      const r=s*0.36;
      g.beginPath(); g.arc(0,0,r,0,Math.PI*2); g.fillStyle='#fff'; g.fill(); g.stroke();
      g.beginPath(); g.moveTo(-r*0.7,-r*0.7); g.lineTo(r*0.7,r*0.7);
      g.moveTo(r*0.7,-r*0.7); g.lineTo(-r*0.7,r*0.7); g.stroke();
-     T(g,txt,0,r*1.6,s*0.28,700);
+     if(MEP_CAP_BELOW) T(g,txt,0,r*1.6,s*0.28,700);
    };
    return {
     // ---- 插座 ----
@@ -7003,9 +6509,14 @@
     drainWC:(s,g)=>{ const r=s*0.36; g.beginPath(); g.arc(0,0,r,0,Math.PI*2);
       g.fillStyle='#fff'; g.fill(); g.stroke();
       g.beginPath(); g.arc(0,0,r*0.5,0,Math.PI*2); g.stroke();
-      T(g,'WC',0,r*1.6,s*0.28,700); },
+      if(MEP_CAP_BELOW) T(g,'WC',0,r*1.6,s*0.28,700); },
    };
   }
+  // captions that hang BELOW the glyph rather than sitting tight against it —
+  // these are the ones that move into the tag block. The short codes drawn inside
+  // or hard against a socket/switch (WH, S², TV) stay put: they read as part of
+  // the symbol, and an electrician expects them there.
+  const MEP_BELOW_CAP={ waterC:'冷水', waterH:'熱水', drainPipe:'D', drainF:'FD', drainWC:'WC' };
   const MEP_FAMILY={
     outlet2:'outlet',outletWP:'outlet',outletAC:'outlet',outletWH:'outlet',
     outletREF:'outlet',outletMW:'outlet',outlet220:'outlet',outlet110D:'outlet',
@@ -7267,7 +6778,7 @@
       // Reserved against OTHER labels at the end of this symbol's block. Claiming
       // it up front also blocked this symbol's own height tag, which then hopped
       // off looking for space and ended up nowhere near the symbol it belongs to.
-      const gbox=[sx-px*0.6, sy-px*0.6, px*1.2, px*1.2];
+      const gbox=[sx-px*0.62, sy-px*0.62, px*1.24, px*1.24];
       glyphBoxes.push(gbox);
       ctx.save();
       ctx.globalAlpha=layerAlpha(m.layer||'elec');
@@ -7335,16 +6846,23 @@
       ctx.strokeStyle=sel?'#275C7A':col; ctx.fillStyle='#fff';
       ctx.lineWidth=MEP_LW*(px/110); ctx.lineJoin='round'; ctx.lineCap='round';
       ctx.setLineDash([]);
+      MEP_CAP_BELOW = !MEP_BELOW_CAP[m.kind];   // it lives in the tag block now
       (MEP_SY[m.kind]||MEP_SY.outlet2)(px, ctx);
+      MEP_CAP_BELOW = true;
       ctx.restore();
       // mounting height, always shown — it is half the information on this sheet.
       // Two sockets side by side used to stamp their heights on top of one another;
       // now the second one drops to the next line down (or goes above) instead.
       ctx.save();
       ctx.globalAlpha=layerAlpha(m.layer||'elec');
+      const cap=MEP_BELOW_CAP[m.kind]||'';
       const htxt='H'+Math.round(toDisp(m.h||0));
+      const tlines = cap ? [cap, htxt] : [htxt];
       ctx.font=`700 ${fpx(9)}px -apple-system,system-ui,sans-serif`;
-      const htw=ctx.measureText(htxt).width;
+      const htw=Math.max(...tlines.map(t=>ctx.measureText(t).width));
+      const tlh=10.5*TS, tbh=tlines.length*tlh;
+      // a box sized for the whole stack, not for one line
+      const tagBox=(cx,cy,w)=>[cx-(w/2+3*TS), cy-(tbh/2+2*TS), w+6*TS, tbh+4*TS];
       // The height tag is placed FIRST. It is the more important of the two
       // annotations and it has only one natural home: tucked into the symbol's
       // top-right corner, the way an electrician's drawing tags a device. The
@@ -7352,21 +6870,44 @@
       // it first is what kept stealing the spot and flinging H sideways.
       // Everything is measured from the SYMBOL, so the tag hugs it at any scale.
       const rx=px*0.55, ry=px*0.52;              // just outside the glyph, diagonally
-      const dxo=rx+htw/2, dyo=ry+2*TS;
+      const dxo=rx+htw/2+2*TS, dyo=ry+tbh/2;
       // Top-right by default; a neighbour crowding that corner sends it to the
       // top-left, then below. Four corners is enough for a row of switches to
       // alternate cleanly instead of stacking on one another.
-      const hcands=[[sx+dxo,sy-dyo],[sx-dxo,sy-dyo],
-                    [sx+dxo,sy+dyo],[sx-dxo,sy+dyo],
-                    [sx,sy-ry-6.5*TS],[sx,sy+ry+6.5*TS],
-                    [sx+dxo+htw*0.5,sy-dyo],[sx-dxo-htw*0.5,sy-dyo]];
+      // Right of the symbol first, then left, then the diagonals, then above and
+      // below — a two-line block beside the symbol reads better than one balanced
+      // on top of it. Then the same eight directions again, further out.
+      //
+      // One ring was not enough. A device mounted on a wall has that wall's own
+      // length dimension running right past it, and with two devices on the same
+      // wall every close position was taken — at which point placeLabel gives up
+      // and prints on the first candidate anyway, straight through the number.
+      // Stepping out is what a draughtsman does, and a leader keeps it readable.
+      const dirs=[[1,0],[-1,0],[1,-1],[-1,-1],[1,1],[-1,1],[0,-1],[0,1]];
+      const hcands=[];
+      for(const k of [1, 1.7, 2.5]){
+        for(const [ux,uy] of dirs){
+          hcands.push([sx+ux*dxo*k, sy+uy*(uy?dyo*k:0), k>1?1:0]);
+        }
+      }
       // the height must always print, so it may crowd a neighbour's label if it
       // truly has to — but never a symbol
       const notMine=(r)=>glyphBoxes.some(pb=>pb!==gbox &&
         r[0]<pb[0]+pb[2] && r[0]+r[2]>pb[0] && r[1]<pb[1]+pb[3] && r[1]+r[3]>pb[1]);
-      const hs=placeLabel(hcands, htw, 0, notMine, tagRect) || {x:hcands[0][0], y:hcands[0][1]};
-      plainLabel(htxt, hs.x, hs.y, 0, sel?'#275C7A':col, 9);
-      placedLabels.push(tagRect(hs.x, hs.y, htw));
+      const hs=placeLabel(hcands, htw, 0, notMine, tagBox) || {x:hcands[0][0], y:hcands[0][1]};
+      if(hs.off){
+        // it had to step away from the symbol, so say which symbol it belongs to
+        ctx.save();
+        ctx.strokeStyle=col; ctx.globalAlpha=0.45; ctx.lineWidth=Math.max(0.7,0.8*TS);
+        ctx.setLineDash([3*TS,2.5*TS]);
+        const vx=hs.x-sx, vy=hs.y-sy, vl=Math.hypot(vx,vy)||1;
+        ctx.beginPath();
+        ctx.moveTo(sx+vx/vl*px*0.62, sy+vy/vl*px*0.62);
+        ctx.lineTo(hs.x-vx/vl*(htw/2+4*TS), hs.y-vy/vl*(tbh/2+2*TS));
+        ctx.stroke(); ctx.restore();
+      }
+      tlines.forEach((t,i)=>plainLabel(t, hs.x, hs.y - tbh/2 + tlh*(i+0.5), 0, sel?'#275C7A':col, 9));
+      placedLabels.push(tagBox(hs.x, hs.y, htw));
       placedLabels.push(gbox);          // now the symbol itself claims its space
       if(pend && pend.along){
         const {ax,ay,bx,by}=pend;
