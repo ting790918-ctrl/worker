@@ -191,8 +191,14 @@
   #debugPanel.show{display:block;}
   .modal-mask{position:fixed; inset:0; background:rgba(20,26,32,.4); display:none; align-items:center; justify-content:center; z-index:100;}
   .modal-mask.open{display:flex;}
-  .modal{background:#fff; border-radius:14px; padding:20px; width:340px; max-width:92vw; box-shadow:0 10px 40px rgba(0,0,0,.25);}
-  .modal-title{font-size:16px; font-weight:600; margin-bottom:16px; color:var(--ink);}
+  .modal{background:#fff; border-radius:14px; padding:20px; width:340px; max-width:92vw; box-shadow:0 10px 40px rgba(0,0,0,.25);
+         display:flex; flex-direction:column; max-height:calc(100dvh - 32px); max-height:calc(100vh - 32px);}
+  .modal-title{font-size:16px; font-weight:600; margin-bottom:16px; color:var(--ink); flex:0 0 auto;}
+  /* everything between the title and the buttons scrolls; the negative margin
+     plus matching padding keeps focus rings and the scrollbar off the content */
+  .modal-body{flex:1 1 auto; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y;
+              margin:0 -20px; padding:0 20px;}
+  .modal-mask{padding:16px;}
   .mrow{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;}
   .mrow>span{font-size:13px; color:var(--text); flex:0 0 auto;}
   .mrow .seg{flex-wrap:wrap;}
@@ -237,7 +243,8 @@
   .furn-item.on{background:var(--accent-soft); border-color:#CDE0EA;}
   .furn-item b{flex:1 1 auto; font-weight:500;}
   .furn-item span{flex:0 0 auto; font-size:11px; color:var(--muted);}
-  .modal-btns{display:flex; gap:10px; justify-content:flex-end; margin-top:6px;}
+  .modal-btns{display:flex; gap:10px; justify-content:flex-end; margin-top:6px; flex:0 0 auto;
+              padding-top:14px; border-top:1px solid var(--line); background:#fff;}
   .proj-list{max-height:46vh; overflow:auto; margin:4px 0 14px; border-top:1px solid var(--line);}
   .proj-row{display:flex; align-items:center; gap:8px; padding:10px 2px; border-bottom:1px solid var(--line);}
   .proj-meta{flex:1 1 auto; min-width:0;}
@@ -258,7 +265,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b88</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b90</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -504,6 +511,7 @@
 <div id="pdfModal" class="modal-mask">
   <div class="modal">
     <div class="modal-title" id="mTitle">匯出</div>
+    <div class="modal-body">
     <div class="mrow pdfonly"><span>紙張</span><div class="seg" id="mPaper"><button data-v="a4" class="on">A4</button><button data-v="a3">A3</button></div></div>
     <div class="mrow pdfonly"><span>方向</span><div class="seg" id="mOrient"><button data-v="l" class="on">橫式</button><button data-v="p">直式</button></div></div>
     <div class="mrow pdfonly"><span>圖框</span>
@@ -541,12 +549,13 @@
     <div class="mrow dxfonly" style="display:none"><span style="font-size:11px;color:var(--muted);line-height:1.5">DXF 為 CAD 通用交換格式，AutoCAD／BricsCAD／SketchUp 皆可直接開啟，開啟後另存即為 .dwg。牆、柱、樑、門窗、標註各自分層。</span></div>
     <div class="mrow" style="align-items:flex-start" id="mPreviewRow"><span>預覽</span>
       <div style="flex:1 1 auto;min-width:0">
-        <div id="mPreviewWrap" style="border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden;min-height:90px;display:flex;align-items:center;justify-content:center">
-          <img id="mPreviewImg" alt="匯出預覽" style="max-width:100%;display:block">
+        <div id="mPreviewWrap" style="border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden;min-height:70px;max-height:34vh;display:flex;align-items:center;justify-content:center">
+          <img id="mPreviewImg" alt="匯出預覽" style="max-width:100%;max-height:34vh;object-fit:contain;display:block">
           <span id="mPreviewMsg" style="font-size:11px;color:var(--muted);padding:14px">產生中…</span>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:6px" id="mPreviewNote">這就是實際輸出，含標註避讓結果</div>
       </div></div>
+    </div>
     <div class="modal-btns"><button class="tbtn" id="mCancel">取消</button><button class="tbtn primary" id="mExport">匯出</button></div>
   </div>
 </div>
@@ -960,7 +969,7 @@
     state.ceilingH=o.ceilingH||280;
     state._seq=o._seq||1000;
     ui.selected=null; draft=null; inkDraft=null; eraser=null; typedNum=''; hideLenBox();
-    chain=null; kpad.close();
+    kpad.close();
     if(ui.focusRoom && !state.rooms.some(r=>r.id===ui.focusRoom)) ui.focusRoom=null;
     recomputeRooms(); syncFocusBar(); refreshProp(); draw();
   }
@@ -1956,61 +1965,6 @@
     });
   }
 
-  // ---- the 牆 tool's running chain ----
-  let chain=null;          // {x,y} — where the wall tool will carry on from
-  let chainCur=null;       // hover point, desktop only
-
-  function chainAngleOf(a,b){ let d=Math.atan2(-(b.y-a.y), b.x-a.x)*180/Math.PI; if(d<0)d+=360; return Math.round(d*10)/10; }
-  function chainStepPoint(from, lenDisp, angDeg){
-    const L=fromDisp(lenDisp), a=(angDeg||0)*Math.PI/180;
-    return {x:from.x+Math.cos(a)*L, y:from.y-Math.sin(a)*L};
-  }
-  function openChainKeypad(kind){
-    kpad.open({
-      owner:'chain',
-      fields:[{key:'len',label:'長度',unit:ui.unit},{key:'ang',label:'角度',unit:'°'}],
-      hint:'點下一段的終點，或打長度＋角度按 ✓。✕ 結束連續畫牆',
-      onCommit:(o)=>chainStep(kind,o),
-      onCancel:()=>endWallChain()
-    });
-    chainKeypadLive(kind);
-  }
-  function chainKeypadLive(kind){
-    const ang = (chain && chain.prev) ? chainAngleOf(chain.prev, chain) : 0;
-    kpad.live({ang:ang, len:''});
-  }
-  function chainStep(kind,o){
-    if(o.len==null || !(o.len>0)) return;
-    const ang = o.ang==null ? 0 : o.ang;
-    if(!chain) return;
-    const from={x:chain.x,y:chain.y};
-    const p=chainStepPoint(from,o.len,ang);
-    const w={id:uid(),x1:from.x,y1:from.y,x2:p.x,y2:p.y,t:ui.thick,align:ui.wallAlign};
-    state.walls.push(w); weldWall(w); pushHistory();
-    chain={x:w.x2,y:w.y2,prev:{x:w.x1,y:w.y1}};
-    openChainKeypad('wall');
-    draw();
-  }
-  function endWallChain(){ chain=null; chainCur=null; kpad.close(); draw(); }
-  function startWallChain(w){
-    chain={x:w.x2,y:w.y2,prev:{x:w.x1,y:w.y1}};
-    chainCur=null;
-    openChainKeypad('wall');
-  }
-  function drawChainMark(){
-    if(!chain) return;
-    ctx.save();
-    const p=toScreen(chain.x,chain.y);
-    if(chainCur){
-      const c=toScreen(chainCur.x,chainCur.y);
-      ctx.strokeStyle='#275C7A'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
-      ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(c[0],c[1]); ctx.stroke(); ctx.setLineDash([]);
-    }
-    ctx.fillStyle='#2E9E6B'; ctx.strokeStyle='#1F7A50'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(p[0],p[1],6,0,7); ctx.fill(); ctx.stroke();
-    ctx.restore();
-  }
-
   // ================= Room focus ("room level") =================
 
   // magicplan makes the room a separate SCREEN. On one canvas that would throw
@@ -2084,7 +2038,6 @@
     const r=roomCacheById(rid); if(!r) return;
     ui.focusRoom=rid;
     ui.selected={kind:'room', id:rid};
-    if(chain) endWallChain();
     let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
     for(const v of r.Vout){ x0=Math.min(x0,v.x); y0=Math.min(y0,v.y); x1=Math.max(x1,v.x); y1=Math.max(y1,v.y); }
     const vw=W||stage.clientWidth||900, vh=H||stage.clientHeight||600;
@@ -3141,7 +3094,6 @@
     drawFocusVeil();
     drawGuides();
     drawDraft();
-    drawChainMark();
     drawSelection();
   }
   // A beam is ABOVE the cut plane — you are looking up at it, not through it. The
@@ -3867,15 +3819,9 @@
       draw();
     }
     else if(ui.tool==='wall'){
-      // Once a wall has been drawn the chain stays live at its far end, so the
-      // next wall starts exactly where the last one finished — tap, tap, tap —
-      // instead of having to re-aim at the previous endpoint every single time.
-      const from = chain ? {x:chain.x, y:chain.y} : null;
-      const r=computeWallEnd(from, wx, wy);
-      draft = from
-        ? {kind:'wall',a:{x:from.x,y:from.y},cur:{x:r.x,y:r.y},startSnap:null,snap:r.snap,pendingLabel:lab,downPx:[px,py],pointerId:e.pointerId,pointerType:e.pointerType,chained:true}
-        : {kind:'wall',a:{x:r.x,y:r.y},cur:{x:r.x,y:r.y},startSnap:r.snap,snap:r.snap,pendingLabel:lab,downPx:[px,py],pointerId:e.pointerId,pointerType:e.pointerType};
-      typedNum=''; dbg(`  wall draft started type=${e.pointerType} chained=${!!from}`);
+      const r=computeWallEnd(null, wx, wy);
+      draft={kind:'wall',a:{x:r.x,y:r.y},cur:{x:r.x,y:r.y},startSnap:r.snap,snap:r.snap,pendingLabel:lab,downPx:[px,py],pointerId:e.pointerId,pointerType:e.pointerType};
+      typedNum=''; dbg(`  wall draft started type=${e.pointerType}`);
     }
     else if(ui.tool==='dim'){ const sp=snapToObjects(wx,wy); draft={kind:'dim',a:{x:sp.x,y:sp.y},cur:{x:sp.x,y:sp.y},pointerId:e.pointerId,pointerType:e.pointerType}; }
     else if(ui.tool==='door'||ui.tool==='window'){ placeOpening(wx,wy,ui.tool); }
@@ -3906,11 +3852,6 @@
   });
 
   stage.addEventListener('pointermove',e=>{
-    if(!draft && ui.tool==='wall' && chain && e.pointerType!=='touch' && !pointers.size){
-      const [mx,my]=evtPos(e); const [mwx,mwy]=toWorld(mx,my);
-      const r=computeWallEnd({x:chain.x,y:chain.y}, mwx, mwy);
-      chainCur={x:r.x,y:r.y}; draw();
-    }
     if(dbgOn && draft){ dbg(`move id=${e.pointerId} (draft owner=${draft.pointerId}) pointers.size=${pointers.size}`); }
     if(!pointers.has(e.pointerId)) { /* hover */ }
     if(pointers.has(e.pointerId)) pointers.set(e.pointerId,evtPos(e));
@@ -4063,7 +4004,6 @@
           state.walls.push(w); weldWall(w); pushHistory();
           dbg(`  -> WALL CREATED id=${w.id} (${a.x.toFixed(0)},${a.y.toFixed(0)})-(${c.x.toFixed(0)},${c.y.toFixed(0)})`);
           draft=null; typedNum=''; hideLenBox();
-          startWallChain(w);
           draw();
           return;
         } else if(draft.kind==='beam'){
@@ -4285,13 +4225,65 @@
     if(hit.kind==='furn'){ const f=state.furniture.find(v=>v.id===hit.id); return {...f}; }
     if(hit.kind==='mep'){ const m=state.mep.find(v=>v.id===hit.id); return {...m}; }
   }
+  // is this wall an edge of a space that is currently closed?
+  function wallEnclosed(w){
+    if(!w) return false;
+    for(const r of roomsCache){
+      for(const ed of r.edges){
+        for(const wd of (ed.wids||[ed.wid])) if(wd===w.id) return true;
+      }
+    }
+    return false;
+  }
+  // A drag reports an absolute offset every frame, so the geometry has to be put
+  // back to where it started before each new offset is applied — otherwise the
+  // stretch is applied on top of the previous stretch and the room runs away.
+  function captureNeighbours(w){
+    const snap=[];
+    for(const v of state.walls){
+      if(v.id===w.id) continue;
+      snap.push({id:v.id, x1:v.x1, y1:v.y1, x2:v.x2, y2:v.y2});
+    }
+    return snap;
+  }
+  function restoreNeighbours(snap){
+    for(const o of snap){
+      const v=state.walls.find(x=>x.id===o.id);
+      if(v){ v.x1=o.x1; v.y1=o.y1; v.x2=o.x2; v.y2=o.y2; }
+    }
+  }
   function doDrag(wx,wy){
     const {hit,start,orig}=dragging; const dx=wx-start[0], dy=wy-start[1];
     if(Math.hypot(dx,dy)>2/view.scale) dragging.moved=true;
     // NOTE: grid-snap the MOVEMENT, not each endpoint separately. Rounding both
     // ends independently is what used to quietly bend a wall a degree or two off
     // square every time it was dragged.
-    if(hit.kind==='wall'){ const w=state.walls.find(v=>v.id===hit.id); let ddx=dx,ddy=dy; if(ui.snap){const g=ui.gridSize; ddx=Math.round((orig.x1+dx)/g)*g-orig.x1; ddy=Math.round((orig.y1+dy)/g)*g-orig.y1;} w.x1=orig.x1+ddx;w.y1=orig.y1+ddy;w.x2=orig.x2+ddx;w.y2=orig.y2+ddy; recomputeRooms(); }
+    if(hit.kind==='wall'){
+      const w=state.walls.find(v=>v.id===hit.id);
+      let ddx=dx,ddy=dy;
+      if(ui.snap){const g=ui.gridSize; ddx=Math.round((orig.x1+dx)/g)*g-orig.x1; ddy=Math.round((orig.y1+dy)/g)*g-orig.y1;}
+      const vert=Math.abs(orig.x1-orig.x2)<0.6, horiz=Math.abs(orig.y1-orig.y2)<0.6;
+      // Only sideways movement can stretch a room — sliding a wall along its own
+      // length is a different operation and is left as a plain translate.
+      const axis = vert ? 'x' : (horiz ? 'y' : null);
+      const delta = axis==='x' ? ddx : ddy;
+      let stretched=false;
+      if(axis && wallEnclosed(w)){
+        // rebuild from the ORIGINAL position each frame, or the drag compounds
+        w.x1=orig.x1; w.y1=orig.y1; w.x2=orig.x2; w.y2=orig.y2;
+        if(dragging.neighbours) restoreNeighbours(dragging.neighbours);
+        else dragging.neighbours=captureNeighbours(w);
+        const lo = axis==='x' ? Math.min(orig.y1,orig.y2) : Math.min(orig.x1,orig.x2);
+        const hi = axis==='x' ? Math.max(orig.y1,orig.y2) : Math.max(orig.x1,orig.x2);
+        lockBlocked=null;
+        stretched = moveWallLine(axis, axis==='x'?orig.x1:orig.y1, delta, lo, hi);
+        if(!stretched && lockBlocked) flashHint('這一側有鎖定的尺寸，拉不動');
+      }
+      if(!stretched){
+        w.x1=orig.x1+ddx; w.y1=orig.y1+ddy; w.x2=orig.x2+ddx; w.y2=orig.y2+ddy;
+      }
+      recomputeRooms();
+    }
     else if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); const w=state.walls.find(v=>v.id===o.wallId); const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,pr.t)); }
     else if(hit.kind==='dim'){
       // Dragging a dimension moves the LINE, not the measurement. Translating the
@@ -4853,9 +4845,6 @@
     ui.selected=sel; refreshProp(); draw();
   }
   function setTool(t){
-    // leaving a tool abandons whatever half-finished chain it owned, so the next
-    // tool never inherits a stray start point
-    if(chain) endWallChain();
     ui.tool=t; draft=null; typedNum=''; hideLenBox();
     document.querySelectorAll('.tool').forEach(el=>el.classList.toggle('active',el.dataset.tool===t));
     syncToolSections(); syncFurnUI(); syncMepUI();
@@ -4962,7 +4951,6 @@
     if(kpad.isOpen() && kpad.key(e)){ e.preventDefault(); return; }
     if(draft&&draft.kind==='wall'){ if(/[0-9]/.test(e.key)){ typedNum+=e.key; return; } if(e.key==='.'&&!typedNum.includes('.')){ typedNum+='.'; return; } if(e.key==='Backspace'){ typedNum=typedNum.slice(0,-1); return; } }
     if(e.key==='Escape'){
-      if(chain){ endWallChain(); return; }
       if(ui.focusRoom){ exitFocus(); return; }
       draft=null; typedNum=''; hideLenBox(); ui.selected=null; refreshProp(); draw(); return;
     }
