@@ -265,7 +265,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b90</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b91</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -4211,6 +4211,32 @@
     }
     return null;
   }
+  // Every other wall endpoint that is sitting on one of this wall's endpoints,
+  // with the position it was at when the drag started. Generous tolerance: these
+  // are corners the healer has already welded, so anything within a few
+  // centimetres is the same corner, not a near miss.
+  function captureWeld(w){
+    const tol=Math.max(3, (w.t||20)*0.25);
+    const ends=[{x:w.x1,y:w.y1},{x:w.x2,y:w.y2}];
+    const links=[];
+    for(const v of state.walls){
+      if(v.id===w.id || wallLen(v)<1) continue;
+      for(const which of [1,2]){
+        const vx = which===1 ? v.x1 : v.x2, vy = which===1 ? v.y1 : v.y2;
+        // a corner: this wall's end sits on one of ours
+        if(ends.some(e=>Math.hypot(vx-e.x, vy-e.y)<=tol)){
+          links.push({id:v.id, which, x:vx, y:vy, locked:!!v.locked});
+          continue;
+        }
+        // a T: a partition landing part-way along us. Its end has to travel with
+        // the wall too, or dragging a party wall leaves every partition behind.
+        const pr=projPointToSeg(vx,vy,w.x1,w.y1,w.x2,w.y2);
+        if(pr.d<=tol && pr.t>0.01 && pr.t<0.99)
+          links.push({id:v.id, which, x:vx, y:vy, locked:!!v.locked});
+      }
+    }
+    return links;
+  }
   function cloneForDrag(hit){
     if(hit.kind==='wall'){ const w=state.walls.find(v=>v.id===hit.id); return {...w}; }
     if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); return {...o}; }
@@ -4225,33 +4251,6 @@
     if(hit.kind==='furn'){ const f=state.furniture.find(v=>v.id===hit.id); return {...f}; }
     if(hit.kind==='mep'){ const m=state.mep.find(v=>v.id===hit.id); return {...m}; }
   }
-  // is this wall an edge of a space that is currently closed?
-  function wallEnclosed(w){
-    if(!w) return false;
-    for(const r of roomsCache){
-      for(const ed of r.edges){
-        for(const wd of (ed.wids||[ed.wid])) if(wd===w.id) return true;
-      }
-    }
-    return false;
-  }
-  // A drag reports an absolute offset every frame, so the geometry has to be put
-  // back to where it started before each new offset is applied — otherwise the
-  // stretch is applied on top of the previous stretch and the room runs away.
-  function captureNeighbours(w){
-    const snap=[];
-    for(const v of state.walls){
-      if(v.id===w.id) continue;
-      snap.push({id:v.id, x1:v.x1, y1:v.y1, x2:v.x2, y2:v.y2});
-    }
-    return snap;
-  }
-  function restoreNeighbours(snap){
-    for(const o of snap){
-      const v=state.walls.find(x=>x.id===o.id);
-      if(v){ v.x1=o.x1; v.y1=o.y1; v.x2=o.x2; v.y2=o.y2; }
-    }
-  }
   function doDrag(wx,wy){
     const {hit,start,orig}=dragging; const dx=wx-start[0], dy=wy-start[1];
     if(Math.hypot(dx,dy)>2/view.scale) dragging.moved=true;
@@ -4262,25 +4261,22 @@
       const w=state.walls.find(v=>v.id===hit.id);
       let ddx=dx,ddy=dy;
       if(ui.snap){const g=ui.gridSize; ddx=Math.round((orig.x1+dx)/g)*g-orig.x1; ddy=Math.round((orig.y1+dy)/g)*g-orig.y1;}
-      const vert=Math.abs(orig.x1-orig.x2)<0.6, horiz=Math.abs(orig.y1-orig.y2)<0.6;
-      // Only sideways movement can stretch a room — sliding a wall along its own
-      // length is a different operation and is left as a plain translate.
-      const axis = vert ? 'x' : (horiz ? 'y' : null);
-      const delta = axis==='x' ? ddx : ddy;
-      let stretched=false;
-      if(axis && wallEnclosed(w)){
-        // rebuild from the ORIGINAL position each frame, or the drag compounds
-        w.x1=orig.x1; w.y1=orig.y1; w.x2=orig.x2; w.y2=orig.y2;
-        if(dragging.neighbours) restoreNeighbours(dragging.neighbours);
-        else dragging.neighbours=captureNeighbours(w);
-        const lo = axis==='x' ? Math.min(orig.y1,orig.y2) : Math.min(orig.x1,orig.x2);
-        const hi = axis==='x' ? Math.max(orig.y1,orig.y2) : Math.max(orig.x1,orig.x2);
-        lockBlocked=null;
-        stretched = moveWallLine(axis, axis==='x'?orig.x1:orig.y1, delta, lo, hi);
-        if(!stretched && lockBlocked) flashHint('這一側有鎖定的尺寸，拉不動');
+      if(!dragging.weld) dragging.weld=captureWeld(w);
+      // A length-locked neighbour would have to stretch to stay attached. Rather
+      // than choose between breaking the lock and breaking the corner, the drag
+      // simply does not happen, and says why.
+      if(dragging.weld.some(L=>L.locked)){
+        if(!dragging.lockWarned){ dragging.lockWarned=true; flashHint('轉角上有鎖定長度的牆，拉不動。先解開那道鎖'); }
+        return;
       }
-      if(!stretched){
-        w.x1=orig.x1+ddx; w.y1=orig.y1+ddy; w.x2=orig.x2+ddx; w.y2=orig.y2+ddy;
+      // absolute positions from the captured originals every frame, so repeated
+      // dragging back and forth can never accumulate drift
+      w.x1=orig.x1+ddx; w.y1=orig.y1+ddy; w.x2=orig.x2+ddx; w.y2=orig.y2+ddy;
+      for(const L of dragging.weld){
+        const v=state.walls.find(x=>x.id===L.id);
+        if(!v) continue;
+        if(L.which===1){ v.x1=L.x+ddx; v.y1=L.y+ddy; }
+        else           { v.x2=L.x+ddx; v.y2=L.y+ddy; }
       }
       recomputeRooms();
     }
