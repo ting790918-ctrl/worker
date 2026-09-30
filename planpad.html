@@ -265,7 +265,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b92</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b93</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -4261,6 +4261,18 @@
       const w=state.walls.find(v=>v.id===hit.id);
       let ddx=dx,ddy=dy;
       if(ui.snap){const g=ui.gridSize; ddx=Math.round((orig.x1+dx)/g)*g-orig.x1; ddy=Math.round((orig.y1+dy)/g)*g-orig.y1;}
+      // Perpendicular only. A vertical wall moves in x, a horizontal wall in y;
+      // the other component would slide the wall along itself, which does nothing
+      // to the wall and skews every neighbour welded to its ends.
+      const wVert =Math.abs(orig.x1-orig.x2)<0.6;
+      const wHoriz=Math.abs(orig.y1-orig.y2)<0.6;
+      if(wVert && !wHoriz) ddy=0;
+      else if(wHoriz && !wVert) ddx=0;
+      else if(angleLockOn()){
+        // a diagonal wall under angle lock still moves on one axis at a time,
+        // whichever the finger has travelled further along
+        if(Math.abs(ddx)>=Math.abs(ddy)) ddy=0; else ddx=0;
+      }
       if(!dragging.weld) dragging.weld=captureWeld(w);
       // A length-locked neighbour would have to stretch to stay attached. Rather
       // than choose between breaking the lock and breaking the corner, the drag
@@ -6291,14 +6303,13 @@
   // A dimension chain describes one edge of the building. It may therefore only
   // contain walls that meet that edge, and the perimeter walls are the edge, so
   // they contribute no stations of their own.
-  function sideStations(B, side){
-    const alongX = (side==='t'||side==='b');   // chain runs left-right → vertical walls
+  // Inner face of the perimeter wall on one side of the plan. A partition usually
+  // stops on that wall's centreline, sometimes on its inner face; either way it
+  // counts as touching, and anything short of it does not.
+  function planInnerFace(B, side){
     const tol=2;
     const walls=state.walls.filter(w=>wallLen(w)>=1);
     const isVert=(w)=>Math.abs(w.y2-w.y1) >= Math.abs(w.x2-w.x1);
-    // Where the perimeter wall on this side ENDS, measured inwards. A partition
-    // usually stops on that wall's centreline, sometimes on its inner face; either
-    // way it counts as touching, and anything short of it does not.
     let inner = side==='t'?B.y0 : side==='b'?B.y1 : side==='l'?B.x0 : B.x1;
     for(const w of walls){
       const R=wallRect(w), v=isVert(w);
@@ -6307,6 +6318,19 @@
       if(side==='l' &&  v && Math.abs(R.x0-B.x0)<=tol) inner=Math.max(inner,R.x1);
       if(side==='r' &&  v && Math.abs(R.x1-B.x1)<=tol) inner=Math.min(inner,R.x0);
     }
+    return inner;
+  }
+  // the clear span of the plan, wall face to wall face
+  function planInnerBox(B){
+    return {x0:planInnerFace(B,'l'), x1:planInnerFace(B,'r'),
+            y0:planInnerFace(B,'t'), y1:planInnerFace(B,'b')};
+  }
+  function sideStations(B, side){
+    const alongX = (side==='t'||side==='b');   // chain runs left-right → vertical walls
+    const tol=2;
+    const walls=state.walls.filter(w=>wallLen(w)>=1);
+    const isVert=(w)=>Math.abs(w.y2-w.y1) >= Math.abs(w.x2-w.x1);
+    const inner=planInnerFace(B, side);
     const out=[];
     for(const w of walls){
       const R=wallRect(w), v=isVert(w);
@@ -6331,17 +6355,20 @@
     const c0=toScreen(B.x0,B.y0), c1=toScreen(B.x1,B.y1);
     planNoGo=[Math.min(c0[0],c1[0])-2, Math.min(c0[1],c1[1])-2,
               Math.abs(c1[0]-c0[0])+4, Math.abs(c1[1]-c0[1])+4];
-    const xs=(side)=>dedupeSorted(sideStations(B,side).concat([B.x0,B.x1])
-                       .filter(v=>v>=B.x0-tol&&v<=B.x1+tol), tol);
-    const ys=(side)=>dedupeSorted(sideStations(B,side).concat([B.y0,B.y1])
-                       .filter(v=>v>=B.y0-tol&&v<=B.y1+tol), tol);
+    // I is the clear span. The chain LINES still sit outside the building (fixed
+    // is taken from B), but every number on them measures inside faces.
+    const I=planInnerBox(B);
+    const xs=(side)=>dedupeSorted(sideStations(B,side).concat([I.x0,I.x1])
+                       .filter(v=>v>=I.x0-tol&&v<=I.x1+tol), tol);
+    const ys=(side)=>dedupeSorted(sideStations(B,side).concat([I.y0,I.y1])
+                       .filter(v=>v>=I.y0-tol&&v<=I.y1+tol), tol);
     // Each edge now carries its own segments plus the overall run. When an edge has
     // no partitions on it the segment row would just repeat the overall, so the
     // overall moves in to the near row instead of leaving a blank line.
     const run=(st, fixed, horiz, sign)=>{
       const split=st.length>2;
       if(split) dimChain(st, fixed, horiz, sign, g1);
-      dimChain(horiz?[B.x0,B.x1]:[B.y0,B.y1], fixed, horiz, sign, split?g2:g1);
+      dimChain(horiz?[I.x0,I.x1]:[I.y0,I.y1], fixed, horiz, sign, split?g2:g1);
     };
     run(xs('t'), B.y0, true,  -1);
     run(ys('l'), B.x0, false, -1);
