@@ -265,7 +265,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b91</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b92</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -6748,22 +6748,43 @@
       : {dist:Math.abs(by.d), tx:m.x, ty:by.face};
   }
   let alongRuns=[];
+  // Which way is the room from this device? Probe a little past each face of the
+  // wall it is mounted on and see which side lands inside a detected space.
+  // Returns the inward normal plus the wall direction, or null when the device is
+  // not on a wall, or the wall has rooms on both sides (a party wall — then
+  // neither side is "the" inside and the generic search is the honest answer).
+  function mepInwardDir(m){
+    const host=mepHostWall(m);
+    if(!host) return null;
+    const w=host.w, L=wallLen(w)||1;
+    const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L;
+    const nx=-uy, ny=ux;
+    const probe=(w.t||20)/2 + 25;
+    const a=pointInAnyRoom(m.x+nx*probe, m.y+ny*probe);
+    const b=pointInAnyRoom(m.x-nx*probe, m.y-ny*probe);
+    if(a===b) return null;
+    // screen space flips nothing here: toScreen preserves orientation, so the
+    // world normal can be reused directly for laying out candidates
+    return a ? {nx, ny, ux, uy} : {nx:-nx, ny:-ny, ux, uy};
+  }
   function drawMEP(){
     if(!state.mep.length) return;
     mepRecalcSpacing();
     alongRuns=[];
-    for(const m of state.mep){
-      if(!layerVisible(m.layer||'elec')) continue;
+    const mepShown=state.mep.filter(m=>layerVisible(m.layer||'elec'));
+    // pass one: nothing is drawn, every symbol simply says where it is
+    const mepBox=new Map();
+    for(const m of mepShown){
+      const [bx,by]=toScreen(m.x,m.y); const bp=mepPx(m);
+      const gb=[bx-bp*0.62, by-bp*0.62, bp*1.24, bp*1.24];
+      mepBox.set(m.id, gb);
+      glyphBoxes.push(gb);
+    }
+    for(const m of mepShown){
       const sel = ui.selected && ui.selected.kind==='mep' && ui.selected.id===m.id;
       const [sx,sy]=toScreen(m.x,m.y);
       const px=mepPx(m), col=mepColor(m.kind);
-      // the glyph itself is occupied space — claim it before anything is placed,
-      // including this symbol's OWN distance label, which otherwise lands on it
-      // Reserved against OTHER labels at the end of this symbol's block. Claiming
-      // it up front also blocked this symbol's own height tag, which then hopped
-      // off looking for space and ended up nowhere near the symbol it belongs to.
-      const gbox=[sx-px*0.62, sy-px*0.62, px*1.24, px*1.24];
-      glyphBoxes.push(gbox);
+      const gbox=mepBox.get(m.id);
       ctx.save();
       ctx.globalAlpha=layerAlpha(m.layer||'elec');
       // The LEADER goes down before the symbol so the symbol caps it cleanly. The
@@ -6867,8 +6888,23 @@
       // wall every close position was taken — at which point placeLabel gives up
       // and prints on the first candidate anyway, straight through the number.
       // Stepping out is what a draughtsman does, and a leader keeps it readable.
-      const dirs=[[1,0],[-1,0],[1,-1],[-1,-1],[1,1],[-1,1],[0,-1],[0,1]];
       const hcands=[];
+      // the room side first, straight in, then sliding along the wall, then deeper
+      const inw=mepInwardDir(m);
+      if(inw){
+        const vertical=Math.abs(inw.ny)>Math.abs(inw.nx);   // tag sits above/below
+        const perp  = vertical ? (ry + tbh/2 + 3*TS) : (rx + htw/2 + 3*TS);
+        const along = vertical ? (htw*0.8 + 4*TS)    : (tbh*0.9);
+        for(const depth of [1, 1.7, 2.6]){
+          for(const k of [0, 1, -1, 1.9, -1.9]){
+            hcands.push([sx + inw.nx*perp*depth + inw.ux*along*k,
+                         sy + inw.ny*perp*depth + inw.uy*along*k,
+                         (depth>1 || k!==0) ? 1 : 0]);
+          }
+        }
+      }
+      // then the generic ring, for devices that are not on a wall at all
+      const dirs=[[1,0],[-1,0],[1,-1],[-1,-1],[1,1],[-1,1],[0,-1],[0,1]];
       for(const k of [1, 1.7, 2.5]){
         for(const [ux,uy] of dirs){
           hcands.push([sx+ux*dxo*k, sy+uy*(uy?dyo*k:0), k>1?1:0]);
@@ -6892,7 +6928,7 @@
       }
       tlines.forEach((t,i)=>plainLabel(t, hs.x, hs.y - tbh/2 + tlh*(i+0.5), 0, sel?'#275C7A':col, 9));
       placedLabels.push(tagBox(hs.x, hs.y, htw));
-      placedLabels.push(gbox);          // now the symbol itself claims its space
+      placedLabels.push(gbox);          // and against ordinary labels too
       if(pend && pend.along){
         const {ax,ay,bx,by}=pend;
         const ang=Math.abs(bx-ax)>=Math.abs(by-ay) ? 0 : Math.PI/2;
