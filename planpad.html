@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b81</title>
+<title>PlanPad · 平面圖工具 b94</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -265,7 +265,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b93</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b94</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -458,6 +458,11 @@
           <div class="lay-note" id="ulHint">校正後就可以直接用牆工具描圖。</div>
         </div>
       </div>
+      <div class="psec" data-layer="light">
+        <div class="ptitle">燈具圖示庫</div>
+        <div class="furn-cats" id="lightCats"></div>
+        <div class="furn-list" id="lightList"></div>
+      </div>
       <div class="psec" data-layer="elec">
         <div class="ptitle">水電圖示庫</div>
         <div class="furn-cats" id="mepCats"></div>
@@ -612,7 +617,7 @@
     shaftW: 60, shaftH: 60,                    // pipe shaft defaults (cm)
     doorSub: 'swing', winSub: 'fixed',         // which kind the next tap creates
     furnCat: 'living', furnPick: null,         // library category / armed item
-    mepCat: '插座', mepPick: null,
+    mepCat: '插座', mepPick: null, lightCat: '崁燈類',
     inkColor: '#C0392B', inkWidth: 1.2,        // pen colour / stroke width (cm)
     inkErase: false,                           // tap-a-stroke-to-delete mode
     beamW: 30, beamH: 60,                       // beam defaults (cm)
@@ -639,12 +644,12 @@
     door:'放門：點在牆上放置。右側「畫門設定」可先選門／推拉門／門洞，放好後也能隨時改',
     window:'放窗：點在牆上放置。右側「畫窗設定」可先選窗／落地窗／外凸窗，落地窗離地固定為 0',
     shaft:'放管道間：點一下放置。選取後可改長寬與旋轉，也能點四邊的離牆距離直接輸入',
-    mep:'放水電符號：點畫面放下。放好後可改離地高度、離牆距離與角度',
+    mep:'放符號／燈具：點畫面放下（間接燈帶用拖的）。放好後可改尺寸、離牆距離與角度',
     furn:'放家具：點畫面放下。可以連續放好幾件，換一件就在右邊點別的；按左邊「選取」結束。放好後可改尺寸、旋轉；「自訂矩形／圓形」可以自己命名當任何東西用',
     ink:'手寫：用 Apple Pencil 或手指直接寫。用過筆之後手指就只負責平移縮放，手掌靠上去不會畫到。右側可換顏色粗細，或切到「橡皮擦」按住擦掉寫錯的地方（擦一半也可以）',
     photo:'現場照片：點在要記錄的位置，相機會直接打開。拍完就是一張釘在那裡的小圖，點它可以放大看。可以拖動、也可以補文字',
     note:'引線註記：點在要指的位置，會拉出一條引線和一個註記框。框裡可以手寫、打字、或加現場照片。拖框可移動，右下角可調大小',
-    dim:'標尺寸：按住一點拖到另一點放開，自動量出距離',
+    dim:'標尺寸：從綠色小點（圖示中心、角點）或牆面按住，拖到另一個定位點放開。點到牆面自動量垂直距離；沒對準定位點不會建立',
     text:'文字：點一下放置文字',
     column:'放柱子：點一下放置。選取後可點四邊的離牆距離直接輸入，打 0 就貼牆',
     beam:'畫樑：沿著牆畫時會自動貼齊牆內面（整根樑落在室內，不會壓進牆裡）；跨房間畫時兩端會停在牆內面',
@@ -2090,7 +2095,8 @@
     state, ui, view, get rooms(){ return roomsCache; },
     toScreen, toWorld, wallLen,
     api:{ enterFocus, exitFocus, mergeCoincidentWalls, healJunctions, recomputeRooms,
-          draw, pushHistory, renderExport, exportPDF,
+          draw, pushHistory, renderExport, exportPDF, buildDXF:(o)=>buildDXF(o),
+          mepGaps:(m)=>mepGaps(m), dimGeom:(d)=>dimGeom(d), mepTally:(o)=>mepTally(o), setTool:(t)=>setTool(t), gapsToDims:(m)=>gapsToDims(m),
           get LAYERS(){ return LAYERS; }, get pdfOpt(){ return pdfOpt; } }
   };
   function roomAt(wx,wy){
@@ -2134,47 +2140,266 @@
     return {x,y,snapType:'grid'};
   }
 
-  // ---- object snapping for the dimension tool ----
-  // A measurement is only useful if it lands on a real edge. Grid snapping was
-  // rounding every dimension to the nearest 10cm, so measuring the gap between a
-  // sofa and a wall could never give the true number. Here the cursor is pulled
-  // to actual geometry — furniture corners and edges, wall faces, columns,
-  // shafts, beams — and falls back to the exact cursor position, never the grid.
-  function dimSnapTargets(){
-    const pts=[], segs=[];
-    const rect=(c)=>{ for(const p of c) pts.push([p.x,p.y]);
-      for(let i=0;i<c.length;i++){ const a=c[i], b=c[(i+1)%c.length]; segs.push([a.x,a.y,b.x,b.y]); } };
+  // ================= Dimension anchors =================
+  // A dimension may only start and end on something real: a symbol's centre, a
+  // corner, a wall face, a door jamb, the edge of a fitting. There is no "free"
+  // landing spot any more — that is what produced 1102 where 1100 was meant.
+  //
+  // Every anchor carries a REFERENCE to the object it came from, so a dimension
+  // keeps measuring the same two things after either of them moves. Points are
+  // things you measure TO (a socket centre, a corner); lines are things you
+  // measure to PERPENDICULARLY (a wall face, a jamb, a linear light's edge).
+  function faceLine(w,s){
+    const cl=wallCenterline(w), L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1;
+    const ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L, o=s*w.t/2;
+    return {x1:cl.x1-uy*o, y1:cl.y1+ux*o, x2:cl.x2-uy*o, y2:cl.y2+ux*o};
+  }
+  function wallSide(w,p){
+    const cl=wallCenterline(w), L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1;
+    const ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L;
+    return ((p.x-cl.x1)*(-uy)+(p.y-cl.y1)*ux)>=0 ? 1 : -1;
+  }
+  function lineParam(p,ln){
+    const dx=ln.x2-ln.x1, dy=ln.y2-ln.y1, L2=dx*dx+dy*dy||1;
+    const t=((p.x-ln.x1)*dx+(p.y-ln.y1)*dy)/L2;
+    const fx=ln.x1+dx*t, fy=ln.y1+dy*t;
+    return {t, x:fx, y:fy, d:Math.hypot(p.x-fx,p.y-fy)};
+  }
+  const footOn=(p,ln)=>{ const r=lineParam(p,ln); return {x:r.x,y:r.y}; };
+  function lineCross(a,b){
+    const r={x:a.x2-a.x1,y:a.y2-a.y1}, s={x:b.x2-b.x1,y:b.y2-b.y1};
+    const den=r.x*s.y-r.y*s.x;
+    if(Math.abs(den)<1e-9) return null;
+    const t=((b.x1-a.x1)*s.y-(b.y1-a.y1)*s.x)/den;
+    return {x:a.x1+r.x*t, y:a.y1+r.y*t};
+  }
+  const linesParallel=(a,b)=>{
+    const la=Math.hypot(a.x2-a.x1,a.y2-a.y1)||1, lb=Math.hypot(b.x2-b.x1,b.y2-b.y1)||1;
+    return Math.abs(((a.x2-a.x1)/la)*((b.y2-b.y1)/lb)-((a.y2-a.y1)/la)*((b.x2-b.x1)/lb))<0.02;
+  };
+  // which wall's face is this point sitting on (a room side can span several walls)
+  function pickFaceRef(wids,p){
+    let best=null, bd=Infinity;
+    for(const id of (wids||[])){
+      const w=state.walls.find(v=>v.id===id); if(!w||wallLen(w)<1) continue;
+      const s=wallSide(w,p), r=lineParam(p,faceLine(w,s));
+      const d=r.d + ((r.t<-0.02||r.t>1.02)?1000:0);
+      if(d<bd){ bd=d; best={t:'wf', id, s}; }
+    }
+    return best;
+  }
+  function colPoly(c){
+    const a=(c.rot||0)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+    return [[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]]
+      .map(d=>({x:c.x+d[0]*ca-d[1]*sa, y:c.y+d[0]*sa+d[1]*ca}));
+  }
+  function openingGeom(o){
+    const w=state.walls.find(v=>v.id===o.wallId); if(!w||wallLen(w)<1) return null;
+    const bd=openingBand(w), [dx,dy]=wallPointAt(w,o.pos);
+    const cx=dx+bd.nx*bd.coff, cy=dy+bd.ny*bd.coff, hw=o.width/2, ht=bd.ht;
+    const P=(a,b)=>({x:cx+bd.ux*a+bd.nx*b, y:cy+bd.uy*a+bd.ny*b});
+    return {corners:[P(-hw,-ht),P(hw,-ht),P(hw,ht),P(-hw,ht)],
+            jambs:[[P(-hw,-ht),P(-hw,ht)],[P(hw,-ht),P(hw,ht)]]};
+  }
+  const rectPart=(poly,k,i)=>{
+    if(k==='c') return {pt:{x:poly.reduce((a,p)=>a+p.x,0)/poly.length, y:poly.reduce((a,p)=>a+p.y,0)/poly.length}};
+    if(k==='p') return poly[i] ? {pt:{x:poly[i].x,y:poly[i].y}} : null;
+    if(k==='e'){ const a=poly[i], b=poly[(i+1)%poly.length]; return a&&b ? {ln:{x1:a.x,y1:a.y,x2:b.x,y2:b.y}} : null; }
+    return null;
+  };
+  // current geometry of a reference, or null when its object no longer exists
+  function refGeom(r){
+    if(!r) return null;
+    if(r.t==='dev'){
+      const m=state.mep.find(v=>v.id===r.id); if(!m) return null;
+      if(r.k==='c') return {pt:{x:m.x,y:m.y}};
+      return isLinear(m) ? rectPart(devPoly(m),r.k,r.i) : {pt:{x:m.x,y:m.y}};
+    }
+    if(r.t==='wf'){ const w=state.walls.find(v=>v.id===r.id); return w&&wallLen(w)>=1 ? {ln:faceLine(w,r.s)} : null; }
+    if(r.t==='wp'){ const w=state.walls.find(v=>v.id===r.id); if(!w||wallLen(w)<1) return null;
+      const f=faceLine(w,r.s); return {pt: r.e===1?{x:f.x1,y:f.y1}:{x:f.x2,y:f.y2}}; }
+    if(r.t==='wc'){
+      const A=refGeom(r.a), B=refGeom(r.b);
+      if(!A||!B||!A.ln||!B.ln) return null;
+      const p=lineCross(A.ln,B.ln); return p?{pt:p}:null;
+    }
+    if(r.t==='op'){
+      const o=state.openings.find(v=>v.id===r.id); if(!o) return null;
+      const g=openingGeom(o); if(!g) return null;
+      if(r.k==='j'){ const j=g.jambs[r.i]; return j?{ln:{x1:j[0].x,y1:j[0].y,x2:j[1].x,y2:j[1].y}}:null; }
+      return rectPart(g.corners,'p',r.i);
+    }
+    if(r.t==='col'){ const c=state.columns.find(v=>v.id===r.id); return c?rectPart(colPoly(c),r.k,r.i):null; }
+    if(r.t==='furn'){ const f=state.furniture.find(v=>v.id===r.id); return f?rectPart(furnCorners(f),r.k,r.i):null; }
+    if(r.t==='beam'){ const b=state.beams.find(v=>v.id===r.id); return b&&wallLen(b)>=1?rectPart(beamCorners(b),r.k,r.i):null; }
+    return null;
+  }
+  // everything a dimension may land on, as points and lines with their references
+  function buildDimTargets(){
+    const T=[];
+    const addPoly=(poly,mk,names)=>{
+      poly.forEach((p,i)=>T.push({pt:true,x:p.x,y:p.y,ref:mk('p',i),what:names[0]}));
+      poly.forEach((p,i)=>{ const q=poly[(i+1)%poly.length];
+        T.push({pt:false,x1:p.x,y1:p.y,x2:q.x,y2:q.y,ref:mk('e',i),what:names[1]}); });
+      if(names[2]){ const c=rectPart(poly,'c').pt; T.push({pt:true,x:c.x,y:c.y,ref:mk('c'),what:names[2]}); }
+    };
+    // electrical symbols and lights on visible layers
+    for(const m of state.mep){
+      if(!layerVisible(m.layer||'elec')) continue;
+      const nm=mepName(m.kind);
+      if(isLinear(m)){
+        // no centre anchor: a linear fitting is measured to its edge
+        addPoly(devPoly(m),(k,i)=>({t:'dev',id:m.id,k,i}),[nm+'端角',nm+'邊']);
+      } else T.push({pt:true,x:m.x,y:m.y,ref:{t:'dev',id:m.id,k:'c'},what:nm+'中心'});
+    }
+    // wall INNER faces and inner corners, taken from the detected rooms
+    for(const r of roomsCache){
+      const V=r.V, n=V.length; if(n<3) continue;
+      for(let i=0;i<n;i++){
+        const a=V[i], b=V[(i+1)%n], ed=r.edges[i], pe=r.edges[(i-1+n)%n];
+        T.push({pt:false,x1:a.x,y1:a.y,x2:b.x,y2:b.y,wids:ed.wids||[ed.wid],what:'牆面'});
+        const ra=pickFaceRef(pe.wids||[pe.wid],a), rb=pickFaceRef(ed.wids||[ed.wid],a);
+        T.push({pt:true,x:a.x,y:a.y,ref:(ra&&rb)?{t:'wc',a:ra,b:rb}:null,what:'牆角'});
+      }
+    }
+    // walls that do not (yet) enclose a room: both faces and their free ends
     for(const w of state.walls){
-      if(wallLen(w)<1) continue;
-      const c=wallCorners(w);
-      rect([c.L1,c.L2,c.R2,c.R1]);
+      if(wallLen(w)<1 || roomWallIds.has(w.id)) continue;
+      for(const s of [1,-1]){
+        const f=faceLine(w,s);
+        T.push({pt:false,...f,ref:{t:'wf',id:w.id,s},what:'牆面'});
+        T.push({pt:true,x:f.x1,y:f.y1,ref:{t:'wp',id:w.id,s,e:1},what:'牆端'});
+        T.push({pt:true,x:f.x2,y:f.y2,ref:{t:'wp',id:w.id,s,e:2},what:'牆端'});
+      }
+    }
+    for(const o of state.openings){
+      const g=openingGeom(o); if(!g) continue;
+      const nm=o.type==='door'?'門框':'窗框';
+      g.jambs.forEach((j,i)=>T.push({pt:false,x1:j[0].x,y1:j[0].y,x2:j[1].x,y2:j[1].y,ref:{t:'op',id:o.id,k:'j',i},what:nm}));
+      g.corners.forEach((p,i)=>T.push({pt:true,x:p.x,y:p.y,ref:{t:'op',id:o.id,k:'p',i},what:nm+'角'}));
     }
     for(const c of state.columns){
-      const a=(c.rot||0)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
-      rect([[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]]
-        .map(d=>({x:c.x+d[0]*ca-d[1]*sa, y:c.y+d[0]*sa+d[1]*ca})));
+      const nm=isShaft(c)?'管道間':'柱';
+      addPoly(colPoly(c),(k,i)=>({t:'col',id:c.id,k,i}),[nm+'角',nm+'邊',nm+'中心']);
     }
-    for(const bm of state.beams){ if(wallLen(bm)>=1) rect(beamCorners(bm)); }
-    for(const f of state.furniture){ if(layerVisible(f.layer||'plan')) rect(furnCorners(f)); }
-    // The centre of a socket or a switch is the point a dimension is nearly always
-    // taken TO — it is the thing the離牆距離 already measures — so it snaps like a
-    // corner. Without it you are aiming at a circle by eye and the number drifts.
-    for(const m of state.mep){ if(layerVisible(m.layer||'elec')) pts.push([m.x,m.y]); }
-    return {pts,segs};
+    for(const b of state.beams){
+      if(wallLen(b)<1) continue;
+      addPoly(beamCorners(b),(k,i)=>({t:'beam',id:b.id,k,i}),['樑角','樑邊']);
+    }
+    for(const f of state.furniture){
+      if(!layerVisible(f.layer||'plan')) continue;
+      const nm=f.name||'家具';
+      addPoly(furnCorners(f),(k,i)=>({t:'furn',id:f.id,k,i}),[nm+'角',nm+'邊',nm+'中心']);
+    }
+    // ends of existing dimensions, for running a chain on
+    for(const d of state.dims){
+      if(!layerVisible(d.layer||'plan')) continue;
+      T.push({pt:true,x:d.x1,y:d.y1,ref:d.r1||null,what:d.w1||'尺寸端點'});
+      T.push({pt:true,x:d.x2,y:d.y2,ref:d.r2||null,what:d.w2||'尺寸端點'});
+    }
+    return T;
   }
-  function snapToObjects(wx,wy){
-    const T=dimSnapTargets();
-    const near=snapRadius(14,30);      // corners win within this radius
-    let best=null, bd=near;
-    for(const [x,y] of T.pts){ const d=Math.hypot(x-wx,y-wy); if(d<bd){ bd=d; best={x,y,snapType:'corner'}; } }
-    if(best) return best;
-    let bs=null, bsd=snapRadius(10,25);    // then the nearest edge
-    for(const [x1,y1,x2,y2] of T.segs){
-      const p=projPointToSeg(wx,wy,x1,y1,x2,y2);
-      if(p.d<bsd){ bsd=p.d; bs={x:p.x,y:p.y,snapType:'edge'}; }
+  // nearest anchor under the finger, or null — never a free point
+  function dimSnap(wx,wy,T,exact){
+    const Rp = exact ? exact : Math.min(30/view.scale, 90);
+    const Rl = exact ? exact : Math.min(22/view.scale, 70);
+    let bp=null, bd=Rp;
+    for(const t of T){ if(!t.pt) continue; const d=Math.hypot(t.x-wx,t.y-wy); if(d<bd){ bd=d; bp=t; } }
+    if(bp) return {pt:true, x:bp.x, y:bp.y, ref:bp.ref, what:bp.what};
+    let bl=null, bld=Rl, bx=0, by=0;
+    for(const t of T){
+      if(t.pt) continue;
+      const p=projPointToSeg(wx,wy,t.x1,t.y1,t.x2,t.y2);
+      if(p.d<bld){ bld=p.d; bl=t; bx=p.x; by=p.y; }
     }
-    if(bs) return bs;
-    return {x:wx,y:wy,snapType:'free'};   // exact cursor — never rounded to grid
+    if(!bl) return null;
+    const ref = bl.ref || (bl.wids ? pickFaceRef(bl.wids,{x:bx,y:by}) : null);
+    return {pt:false, x:bx, y:by, line:{x1:bl.x1,y1:bl.y1,x2:bl.x2,y2:bl.y2}, ref, what:bl.what};
+  }
+  // Turn two anchors into the dimension they mean:
+  //   point → line   perpendicular from the point onto the face
+  //   point → point  horizontal or vertical (whichever way you dragged),
+  //                  aligned only when the angle lock is set to 自由
+  //   line → line    perpendicular distance between two parallel faces
+  function solveDim(s1,s2){
+    if(!s1||!s2) return null;
+    let p1={x:s1.x,y:s1.y}, p2={x:s2.x,y:s2.y}, mode='a';
+    const ptpt=()=>{ mode = ui.angleMode==='free' ? 'a'
+                       : (Math.abs(p2.x-p1.x)>=Math.abs(p2.y-p1.y) ? 'h' : 'v'); };
+    if(s1.pt && s2.pt) ptpt();
+    else if(s1.pt && !s2.pt) p2=footOn(p1,s2.line);
+    else if(!s1.pt && s2.pt) p1=footOn(p2,s1.line);
+    else if(linesParallel(s1.line,s2.line)) p2=footOn(p1,s2.line);
+    else ptpt();
+    const len = mode==='h' ? Math.abs(p2.x-p1.x) : mode==='v' ? Math.abs(p2.y-p1.y) : Math.hypot(p2.x-p1.x,p2.y-p1.y);
+    if(!(len>=0.5)) return null;
+    return {x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,mode,len};
+  }
+  // keep every linked dimension measuring the same two things
+  function resolveDims(){
+    for(const d of state.dims){
+      if(!d.r1 && !d.r2) continue;
+      const g1=refGeom(d.r1), g2=refGeom(d.r2);
+      if(!g1 && !g2) continue;
+      let p1={x:d.x1,y:d.y1}, p2={x:d.x2,y:d.y2};
+      const P1=g1&&g1.pt, P2=g2&&g2.pt, L1=g1&&g1.ln, L2=g2&&g2.ln;
+      if(P1) p1={...P1};
+      if(P2) p2={...P2};
+      if(L1 && !L2) p1=footOn(p2,L1);
+      else if(L2 && !L1) p2=footOn(p1,L2);
+      else if(L1 && L2){ p1=footOn(p1,L1); p2=linesParallel(L1,L2)?footOn(p1,L2):footOn(p2,L2); }
+      if([p1.x,p1.y,p2.x,p2.y].every(Number.isFinite)){ d.x1=p1.x; d.y1=p1.y; d.x2=p2.x; d.y2=p2.y; }
+    }
+  }
+  // geometry of a stored dimension: the two measured points, the line the number
+  // sits on, and the length it reports
+  function dimGeom(d){
+    const mode=d.mode||'a';
+    const p1={x:d.x1,y:d.y1}, p2={x:d.x2,y:d.y2};
+    const e1={...p1};
+    const e2= mode==='h' ? {x:d.x2,y:d.y1} : mode==='v' ? {x:d.x1,y:d.y2} : {...p2};
+    const L=Math.hypot(e2.x-e1.x,e2.y-e1.y);
+    let nx,ny;
+    if(L>1e-6){ nx=-(e2.y-e1.y)/L; ny=(e2.x-e1.x)/L; } else { nx=0; ny=-1; }
+    // dimensions from older files have no mode and always stood 30 off
+    const off=d.mode ? (d.off==null?30:d.off) : (d.off||30);
+    return {p1,p2,e1,e2,len:L,nx,ny,off,
+            ax:e1.x+nx*off, ay:e1.y+ny*off, bx:e2.x+nx*off, by:e2.y+ny*off};
+  }
+  // make a dimension from two anchors (used by the tool and by 轉成正式尺寸)
+  function addDimFromSnaps(s1,s2,layer,off){
+    const sol=solveDim(s1,s2); if(!sol) return null;
+    const dup=state.dims.some(d=>(Math.hypot(d.x1-sol.x1,d.y1-sol.y1)<0.5&&Math.hypot(d.x2-sol.x2,d.y2-sol.y2)<0.5)
+                               ||(Math.hypot(d.x1-sol.x2,d.y1-sol.y2)<0.5&&Math.hypot(d.x2-sol.x1,d.y2-sol.y1)<0.5));
+    if(dup) return 'dup';
+    const d={id:uid(), x1:sol.x1,y1:sol.y1,x2:sol.x2,y2:sol.y2, mode:sol.mode,
+             off: off!=null ? off : ((s1.pt&&s2.pt)?30:0), layer:layer||state.layer,
+             r1:s1.ref||null, r2:s2.ref||null, w1:s1.what||'', w2:s2.what||''};
+    state.dims.push(d);
+    return d;
+  }
+  // the gap labels you already see around a selected symbol, made permanent
+  function gapsToDims(m){
+    const T=buildDimTargets();
+    let made=0, dup=0;
+    for(const g of mepGaps(m)){
+      const horiz=(g.dir==='left'||g.dir==='right'), along=horiz?m.y:m.x;
+      const p1=horiz?{x:g.selfEdge,y:along}:{x:along,y:g.selfEdge};
+      const p2=horiz?{x:g.face,y:along}:{x:along,y:g.face};
+      const raw=(p)=>({pt:true,x:p.x,y:p.y,ref:null,what:''});
+      const s1=dimSnap(p1.x,p1.y,T,0.6)||raw(p1);
+      let s2=dimSnap(p2.x,p2.y,T,0.6)||raw(p2);
+      // another point light: measure to ITS centre, even if it sits a little off line
+      const o=g.tid && state.mep.find(v=>v.id===g.tid);
+      if(o) s2={pt:true,x:o.x,y:o.y,ref:{t:'dev',id:o.id,k:'c'},what:mepName(o.kind)+'中心'};
+      // the device end must be the device itself, not a wall face it happens to touch
+      if(!isLinear(m)){ s1.pt=true; s1.x=m.x; s1.y=m.y; s1.ref={t:'dev',id:m.id,k:'c'}; s1.what=mepName(m.kind)+'中心'; }
+      const r=addDimFromSnaps(s1,s2,m.layer||state.layer,0);
+      if(r==='dup') dup++; else if(r){ made++; if(s1.pt&&s2.pt) r.mode=horiz?'h':'v'; }
+    }
+    if(made){ pushHistory(); draw(); }
+    flashHint(made ? ('已轉成 '+made+' 道正式尺寸'+(dup?'（'+dup+' 道已存在）':''))
+                   : (dup ? '這些間距都已經有正式尺寸了' : '沒有可以轉換的間距'));
   }
 
   // snap to existing geometry: endpoint/corner (priority) or a point on a wall
@@ -2741,15 +2966,29 @@
     }
   }
 
-  function dimOffsetPoints(d){
-    const L=dist(d.x1,d.y1,d.x2,d.y2)||1;
-    const nx=-(d.y2-d.y1)/L, ny=(d.x2-d.x1)/L;
-    const off=d.off||30;
-    return {ax:d.x1+nx*off, ay:d.y1+ny*off, bx:d.x2+nx*off, by:d.y2+ny*off, nx,ny,off};
+  function dimOffsetPoints(d){ return dimGeom(d); }
+  function drawOneDim(d, color){
+    const o=dimGeom(d);
+    const [ax,ay]=toScreen(o.ax,o.ay),[bx,by]=toScreen(o.bx,o.by);
+    const [ex1,ey1]=toScreen(o.p1.x,o.p1.y),[ex2,ey2]=toScreen(o.p2.x,o.p2.y);
+    ctx.strokeStyle=color; ctx.fillStyle=color;
+    // extension lines run from the measured points, so a horizontal dimension
+    // between two sockets at different heights still points at both of them
+    ctx.beginPath(); ctx.moveTo(ex1,ey1); ctx.lineTo(ax,ay); ctx.moveTo(ex2,ey2); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    const ang=Math.atan2(by-ay,bx-ax);
+    arrow(ax,ay,ang); arrow(bx,by,ang+Math.PI);
+    const mx=(ax+bx)/2, my=(ay+by)/2;
+    ctx.save(); ctx.translate(mx,my); let ra=ang; if(ra>Math.PI/2||ra<-Math.PI/2)ra+=Math.PI; ctx.rotate(ra);
+    ctx.font=`600 ${fpx(12)}px -apple-system,system-ui,sans-serif`; ctx.textAlign='center'; ctx.textBaseline='bottom';
+    const txt=fmtLen(o.len);
+    const tw=ctx.measureText(txt).width;
+    ctx.fillStyle='#FBFBFC'; ctx.fillRect(-tw/2-3*TS,-16*TS,tw+6*TS,15*TS);
+    ctx.fillStyle=color; ctx.fillText(txt,0,-3*TS);
+    ctx.restore();
   }
   function drawDims(){
     if(!showOpt.dims) return;
-    ctx.strokeStyle='#A23B2D'; ctx.fillStyle='#A23B2D';
     // A dimension belongs to the drawing it annotates. A clearance you measured on
     // the furniture layout says nothing about the electrical layout, so hiding the
     // layout has to take its dimensions with it — otherwise they float over the
@@ -2760,28 +2999,44 @@
     for(const d of state.dims){
       if(!layerVisible(d.layer||'plan')) continue;
       ctx.globalAlpha=layerAlpha(d.layer||'plan');
-      const o=dimOffsetPoints(d);
-      const [ax,ay]=toScreen(o.ax,o.ay),[bx,by]=toScreen(o.bx,o.by);
-      const [ex1,ey1]=toScreen(d.x1,d.y1),[ex2,ey2]=toScreen(d.x2,d.y2);
-      // extension lines
-      ctx.beginPath(); ctx.moveTo(ex1,ey1); ctx.lineTo(ax,ay); ctx.moveTo(ex2,ey2); ctx.lineTo(bx,by); ctx.stroke();
-      // dim line
-      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
-      // arrows (ticks)
-      const ang=Math.atan2(by-ay,bx-ax);
-      arrow(ax,ay,ang); arrow(bx,by,ang+Math.PI);
-      // label
-      const mx=(ax+bx)/2, my=(ay+by)/2;
-      const len=dist(d.x1,d.y1,d.x2,d.y2);
-      ctx.save(); ctx.translate(mx,my); let ra=ang; if(ra>Math.PI/2||ra<-Math.PI/2)ra+=Math.PI; ctx.rotate(ra);
-      ctx.font=`600 ${fpx(12)}px -apple-system,system-ui,sans-serif`; ctx.textAlign='center'; ctx.textBaseline='bottom';
-      const txt=fmtLen(len);
-      const tw=ctx.measureText(txt).width;
-      ctx.fillStyle='#FBFBFC'; ctx.fillRect(-tw/2-3,-16,tw+6,15);
-      ctx.fillStyle='#A23B2D'; ctx.fillText(txt,0,-3);
-      ctx.restore();
+      drawOneDim(d,'#A23B2D');
     }
     ctx.globalAlpha=1;
+  }
+  // while the dimension tool is in hand, every place it can land is marked
+  function drawDimAnchors(T){
+    if(ui.tool!=='dim') return;
+    ctx.save();
+    ctx.strokeStyle='rgba(18,183,106,.75)'; ctx.fillStyle='#FFFFFF'; ctx.lineWidth=1.2;
+    for(const t of T){
+      if(!t.pt) continue;
+      const [sx,sy]=toScreen(t.x,t.y);
+      if(sx<-10||sy<-10||sx>W+10||sy>H+10) continue;
+      ctx.beginPath(); ctx.arc(sx,sy,3.2,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function drawDimSnapMark(s){
+    if(!s) return;
+    const [sx,sy]=toScreen(s.x,s.y);
+    ctx.save();
+    ctx.strokeStyle='#12B76A'; ctx.lineWidth=2.5; ctx.fillStyle='rgba(18,183,106,.15)';
+    if(s.pt){ ctx.beginPath(); ctx.arc(sx,sy,10,0,Math.PI*2); ctx.fill(); ctx.stroke();
+              ctx.fillStyle='#12B76A'; ctx.beginPath(); ctx.arc(sx,sy,2.6,0,Math.PI*2); ctx.fill(); }
+    else {
+      const a=toScreen(s.line.x1,s.line.y1), b=toScreen(s.line.x2,s.line.y2);
+      ctx.lineWidth=3; ctx.strokeStyle='rgba(18,183,106,.55)';
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+      ctx.lineWidth=2.5; ctx.strokeStyle='#12B76A';
+      ctx.beginPath(); ctx.rect(sx-8,sy-8,16,16); ctx.fill(); ctx.stroke();
+    }
+    if(s.what){
+      ctx.font='600 11px -apple-system,system-ui,sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+      const tw=ctx.measureText(s.what).width;
+      ctx.fillStyle='#12B76A'; roundRect(sx+14,sy-22,tw+12,18,5); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.fillText(s.what, sx+20, sy-13);
+    }
+    ctx.restore();
   }
   function arrow(x,y,ang){
     const s=6;
@@ -3061,14 +3316,31 @@
       ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<4;i++)ctx.lineTo(p[i][0],p[i][1]);
       ctx.closePath(); ctx.stroke();
       ctx.restore();
-    } else if(draft.kind==='dim'){
-      ctx.strokeStyle='rgba(162,59,45,.7)'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+    } else if(draft.kind==='strip'){
       const[a,b]=toScreen(draft.a.x,draft.a.y),[c,d]=toScreen(draft.cur.x,draft.cur.y);
-      ctx.beginPath(); ctx.moveTo(a,b); ctx.lineTo(c,d); ctx.stroke(); ctx.setLineDash([]);
+      ctx.save(); ctx.strokeStyle=MEP_COLOR.light; ctx.lineWidth=2.2; ctx.setLineDash([9,6]);
+      ctx.beginPath(); ctx.moveTo(a,b); ctx.lineTo(c,d); ctx.stroke(); ctx.restore();
+    } else if(draft.kind==='dim'){
+      if(draft.sol){
+        ctx.save(); ctx.lineWidth=1.6; ctx.globalAlpha=0.9;
+        drawOneDim({...draft.sol, off:(draft.s1.pt&&draft.s2.pt)?30:0}, '#12B76A');
+        ctx.restore();
+      } else {
+        // not on an anchor yet: a dashed line and a red cross where the finger is
+        ctx.save(); ctx.strokeStyle='rgba(162,59,45,.7)'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+        const[a,b]=toScreen(draft.a.x,draft.a.y),[c,d]=toScreen(draft.cur.x,draft.cur.y);
+        ctx.beginPath(); ctx.moveTo(a,b); ctx.lineTo(c,d); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle='#C0392B'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(c-7,d-7); ctx.lineTo(c+7,d+7); ctx.moveTo(c+7,d-7); ctx.lineTo(c-7,d+7); ctx.stroke();
+        ctx.restore();
+      }
+      drawDimSnapMark(draft.s1);
+      drawDimSnapMark(draft.s2);
     }
   }
 
   function draw(){
+    try{ resolveDims(); }catch(_){}
     ctx.clearRect(0,0,W,H);
     hitLabels=[];
     placedLabels=[];
@@ -3093,6 +3365,7 @@
     drawInk();
     drawFocusVeil();
     drawGuides();
+    if(ui.tool==='dim') drawDimAnchors(draft&&draft.T ? draft.T : buildDimTargets());
     drawDraft();
     drawSelection();
   }
@@ -3661,6 +3934,14 @@
   document.getElementById('dbgCopy').addEventListener('click',e=>{ e.stopPropagation(); dbgCopy(); });
   document.getElementById('dbgClear').addEventListener('click',e=>{ e.stopPropagation(); dbgLog.length=0; dbg('— 已清除 —'); });
 
+  function commitDimDraft(){
+    const dr=draft; draft=null; typedNum=''; hideLenBox();
+    if(!dr.s2 || !dr.sol){ flashHint('終點沒有對準定位點，這次沒有建立尺寸'); draw(); return; }
+    const d=addDimFromSnaps(dr.s1,dr.s2,state.layer);
+    if(d==='dup'){ flashHint('這道尺寸已經標過了'); draw(); return; }
+    if(!d){ draw(); return; }
+    ui.selected={kind:'dim',id:d.id}; refreshProp(); pushHistory(); draw();
+  }
   stage.addEventListener('pointerdown',e=>{
     dbg(`DOWN id=${e.pointerId} type=${e.pointerType} pointers.size(before)=${pointers.size} draft=${draft?draft.kind+'(pid='+draft.pointerId+',type='+draft.pointerType+')':'null'}`);
     // A SECOND finger arriving is always a pinch-zoom gesture and takes priority
@@ -3785,20 +4066,20 @@
     // A room's name block is the one label you also want to MOVE — the centroid is
     // often the wrong spot (an L-shaped space, or two rooms whose labels collide).
     // Press and drag moves it; press and release without moving still renames it.
-    if(lab && lab.kind==='calibval' && ui.tool!=='wall'){
+    if(lab && lab.kind==='calibval' && ui.tool!=='wall' && ui.tool!=='dim'){
       try{stage.releasePointerCapture(e.pointerId);}catch(_){}
       pointers.delete(e.pointerId);
       underlayEditCalib();
       return;
     }
-    if(lab && lab.kind==='name' && ui.tool!=='wall'){
+    if(lab && lab.kind==='name' && ui.tool!=='wall' && ui.tool!=='dim'){
       dragging={hit:{kind:'roomname', key:lab.room.key}, start:[wx,wy], moved:false,
                 orig:Object.assign({dx:0,dy:0},(state.roomLabelOff||{})[lab.room.key]),
                 lab, downPx:[px,py]};
       draw();
       return;
     }
-    if(lab && ui.tool!=='wall'){ dbg(`  -> hit label kind=${lab.kind}`); try{stage.releasePointerCapture(e.pointerId);}catch(_){}
+    if(lab && ui.tool!=='wall' && ui.tool!=='dim'){ dbg(`  -> hit label kind=${lab.kind}`); try{stage.releasePointerCapture(e.pointerId);}catch(_){}
       pointers.delete(e.pointerId);
       openLabelEditor(lab,px,py);
       return; }
@@ -3823,11 +4104,22 @@
       draft={kind:'wall',a:{x:r.x,y:r.y},cur:{x:r.x,y:r.y},startSnap:r.snap,snap:r.snap,pendingLabel:lab,downPx:[px,py],pointerId:e.pointerId,pointerType:e.pointerType};
       typedNum=''; dbg(`  wall draft started type=${e.pointerType}`);
     }
-    else if(ui.tool==='dim'){ const sp=snapToObjects(wx,wy); draft={kind:'dim',a:{x:sp.x,y:sp.y},cur:{x:sp.x,y:sp.y},pointerId:e.pointerId,pointerType:e.pointerType}; }
+    else if(ui.tool==='dim'){
+      const T=buildDimTargets();
+      const s=dimSnap(wx,wy,T);
+      if(!s){ flashHint('起點要對準圖示中心、角點或牆面（綠色小點）'); draw(); return; }
+      draft={kind:'dim',s1:s,s2:null,sol:null,T,a:{x:s.x,y:s.y},cur:{x:s.x,y:s.y},pointerId:e.pointerId,pointerType:e.pointerType};
+      draw();
+    }
     else if(ui.tool==='door'||ui.tool==='window'){ placeOpening(wx,wy,ui.tool); }
     else if(ui.tool==='shaft'){ placeColumn(wx,wy,'shaft'); }
     else if(ui.tool==='furn'){ placeFurniture(wx,wy); }
-    else if(ui.tool==='mep'){ placeMEP(wx,wy); }
+    else if(ui.tool==='mep'){
+      if(ui.mepPick && LIGHT_SPEC[ui.mepPick] && LIGHT_SPEC[ui.mepPick].strip){
+        const sp=devSnap(ui.mepPick,wx,wy);
+        draft={kind:'strip',a:{x:sp.x,y:sp.y},cur:{x:sp.x,y:sp.y},pointerId:e.pointerId,pointerType:e.pointerType};
+      } else placeMEP(wx,wy);
+    }
     else if(ui.tool==='text'){ placeText(wx,wy); }
     else if(ui.tool==='column'){ placeColumn(wx,wy); }
     else if(ui.tool==='beam'){ const r=computeBeamEnd(null,wx,wy); draft={kind:'beam',a:{x:r.x,y:r.y},a0:{x:r.x,y:r.y},cur:{x:r.x,y:r.y},pointerId:e.pointerId,pointerType:e.pointerType}; typedNum=''; }
@@ -3881,6 +4173,18 @@
 
     // drag-drawing preview (wall / dim) — only the finger that owns this draft may drive it
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> move IGNORED, not draft owner`); return; }
+    if(draft && draft.kind==='dim'){
+      let s2=dimSnap(wx,wy,draft.T);
+      // the start anchor itself is not a valid end
+      if(s2 && Math.hypot(s2.x-draft.s1.x,s2.y-draft.s1.y)<0.5 && s2.pt===draft.s1.pt) s2=null;
+      draft.s2=s2;
+      draft.cur= s2 ? {x:s2.x,y:s2.y} : {x:wx,y:wy};
+      draft.sol= s2 ? solveDim(draft.s1,s2) : null;
+      if(draft.sol){ const g=dimGeom(draft.sol); const [lx,ly]=toScreen(draft.cur.x,draft.cur.y); showLenBox(lx,ly,fmtLenU(g.len)); }
+      else { const [lx,ly]=toScreen(wx,wy); showLenBox(lx,ly,'對準定位點'); }
+      draw();
+      return;
+    }
     if(draft){
       if(draft.pendingLabel && draft.downPx){ const dd=Math.hypot(px-draft.downPx[0],py-draft.downPx[1]); if(dd>6){ draft.pendingLabel=null; dbg(`  pendingLabel cleared (dd=${dd.toFixed(0)}px)`); } }
       const from=(draft.kind==='beam' && draft.a0) ? draft.a0 : draft.a;
@@ -3895,18 +4199,6 @@
           const r=(draft.kind==='beam')?computeBeamEnd(from,wx,wy):computeWallEnd(from,wx,wy);
           sp={x:r.x,y:r.y}; draft.guides=r.guides; draft.snap=r.snap;
         }
-      } else if(false){
-      } else if(draft.kind==='dim'){
-        // a dimension measures real geometry, so it snaps to real geometry —
-        // and to nothing at all otherwise. Rounding to the grid is what made
-        // every measurement land on a 10cm multiple.
-        sp=snapToObjects(wx,wy);
-        if(angleLockOn()){
-          const dx=sp.x-from.x, dy=sp.y-from.y;
-          if(Math.abs(dx)>Math.abs(dy)*4) sp={x:sp.x,y:from.y};
-          else if(Math.abs(dy)>Math.abs(dx)*4) sp={x:from.x,y:sp.y};
-        }
-        draft.guides=[];
       } else {
         sp=snapWorld(wx,wy,from); draft.guides=[];
       }
@@ -3987,6 +4279,7 @@
       dragging=null;
     }
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> UP IGNORED, not draft owner`); return; }
+    if(draft && draft.kind==='dim'){ commitDimDraft(); return; }
     if(draft && draft.kind==='wall' && draft.pendingLabel){
       dbg(`  -> treated as LABEL TAP, wall NOT created`);
       const lab=draft.pendingLabel; const [px,py]=draft.downPx;
@@ -4005,6 +4298,10 @@
           dbg(`  -> WALL CREATED id=${w.id} (${a.x.toFixed(0)},${a.y.toFixed(0)})-(${c.x.toFixed(0)},${c.y.toFixed(0)})`);
           draft=null; typedNum=''; hideLenBox();
           draw();
+          return;
+        } else if(draft.kind==='strip'){
+          makeStrip(a,c);
+          draft=null; typedNum=''; hideLenBox(); draw();
           return;
         } else if(draft.kind==='beam'){
           const bm={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,w:ui.beamW,h:ui.beamH,align:ui.wallAlign,position:'ceiling',distTop:0};
@@ -4031,6 +4328,8 @@
     // touch appears, so we try to COMMIT the draft here just like pointerup,
     // instead of silently throwing away everything the user just dragged.
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> CANCEL IGNORED, not draft owner`); return; }
+    if(draft && draft.kind==='dim'){ commitDimDraft(); return; }
+    if(draft && draft.kind==='strip'){ const a=draft.a,c=draft.cur||draft.a; if(dist(a.x,a.y,c.x,c.y)>15) makeStrip(a,c); draft=null; hideLenBox(); draw(); return; }
     if(draft && draft.kind==='wall' && draft.pendingLabel){ dbg(`  -> pendingLabel set, discarding without creating`); draft=null; typedNum=''; hideLenBox(); draw(); return; }
     if(draft){
       const a=draft.a, c=draft.cur||draft.a;
@@ -4204,6 +4503,13 @@
       // the whole wall sideways, dragging its neighbours along so they stretch
       const s=wallSideHandles(w);
       if(s){ for(const p of [s.a,s.b]){ if(Math.hypot(wx-p.x,wy-p.y)<thr) return {kind:'wallSide', id:w.id}; } }
+    } else if(ui.selected.kind==='mep'){
+      const m=state.mep.find(v=>v.id===ui.selected.id);
+      if(m && isLinear(m) && itemLive(m)){
+        const e=devEnds(m), thr2=Math.max(thr,16/view.scale);
+        if(Math.hypot(wx-e[0].x,wy-e[0].y)<thr2) return {kind:'mepEnd', id:m.id, which:1};
+        if(Math.hypot(wx-e[1].x,wy-e[1].y)<thr2) return {kind:'mepEnd', id:m.id, which:2};
+      }
     } else if(ui.selected.kind==='beam'){
       const b=state.beams.find(v=>v.id===ui.selected.id); if(!b) return null;
       if(Math.hypot(wx-b.x1,wy-b.y1)<thr) return {kind:'beamEndpoint', id:b.id, which:'x1'};
@@ -4249,7 +4555,7 @@
     if(hit.kind==='beamEndpoint'){ const b=state.beams.find(v=>v.id===hit.id); return {...b}; }
     if(hit.kind==='note'){ const n=state.notes.find(v=>v.id===hit.id); return {...n}; }
     if(hit.kind==='furn'){ const f=state.furniture.find(v=>v.id===hit.id); return {...f}; }
-    if(hit.kind==='mep'){ const m=state.mep.find(v=>v.id===hit.id); return {...m}; }
+    if(hit.kind==='mep'||hit.kind==='mepEnd'){ const m=state.mep.find(v=>v.id===hit.id); return {...m}; }
   }
   function doDrag(wx,wy){
     const {hit,start,orig}=dragging; const dx=wx-start[0], dy=wy-start[1];
@@ -4299,9 +4605,8 @@
       // were measuring — the number stayed the same while the dimension quietly
       // stopped meaning anything. The offset slides; the endpoints stay put.
       const d=state.dims.find(v=>v.id===hit.id);
-      const L=Math.hypot(orig.x2-orig.x1, orig.y2-orig.y1)||1;
-      const nx=-(orig.y2-orig.y1)/L, ny=(orig.x2-orig.x1)/L;
-      d.off=(orig.off||0) + (dx*nx + dy*ny);
+      const g0=dimGeom(orig);
+      d.off=g0.off + (dx*g0.nx + dy*g0.ny);
     }
     else if(hit.kind==='text'){ const t=state.texts.find(v=>v.id===hit.id); t.x=orig.x+dx;t.y=orig.y+dy; }
     else if(hit.kind==='underlay'){
@@ -4313,8 +4618,20 @@
     }
     else if(hit.kind==='mep'){
       const m=state.mep.find(v=>v.id===hit.id);
-      const sp=mepSnap(orig.x+dx, orig.y+dy);
+      const sp=devSnap(m.kind, orig.x+dx, orig.y+dy);
       m.x=sp.x; m.y=sp.y;
+      faceInward(m);
+    }
+    else if(hit.kind==='mepEnd'){
+      // stretch a linear fitting from one end; the other end stays exactly put
+      const m=state.mep.find(v=>v.id===hit.id);
+      const a=(orig.rot||0)*Math.PI/180, ux=Math.cos(a), uy=Math.sin(a);
+      const sgn = hit.which===1 ? -1 : 1;                 // which end is moving
+      const fx=orig.x - sgn*ux*devLen(orig)/2, fy=orig.y - sgn*uy*devLen(orig)/2;
+      let L=((wx-fx)*ux+(wy-fy)*uy)*sgn;
+      if(ui.snap) L=Math.round(L/ui.gridSize)*ui.gridSize; else L=Math.round(L);
+      L=Math.max(10,L);
+      m.len=L; m.x=fx+sgn*ux*L/2; m.y=fy+sgn*uy*L/2;
     }
     else if(hit.kind==='furn'){
       const f=state.furniture.find(v=>v.id===hit.id);
@@ -4493,28 +4810,42 @@
       document.getElementById('pDel').onclick=deleteSelected;
     }
     else if(s.kind==='mep'){ const m=state.mep.find(v=>v.id===s.id);
+      const lsp=lightSpec(m), wallDev=isWallDevice(m), light=isLight(m);
+      const num=(id,val,step)=>`<div class="field"><input type="number" id="${id}" value="${val}" step="${step||1}" min="0"><span class="unit">${U}</span></div>`;
       propBody.innerHTML=`
-      <div class="row"><label>符號</label><span style="font-size:13px;color:${mepColor(m.kind)};font-weight:600">${mepName(m.kind)}</span></div>
-      <div class="row"><label>離地高</label><div class="field"><input type="number" id="pMh" value="${Math.round(toDisp(m.h||0))}" step="5" min="0"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>${light?'燈具':'符號'}</label><span style="font-size:13px;color:${mepColor(m.kind)};font-weight:600">${mepName(m.kind)}</span></div>
+      ${lsp.dia?`<div class="row"><label>開孔 Ø</label>${num('pMdia',Math.round(toDisp(devDia(m))*10)/10,ui.unit==='mm'?5:0.5)}</div>`:''}
+      ${lsp.linear?`<div class="row"><label>長度</label>${num('pMlen',Math.round(toDisp(devLen(m))),1)}</div>
+        <div class="row"><label style="font-size:11px;color:var(--muted)">也可以拖兩端的圓點調長度</label></div>`:''}
+      ${lsp.sz?`<div class="row"><label>尺寸</label>${num('pMsz',Math.round(toDisp(devSz(m))),1)}</div>`:''}
+      ${wallDev?`<div class="row"><label>離地高</label>${num('pMh',Math.round(toDisp(m.h||0)),5)}</div>`:''}
       ${(()=>{const D={up:'上',down:'下',left:'左',right:'右'};
         const gs=mepGaps(m);
         const short=(t)=>{ t=String(t||'牆'); return t.length>4?t.slice(0,4)+'…':t; };
         return gs.length
           ? gs.map(x=>`<div class="row"><label>${D[x.dir]}·離${short(x.what)}</label><div class="field"><input type="number" class="pMgap" data-dir="${x.dir}" min="0" value="${Math.round(toDisp(x.gap))}" step="1"><span class="unit">${U}</span></div></div>`).join('')
+            + `<button class="btn" id="pMtoDim" style="margin:2px 0 12px">把間距轉成正式尺寸</button>`
           : '<div class="row"><label style="color:var(--muted);font-size:11px">四周沒有東西，無法量距離</label></div>';
       })()}
-      <div class="row"><label>標註離牆</label><div class="seg" id="pMdimSeg"><button data-v="1"${m.showDim!==false?' class="on"':''}>顯示</button><button data-v="0"${m.showDim===false?' class="on"':''}>隱藏</button></div></div>
+      ${wallDev?`<div class="row"><label>標註離牆</label><div class="seg" id="pMdimSeg"><button data-v="1"${m.showDim!==false?' class="on"':''}>顯示</button><button data-v="0"${m.showDim===false?' class="on"':''}>隱藏</button></div></div>`:''}
       <div class="row"><label>角度</label><div class="seg" id="pMrotSeg"><button data-r="0">0°</button><button data-r="90">90°</button><button data-r="180">180°</button><button data-r="270">270°</button></div></div>
+      <div class="row"><label></label><div class="field"><input type="number" id="pMrot" value="${Math.round(m.rot||0)}" step="5"><span class="unit">°</span></div></div>
       <div class="row"><label>圖層</label><span style="font-size:12px;color:var(--muted)">${layerName(m.layer||'elec')}</span></div>
-      <button class="del-btn" id="pDel">刪除符號</button>`;
-      document.getElementById('pMh').onchange=ev=>{ m.h=Math.max(0,fromDisp(parseFloat(ev.target.value)||0)); pushHistory(); draw(); };
+      <button class="del-btn" id="pDel">刪除${light?'燈具':'符號'}</button>`;
+      const on=(id,fn)=>{ const el=document.getElementById(id); if(el) el.onchange=fn; };
+      on('pMh',ev=>{ m.h=Math.max(0,fromDisp(parseFloat(ev.target.value)||0)); pushHistory(); draw(); });
+      on('pMdia',ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(v>0){ m.dia=v; pushHistory(); draw(); } else refreshProp(); });
+      on('pMlen',ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(v>=5){ m.len=v; pushHistory(); refreshProp(); draw(); } else refreshProp(); });
+      on('pMsz',ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(v>0){ m.sz=v; pushHistory(); draw(); } else refreshProp(); });
+      on('pMrot',ev=>{ m.rot=((parseFloat(ev.target.value)||0)%360+360)%360; pushHistory(); refreshProp(); draw(); });
       document.querySelectorAll('.pMgap').forEach(inp=>{ inp.onchange=ev=>{
         const want=fromDisp(parseFloat(ev.target.value));
         if(!isFinite(want)||want<0){ refreshProp(); return; }
         if(setMepGap(m,ev.target.dataset.dir,want)){ pushHistory(); refreshProp(); draw(); }
       }; });
+      const td=document.getElementById('pMtoDim'); if(td) td.onclick=()=>gapsToDims(m);
       document.querySelectorAll('#pMdimSeg button').forEach(b=>b.onclick=()=>{ m.showDim=b.dataset.v==='1'; pushHistory(); refreshProp(); draw(); });
-      document.querySelectorAll('#pMrotSeg button').forEach(b=>b.onclick=()=>{ m.rot=+b.dataset.r; pushHistory(); draw(); });
+      document.querySelectorAll('#pMrotSeg button').forEach(b=>b.onclick=()=>{ m.rot=+b.dataset.r; pushHistory(); refreshProp(); draw(); });
       document.getElementById('pDel').onclick=deleteSelected;
     }
     else if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id);
@@ -4604,8 +4935,10 @@
     }
     else if(s.kind==='dim'){ const d=state.dims.find(v=>v.id===s.id);
       propBody.innerHTML=`
-      <div class="row"><label>量測長度</label><span style="font-size:13px;color:var(--muted)">${fmtLenU(dist(d.x1,d.y1,d.x2,d.y2))}</span></div>
-      <div class="row"><label>標註偏移</label><div class="field"><input type="number" id="pDoff" value="${Math.round(toDisp(d.off))}" step="5"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>量測長度</label><span style="font-size:13px;color:var(--muted)">${fmtLenU(dimGeom(d).len)}</span></div>
+      ${(d.w1||d.w2)?`<div class="row"><label>量測</label><span style="font-size:12px;color:var(--muted);text-align:right">${d.w1||'—'} → ${d.w2||'—'}</span></div>`:''}
+      <div class="row"><label>跟著物件</label><span style="font-size:12px;color:${(d.r1||d.r2)?'var(--accent)':'var(--muted)'}">${(d.r1||d.r2)?'已關聯，移動會自動更新':'未關聯'}</span></div>
+      <div class="row"><label>標註偏移</label><div class="field"><input type="number" id="pDoff" value="${Math.round(toDisp(dimGeom(d).off))}" step="5"><span class="unit">${U}</span></div></div>
       ${layerPickerHTML('pDlayer', d.layer||'plan')}
       <button class="del-btn" id="pDel">刪除標註</button>`;
       bindLayerPicker('pDlayer', d);
@@ -4694,7 +5027,7 @@
         draw:()=>draw(), recompute:()=>recomputeRooms(), toScreen:(x,y)=>toScreen(x,y),
         editDimLabel:(l,x,y)=>editDimLabel(l,x,y), pushHistory:()=>pushHistory(),
         hitLabel:(x,y)=>hitLabel(x,y), openLabelEditor:(l,x,y)=>openLabelEditor(l,x,y) }; }catch(_){ }
-  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑'})[ui.tool]||''; }
+  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),ulcalib:'底圖校正'})[ui.tool]||''; }
   function flashHint(msg){ hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
   function showToolHint(){ flashHint(TOOL_HINT[ui.tool]); }
 
@@ -4766,7 +5099,47 @@
       row.appendChild(pick); row.appendChild(eye); box.appendChild(row);
     }
   }
+  function syncLightUI(){
+    const cats=document.getElementById('lightCats'), list=document.getElementById('lightList');
+    if(!cats||!list) return;
+    cats.innerHTML='';
+    for(const c of LIGHT_CATS){
+      const b=document.createElement('button');
+      b.textContent=c; if(c===ui.lightCat) b.className='on';
+      b.onclick=()=>{ ui.lightCat=c; syncLightUI(); };
+      cats.appendChild(b);
+    }
+    list.innerHTML='';
+    for(const [cat,kind,name,sp] of LIGHT_LIST){
+      if(cat!==ui.lightCat) continue;
+      const b=document.createElement('button');
+      b.className='furn-item'+(ui.mepPick===kind?' on':'');
+      const G=26, DPR2=Math.max(1,window.devicePixelRatio||1), bw=44, bh=30;
+      const cv=document.createElement('canvas');
+      cv.width=bw*DPR2; cv.height=bh*DPR2;
+      cv.style.cssText='width:'+bw+'px;height:'+bh+'px;flex:0 0 auto;';
+      const cg=cv.getContext('2d');
+      cg.scale(DPR2,DPR2); cg.translate(bw/2-(sp.code?4:0), bh/2);
+      cg.strokeStyle=MEP_COLOR.light; cg.fillStyle='#fff';
+      const gs=G*(sp.linear?1.5:Math.min(1.25,sp.k||1));
+      cg.lineWidth=MEP_LW*(gs/110)*1.1; cg.lineJoin='round'; cg.lineCap='round';
+      MEP_SY[kind](gs, cg);
+      b.appendChild(cv);
+      const nm=document.createElement('b'); nm.textContent=name; nm.style.marginLeft='6px';
+      const hh=document.createElement('span');
+      hh.textContent = sp.dia ? 'Ø'+Math.round(toDisp(sp.dia)*10)/10
+                     : sp.strip ? '拖曳畫線'
+                     : sp.len ? 'L'+Math.round(toDisp(sp.len))
+                     : sp.sz ? Math.round(toDisp(sp.sz))+'×'+Math.round(toDisp(sp.sz))
+                     : sp.mount==='wall' ? 'H'+Math.round(toDisp(sp.h||0)) : '';
+      b.appendChild(nm); b.appendChild(hh);
+      b.onclick=()=>{ ui.mepPick=kind; setTool('mep');
+        flashHint(sp.strip?'已選「間接燈帶」，按住拖曳畫出燈帶':'已選「'+name+'」，點畫面放下'); };
+      list.appendChild(b);
+    }
+  }
   function syncMepUI(){
+    syncLightUI();
     const cats=document.getElementById('mepCats'), list=document.getElementById('mepList');
     if(!cats||!list) return;
     cats.innerHTML='';
@@ -4879,7 +5252,7 @@
     if(!state.walls.length&&!state.dims.length&&!state.texts.length&&!state.ink.length&&!state.notes.length&&!state.furniture.length&&!state.mep.length) return null; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; const acc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}; for(const w of state.walls){acc(w.x1,w.y1);acc(w.x2,w.y2);} for(const d of state.dims){acc(d.x1,d.y1);acc(d.x2,d.y2);} for(const t of state.texts){acc(t.x,t.y);}
     for(const s2 of state.ink){ const b=strokeBBox(s2); acc(b.x0,b.y0); acc(b.x1,b.y1); }
     for(const f of state.furniture) for(const c of furnCorners(f)) acc(c.x,c.y);
-    for(const m of state.mep){ acc(m.x-MEP_SIZE,m.y-MEP_SIZE); acc(m.x+MEP_SIZE,m.y+MEP_SIZE); }
+    for(const m of state.mep){ const r=isLinear(m)?devLen(m)/2+5:(lightSpec(m).sz?devSz(m)/2+5:MEP_SIZE*(isLight(m)?lightScale(m):1)); acc(m.x-r,m.y-r); acc(m.x+r,m.y+r); }
     for(const n of state.notes){
       if(isPin(n) ? !inclPhotos : !inclNotes) continue;
       acc(n.ax,n.ay); acc(n.x,n.y);
@@ -4964,7 +5337,7 @@
     }
     if(e.key==='Delete'||e.key==='Backspace'){ if(ui.selected){ deleteSelected(); return; } }
     if(e.key===' '||e.code==='Space'){ e.preventDefault(); setTool('select'); return; }
-    const map={v:'select',w:'wall',d:'door',n:'window',m:'dim',t:'text',p:'shaft',i:'ink',a:'note',o:'photo'};
+    const map={v:'select',w:'wall',d:'door',n:'window',m:'dim',t:'text',p:'shaft',i:'ink',a:'note',o:'photo',c:'column',b:'beam'};
     if(map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]);
   });
 
@@ -5025,7 +5398,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b81';
+  const BUILD='b94';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -5687,6 +6060,7 @@
     if(o.rooms!==undefined) showOpt.rooms=!!o.rooms;
     if(o.notes!==undefined) showOpt.notes=!!o.notes;
     if(o.photos!==undefined) showOpt.photos=!!o.photos;
+    try{ resolveDims(); }catch(_){}
     ctx=g; view.scale=scale; view.ox=pad.l-b.x0*scale; view.oy=pad.t-b.y0*scale; W=cw; H=ch; ui.grid=false;
     try{
     drawWalls(true); drawBeams(true); drawColumns();
@@ -6577,6 +6951,7 @@
   const MEP_MIN_PX=22;        // never smaller than this on screen
   const MEP_DEF_H={outlet:30, sw:120, low:30, equip:230, panel:180, water:100, drain:0};
   function mepDefH(kind){
+    if(isLightKind(kind)) return LIGHT_SPEC[kind].h||0;
     if(/^sw/.test(kind)) return MEP_DEF_H.sw;
     const fam=MEP_FAMILY[kind]||'outlet';
     if(fam==='low') return MEP_DEF_H.low;
@@ -6586,7 +6961,158 @@
     if(fam==='drain') return MEP_DEF_H.drain;
     return MEP_DEF_H.outlet;
   }
-  const mepName=(kind)=>{ const e=MEP_LIST.find(x=>x[1]===kind); return e?e[2]:kind; };
+  // ================= 燈具配置 =================
+  // Lights live in the same array as the electrical symbols (state.mep), on the
+  // 'light' layer. That way placing, dragging, deleting, undo, the gap labels and
+  // the legend all come for free — what differs is spelled out in LIGHT_SPEC:
+  //   mount 'ceil' — hangs from the ceiling: no wall snap, no H tag
+  //   mount 'wall' — mounted on a wall like a socket: snaps on, shows H
+  //   dia           — downlight cut-out (cm), editable per fitting
+  //   len           — linear fitting length (cm), editable and draggable by its ends
+  //   sz            — panel drawn at its real size (cm square)
+  //   strip         — drawn by dragging, like a beam
+  MEP_COLOR.light='#B0357F';
+  const LIGHT_LIST=[
+    ['崁燈類','L_down',  '崁燈',       {mount:'ceil', dia:9.5}],
+    ['崁燈類','L_spot',  '投射崁燈',   {mount:'ceil', dia:9.5}],
+    ['崁燈類','L_downWP','防水崁燈',   {mount:'ceil', dia:9.5, code:'WP'}],
+    ['崁燈類','L_cyl',   '明裝筒燈',   {mount:'ceil', dia:10}],
+    ['吸頂 / 吊燈','L_ceil', '吸頂燈',       {mount:'ceil', k:1.35}],
+    ['吸頂 / 吊燈','L_pend', '吊燈',         {mount:'ceil', k:1.25}],
+    ['吸頂 / 吊燈','L_chand','主燈 / 水晶燈',{mount:'ceil', k:1.4}],
+    ['吸頂 / 吊燈','L_fan',  '吊扇燈',       {mount:'ceil', k:1.4}],
+    ['壁燈 / 地腳','L_wall',  '壁燈',   {mount:'wall', h:180}],
+    ['壁燈 / 地腳','L_step',  '地腳燈', {mount:'wall', h:30}],
+    ['壁燈 / 地腳','L_sensor','感應燈', {mount:'ceil', code:'S'}],
+    ['線型','L_track', '軌道燈',    {mount:'ceil', len:120, thick:8, linear:true}],
+    ['線型','L_mag',   '磁吸軌道',  {mount:'ceil', len:150, thick:6, linear:true}],
+    ['線型','L_linear','線型燈',    {mount:'ceil', len:120, thick:5, linear:true}],
+    ['線型','L_strip', '間接燈帶',  {mount:'ceil', len:200, thick:0, linear:true, strip:true}],
+    ['線型','L_t5',    'T5 層板燈', {mount:'ceil', len:120, thick:8, linear:true}],
+    ['面板','L_panel', '平板燈', {mount:'ceil', sz:60}],
+    ['面板','L_grille','格柵燈', {mount:'ceil', sz:60}],
+    ['法規 / 其他','L_emerg','緊急照明燈', {mount:'wall', h:220}],
+    ['法規 / 其他','L_exit', '出口指示燈', {mount:'wall', h:220}],
+  ];
+  const LIGHT_SPEC={}; for(const e of LIGHT_LIST){ LIGHT_SPEC[e[1]]=e[3]; MEP_FAMILY[e[1]]='light'; }
+  const LIGHT_CATS=[...new Set(LIGHT_LIST.map(x=>x[0]))];
+  const isLightKind=(k)=>!!LIGHT_SPEC[k];
+  const isLight=(m)=>!!(m && LIGHT_SPEC[m.kind]);
+  const lightSpec=(m)=>LIGHT_SPEC[m.kind]||{};
+  const isLinear=(m)=>!!lightSpec(m).linear;
+  const isStrip=(m)=>!!lightSpec(m).strip;
+  // anything that is NOT a ceiling light is a wall device: snaps to a wall, has H
+  const isWallDevice=(m)=>!isLight(m) || lightSpec(m).mount==='wall';
+  const devLen=(m)=>m.len||lightSpec(m).len||100;
+  const devDia=(m)=>m.dia||lightSpec(m).dia||9.5;
+  const devSz=(m)=>m.sz||lightSpec(m).sz||60;
+  // How much bigger than the base 30cm symbol a point light is drawn. A downlight
+  // follows its cut-out, gently: Ø15 reads clearly bigger than Ø9.5 without the
+  // symbol swallowing the ceiling around it.
+  function lightScale(m){
+    const sp=lightSpec(m);
+    if(sp.dia) return Math.max(0.6, Math.min(2.4, 0.55+0.45*devDia(m)/9.5));
+    return sp.k||1;
+  }
+  // linear fitting as a rotated rectangle in world cm, corners clockwise
+  function devPoly(m){
+    const a=(m.rot||0)*Math.PI/180, ux=Math.cos(a), uy=Math.sin(a), nx=-uy, ny=ux;
+    const hl=devLen(m)/2, ht=Math.max(lightSpec(m).thick||0, 3)/2;
+    return [{x:m.x-ux*hl-nx*ht, y:m.y-uy*hl-ny*ht},{x:m.x+ux*hl-nx*ht, y:m.y+uy*hl-ny*ht},
+            {x:m.x+ux*hl+nx*ht, y:m.y+uy*hl+ny*ht},{x:m.x-ux*hl+nx*ht, y:m.y-uy*hl+ny*ht}];
+  }
+  function devEnds(m){
+    const a=(m.rot||0)*Math.PI/180, ux=Math.cos(a), uy=Math.sin(a), hl=devLen(m)/2;
+    return [{x:m.x-ux*hl, y:m.y-uy*hl},{x:m.x+ux*hl, y:m.y+uy*hl}];
+  }
+  // a linear fitting drawn in local coordinates: centred, length along +x
+  function linearDraw(g, kind, L, T, n){
+    const C=g.strokeStyle;
+    const box=()=>{ g.beginPath(); g.rect(-L/2,-T/2,L,T); };
+    if(kind==='L_strip'){
+      g.save(); g.lineWidth=Math.max(g.lineWidth*1.25,1.6);
+      g.setLineDash([Math.max(6,T*1.6),Math.max(4,T*1.0)]);
+      g.beginPath(); g.moveTo(-L/2,0); g.lineTo(L/2,0); g.stroke(); g.restore();
+      g.beginPath(); g.moveTo(-L/2,-T*0.9); g.lineTo(-L/2,T*0.9); g.moveTo(L/2,-T*0.9); g.lineTo(L/2,T*0.9); g.stroke();
+      return;
+    }
+    if(kind==='L_linear'){ box(); g.fillStyle=C; g.fill(); g.stroke(); return; }
+    box(); g.fillStyle='#fff'; g.fill(); g.stroke();
+    if(kind==='L_t5'){ g.beginPath(); g.moveTo(-L/2+T*0.4,0); g.lineTo(L/2-T*0.4,0); g.stroke(); return; }
+    const k=Math.max(2, n||3);
+    for(let i=0;i<k;i++){
+      const x=-L/2 + L*(i+0.5)/k;
+      if(kind==='L_mag'){ g.beginPath(); g.rect(x-T*0.55,-T/2,T*1.1,T); g.fillStyle=C; g.fill(); }
+      else { g.beginPath(); g.arc(x,0,T*0.78,0,Math.PI*2); g.fillStyle='#fff'; g.fill(); g.stroke();
+             g.beginPath(); g.arc(x,0,T*0.28,0,Math.PI*2); g.fillStyle=C; g.fill(); }
+    }
+  }
+  (function addLightGlyphs(){
+    const C=(g)=>g.strokeStyle;
+    const circ=(g,r)=>{ g.beginPath(); g.arc(0,0,r,0,Math.PI*2); g.fillStyle='#fff'; g.fill(); g.stroke(); };
+    const cross=(g,r)=>{ g.beginPath(); g.moveTo(-r*1.35,0); g.lineTo(r*1.35,0); g.moveTo(0,-r*1.35); g.lineTo(0,r*1.35); g.stroke(); };
+    const code=(g,s,t)=>{ g.save(); g.fillStyle=C(g); g.font='700 '+(s*0.26)+'px -apple-system,system-ui,sans-serif';
+      g.textAlign='left'; g.textBaseline='top'; g.fillText(t, s*0.26, s*0.2); g.restore(); };
+    const arrow=(g,x1,y1,x2,y2)=>{ g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+      const a=Math.atan2(y2-y1,x2-x1), k=g.lineWidth*2.6;
+      g.beginPath(); g.moveTo(x2,y2); g.lineTo(x2-Math.cos(a-.5)*k,y2-Math.sin(a-.5)*k);
+      g.lineTo(x2-Math.cos(a+.5)*k,y2-Math.sin(a+.5)*k); g.closePath(); g.fillStyle=C(g); g.fill(); };
+    const txt=(g,t,x,y,sz)=>{ g.save(); g.fillStyle=C(g); g.font='700 '+sz+'px -apple-system,system-ui,sans-serif';
+      g.textAlign='center'; g.textBaseline='middle'; g.fillText(t,x,y); g.restore(); };
+    const down=(s,g)=>{ const r=s*.30; circ(g,r); cross(g,r); };
+    Object.assign(MEP_SY,{
+      L_down: down,
+      L_spot:(s,g)=>{ const r=s*.30; circ(g,r); g.beginPath(); g.moveTo(0,0); g.arc(0,0,r,-Math.PI/2,0); g.closePath();
+        g.fillStyle=C(g); g.fill(); cross(g,r); arrow(g,r*.75,-r*.75,r*1.45,-r*1.45); },
+      L_downWP:(s,g)=>{ down(s,g); code(g,s,'WP'); },
+      L_cyl:(s,g)=>{ const r=s*.30; circ(g,r); g.beginPath(); g.arc(0,0,r*.62,0,Math.PI*2); g.stroke();
+        g.beginPath(); g.arc(0,0,r*.2,0,Math.PI*2); g.fillStyle=C(g); g.fill(); },
+      L_ceil:(s,g)=>{ const r=s*.34; circ(g,r); g.beginPath(); g.arc(0,0,r*.78,0,Math.PI*2); g.stroke();
+        const k=r*.55; g.beginPath(); g.moveTo(-k,-k); g.lineTo(k,k); g.moveTo(k,-k); g.lineTo(-k,k); g.stroke(); },
+      L_pend:(s,g)=>{ const r=s*.34; circ(g,r); const k=r*.7; g.beginPath(); g.moveTo(-k,-k); g.lineTo(k,k);
+        g.moveTo(k,-k); g.lineTo(-k,k); g.stroke(); g.beginPath(); g.arc(0,0,r*.24,0,Math.PI*2); g.fillStyle=C(g); g.fill(); },
+      L_chand:(s,g)=>{ const r=s*.22; circ(g,r); g.beginPath(); g.arc(0,0,r*.35,0,Math.PI*2); g.fillStyle=C(g); g.fill();
+        for(let i=0;i<6;i++){ const a=i*Math.PI/3, x=Math.cos(a), y=Math.sin(a);
+          g.beginPath(); g.moveTo(x*r,y*r); g.lineTo(x*r*1.75,y*r*1.75); g.stroke();
+          g.beginPath(); g.arc(x*r*2,y*r*2,r*.26,0,Math.PI*2); g.fillStyle='#fff'; g.fill(); g.stroke(); } },
+      L_fan:(s,g)=>{ const r=s*.36; g.save(); g.setLineDash([s*.05,s*.04]); g.beginPath(); g.arc(0,0,r,0,Math.PI*2); g.stroke(); g.restore();
+        for(let i=0;i<3;i++){ g.save(); g.rotate(i*Math.PI*2/3); g.beginPath(); g.ellipse(0,-r*.55,r*.16,r*.42,0,0,Math.PI*2);
+          g.fillStyle='#fff'; g.fill(); g.stroke(); g.restore(); }
+        g.beginPath(); g.arc(0,0,r*.2,0,Math.PI*2); g.fillStyle=C(g); g.fill(); },
+      L_wall:(s,g)=>{ const r=s*.28; g.beginPath(); g.arc(0,0,r,Math.PI,0); g.closePath(); g.fillStyle='#fff'; g.fill(); g.stroke();
+        g.beginPath(); g.arc(0,0,r*.55,Math.PI,0); g.closePath(); g.fillStyle=C(g); g.fill();
+        g.beginPath(); g.moveTo(-s*.36,0); g.lineTo(s*.36,0); g.stroke(); },
+      L_step:(s,g)=>{ const w=s*.44,h=s*.26; g.beginPath(); g.rect(-w/2,-h/2,w,h); g.fillStyle='#fff'; g.fill(); g.stroke();
+        g.beginPath(); g.rect(-w/2,0,w,h/2); g.fillStyle=C(g); g.fill(); g.stroke(); },
+      L_sensor:(s,g)=>{ down(s,g); code(g,s,'S'); },
+      L_track:(s,g)=>linearDraw(g,'L_track',s*.86,s*.13,3),
+      L_mag:(s,g)=>linearDraw(g,'L_mag',s*.86,s*.13,3),
+      L_linear:(s,g)=>linearDraw(g,'L_linear',s*.86,s*.1),
+      L_strip:(s,g)=>linearDraw(g,'L_strip',s*.86,s*.1),
+      L_t5:(s,g)=>linearDraw(g,'L_t5',s*.86,s*.16),
+      L_panel:(s,g)=>{ const a=s*.34; g.beginPath(); g.rect(-a,-a,a*2,a*2); g.fillStyle='#fff'; g.fill(); g.stroke();
+        g.beginPath(); g.moveTo(-a,-a); g.lineTo(a,a); g.moveTo(a,-a); g.lineTo(-a,a); g.stroke(); },
+      L_grille:(s,g)=>{ const a=s*.34; g.beginPath(); g.rect(-a,-a,a*2,a*2); g.fillStyle='#fff'; g.fill(); g.stroke();
+        g.beginPath(); g.moveTo(-a/3,-a); g.lineTo(-a/3,a); g.moveTo(a/3,-a); g.lineTo(a/3,a); g.moveTo(-a,0); g.lineTo(a,0); g.stroke(); },
+      L_emerg:(s,g)=>{ const w=s*.6,h=s*.34; g.beginPath(); g.rect(-w/2,-h/2,w,h); g.fillStyle='#fff'; g.fill(); g.stroke();
+        g.beginPath(); g.moveTo(-w/2,h/2); g.lineTo(w/2,-h/2); g.lineTo(w/2,h/2); g.closePath(); g.fillStyle=C(g); g.fill();
+        txt(g,'E',-w*.18,-h*.02,s*.22); },
+      L_exit:(s,g)=>{ const w=s*.7,h=s*.32; g.beginPath(); g.rect(-w/2,-h/2,w,h); g.fillStyle='#fff'; g.fill(); g.stroke();
+        txt(g,'EXIT',-s*.05,0,s*.15); arrow(g,w*.2,0,w*.44,0); },
+    });
+  })();
+  const mepName=(kind)=>{
+    const e=MEP_LIST.find(x=>x[1]===kind)||LIGHT_LIST.find(x=>x[1]===kind);
+    return e?e[2]:kind;
+  };
+  // name with the size that matters for ordering, so the legend can count them apart
+  function devLabel(m){
+    const sp=lightSpec(m), n=mepName(m.kind);
+    if(sp.dia) return n+' Ø'+Math.round(toDisp(devDia(m))*10)/10;
+    if(sp.linear && !sp.strip) return n+' L'+Math.round(toDisp(devLen(m)));
+    if(sp.sz) return n+' '+Math.round(toDisp(devSz(m)))+'×'+Math.round(toDisp(devSz(m)));
+    return n;
+  }
   const mepColor=(kind)=>MEP_COLOR[MEP_FAMILY[kind]||'outlet'];
 
   // Distance from each symbol to its NEAREST neighbour, in screen px. Sized per
@@ -6623,9 +7149,11 @@
   function mepBox(m){ const r=MEP_SIZE/2;
     return {x0:m.x-r, y0:m.y-r, x1:m.x+r, y1:m.y+r}; }
   function mepGaps(m){
+    if(isLight(m) && !isWallDevice(m)) return lightGaps(m);
     const b=mepBox(m), out=[];
+    const L=m.layer||'elec';
     const boxes=neighbourBoxes(null).concat(
-      state.mep.filter(o=>o.id!==m.id && layerVisible(o.layer||'elec'))
+      state.mep.filter(o=>o.id!==m.id && (o.layer||'elec')===L && layerVisible(L))
                .map(o=>({...mepBox(o), what:mepName(o.kind)})));
     const scan=(dir)=>{
       let best=Infinity, face=null, what=null;
@@ -6642,7 +7170,71 @@
       }
       // the gap is quoted to the symbol's CENTRE, which is where an electrician
       // measures a socket to
-      if(best<Infinity && best<2000) out.push({dir, gap:Math.max(0,best+MEP_SIZE/2), face, what});
+      if(best<Infinity && best<2000) out.push({dir, gap:Math.max(0,best+MEP_SIZE/2), face, what,
+        selfEdge:(dir==='left'||dir==='right')?m.x:m.y});
+    };
+    scan('up'); scan('down'); scan('left'); scan('right');
+    return out;
+  }
+  // ---- light spacing ----
+  // Light to light is measured centre to centre — that is how a ceiling layout is
+  // set out. The one exception is a LINEAR fitting: it has no meaningful centre to
+  // measure to sideways, so anything measures to its EDGE, and a linear fitting
+  // measures from its own edge. Walls are always their inner face.
+  function devBoxW(m){            // world-space footprint used for spacing
+    if(isLinear(m)){
+      const p=devPoly(m);
+      return {x0:Math.min(...p.map(q=>q.x)), x1:Math.max(...p.map(q=>q.x)),
+              y0:Math.min(...p.map(q=>q.y)), y1:Math.max(...p.map(q=>q.y))};
+    }
+    return {x0:m.x, x1:m.x, y0:m.y, y1:m.y};   // a point: measured to its centre
+  }
+  function lightGaps(m){
+    const self=devBoxW(m), out=[];
+    const pointSelf=!isLinear(m);
+    const TOL=15;                               // two lights count as "in line" within this
+    const targets=[];
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const R=wallRect(w); targets.push({...R, what:'牆', pt:false});
+    }
+    for(const c of state.columns){
+      const a=(c.rot||0)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+      const p=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]]
+        .map(d=>({x:c.x+d[0]*ca-d[1]*sa, y:c.y+d[0]*sa+d[1]*ca}));
+      targets.push({x0:Math.min(...p.map(q=>q.x)),x1:Math.max(...p.map(q=>q.x)),
+                    y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)),
+                    what:c.kind==='shaft'?'管道間':'柱', pt:false});
+    }
+    for(const bm of state.beams){
+      if(wallLen(bm)<1) continue;
+      const p=beamCorners(bm);
+      targets.push({x0:Math.min(...p.map(q=>q.x)),x1:Math.max(...p.map(q=>q.x)),
+                    y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)), what:'樑', pt:false});
+    }
+    for(const o of state.mep){
+      if(o.id===m.id || !isLight(o) || !layerVisible(o.layer||'light')) continue;
+      targets.push({...devBoxW(o), what:mepName(o.kind), pt:!isLinear(o), tid:o.id});
+    }
+    const scan=(dir)=>{
+      const horiz=(dir==='left'||dir==='right');
+      let best=Infinity, face=null, what=null, tid=null;
+      for(const R of targets){
+        // does the target lie in this direction's band?
+        const tol=(pointSelf && R.pt) ? TOL : (R.pt||pointSelf ? 1 : 1);
+        if(horiz){ if(R.y1 < self.y0-tol || R.y0 > self.y1+tol) continue; }
+        else     { if(R.x1 < self.x0-tol || R.x0 > self.x1+tol) continue; }
+        const g = dir==='left'  ? self.x0-R.x1
+                : dir==='right' ? R.x0-self.x1
+                : dir==='up'    ? self.y0-R.y1
+                :                 R.y0-self.y1;
+        if(g>-0.5 && g<best){ best=g; what=R.what; tid=R.pt?R.tid:null;
+          face = dir==='left'?R.x1 : dir==='right'?R.x0 : dir==='up'?R.y1 : R.y0; }
+      }
+      if(best<Infinity && best<3000){
+        const selfEdge = dir==='left'?self.x0 : dir==='right'?self.x1 : dir==='up'?self.y0 : self.y1;
+        out.push({dir, gap:Math.max(0,best), face, what, selfEdge, tid});
+      }
     };
     scan('up'); scan('down'); scan('left'); scan('right');
     return out;
@@ -6650,23 +7242,23 @@
   function setMepGap(m,dir,want){
     const info=mepGaps(m).find(x=>x.dir===dir); if(!info) return false;
     const g=Math.max(0,want);
-    if(dir==='left')  m.x=info.face+g;
-    if(dir==='right') m.x=info.face-g;
-    if(dir==='up')    m.y=info.face+g;
-    if(dir==='down')  m.y=info.face-g;
+    // move by the difference between where the measured edge is and where it
+    // should be — the same rule for a socket centre and for a linear fitting's edge
+    if(dir==='left')  m.x += (info.face+g) - info.selfEdge;
+    if(dir==='right') m.x += (info.face-g) - info.selfEdge;
+    if(dir==='up')    m.y += (info.face+g) - info.selfEdge;
+    if(dir==='down')  m.y += (info.face-g) - info.selfEdge;
     return true;
   }
   function drawMepGaps(m){
-    const [sx,sy]=toScreen(m.x,m.y);
     for(const g of mepGaps(m)){
-      const t = g.dir==='left'  ? [g.face+g.gap/2, m.y]
-              : g.dir==='right' ? [g.face-g.gap/2, m.y]
-              : g.dir==='up'    ? [m.x, g.face+g.gap/2]
-              :                   [m.x, g.face-g.gap/2];
-      const vertical=(g.dir==='up'||g.dir==='down');
-      const [lx,ly]=toScreen(t[0],t[1]);
-      const [fx,fy]=toScreen(g.dir==='left'||g.dir==='right'?g.face:m.x,
-                             g.dir==='up'||g.dir==='down'?g.face:m.y);
+      const horiz=(g.dir==='left'||g.dir==='right');
+      const along = horiz ? m.y : m.x;
+      const p0 = horiz ? [g.selfEdge, along] : [along, g.selfEdge];
+      const p1 = horiz ? [g.face, along]     : [along, g.face];
+      const vertical=!horiz;
+      const [sx,sy]=toScreen(p0[0],p0[1]), [fx,fy]=toScreen(p1[0],p1[1]);
+      const lx=(sx+fx)/2, ly=(sy+fy)/2;
       ctx.save(); ctx.strokeStyle='#8A9199'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
       ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(fx,fy); ctx.stroke(); ctx.restore();
       const tw=boxedLabel(fmtLen(g.gap),lx,ly,vertical?Math.PI/2:0,11);
@@ -6675,9 +7267,61 @@
       placedLabels.push([lx-hw,ly-hh,hw*2,hh*2]);
     }
   }
+  // on-screen size of a point symbol
+  function devPx(m){
+    if(lightSpec(m).sz){
+      // a panel is drawn at its real size (its square is 0.68 of the glyph box)
+      return Math.max(MEP_MIN_PX*(TS>1?TS:1)*1.1, devSz(m)*view.scale/0.68);
+    }
+    return mepPx(m)*(isLight(m)?lightScale(m):1);
+  }
+  // footprint on screen, used to keep labels off the symbol
+  function devScreenBox(m){
+    if(isLinear(m)){
+      const pts=devPoly(m).map(p=>toScreen(p.x,p.y));
+      const pad=fpx(4);
+      const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+      return [Math.min(...xs)-pad, Math.min(...ys)-pad, Math.max(...xs)-Math.min(...xs)+pad*2, Math.max(...ys)-Math.min(...ys)+pad*2];
+    }
+    const [bx,by]=toScreen(m.x,m.y); const bp=devPx(m);
+    return [bx-bp*0.62, by-bp*0.62, bp*1.24, bp*1.24];
+  }
   function mepHit(m,wx,wy){
-    const r=mepPx(m)/view.scale/2;
+    if(isLinear(m)){
+      const a=-(m.rot||0)*Math.PI/180, dx=wx-m.x, dy=wy-m.y;
+      const lx=dx*Math.cos(a)-dy*Math.sin(a), ly=dx*Math.sin(a)+dy*Math.cos(a);
+      const tol=12/view.scale;
+      return Math.abs(lx)<=devLen(m)/2+tol*0.5 && Math.abs(ly)<=Math.max(lightSpec(m).thick||0,3)/2+tol;
+    }
+    const r=devPx(m)/view.scale/2;
     return Math.abs(wx-m.x)<=r*1.15 && Math.abs(wy-m.y)<=r*1.15;
+  }
+  // a linear fitting drawn at its real length and rotation
+  function drawLinearDev(m, sel, col){
+    const [sx,sy]=toScreen(m.x,m.y);
+    const L=devLen(m)*view.scale;
+    const sp=lightSpec(m);
+    const T=Math.max((sp.thick||4)*view.scale, fpx(sp.strip?5:6));
+    const n=Math.max(2, Math.min(12, Math.round(devLen(m)/40)));
+    ctx.save();
+    ctx.globalAlpha=layerAlpha(m.layer||'light');
+    ctx.translate(sx,sy); ctx.rotate((m.rot||0)*Math.PI/180);
+    ctx.strokeStyle=sel?'#275C7A':col; ctx.lineWidth=Math.max(1.3, 1.6*TS);
+    ctx.lineJoin='round'; ctx.lineCap='round'; ctx.setLineDash([]);
+    linearDraw(ctx, m.kind, L, T, n);
+    ctx.restore();
+    if(sel){
+      const pts=devPoly(m).map(p=>toScreen(p.x,p.y));
+      ctx.save(); ctx.strokeStyle='#275C7A'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+      ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.stroke();
+      ctx.setLineDash([]); ctx.restore();
+      for(const e of devEnds(m)){ const q=toScreen(e.x,e.y); handle(q[0],q[1]); }
+      // the length rides alongside the fitting while it is selected
+      const a=(m.rot||0)*Math.PI/180; let ang=a; if(ang>Math.PI/2||ang<-Math.PI/2) ang+=Math.PI;
+      const off=T/2+fpx(14);
+      const lx=sx-Math.sin(a)*off, ly=sy+Math.cos(a)*off;
+      boxedLabel('L '+fmtLen(devLen(m)), lx, ly, ang, 11);
+    }
   }
   // nearest wall face on each axis — a socket is dimensioned off the wall it is
   // mounted on, which is what the electrician actually needs
@@ -6802,16 +7446,21 @@
     // pass one: nothing is drawn, every symbol simply says where it is
     const mepBox=new Map();
     for(const m of mepShown){
-      const [bx,by]=toScreen(m.x,m.y); const bp=mepPx(m);
-      const gb=[bx-bp*0.62, by-bp*0.62, bp*1.24, bp*1.24];
+      const gb=devScreenBox(m);
       mepBox.set(m.id, gb);
       glyphBoxes.push(gb);
     }
     for(const m of mepShown){
       const sel = ui.selected && ui.selected.kind==='mep' && ui.selected.id===m.id;
       const [sx,sy]=toScreen(m.x,m.y);
-      const px=mepPx(m), col=mepColor(m.kind);
+      const px=devPx(m), col=mepColor(m.kind);
       const gbox=mepBox.get(m.id);
+      if(isLinear(m)){
+        drawLinearDev(m, sel, col);
+        placedLabels.push(gbox);
+        if(sel) drawMepGaps(m);
+        continue;
+      }
       ctx.save();
       ctx.globalAlpha=layerAlpha(m.layer||'elec');
       // The LEADER goes down before the symbol so the symbol caps it cleanly. The
@@ -6823,7 +7472,7 @@
       // and there is one of them beside every socket. Exports carry only the
       // dimensions someone actually chose to draw.
       let pend=null;
-      if(m.showDim!==false && showOpt.dims && !EXPORT_MODE){
+      if(isWallDevice(m) && m.showDim!==false && showOpt.dims && !EXPORT_MODE){
         const g=mepWallGap(m);
         if(g && g.dist>1){
           if(g.along){
@@ -6876,12 +7525,24 @@
       }
       ctx.translate(sx,sy); ctx.rotate((m.rot||0)*Math.PI/180);
       ctx.strokeStyle=sel?'#275C7A':col; ctx.fillStyle='#fff';
-      ctx.lineWidth=MEP_LW*(px/110); ctx.lineJoin='round'; ctx.lineCap='round';
+      // a panel is drawn at real size; its line weight still follows the normal symbol
+      ctx.lineWidth=MEP_LW*((lightSpec(m).sz?mepPx(m):px)/110); ctx.lineJoin='round'; ctx.lineCap='round';
       ctx.setLineDash([]);
       MEP_CAP_BELOW = !MEP_BELOW_CAP[m.kind];   // it lives in the tag block now
       (MEP_SY[m.kind]||MEP_SY.outlet2)(px, ctx);
       MEP_CAP_BELOW = true;
       ctx.restore();
+      // ceiling lights carry no mounting height and no along-wall run
+      if(!isWallDevice(m)){
+        placedLabels.push(gbox);
+        if(sel){
+          ctx.save(); ctx.strokeStyle='#275C7A'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+          ctx.strokeRect(sx-px*0.62, sy-px*0.62, px*1.24, px*1.24);
+          ctx.setLineDash([]); ctx.restore();
+          drawMepGaps(m);
+        }
+        continue;
+      }
       // mounting height, always shown — it is half the information on this sheet.
       // Two sockets side by side used to stamp their heights on top of one another;
       // now the second one drops to the next line down (or goes above) instead.
@@ -7019,28 +7680,68 @@
     if(ui.snap){ const g=ui.gridSize; return {x:Math.round(wx/g)*g, y:Math.round(wy/g)*g}; }
     return {x:wx, y:wy};
   }
-  function placeMEP(wx,wy){
-    if(!ui.mepPick){ flashHint('先在右邊的水電圖示庫點一個符號'); return; }
-    const kind=ui.mepPick;
-    const sp=mepSnap(wx,wy);
-    const x=sp.x, y=sp.y;
-    const m={id:uid(), kind, x, y, rot:0, h:mepDefH(kind), showDim:true, layer:'elec'};
+  function makeStrip(a,c){
+    const len=Math.round(dist(a.x,a.y,c.x,c.y));
+    const m={id:uid(), kind:'L_strip', x:(a.x+c.x)/2, y:(a.y+c.y)/2, len,
+             rot:Math.round(Math.atan2(c.y-a.y,c.x-a.x)*180/Math.PI), showDim:false, layer:'light'};
     state.mep.push(m);
+    ui.selected={kind:'mep',id:m.id};
+    refreshProp(); pushHistory(); afterPlace();
+    return m;
+  }
+  // a ceiling light is not mounted on a wall, so it only follows the grid
+  function devSnap(kind,wx,wy){
+    if(isLightKind(kind) && LIGHT_SPEC[kind].mount!=='wall'){
+      if(ui.snap){ const g=ui.gridSize; return {x:Math.round(wx/g)*g, y:Math.round(wy/g)*g}; }
+      return {x:wx, y:wy};
+    }
+    return mepSnap(wx,wy);
+  }
+  // a wall light faces into the room it lights
+  function faceInward(m){
+    if(!isLight(m) || !isWallDevice(m)) return;
+    const inw=mepInwardDir(m); if(!inw) return;
+    m.rot=Math.round(Math.atan2(inw.nx, -inw.ny)*180/Math.PI);
+  }
+  function placeMEP(wx,wy){
+    if(!ui.mepPick){ flashHint(state.layer==='light'?'先在右邊的燈具圖示庫點一個燈具':'先在右邊的水電圖示庫點一個符號'); return; }
+    const kind=ui.mepPick;
+    const sp=devSnap(kind,wx,wy);
+    const x=sp.x, y=sp.y;
+    const m={id:uid(), kind, x, y, rot:0, h:mepDefH(kind), showDim:true,
+             layer:isLightKind(kind)?'light':'elec'};
+    const ls=LIGHT_SPEC[kind];
+    if(ls){
+      if(ls.dia) m.dia=ls.dia;
+      if(ls.len) m.len=ls.len;
+      if(ls.sz)  m.sz=ls.sz;
+      if(ls.mount!=='wall'){ delete m.h; m.showDim=false; }
+    }
+    state.mep.push(m);
+    faceInward(m);
     ui.selected={kind:'mep',id:m.id};
     refreshProp(); pushHistory(); draw(); afterPlace();
     return m;
   }
   // the legend is compiled from what is actually on the sheet, so the counts can
-  // never drift from the drawing
+  // never drift from the drawing. Lights are counted per size — a contractor
+  // orders Ø9.5 and Ø15 downlights separately — and a light strip is quoted by
+  // its total length, not a count.
   function mepTally(layersOpt){
     const vis=(id)=> layersOpt ? layersOpt[id]!==false : layerVisible(id);
     const by=new Map();
     for(const m of state.mep){
       if(!vis(m.layer||'elec')) continue;
-      by.set(m.kind,(by.get(m.kind)||0)+1);
+      const key=m.kind+'|'+devLabel(m);
+      const e=by.get(key)||{kind:m.kind, name:devLabel(m), n:0, len:0};
+      e.n++; e.len+=isStrip(m)?devLen(m):0;
+      by.set(key,e);
     }
-    return MEP_LIST.filter(e=>by.has(e[1]))
-                   .map(e=>({kind:e[1], name:e[2], n:by.get(e[1])}));
+    const order=MEP_LIST.map(e=>e[1]).concat(LIGHT_LIST.map(e=>e[1]));
+    return [...by.values()]
+      .sort((a,b)=>order.indexOf(a.kind)-order.indexOf(b.kind) || a.name.localeCompare(b.name,undefined,{numeric:true}))
+      .map(e=>({kind:e.kind, name:e.name,
+                n: LIGHT_SPEC[e.kind]&&LIGHT_SPEC[e.kind].strip ? (Math.round(e.len)/100).toFixed(1)+' m' : e.n}));
   }
 
   // ================= layers =================
@@ -7899,7 +8600,7 @@
   // Written as DXF R12 (the most widely accepted flavour) in pure ASCII: any
   // non-ASCII character is emitted as the \U+XXXX escape that AutoCAD decodes back
   // into the original glyph, so 主臥 survives without any codepage guessing.
-  const DXF_LAYERS=[['WALL',7],['COLUMN',8],['SHAFT',9],['BEAM',30],['OPENING',5],['DIM',1],['ROOM',3],['TEXT',2],['INK',6],['NOTE',4],['FURN',2]];
+  const DXF_LAYERS=[['WALL',7],['COLUMN',8],['SHAFT',9],['BEAM',30],['OPENING',5],['DIM',1],['ROOM',3],['TEXT',2],['INK',6],['NOTE',4],['FURN',2],['MEP',1],['LIGHT',6]];
   function dxfAscii(str){
     let out='';
     for(const ch of String(str)){
@@ -7971,6 +8672,18 @@
       poly('FURN', furnCorners(f));
       text('FURN', f.x, f.y, th, f.name||'', true, 0);
     }
+    // electrical symbols and lights: a marker at the true position plus the name,
+    // linear fittings at their real length
+    for(const m of state.mep){
+      if(!layerVisible(m.layer||'elec')) continue;
+      const lay=isLight(m)?'LIGHT':'MEP';
+      if(isLinear(m)){ const p=devPoly(m); if(isStrip(m)){ const e2=devEnds(m); line(lay,e2[0].x,e2[0].y,e2[1].x,e2[1].y); } else poly(lay,p); }
+      else {
+        const r=lightSpec(m).sz ? devSz(m)/2 : (lightSpec(m).dia ? devDia(m)/2 : 8);
+        ent('CIRCLE',lay); put(10,k(m.x),20,-k(m.y),30,0,40,+(toDisp(r)).toFixed(3));
+      }
+      text(lay, m.x, m.y+ (isLinear(m)?8:14), th*0.8, devLabel(m)+(isWallDevice(m)&&m.h!=null?(' H'+Math.round(toDisp(m.h))):''), true, 0);
+    }
 
     for(const r of roomsCache){
       if(r.V.length<3) continue;
@@ -7997,8 +8710,12 @@
         text('DIM',(cl.x1+cl.x2)/2,(cl.y1+cl.y2)/2,th,fmtLen(wallLen(w)),true,ang);
       }
       for(const d of state.dims){
-        line('DIM',d.x1,d.y1,d.x2,d.y2);
-        text('DIM',(d.x1+d.x2)/2,(d.y1+d.y2)/2,th,fmtLen(dist(d.x1,d.y1,d.x2,d.y2)),true,0);
+        if(!layerVisible(d.layer||'plan')) continue;
+        const g=dimGeom(d);
+        line('DIM',g.p1.x,g.p1.y,g.ax,g.ay); line('DIM',g.p2.x,g.p2.y,g.bx,g.by);
+        line('DIM',g.ax,g.ay,g.bx,g.by);
+        let ang=Math.atan2(-(g.by-g.ay), g.bx-g.ax)*180/Math.PI; if(ang>90||ang<-90) ang+=180;
+        text('DIM',(g.ax+g.bx)/2,(g.ay+g.by)/2,th,fmtLen(g.len),true,ang);
       }
     }
     if(opt.notes!==false)
