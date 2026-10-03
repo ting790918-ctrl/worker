@@ -1,0 +1,1969 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系統櫃報價器 — 系統櫃售價 + 組裝費</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F5F3EF;--surface:#FFF;--surface2:#F0EDE8;
+  --border:#E2DDD6;--border2:#CFC9C0;
+  --text:#1A1814;--text2:#6B6560;--text3:#9E9891;
+  --accent:#B84D00;--accent-light:#FEF0E6;
+  --red:#C0392B;--red-light:#FDECEA;
+  --blue:#1B4F8A;--blue-light:#EBF0F8;
+  --green:#2C5F2E;--green-light:#EAF0EA;
+  --amber:#92600A;--amber-light:#FDF3E3;
+  --radius:10px;--radius-sm:6px;
+}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
+
+/* HEADER */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-icon{width:34px;height:34px;background:var(--accent);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:700}
+.brand-name{font-size:14px;font-weight:700}
+.brand-sub{font-size:11px;color:var(--text3)}
+.hdr-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.unit-sw{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.unit-sw button{padding:5px 12px;border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);font-family:'DM Mono',monospace;transition:all .15s}
+.unit-sw button.active{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--border2)}
+.btn-export{display:flex;align-items:center;gap:5px;padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:500;font-family:'Noto Sans TC',sans-serif}
+.btn-export:hover{opacity:.88}
+.btn-outline{display:flex;align-items:center;gap:5px;padding:6px 12px;background:transparent;color:var(--blue);border:1px solid var(--blue);border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:500;font-family:'Noto Sans TC',sans-serif}
+.btn-outline:hover{background:var(--blue-light)}
+.btn-ghost{display:flex;align-items:center;gap:5px;padding:6px 12px;background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:500;font-family:'Noto Sans TC',sans-serif;white-space:nowrap}
+.btn-ghost:hover{background:var(--surface2)}
+.brand-txt{min-width:0}
+.unit-wrap{display:flex;align-items:center;gap:6px}
+.unit-lbl{font-size:11px;color:var(--text3);white-space:nowrap}
+.hdr-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hdr-menu-btn{display:none;width:40px;height:40px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);font-size:20px;color:var(--text2);cursor:pointer;align-items:center;justify-content:center}
+.hdr-menu{display:none;position:fixed;top:58px;right:8px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 28px rgba(0,0,0,.18);padding:6px;flex-direction:column;gap:4px;min-width:190px}
+.hdr-menu.open{display:flex}
+.hdr-menu button{text-align:left;padding:12px 14px;border:none;background:transparent;border-radius:var(--radius-sm);font-size:15px;font-weight:500;color:var(--text);cursor:pointer;font-family:'Noto Sans TC',sans-serif}
+.hdr-menu button:hover{background:var(--surface2)}
+.hdr-menu button.menu-primary{background:var(--accent);color:#fff;margin-top:2px}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:1fr 320px;gap:1.25rem;max-width:1240px;margin:0 auto;padding:1.25rem}
+.left{display:flex;flex-direction:column;gap:1rem;min-width:0}
+.right{display:flex;flex-direction:column;gap:1rem;position:sticky;top:66px;align-self:start}
+
+/* PROJECT BANNER */
+.proj-banner{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px}
+.proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
+.proj-banner .section-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-hdr{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.step-badge{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-badge.s2{background:var(--green)}
+.step-badge.s3{background:var(--blue)}
+.section-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+
+/* TOOLBAR */
+.toolbar{padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.toolbar-l{display:flex;align-items:center;gap:8px}
+.count-badge{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2)}
+.btn-add{display:flex;align-items:center;gap:5px;padding:6px 14px;background:var(--accent-light);border:1px solid #F0C49A;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:500;color:var(--accent);font-family:'Noto Sans TC',sans-serif;transition:all .15s}
+.btn-add:hover{background:#FBE0C8}
+
+/* EMPTY */
+.empty-state{padding:3rem 2rem;text-align:center;color:var(--text3)}
+.empty-icon{font-size:36px;margin-bottom:10px;opacity:.35}
+.empty-text{font-size:13px;line-height:1.8}
+
+/* CAB ITEM */
+.cab-item{border-bottom:1px solid var(--border)}
+.cab-item:last-child{border-bottom:none}
+.cab-hdr{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;user-select:none;transition:background .12s}
+.cab-hdr:hover{background:var(--surface2)}
+.cab-num{width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text2);flex-shrink:0}
+.cab-info{flex:1;min-width:0}
+.cab-name-d{font-size:13px;font-weight:500;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cab-dim-d{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.pills{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:'DM Mono',monospace}
+.pill-price{background:var(--red-light);border:1px solid #EABAB4;color:var(--red)}
+.pill-wage{background:var(--accent-light);border:1px solid #F0C49A;color:var(--accent)}
+.pill-zero{background:var(--surface2);border:1px solid var(--border);color:var(--text3)}
+.btn-rm{width:26px;height:26px;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;cursor:pointer;font-size:12px;color:var(--text3);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.btn-rm:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+.btn-dup{width:26px;height:26px;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;cursor:pointer;font-size:12px;color:var(--text3);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.btn-dup:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+.chev{font-size:10px;color:var(--text3);transition:transform .2s;flex-shrink:0}
+.chev.open{transform:rotate(180deg)}
+
+.cab-body{display:none;background:var(--surface2);border-top:1px solid var(--border)}
+.cab-body.open{display:grid;grid-template-columns:1fr 300px}
+.cab-body.open.no-wage{grid-template-columns:1fr}
+
+/* CAB BODY LEFT */
+.cab-left{padding:16px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:14px}
+.fsec-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:7px;display:flex;align-items:center;gap:8px}
+.fsec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:7px}
+.fgrid-2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.fgrid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.field label{display:block;font-size:11px;color:var(--text2);margin-bottom:3px;font-weight:500}
+.field input,.field select{width:100%;height:32px;padding:0 8px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:12px;font-family:'DM Mono',monospace;-webkit-appearance:none}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239E9891'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px;cursor:pointer}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(184,77,0,.1)}
+.field .hint{font-size:10px;color:var(--text3);margin-top:2px}
+.field input[readonly]{background:var(--surface2);color:var(--text2)}
+
+.opts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:5px}
+.opt{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text2);cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);transition:all .15s;user-select:none}
+.opt:hover{border-color:var(--border2)}
+.opt.on{border-color:var(--accent);background:var(--accent-light);color:var(--accent);font-weight:500}
+.opt input{display:none}
+.opt-dot{width:13px;height:13px;border-radius:3px;flex-shrink:0;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent;transition:all .15s}
+.opt.on .opt-dot{background:var(--accent);border-color:var(--accent);color:#fff}
+.sub-panel{margin-top:6px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:7px}
+.sub-panel .full{grid-column:1/-1}
+
+/* CAB BODY RIGHT = ASSEMBLY */
+.cab-right{padding:14px 14px;overflow-y:auto;max-height:720px}
+.wage-section-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px;margin-top:10px}
+.wage-section-title:first-child{margin-top:0}
+.wage-item{display:grid;grid-template-columns:1fr 62px;gap:6px;align-items:center;margin-bottom:5px}
+.wage-label{font-size:11px;color:var(--text2);line-height:1.3}
+.wage-label small{display:block;font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
+.wage-input{height:28px;padding:0 6px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:12px;font-family:'DM Mono',monospace;text-align:right;width:100%}
+.wage-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(184,77,0,.1)}
+.wage-estimate{height:28px;padding:0 6px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;width:100%}
+.wage-estimate:focus{outline:none;border-color:var(--accent)}
+.wage-auto{height:28px;padding:0 6px;border:1px solid #F0C49A;border-radius:var(--radius-sm);background:var(--accent-light);color:var(--accent);font-size:11px;font-family:'DM Mono',monospace;text-align:right;width:100%;display:flex;align-items:center;justify-content:flex-end}
+
+/* DETAIL TABLE */
+.dtitle{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin:14px 0 7px;display:flex;align-items:center;gap:8px}
+.dtitle::after{content:'';flex:1;height:1px;background:var(--border)}
+.dwrap{overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border)}
+table.dt{width:100%;border-collapse:collapse;font-size:11px}
+table.dt th{text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text2);font-weight:600;font-size:10px;border-bottom:1px solid var(--border);white-space:nowrap}
+table.dt td{padding:6px 8px;background:var(--surface);border-bottom:1px solid var(--border);color:var(--text)}
+table.dt tr:last-child td{border-bottom:none}
+table.dt .mono{font-family:'DM Mono',monospace;font-size:11px}
+table.dt .r{text-align:right}
+table.dt .total-row td{background:var(--surface2);font-weight:600}
+.empty-table{padding:16px;text-align:center;font-size:12px;color:var(--text3);background:var(--surface)}
+
+/* SUMMARY CARD */
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.grand-num{font-size:34px;font-weight:300;letter-spacing:-1px;font-family:'DM Mono',monospace;line-height:1}
+.grand-unit{font-size:12px;color:var(--text3);margin:3px 0 12px}
+.sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.sub-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px}
+.sub-box .lbl{font-size:10px;color:var(--text3);margin-bottom:2px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.sub-box .val{font-size:17px;font-weight:500;font-family:'DM Mono',monospace}
+.sub-box .u{font-size:10px;color:var(--text3)}
+
+.divider{height:1px;background:var(--border)}
+.per-list{padding:4px 0;max-height:200px;overflow-y:auto}
+.per-row{display:flex;align-items:center;padding:7px 16px;gap:8px;font-size:11px;border-bottom:1px solid var(--border)}
+.per-row:last-child{border-bottom:none}
+.per-name{flex:1;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.per-space{font-size:9px;color:var(--text3);background:var(--surface2);border-radius:3px;padding:1px 5px;margin-right:4px}
+.per-val{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;min-width:56px;text-align:right}
+
+.warn-box{background:var(--red-light);border:1px solid #EABAB4;border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--red);display:flex;align-items:flex-start;gap:8px;margin-top:8px}
+
+/* TOTALS panel */
+.tot-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.tot-row{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;font-size:12px;border-bottom:1px solid var(--border)}
+.tot-row:last-child{border-bottom:none}
+.tot-row .k{color:var(--text2)}
+.tot-row .v{font-family:'DM Mono',monospace;font-weight:600}
+.tot-row.grand{background:var(--green-light);padding:14px 16px}
+.tot-row.grand .k{font-size:13px;font-weight:700;color:var(--green)}
+.tot-row.grand .v{font-size:20px;color:var(--green);font-weight:700}
+.tot-input{width:96px;height:28px;padding:0 8px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);font-size:12px;font-family:'DM Mono',monospace;text-align:right}
+.tot-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(184,77,0,.1)}
+
+.rules-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.rules-list{padding:8px 16px}
+.rule{display:flex;align-items:baseline;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+.rule:last-child{border-bottom:none}
+.rk{color:var(--text3);width:80px;flex-shrink:0;font-weight:500}
+.rv{color:var(--text2);font-family:'DM Mono',monospace;font-size:11px}
+
+.settings-panel{padding:12px 16px;border-top:1px solid var(--border);display:none}
+.settings-panel.open{display:block}
+.set-row{display:grid;grid-template-columns:1fr 70px;gap:8px;align-items:center;margin-bottom:6px;font-size:11px}
+.set-row label{color:var(--text2)}
+.set-row input{height:28px;padding:0 6px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:12px;font-family:'DM Mono',monospace;text-align:right;width:100%}
+
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .hdr,.right,.toolbar,.btn-rm,.btn-dup,.chev,.cab-right,.rules-card,.settings-panel{display:none!important}
+  .layout{display:block;padding:0;max-width:100%}
+  .cab-body{display:block!important;grid-template-columns:1fr!important}
+  .cab-left{border-right:none!important}
+  body{background:#fff}
+}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.cell-input{height:24px;padding:0 3px;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text);font-size:11px;font-family:'DM Mono',monospace;}
+.cell-input:focus{outline:none;border-color:var(--accent);}
+/* 讀取清單 */
+.load-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px;background:var(--surface);transition:border-color .15s}
+.load-row:hover{border-color:var(--border2)}
+.load-draft{background:var(--amber-light);border-color:#E8D3A8}
+.load-info{min-width:0;flex:1}
+.load-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.load-sub{font-size:11px;color:var(--text3);font-weight:400}
+.load-meta{font-size:11px;color:var(--text3);margin-top:2px;font-family:'DM Mono',monospace}
+.load-actions{display:flex;gap:6px;flex-shrink:0}
+.load-btn{padding:5px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;border:1px solid;font-family:'Noto Sans TC',sans-serif}
+.load-open{background:var(--accent-light);border-color:#F0C49A;color:var(--accent)}
+.load-open:hover{background:#FBE0C8}
+.load-del{background:transparent;border-color:var(--border2);color:var(--text3)}
+.load-del:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+
+/* ── iPad / 中等寬度（≤1024）── */
+@media(max-width:1024px){
+  .layout{grid-template-columns:1fr 300px;gap:1rem;padding:1rem}
+  .cab-body.open{grid-template-columns:1fr 280px}
+}
+/* ── 平板直向 / 小筆電（≤900）：右側總計移到下方，櫃體單欄 ── */
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .right{position:static}
+  .cab-body.open{grid-template-columns:1fr}
+  .cab-left{border-right:none;border-bottom:1px solid var(--border)}
+  .cab-right{max-height:none}
+}
+/* ── 手機（≤680）── */
+@media(max-width:680px){
+  .hdr{padding:0 12px;height:54px}
+  .brand-icon{width:30px;height:30px;font-size:14px}
+  .brand-name{font-size:13px}
+  .brand-sub{display:none}                 /* 手機隱藏副標，省空間 */
+  .unit-lbl{display:none}                   /* 手機隱藏「單位」字 */
+  .unit-sw button{padding:7px 12px;font-size:13px}   /* 單位鈕加大好按 */
+  .hdr-actions{display:none}                /* 手機隱藏整排按鈕 */
+  .hdr-menu-btn{display:flex}               /* 顯示漢堡 */
+  .hdr-r{gap:6px}
+
+  .layout{padding:10px;gap:12px}
+  .proj-grid{grid-template-columns:1fr 1fr}
+  .proj-grid .field[style*="span 2"]{grid-column:1/-1}
+
+  /* 輸入框加大好點按 */
+  .field input,.field select{height:40px;font-size:15px}
+  .field label{font-size:12px}
+  .fgrid,.fgrid-2,.fgrid-3{grid-template-columns:1fr 1fr}
+  .opts-grid{grid-template-columns:1fr 1fr}
+  .opt{padding:9px 11px;font-size:13px}
+
+  /* 櫃體標題列在手機更好讀 */
+  .cab-hdr{padding:11px 12px;gap:8px;flex-wrap:wrap}
+  .cab-num{width:28px;height:28px}
+  .pills{order:3;width:100%;margin-top:2px}
+  .btn-dup,.btn-rm{width:30px;height:30px}
+
+  /* 右側工資面板：加大輸入、標題吸頂好捲 */
+  .cab-right{padding:12px}
+  .wage-item{grid-template-columns:1fr 72px}
+  .wage-input,.wage-estimate,.wage-auto{height:34px;font-size:14px}
+  .wage-label{font-size:12px}
+  .wage-section-title{position:sticky;top:0;background:var(--surface2);z-index:2;padding:8px 0 5px}
+
+  /* 報價總計輸入加大 */
+  .tot-input{height:34px;width:104px;font-size:14px}
+  .tot-row{padding:11px 14px}
+
+  /* 明細表格橫向可捲 */
+  .dwrap{overflow-x:auto}
+
+  /* 讀取彈窗滿版好操作 */
+  #load-modal>div{width:96vw;max-height:88vh}
+  .load-btn{padding:8px 14px;font-size:13px}
+}
+/* ── 很窄（≤380）：欄位單欄 ── */
+@media(max-width:380px){
+  .proj-grid,.fgrid,.fgrid-2,.fgrid-3,.opts-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<!-- HEADER -->
+<header class="hdr">
+  <div class="brand">
+    <div class="brand-icon">尺</div>
+    <div class="brand-txt">
+      <div class="brand-name">系統櫃報價器</div>
+      <div class="brand-sub">系統櫃售價 ＋ 組裝費</div>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <div class="unit-wrap">
+      <span class="unit-lbl">單位</span>
+      <div class="unit-sw">
+        <button id="btn-mm" onclick="setUnit('mm')">mm</button>
+        <button id="btn-cm" onclick="setUnit('cm')">cm</button>
+        <button id="btn-chi" class="active" onclick="setUnit('chi')">尺</button>
+      </div>
+    </div>
+    <!-- 桌機：整排按鈕 -->
+    <div class="hdr-actions">
+      <button class="btn-ghost" onclick="newProject()">✨ 新報價</button>
+      <button class="btn-ghost" onclick="saveAsProject()">💾 儲存為案場</button>
+      <button class="btn-ghost" onclick="openSavedModal()">📁 已儲存案場</button>
+      <button class="btn-ghost" onclick="openDraftModal()">🕒 草稿箱</button>
+      <button class="btn-export" onclick="openQuoteWindow()">📄 產生報價單</button>
+    </div>
+    <!-- 手機：漢堡選單 -->
+    <button class="hdr-menu-btn" onclick="toggleHdrMenu()" aria-label="選單">☰</button>
+  </div>
+</header>
+<!-- 手機下拉選單 -->
+<div class="hdr-menu" id="hdr-menu">
+  <button onclick="newProject();closeHdrMenu()">✨ 新報價</button>
+  <button onclick="saveAsProject();closeHdrMenu()">💾 儲存為案場</button>
+  <button onclick="openSavedModal();closeHdrMenu()">📁 已儲存案場</button>
+  <button onclick="openDraftModal();closeHdrMenu()">🕒 草稿箱</button>
+  <button class="menu-primary" onclick="openQuoteWindow();closeHdrMenu()">📄 產生報價單</button>
+</div>
+
+<div class="layout">
+<div class="left">
+
+  <!-- PROJECT INFO -->
+  <div class="proj-banner">
+    <div class="section-label">案場資訊</div>
+    <div class="proj-grid">
+      <div class="field" style="grid-column:span 2">
+        <label>設計公司名稱（報價單抬頭）</label>
+        <input id="proj-company" value="" placeholder="例：好宅先生（留空＝系統櫃報價單）" style="font-family:'Noto Sans TC',sans-serif" oninput="renderSummary()">
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label>英文副標（報價單抬頭下方）</label>
+        <input id="proj-company-en" value="" placeholder="例：MR. HAOZHAI · SYSTEM FURNITURE（選填）" style="font-family:'Noto Sans TC',sans-serif;letter-spacing:.5px">
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label>案場名稱</label>
+        <input id="proj-name" value="" placeholder="例：板橋 ○○ 新成屋" style="font-family:'Noto Sans TC',sans-serif" oninput="renderSummary()">
+      </div>
+      <div class="field">
+        <label>設計師</label>
+        <input id="proj-designer" value="" placeholder="設計師姓名" style="font-family:'Noto Sans TC',sans-serif">
+      </div>
+      <div class="field">
+        <label>業主</label>
+        <input id="proj-owner" value="" placeholder="業主姓名" style="font-family:'Noto Sans TC',sans-serif">
+      </div>
+      <div class="field">
+        <label>聯絡電話</label>
+        <input id="proj-phone" value="" placeholder="選填" style="font-family:'Noto Sans TC',sans-serif">
+      </div>
+      <div class="field">
+        <label>日期</label>
+        <input id="proj-date" type="date" value="">
+      </div>
+    </div>
+  </div>
+
+  <!-- CABINET LIST -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="step-badge">1</div>
+      <div class="section-label">櫃體清單</div>
+    </div>
+    <div class="toolbar">
+      <div class="toolbar-l">
+        <div class="section-label">共</div>
+        <div class="count-badge" id="count-badge">0 個</div>
+      </div>
+      <button class="btn-add" onclick="addCabinet()">＋ 新增櫃體</button>
+    </div>
+    <div id="cab-list">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🗄</div>
+        <div class="empty-text">點擊「新增櫃體」開始<br>左側填尺寸與門片內裝（算系統櫃售價）<br>右側自動帶入組裝工資、其他項目可手填</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /left -->
+
+<!-- RIGHT SUMMARY -->
+<div class="right">
+
+  <!-- GRAND TOTAL -->
+  <div class="tot-card">
+    <div class="card-hdr">
+      <div class="step-badge s2">2</div>
+      <div class="section-label" style="color:var(--green)">報價總計</div>
+    </div>
+    <div class="tot-row"><span class="k">系統櫃售價</span><span class="v" id="tot-price" style="color:var(--red)">$0</span></div>
+    <div class="tot-row" id="row-wage"><span class="k">組裝費</span><span class="v" id="tot-wage" style="color:var(--accent)">$0</span></div>
+    <div id="wage-warn"></div>
+    <div class="tot-row"><span class="k">運費</span>
+      <input class="tot-input" id="in-freight" type="number" min="0" placeholder="0" value="" oninput="renderSummary()"></div>
+    <div class="tot-row"><span class="k">其他加項 / 折讓 (±)</span>
+      <input class="tot-input" id="in-adjust" type="number" placeholder="0" value="" oninput="renderSummary()"></div>
+    <div class="tot-row">
+      <span class="k">營業稅</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <input class="tot-input" id="in-tax" type="number" min="0" step="0.1" placeholder="0" value="" oninput="renderSummary()" style="width:56px">
+        <span style="font-size:11px;color:var(--text3)">%</span>
+      </span>
+    </div>
+    <div class="tot-row grand"><span class="k">總價</span><span class="v" id="tot-grand">$0</span></div>
+    <div class="tot-row" style="background:var(--surface2)">
+      <span class="k">手動改總價（覆寫）</span>
+      <input class="tot-input" id="in-override" type="number" min="0" placeholder="不填=自動" value="" oninput="renderSummary()"></div>
+  </div>
+
+  <!-- PER-CABINET -->
+  <div class="sum-card">
+    <div class="card-hdr">
+      <div class="section-label">各櫃體 · 售價 / 組裝</div>
+    </div>
+    <div class="per-list" id="per-list"></div>
+  </div>
+
+  <!-- SETTINGS: 售價費率 + 組裝費率 -->
+  <div class="rules-card">
+    <div class="card-hdr" style="cursor:pointer;justify-content:space-between" onclick="toggleSettings()">
+      <div class="section-label">⚙️ 費率設定（可調整）</div>
+      <span class="chev" id="set-chev" style="font-size:10px">▼</span>
+    </div>
+    <div class="settings-panel" id="settings-panel">
+      <div class="fsec-title">系統櫃售價</div>
+      <div class="set-row"><label>高櫃 /尺</label><input type="number" id="p-tall" value="2980" oninput="updateRate()"></div>
+      <div class="set-row"><label>矮櫃 /尺</label><input type="number" id="p-short" value="1980" oninput="updateRate()"></div>
+      <div class="set-row"><label>層板超額 /尺</label><input type="number" id="p-shelf" value="200" oninput="updateRate()"></div>
+      <div class="set-row"><label>系統門片 /片</label><input type="number" id="p-door-sys" value="1000" oninput="updateRate()"></div>
+      <div class="set-row"><label>格柵門片 /才</label><input type="number" id="p-door-grille" value="650" oninput="updateRate()"></div>
+      <div class="set-row"><label>玻璃門片 /才</label><input type="number" id="p-door-glass" value="650" oninput="updateRate()"></div>
+      <div class="set-row"><label>成型門片 /才</label><input type="number" id="p-door-mold" value="650" oninput="updateRate()"></div>
+      <div class="set-row"><label>結晶霧烤 /才</label><input type="number" id="p-door-crystal" value="400" oninput="updateRate()"></div>
+      <div class="set-row"><label>滑門 /片</label><input type="number" id="p-door-slide" value="2000" oninput="updateRate()"></div>
+      <div class="set-row"><label>抽屜 /個</label><input type="number" id="p-drawer" value="1350" oninput="updateRate()"></div>
+      <div class="set-row"><label>LED燈條 /條</label><input type="number" id="p-led" value="3000" oninput="updateRate()"></div>
+      <div class="set-row"><label>洞洞板 /才</label><input type="number" id="p-pegboard" value="350" oninput="updateRate()"></div>
+      <div class="set-row"><label>懸板 /尺</label><input type="number" id="p-floating" value="500" oninput="updateRate()"></div>
+      <div class="set-row"><label>梯形把手 /個</label><input type="number" id="p-h-ladder" value="1500" oninput="updateRate()"></div>
+      <div class="set-row"><label>弧形把手 /個</label><input type="number" id="p-h-arc" value="1500" oninput="updateRate()"></div>
+      <div class="set-row"><label>J形把手 /條</label><input type="number" id="p-h-j" value="1500" oninput="updateRate()"></div>
+      <div class="set-row"><label>斜形把手 /條</label><input type="number" id="p-h-slope" value="900" oninput="updateRate()"></div>
+      <div class="set-row"><label>Z形把手 /條</label><input type="number" id="p-h-z" value="1500" oninput="updateRate()"></div>
+
+      <div class="fsec-title" style="margin-top:10px">組裝費（元/cm寬 或 每單位）</div>
+      <div class="set-row"><label>高櫃 /cm</label><input type="number" id="w-tall" value="17" oninput="updateRate()"></div>
+      <div class="set-row"><label>矮櫃 /cm</label><input type="number" id="w-short" value="12" oninput="updateRate()"></div>
+      <div class="set-row"><label>吊櫃 /cm</label><input type="number" id="w-hang" value="17" oninput="updateRate()"></div>
+      <div class="set-row"><label>木抽屜 /組</label><input type="number" id="w-drawer" value="100" oninput="updateRate()"></div>
+      <div class="set-row"><label>層板安裝 /cm</label><input type="number" id="w-shelf" value="5" oninput="updateRate()"></div>
+      <div class="set-row"><label>LED燈條 /組</label><input type="number" id="w-led" value="500" oninput="updateRate()"></div>
+      <div class="set-row"><label>洞洞板 /式</label><input type="number" id="w-pegboard" value="600" oninput="updateRate()"></div>
+      <div class="set-row"><label>滑門 H≥100 /cm</label><input type="number" id="w-slide-tall" value="7" oninput="updateRate()"></div>
+      <div class="set-row"><label>滑門 H≤99 /cm</label><input type="number" id="w-slide-short" value="6" oninput="updateRate()"></div>
+      <div class="set-row"><label>滑門 H≤65 /cm</label><input type="number" id="w-slide-low" value="5" oninput="updateRate()"></div>
+      <div class="set-row"><label>組裝費最低消</label><input type="number" id="w-min" value="10000" oninput="updateRate()"></div>
+
+      <div class="fsec-title" style="margin-top:10px">組裝報價表 F14~F70 單價</div>
+      <div id="witems-rates"></div>
+    </div>
+  </div>
+
+  <!-- RULES -->
+  <div class="rules-card">
+    <div class="card-hdr"><div class="section-label">計算規則</div></div>
+    <div class="rules-list">
+      <div class="rule"><span class="rk">尺換算</span><span class="rv">1尺=30cm，進位0.5尺</span></div>
+      <div class="rule"><span class="rk">高/矮判定</span><span class="rv">H≥900mm→高櫃，&lt;900→矮櫃</span></div>
+      <div class="rule"><span class="rk">售價尺數</span><span class="rv">看寬度</span></div>
+      <div class="rule"><span class="rk">才數</span><span class="rv">長cm×寬cm÷900，進位0.5(四捨五入)</span></div>
+      <div class="rule"><span class="rk">內含層板</span><span class="rv">高櫃5片 / 矮櫃3片</span></div>
+      <div class="rule"><span class="rk">超額層板</span><span class="rv">寬(尺)×200</span></div>
+      <div class="rule"><span class="rk">門片才</span><span class="rv">每片各自進位0.5才 ×數量</span></div>
+      <div class="rule"><span class="rk">組裝主體</span><span class="rv">寬(cm)×費率</span></div>
+      <div class="rule"><span class="rk">組裝最低消</span><span class="rv">未滿10,000補至10,000</span></div>
+    </div>
+  </div>
+
+</div><!-- /right -->
+</div><!-- /layout -->
+
+<!-- LOAD PROJECTS / DRAFT MODAL -->
+<div id="load-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:var(--radius);width:440px;max-width:92vw;max-height:82vh;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-weight:700;font-size:14px;color:var(--accent);display:flex;justify-content:space-between;align-items:center">
+      <span id="load-modal-title">📁 已儲存案場</span>
+      <button onclick="closeLoadModal()" style="background:transparent;border:none;font-size:16px;cursor:pointer;color:var(--text3)">✕</button>
+    </div>
+    <div id="load-list" style="overflow-y:auto;padding:8px"></div>
+    <div id="load-modal-foot" style="padding:10px 18px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)"></div>
+  </div>
+</div>
+
+<!-- EXPORT OPTIONS MODAL -->
+<div id="export-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:var(--radius);width:340px;max-width:90vw;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.25)">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-weight:700;font-size:14px;color:var(--green)">📄 產生報價單</div>
+    <div style="padding:16px 18px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">報價單上是否顯示「組裝費」？</div>
+      <label class="exp-opt" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;margin-bottom:8px">
+        <input type="radio" name="exp-wage" value="show" checked>
+        <span><b>顯示組裝費</b><br><small style="color:var(--text3)">系統櫃售價、組裝費分開列（含總計）</small></span>
+      </label>
+      <label class="exp-opt" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer">
+        <input type="radio" name="exp-wage" value="hide">
+        <span><b>不顯示組裝費</b><br><small style="color:var(--text3)">報價單只列系統櫃售價（組裝費不出現、不計入總價）</small></span>
+      </label>
+    </div>
+    <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn-ghost" onclick="closeExportModal()">取消</button>
+      <button class="btn-export" onclick="confirmExport()">產生</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   系統櫃報價器  —  計價引擎
+   ① 系統櫃售價（DM 定價）  ② 組裝費（組裝報價表2026）
+   ========================================================= */
+
+// ── 費率（可在 UI 調整，這裡是預設）──
+const RATES = {
+  tall:2980, short:1980, shelf:200,
+  doorSys:1000, doorGrille:650, doorGlass:650, doorMold:650, doorCrystal:400, doorSlide:2000,
+  drawer:1350, led:3000, pegboard:350, floating:500,
+  hLadder:1500, hArc:1500, hJ:1500, hSlope:900, hZ:1500,
+  // 組裝
+  wTall:17, wShort:12, wHang:17, wDrawer:100, wShelf:5, wLed:500, wPegboard:600,
+  wSlideTall:7, wSlideShort:6, wSlideLow:5,   // 拉推門組 F10/F11/F12（依高度，×寬cm）
+  wMin:10000,
+  wItems:{}   // F14~F70 單價覆寫（空=用表定價）
+};
+// 預設費率快照（供「新報價」「讀取」時重置，避免殘留上一份改過的費率）
+function DEFAULT_RATES(){
+  return {
+    tall:2980, short:1980, shelf:200,
+    doorSys:1000, doorGrille:650, doorGlass:650, doorMold:650, doorCrystal:400, doorSlide:2000,
+    drawer:1350, led:3000, pegboard:350, floating:500,
+    hLadder:1500, hArc:1500, hJ:1500, hSlope:900, hZ:1500,
+    wTall:17, wShort:12, wHang:17, wDrawer:100, wShelf:5, wLed:500, wPegboard:600,
+    wSlideTall:7, wSlideShort:6, wSlideLow:5,
+    wMin:10000, wItems:{}
+  };
+}
+
+// 門片類型定義（才制 vs 片制）
+const DOOR_TYPES = [
+  {key:'none',   label:'無門片',          mode:'none'},
+  {key:'sys',    label:'系統門片 (1000/片)', mode:'piece', rateKey:'doorSys'},
+  {key:'grille', label:'格柵門片 (650/才)',  mode:'cai',   rateKey:'doorGrille'},
+  {key:'glass',  label:'玻璃門片 (650/才)',  mode:'cai',   rateKey:'doorGlass'},
+  {key:'mold',   label:'成型門片 (650/才)',  mode:'cai',   rateKey:'doorMold'},
+  {key:'crystal',label:'結晶霧烤 (400/才)',  mode:'cai',   rateKey:'doorCrystal'},
+  {key:'slide',  label:'滑門 (2000/片·含滑軌五金)', mode:'piece', rateKey:'doorSlide', wage:'slide'},
+];
+// 把手類型
+const HANDLE_TYPES = [
+  {key:'none',  label:'無把手',        rateKey:null,     unit:''},
+  {key:'ladder',label:'梯形 (1500/個)', rateKey:'hLadder',unit:'個'},
+  {key:'arc',   label:'弧形 (1500/個)', rateKey:'hArc',   unit:'個'},
+  {key:'j',     label:'J形 (1500/條)',  rateKey:'hJ',     unit:'條'},
+  {key:'slope', label:'斜形 (900/條)',  rateKey:'hSlope', unit:'條'},
+  {key:'z',     label:'Z形 (1500/條)',  rateKey:'hZ',     unit:'條'},
+];
+
+// ── 組裝報價表 F1~F70（右側工資面板逐項）──
+// auto=true 由系統櫃連動自動帶入(唯讀)；est=true 直接填金額；其餘填數量
+const WAGE_ITEMS = [
+  {sec:'櫃體配件類'},
+  {code:'F13', label:'木抽屜、拉籃、拉盤、格抽', unit:'組', price:100, est:false, auto:true},
+  {code:'F14', label:'自組木抽屜', unit:'組', price:180, est:false, auto:false},
+  {code:'F15', label:'進口、BLUM型式 木抽屜', unit:'組', price:150, est:false, auto:false},
+  {code:'F16', label:'鋁型抽屜', unit:'組', price:200, est:false, auto:false},
+  {code:'F17', label:'鋁型抽屜 內組件', unit:'件', price:60, est:false, auto:false},
+  {code:'F18', label:'側拉籃', unit:'組', price:270, est:false, auto:false},
+  {code:'F19', label:'旋轉鏡', unit:'片', price:270, est:false, auto:false},
+  {code:'F20', label:'明鏡平貼固定', unit:'片', price:120, est:false, auto:false},
+  {code:'F21', label:'安裝鎖頭', unit:'個', price:170, est:false, auto:false},
+  {code:'F22', label:'隱藏層板', unit:'cm寬', price:5, est:false, auto:false},
+  {code:'F23', label:'各式五金小配件', unit:'個', price:50, est:false, auto:false},
+  {code:'F24', label:'其他五金(G腿)', unit:'支', price:100, est:false, auto:false},
+  {code:'F25', label:'層板安裝', unit:'cm寬', price:5, est:false, auto:true},
+  {sec:'封板類'},
+  {code:'F27', label:'補邊封板', unit:'處', price:250, est:false, auto:false},
+  {code:'F28', label:'造型 補邊封板', unit:'元', price:0, est:true, auto:false},
+  {code:'F29', label:'擋板', unit:'cm寬', price:0, est:false, auto:false},
+  {code:'F30', label:'滑軌洞洞板安裝', unit:'式', price:600, est:false, auto:true},
+  {code:'F31', label:'假門、落側(H99公分以下)', unit:'片', price:170, est:false, auto:false},
+  {code:'F32', label:'假門、落側(H65公分以下)', unit:'片', price:120, est:false, auto:false},
+  {code:'F33', label:'美背(櫃體後方封板)', unit:'才', price:30, est:false, auto:false},
+  {code:'F34', label:'直封 壁板(H240以下)', unit:'cm寬', price:7, est:false, auto:false},
+  {code:'F35', label:'直封 壁板(H160以下)', unit:'cm寬', price:5, est:false, auto:false},
+  {code:'F36', label:'直封 壁板(H80以下)', unit:'cm寬', price:5, est:false, auto:false},
+  {code:'F37', label:'墊出 壁板(H240以下)', unit:'cm寬', price:9, est:false, auto:false},
+  {code:'F38', label:'墊出 壁板(H160以下)', unit:'cm寬', price:7, est:false, auto:false},
+  {code:'F39', label:'墊出 壁板(H80以下)', unit:'cm寬', price:7, est:false, auto:false},
+  {code:'F40', label:'造型壁板', unit:'元', price:0, est:true, auto:false},
+  {code:'F41', label:'其他封板', unit:'元', price:0, est:true, auto:false},
+  {code:'F42', label:'造型修邊 檯面', unit:'元', price:0, est:true, auto:false},
+  {code:'F43', label:'畫框', unit:'cm周長', price:3, est:false, auto:false},
+  {sec:'修改類'},
+  {code:'F46', label:'櫃體修改', unit:'櫃', price:500, est:false, auto:false},
+  {code:'F47', label:'活格固格修改', unit:'片', price:100, est:false, auto:false},
+  {code:'F48', label:'改門、改抽屜、改抽頭', unit:'片', price:150, est:false, auto:false},
+  {code:'F49', label:'現場 貼皮/封邊', unit:'cm長', price:3, est:false, auto:false},
+  {sec:'廚具類'},
+  {code:'F51', label:'油煙機、烘碗機 安裝', unit:'台', price:300, est:false, auto:false},
+  {code:'F52', label:'洗碗機 安裝', unit:'台', price:800, est:false, auto:false},
+  {code:'F53', label:'水龍頭', unit:'支', price:300, est:false, auto:false},
+  {code:'F54', label:'檯面安裝', unit:'cm長', price:3, est:false, auto:false},
+  {sec:'水電類'},
+  {code:'F56', label:'拉線(含面板)', unit:'處', price:350, est:false, auto:false},
+  {code:'F57', label:'拉線(不含面板)', unit:'處', price:250, est:false, auto:false},
+  {code:'F58', label:'LED燈條安裝', unit:'組', price:500, est:false, auto:true},
+  {code:'F59', label:'炊燈、燈管 安裝', unit:'組', price:270, est:false, auto:false},
+  {code:'F60', label:'出線孔、維修孔', unit:'處', price:70, est:false, auto:false},
+  {code:'F61', label:'開電箱孔/對講機孔', unit:'處', price:350, est:false, auto:false},
+  {code:'F62', label:'總電源箱蓋、受信箱蓋移動', unit:'組', price:350, est:false, auto:false},
+  {code:'F63', label:'三角凡爾', unit:'組', price:300, est:false, auto:false},
+  {code:'F64', label:'櫃體洗溝藏線', unit:'處', price:270, est:false, auto:false},
+  {sec:'其他類'},
+  {code:'F66', label:'垃圾清理費含搬運', unit:'包', price:500, est:false, auto:false},
+  {code:'F67', label:'五金螺絲', unit:'式', price:650, est:false, auto:false},
+  {code:'F68', label:'矽利康', unit:'支', price:125, est:false, auto:false},
+  {code:'F69', label:'另補工資', unit:'工', price:3500, est:false, auto:false},
+  {code:'F70', label:'補板車資', unit:'車', price:1500, est:false, auto:false},
+];
+
+
+// ── STATE ──
+let unit = 'chi';           // 'mm' | 'cm' | 'chi'(尺)
+let cabinets = [];
+let nextId = 1;
+const STORE_KEY = 'sysCabinetQuote_v1';
+
+document.getElementById('proj-date').value = new Date().toISOString().slice(0,10);
+
+// ── 單位換算 ──
+// 內部一律用 mm 運算；輸入尺就 ×300，cm ×10
+function toMM(v){
+  const n=parseFloat(v)||0;
+  if(unit==='cm')return n*10;
+  if(unit==='chi')return n*300;   // 1尺=30cm=300mm
+  return n;
+}
+// mm → 尺（30cm=1尺），無條件進位到 0.5 尺
+function mmToChiCeil(mm){
+  const chi = mm/300;             // 1尺=300mm
+  return Math.ceil(chi*2)/2;      // 進位到 0.5
+}
+// mm → cm
+function mmToCm(mm){return mm/10;}
+
+// 才數：長cm×寬cm÷900，無條件進位到 0.5（2.3→2.5、2.6→3）
+function caiRound(mmA, mmB){
+  const raw = (mmA/10)*(mmB/10)/900;
+  return Math.ceil(raw*2)/2;
+}
+
+// ── 費率 UI 綁定 ──
+function updateRate(){
+  const g=id=>parseFloat(document.getElementById(id).value)||0;
+  RATES.tall=g('p-tall'); RATES.short=g('p-short'); RATES.shelf=g('p-shelf');
+  RATES.doorSys=g('p-door-sys'); RATES.doorGrille=g('p-door-grille');
+  RATES.doorGlass=g('p-door-glass'); RATES.doorMold=g('p-door-mold'); RATES.doorCrystal=g('p-door-crystal');
+  RATES.doorSlide=g('p-door-slide');
+  RATES.drawer=g('p-drawer'); RATES.led=g('p-led'); RATES.pegboard=g('p-pegboard'); RATES.floating=g('p-floating');
+  RATES.hLadder=g('p-h-ladder'); RATES.hArc=g('p-h-arc'); RATES.hJ=g('p-h-j'); RATES.hSlope=g('p-h-slope'); RATES.hZ=g('p-h-z');
+  RATES.wTall=g('w-tall'); RATES.wShort=g('w-short'); RATES.wHang=g('w-hang');
+  RATES.wDrawer=g('w-drawer'); RATES.wShelf=g('w-shelf'); RATES.wLed=g('w-led'); RATES.wPegboard=g('w-pegboard');
+  RATES.wSlideTall=g('w-slide-tall'); RATES.wSlideShort=g('w-slide-short'); RATES.wSlideLow=g('w-slide-low');
+  RATES.wMin=g('w-min');
+  // F14~F70 單價覆寫
+  if(!RATES.wItems)RATES.wItems={};
+  WAGE_ITEMS.forEach(d=>{
+    if(!d.code||d.auto)return;
+    const el=document.getElementById('wr-'+d.code);
+    if(el){const v=parseFloat(el.value); if(!isNaN(v))RATES.wItems[d.code]=v;}
+  });
+  renderAll();
+}
+// 產生 F14~F70 單價設定列
+function buildWItemRates(){
+  const box=document.getElementById('witems-rates');
+  if(!box)return;
+  let html='';
+  WAGE_ITEMS.forEach(d=>{
+    if(d.sec){html+=`<div style="font-size:10px;color:var(--text3);margin:6px 0 2px">${d.sec}</div>`;return;}
+    if(d.auto||d.est)return;   // 連動項/另報價不列單價設定
+    const cur=(RATES.wItems&&RATES.wItems[d.code]!==undefined)?RATES.wItems[d.code]:d.price;
+    html+=`<div class="set-row"><label>${d.code} ${d.label}<br><span style="color:var(--text3);font-size:10px">/${d.unit}</span></label>
+      <input type="number" id="wr-${d.code}" value="${cur}" oninput="updateRate()"></div>`;
+  });
+  box.innerHTML=html;
+}
+function toggleSettings(){
+  const p=document.getElementById('settings-panel');
+  const c=document.getElementById('set-chev');
+  p.classList.toggle('open');
+  c.classList.toggle('open');
+}
+
+function setUnit(u){
+  unit=u;
+  ['mm','cm','chi'].forEach(x=>{
+    document.getElementById('btn-'+x).classList.toggle('active',u===x);
+  });
+  renderAll();
+}
+function unitLabel(){return unit==='chi'?'尺':unit;}
+
+// ── 報價模式 ──
+// 編輯畫面一律都算組裝費（兩筆都顯示）。
+// mode 保留給「導出報價單時是否顯示組裝費」使用，預設顯示。
+function includeWage(){return true;}   // 編輯畫面永遠算組裝費
+
+
+// ── 售價層級：一律看高度（吊櫃售價也依高度，不再固定2980）──
+// 回傳 'tall'(高櫃) 或 'short'(矮櫃)
+function cabPriceTier(cab){
+  const Hmm=toMM(cab.H);
+  return Hmm>=900 ? 'tall' : 'short';
+}
+// ── 組裝層級：吊櫃另計（17/cm），否則依高度 高17/矮12 ──
+// 回傳 'tall' | 'short' | 'hang'
+function cabWageTier(cab){
+  if(cab.isHanging) return 'hang';
+  const Hmm=toMM(cab.H);
+  return Hmm>=900 ? 'tall' : 'short';
+}
+// ── 顯示用標籤：吊櫃優先顯示吊櫃，否則依高度 ──
+function cabDisplayTier(cab){
+  if(cab.isHanging) return 'hang';
+  const Hmm=toMM(cab.H);
+  return Hmm>=900 ? 'tall' : 'short';
+}
+function cabWidthChi(cab){ return mmToChiCeil(toMM(cab.W)); }
+
+/* =========================================================
+   ① 系統櫃售價
+   ========================================================= */
+function calcCabPrice(cab){
+  const lines=[];
+  const Wmm=toMM(cab.W), Hmm=toMM(cab.H);
+  if(!Wmm||!Hmm) return {lines,total:0};
+
+  const widthChi = cabWidthChi(cab);
+  const ptype = cabPriceTier(cab);            // 售價依高度
+  const baseRate = ptype==='short' ? RATES.short : RATES.tall;
+  const hangTag = cab.isHanging ? '吊櫃' : (ptype==='short'?'矮櫃':'高櫃');
+  const typeName = hangTag+'(空櫃)';
+
+  // 空櫃底價 = 寬度(尺) × 單價（吊櫃售價也依高度）
+  lines.push({label:typeName, qty:widthChi+' 尺', unit:'$'+baseRate+'/尺', sub:widthChi*baseRate});
+
+  // +深 / +高 手動加價
+  const addD=parseFloat(cab.addDepth)||0;
+  const addH=parseFloat(cab.addHeight)||0;
+  if(addD>0) lines.push({label:'＋深加價', qty:'-', unit:'手填', sub:addD});
+  if(addH>0) lines.push({label:'＋高加價', qty:'-', unit:'手填', sub:addH});
+
+  // 超額層板：內含（高櫃5/矮櫃3），超出每片 = 寬(尺)×200
+  const included = (ptype==='short') ? 3 : 5;
+  const shelfN = parseInt(cab.shelfCount)||0;
+  const extra = Math.max(0, shelfN - included);
+  if(extra>0){
+    lines.push({label:`超額層板 ×${extra}`, qty:`(內含${included}，超${extra})`, unit:'$'+RATES.shelf+'/尺', sub:extra*widthChi*RATES.shelf});
+  }
+
+  // 門片
+  const dt = DOOR_TYPES.find(d=>d.key===cab.doorType) || DOOR_TYPES[0];
+  if(dt.mode==='piece'){
+    const n=parseInt(cab.doorPieces)||0;
+    if(n>0) lines.push({label:dt.label, qty:n+' 片', unit:'$'+RATES[dt.rateKey]+'/片', sub:n*RATES[dt.rateKey]});
+  } else if(dt.mode==='cai'){
+    // 每片各自算才、各自進位0.5，再×數量
+    const n=parseInt(cab.doorPieces)||0;
+    const pw=toMM(cab.doorPW), ph=toMM(cab.doorPH);
+    if(n>0 && pw>0 && ph>0){
+      const perCai = caiRound(pw, ph);
+      const totalCai = perCai * n;
+      lines.push({label:dt.label, qty:`${n}片 ×${perCai}才`, unit:'$'+RATES[dt.rateKey]+'/才', sub:totalCai*RATES[dt.rateKey]});
+    }
+  }
+
+  // 門把
+  const ht = HANDLE_TYPES.find(h=>h.key===cab.handleType) || HANDLE_TYPES[0];
+  if(ht.rateKey){
+    const n=parseInt(cab.handleCount)||0;
+    if(n>0) lines.push({label:ht.label.split(' ')[0]+'把手', qty:n+' '+ht.unit, unit:'$'+RATES[ht.rateKey]+'/'+ht.unit, sub:n*RATES[ht.rateKey]});
+  }
+
+  // 抽屜（售價）
+  const drN=parseInt(cab.drawerCount)||0;
+  if(cab.hasDrawer && drN>0){
+    lines.push({label:'抽屜', qty:drN+' 個', unit:'$'+RATES.drawer+'/個', sub:drN*RATES.drawer});
+  }
+
+  // LED燈條
+  const ledN=parseInt(cab.ledCount)||0;
+  if(cab.hasLed && ledN>0){
+    lines.push({label:'LED燈條', qty:ledN+' 條', unit:'$'+RATES.led+'/條', sub:ledN*RATES.led});
+  }
+
+  // 洞洞板（才）
+  if(cab.hasPegboard){
+    const pw=toMM(cab.pegW), ph=toMM(cab.pegH);
+    if(pw>0&&ph>0){
+      const c=caiRound(pw,ph);
+      lines.push({label:'洞洞板', qty:c+' 才', unit:'$'+RATES.pegboard+'/才', sub:c*RATES.pegboard});
+    }
+  }
+
+  // 懸板（尺）
+  if(cab.hasFloating){
+    const fl=mmToChiCeil(toMM(cab.floatLen));
+    const fn=parseInt(cab.floatCount)||1;
+    if(fl>0) lines.push({label:'懸板', qty:`${fl}尺 ×${fn}`, unit:'$'+RATES.floating+'/尺', sub:fl*fn*RATES.floating});
+  }
+
+  // 造型牆板（手動估價）
+  const wall=parseFloat(cab.wallPanel)||0;
+  if(wall>0) lines.push({label:'造型牆板(帶圖估價)', qty:'-', unit:'手填', sub:wall});
+
+  // 其他售價手動加項
+  const otherP=parseFloat(cab.otherPrice)||0;
+  if(otherP!==0) lines.push({label:cab.otherPriceLabel||'其他加項', qty:'-', unit:'手填', sub:otherP});
+
+  const total=lines.reduce((s,l)=>s+l.sub,0);
+  return {lines,total};
+}
+</script>
+
+<script>
+/* =========================================================
+   ② 組裝費（組裝報價表2026）— 只自動算跟系統櫃直接相關的
+   其餘手填欄位 (extraWage)
+   ========================================================= */
+function calcCabWage(cab){
+  const lines=[];
+  const Wmm=toMM(cab.W), Hmm=toMM(cab.H);
+  if(!Wmm||!Hmm) return {lines,total:0};
+  const Wcm = mmToCm(Wmm);
+
+  // 主體：高17 / 矮12 / 吊17（元/cm寬）
+  const wtier=cabWageTier(cab);
+  const wRate = wtier==='short'?RATES.wShort : wtier==='hang'?RATES.wHang : RATES.wTall;
+  const wName = wtier==='short'?'矮櫃組裝' : wtier==='hang'?'吊櫃組裝' : '高櫃組裝';
+  lines.push({label:wName, qty:Wcm.toFixed(1)+' cm', unit:'$'+wRate+'/cm', sub:Wcm*wRate, auto:true});
+
+  // 抽屜組裝 F13 100/組
+  const drN=parseInt(cab.drawerCount)||0;
+  if(cab.hasDrawer && drN>0){
+    lines.push({label:'木抽屜組裝', qty:drN+' 組', unit:'$'+RATES.wDrawer+'/組', sub:drN*RATES.wDrawer, auto:true});
+  }
+
+  // 超額層板安裝 F25 5/cm寬（每片皆需安裝，用超額片數×寬cm）
+  const included = (cabPriceTier(cab)==='short')?3:5;
+  const shelfN=parseInt(cab.shelfCount)||0;
+  const extra=Math.max(0, shelfN-included);
+  if(extra>0){
+    const totalCm = Wcm*extra;
+    lines.push({label:'超額層板安裝', qty:totalCm.toFixed(1)+' cm', unit:'$'+RATES.wShelf+'/cm', sub:totalCm*RATES.wShelf, auto:true});
+  }
+
+  // LED燈條安裝 F58 500/組
+  const ledN=parseInt(cab.ledCount)||0;
+  if(cab.hasLed && ledN>0){
+    lines.push({label:'LED燈條安裝', qty:ledN+' 組', unit:'$'+RATES.wLed+'/組', sub:ledN*RATES.wLed, auto:true});
+  }
+
+  // 洞洞板安裝 F30 600/式
+  if(cab.hasPegboard){
+    const pw=toMM(cab.pegW), ph=toMM(cab.pegH);
+    if(pw>0&&ph>0){
+      lines.push({label:'滑軌洞洞板安裝', qty:'1 式', unit:'$'+RATES.wPegboard+'/式', sub:RATES.wPegboard, auto:true});
+    }
+  }
+
+  // 滑門組裝 F10/F11/F12：依櫃體高度 ×寬cm（以封板計算）
+  const dtW = DOOR_TYPES.find(d=>d.key===cab.doorType);
+  if(dtW && dtW.wage==='slide'){
+    const Hcm = Hmm/10;
+    let sRate, sName;
+    if(Hcm>=100){ sRate=RATES.wSlideTall; sName='拉推門組(H≥100)'; }
+    else if(Hcm>=66){ sRate=RATES.wSlideShort; sName='拉推門組(H≤99)'; }
+    else { sRate=RATES.wSlideLow; sName='拉推門組(H≤65)'; }
+    lines.push({label:sName, qty:Wcm.toFixed(1)+' cm', unit:'$'+sRate+'/cm', sub:Wcm*sRate, auto:true});
+  }
+
+  // 組裝報價表逐項（手填數量）：F14, F16, F18... 依 WAGE_ITEMS
+  // auto 項目已於上方由系統櫃連動計算，這裡跳過避免重複
+  const wq=cab.wageQty||{}, we=cab.wageEst||{};
+  WAGE_ITEMS.forEach(d=>{
+    if(d.sec||d.auto) return;                 // 分類標題、連動項跳過
+    const rate = rateW(d.code, d.price);
+    if(d.est){
+      const amt=parseFloat(we[d.code])||0;
+      if(amt!==0) lines.push({label:d.label, qty:'-', unit:'另報價', sub:amt, auto:false, code:d.code});
+    } else {
+      const q=parseFloat(wq[d.code])||0;
+      if(q>0) lines.push({label:d.label, qty:q+' '+d.unit, unit:'$'+rate+'/'+d.unit, sub:q*rate, auto:false, code:d.code});
+    }
+  });
+
+  // 其他組裝手填（自由文字，一筆）
+  const ew=parseFloat(cab.extraWage)||0;
+  if(ew!==0) lines.push({label:cab.extraWageLabel||'其他組裝項目', qty:'-', unit:'手填', sub:ew, auto:false});
+
+  const total=lines.reduce((s,l)=>s+l.sub,0);
+  return {lines,total};
+}
+
+// 取得某 F 項目的單價（可被費率覆寫，預設用表定價）
+function rateW(code, def){
+  if(RATES.wItems && RATES.wItems[code]!==undefined) return RATES.wItems[code];
+  return def;
+}
+
+/* =========================================================
+   新增 / 刪除 / 複製 櫃體
+   ========================================================= */
+function newCabObj(num){
+  return {
+    id:nextId++, _open:true,
+    space:'',                         // 空間分類
+    name:String(num).padStart(2,'0')+'號櫃',
+    W:'', H:'', D:'',
+    isHanging:false,                  // 吊櫃
+    addDepth:0, addHeight:0,          // +深 +高 手動加價
+    shelfCount:0,                     // 層板總數
+    // 門片
+    doorType:'none', doorPieces:2, doorPW:'', doorPH:'',
+    // 門把
+    handleType:'none', handleCount:2,
+    // 內裝
+    hasDrawer:false, drawerCount:1,
+    hasLed:false, ledCount:1,
+    hasPegboard:false, pegW:'', pegH:'',
+    hasFloating:false, floatLen:'', floatCount:1,
+    wallPanel:0,
+    // 手動加項
+    otherPriceLabel:'', otherPrice:0,
+    extraWageLabel:'', extraWage:0,
+    // 組裝報價表逐項數量（F14, F16... 手填）與另外報價金額
+    wageQty:{}, wageEst:{},
+  };
+}
+function addCabinet(){
+  cabinets.push(newCabObj(cabinets.length+1));
+  renderAll();
+  setTimeout(()=>{
+    const items=document.querySelectorAll('.cab-item');
+    if(items.length)items[items.length-1].scrollIntoView({behavior:'smooth',block:'start'});
+  },50);
+}
+function removeCab(id){
+  if(!confirm('確定刪除此櫃體？'))return;
+  cabinets=cabinets.filter(c=>c.id!==id);
+  renderAll();
+}
+function duplicateCab(id){
+  const c=cabinets.find(x=>x.id===id);
+  if(!c)return;
+  const copy=JSON.parse(JSON.stringify(c));
+  copy.id=nextId++; copy._open=true;
+  copy.name=c.name+' (複製)';
+  const idx=cabinets.findIndex(x=>x.id===id);
+  cabinets.splice(idx+1,0,copy);
+  renderAll();
+}
+function updateCab(id,key,val){
+  const c=cabinets.find(c=>c.id===id);
+  if(!c)return;
+  c[key]=val;
+  // 這些會改變欄位顯示 → 重繪該櫃
+  const structuralKeys=['doorType','handleType','hasDrawer','hasLed','hasPegboard','hasFloating','isHanging','H'];
+  if(structuralKeys.includes(key)){
+    patchCabFull(c);
+  } else {
+    patchCabLight(c);
+  }
+  renderSummary();
+}
+function toggleCab(id){
+  const c=cabinets.find(c=>c.id===id);
+  if(!c)return;
+  c._open=!c._open;
+  const body=document.getElementById('cab-body-'+id);
+  const chev=document.getElementById('cab-chev-'+id);
+  if(body)body.classList.toggle('open',c._open);
+  if(chev)chev.classList.toggle('open',c._open);
+}
+// 組裝逐項數量 / 另報價金額
+function updateWageQty(id,code,val){
+  const c=cabinets.find(c=>c.id===id); if(!c)return;
+  if(!c.wageQty)c.wageQty={};
+  c.wageQty[code]=val;
+  patchCabLight(c); renderSummary();
+}
+function updateWageEst(id,code,val){
+  const c=cabinets.find(c=>c.id===id); if(!c)return;
+  if(!c.wageEst)c.wageEst={};
+  c.wageEst[code]=val;
+  patchCabLight(c); renderSummary();
+}
+
+</script>
+<script>
+/* =========================================================
+   渲染
+   ========================================================= */
+function renderAll(){renderCabs();renderSummary();if(window._inited)autoSaveDraft();}
+
+function renderCabs(){
+  const list=document.getElementById('cab-list');
+  document.getElementById('count-badge').textContent=cabinets.length+' 個';
+  if(!cabinets.length){
+    list.innerHTML=`<div class="empty-state" id="empty-state">
+      <div class="empty-icon">🗄</div>
+      <div class="empty-text">點擊「新增櫃體」開始<br>左側填尺寸與門片內裝（算系統櫃售價）<br>右側自動帶入組裝工資、其他項目可手填</div>
+    </div>`;
+    return;
+  }
+  list.innerHTML='';
+  cabinets.forEach((cab,idx)=>{
+    const item=document.createElement('div');
+    item.className='cab-item';
+    item.innerHTML=buildCabHTML(cab,idx);
+    list.appendChild(item);
+  });
+}
+
+function pillFmt(v){return '$'+Math.round(v).toLocaleString();}
+
+function buildCabHTML(cab,idx){
+  const {total:price}=calcCabPrice(cab);
+  const {total:wage}=calcCabWage(cab);
+  const hasData=toMM(cab.W)&&toMM(cab.H);
+  const ptype=cabDisplayTier(cab);
+  const typeShort=ptype==='short'?'矮櫃':ptype==='hang'?'吊櫃':'高櫃';
+  const showWage=includeWage();
+  return `
+  <div class="cab-hdr" onclick="toggleCab(${cab.id})">
+    <div class="cab-num">${String(idx+1).padStart(2,'0')}</div>
+    <div class="cab-info">
+      <div class="cab-name-d" id="cab-name-${cab.id}">
+        ${cab.space?`<span class="per-space">${cab.space}</span>`:''}${cab.name}
+        <span style="font-size:11px;color:var(--text3);font-weight:400">${typeShort}</span>
+      </div>
+      <div class="cab-dim-d" id="cab-dim-${cab.id}">W${cab.W||'?'}×H${cab.H||'?'}×D${cab.D||'?'} ${unitLabel()}</div>
+    </div>
+    <div class="pills">
+      <div class="pill ${hasData?'pill-price':'pill-zero'}" id="pill-price-${cab.id}">${hasData?pillFmt(price):'未填'}</div>
+      <div class="pill ${wage>0?'pill-wage':'pill-zero'}" id="pill-wage-${cab.id}" style="${showWage?'':'display:none'}">${wage>0?pillFmt(wage):'$0'}</div>
+    </div>
+    <button class="btn-dup" title="複製" onclick="event.stopPropagation();duplicateCab(${cab.id})">⧉</button>
+    <button class="btn-rm" title="刪除" onclick="event.stopPropagation();removeCab(${cab.id})">✕</button>
+    <div class="chev ${cab._open?'open':''}" id="cab-chev-${cab.id}">▼</div>
+  </div>
+  <div class="cab-body ${cab._open?'open':''} ${showWage?'':'no-wage'}" id="cab-body-${cab.id}">
+    <div class="cab-left" id="cab-left-${cab.id}">${buildCabLeft(cab)}</div>
+    <div class="cab-right" id="cab-right-${cab.id}" style="${showWage?'':'display:none'}">${buildWagePanel(cab)}</div>
+  </div>`;
+}
+
+// 局部更新：只更新 pills + 明細，不動輸入焦點
+function patchCabLight(cab){
+  const {total:price,lines:pLines}=calcCabPrice(cab);
+  const {total:wage}=calcCabWage(cab);
+  const hasData=toMM(cab.W)&&toMM(cab.H);
+  const pp=document.getElementById('pill-price-'+cab.id);
+  const pw=document.getElementById('pill-wage-'+cab.id);
+  const dim=document.getElementById('cab-dim-'+cab.id);
+  const nm=document.getElementById('cab-name-'+cab.id);
+  const ptype=cabDisplayTier(cab);
+  const typeShort=ptype==='short'?'矮櫃':ptype==='hang'?'吊櫃':'高櫃';
+  if(pp){pp.textContent=hasData?pillFmt(price):'未填';pp.className='pill '+(hasData?'pill-price':'pill-zero');}
+  if(pw){pw.textContent=wage>0?pillFmt(wage):'$0';pw.className='pill '+(wage>0?'pill-wage':'pill-zero');}
+  if(dim)dim.textContent=`W${cab.W||'?'}×H${cab.H||'?'}×D${cab.D||'?'} ${unitLabel()}`;
+  if(nm)nm.innerHTML=`${cab.space?`<span class="per-space">${cab.space}</span>`:''}${cab.name} <span style="font-size:11px;color:var(--text3);font-weight:400">${typeShort}</span>`;
+  // 更新明細表
+  const detEl=document.getElementById('price-detail-'+cab.id);
+  if(detEl)detEl.innerHTML=buildPriceDetail(cab);
+  const wdetEl=document.getElementById('wage-detail-'+cab.id);
+  if(wdetEl)wdetEl.innerHTML=buildWageDetail(cab);
+  // 更新右側自動工資顯示
+  const wpEl=document.getElementById('cab-right-'+cab.id);
+  if(wpEl)wpEl.innerHTML=buildWagePanel(cab);
+}
+// 全部重繪該櫃（欄位結構改變時）
+function patchCabFull(cab){
+  const leftEl=document.getElementById('cab-left-'+cab.id);
+  if(leftEl)leftEl.innerHTML=buildCabLeft(cab);
+  const rightEl=document.getElementById('cab-right-'+cab.id);
+  if(rightEl)rightEl.innerHTML=buildWagePanel(cab);
+  patchCabLight(cab);
+}
+
+/* ── 左側輸入表單 ── */
+function buildCabLeft(cab){
+  const u=unitLabel();
+  const dt=DOOR_TYPES.find(d=>d.key===cab.doorType)||DOOR_TYPES[0];
+  const included=(cabPriceTier(cab)==='short')?3:5;
+
+  // 門片子面板
+  let doorSub='';
+  if(dt.mode==='piece'){
+    doorSub=`<div class="sub-panel">
+      <div class="field"><label>門片數量 (片)</label>
+        <input type="number" min="0" value="${cab.doorPieces}" onchange="updateCab(${cab.id},'doorPieces',+this.value)">
+        <div class="hint">2片=${(RATES[dt.rateKey]*2).toLocaleString()}元</div></div>
+    </div>`;
+  } else if(dt.mode==='cai'){
+    doorSub=`<div class="sub-panel">
+      <div class="field"><label>單片寬 (${u})</label>
+        <input type="number" min="0" value="${cab.doorPW}" placeholder="0" onchange="updateCab(${cab.id},'doorPW',+this.value)"></div>
+      <div class="field"><label>單片高 (${u})</label>
+        <input type="number" min="0" value="${cab.doorPH}" placeholder="0" onchange="updateCab(${cab.id},'doorPH',+this.value)"></div>
+      <div class="field"><label>片數</label>
+        <input type="number" min="0" value="${cab.doorPieces}" onchange="updateCab(${cab.id},'doorPieces',+this.value)"></div>
+      <div class="hint full">每片各自算才、進位0.5才後 ×片數</div>
+    </div>`;
+  }
+
+  // 把手數量
+  const ht=HANDLE_TYPES.find(h=>h.key===cab.handleType)||HANDLE_TYPES[0];
+  let handleSub='';
+  if(ht.rateKey){
+    handleSub=`<div class="sub-panel">
+      <div class="field"><label>數量 (${ht.unit})</label>
+        <input type="number" min="0" value="${cab.handleCount}" onchange="updateCab(${cab.id},'handleCount',+this.value)"></div>
+    </div>`;
+  }
+
+  // 內裝子面板
+  let drawerSub = cab.hasDrawer?`<div class="sub-panel">
+    <div class="field"><label>抽屜數量 (個)</label>
+      <input type="number" min="1" value="${cab.drawerCount}" onchange="updateCab(${cab.id},'drawerCount',+this.value)">
+      <div class="hint">售價${RATES.drawer}/個 · 組裝${RATES.wDrawer}/組自動帶</div></div>
+  </div>`:'';
+  let ledSub = cab.hasLed?`<div class="sub-panel">
+    <div class="field"><label>LED條數</label>
+      <input type="number" min="1" value="${cab.ledCount}" onchange="updateCab(${cab.id},'ledCount',+this.value)">
+      <div class="hint">售價${RATES.led}/條 · 組裝${RATES.wLed}/組自動帶</div></div>
+  </div>`:'';
+  let pegSub = cab.hasPegboard?`<div class="sub-panel">
+    <div class="field"><label>洞洞板寬 (${u})</label>
+      <input type="number" min="0" value="${cab.pegW}" placeholder="0" onchange="updateCab(${cab.id},'pegW',+this.value)"></div>
+    <div class="field"><label>洞洞板高 (${u})</label>
+      <input type="number" min="0" value="${cab.pegH}" placeholder="0" onchange="updateCab(${cab.id},'pegH',+this.value)"></div>
+    <div class="hint full">售價${RATES.pegboard}/才 · 組裝${RATES.wPegboard}/式自動帶</div>
+  </div>`:'';
+  let floatSub = cab.hasFloating?`<div class="sub-panel">
+    <div class="field"><label>懸板長 (${u})</label>
+      <input type="number" min="0" value="${cab.floatLen}" placeholder="0" onchange="updateCab(${cab.id},'floatLen',+this.value)"></div>
+    <div class="field"><label>數量</label>
+      <input type="number" min="1" value="${cab.floatCount}" onchange="updateCab(${cab.id},'floatCount',+this.value)"></div>
+    <div class="hint full">${RATES.floating}/尺（尺數進位0.5）</div>
+  </div>`:'';
+
+  return `
+    <div>
+      <div class="fsec-title">基本資訊</div>
+      <div class="fgrid">
+        <div class="field"><label>空間分類</label>
+          <input value="${cab.space||''}" placeholder="例：主臥/玄關" style="font-family:'Noto Sans TC',sans-serif" onchange="updateCab(${cab.id},'space',this.value)"></div>
+        <div class="field" style="grid-column:span 2"><label>櫃體名稱</label>
+          <input value="${cab.name}" style="font-family:'Noto Sans TC',sans-serif" onchange="updateCab(${cab.id},'name',this.value)"></div>
+      </div>
+    </div>
+    <div>
+      <div class="fsec-title">尺寸（空櫃）</div>
+      <div class="fgrid">
+        <div class="field"><label>寬 W (${u})</label>
+          <input type="number" value="${cab.W}" placeholder="${unit==='chi'?'3':'900'}" onchange="updateCab(${cab.id},'W',+this.value)">
+          <div class="hint">售價按寬度尺數</div></div>
+        <div class="field"><label>高 H (${u})</label>
+          <input type="number" value="${cab.H}" placeholder="${unit==='chi'?'8':'2400'}" onchange="updateCab(${cab.id},'H',+this.value)">
+          <div class="hint">≥90cm 高櫃 / &lt;90cm 矮櫃</div></div>
+        <div class="field"><label>深 D (${u})</label>
+          <input type="number" value="${cab.D}" placeholder="${unit==='chi'?'2':'600'}" onchange="updateCab(${cab.id},'D',+this.value)"></div>
+      </div>
+      <div class="opts-grid" style="margin-top:8px">
+        <label class="opt ${cab.isHanging?'on':''}" onclick="updateCab(${cab.id},'isHanging',${!cab.isHanging})">
+          <input type="checkbox" ${cab.isHanging?'checked':''}><span class="opt-dot">${cab.isHanging?'✓':''}</span>吊櫃（組裝${RATES.wHang}/cm）</label>
+      </div>
+      <div class="fgrid-2" style="margin-top:8px">
+        <div class="field"><label>＋深加價 (元)</label>
+          <input type="number" min="0" value="${cab.addDepth||''}" placeholder="0" onchange="updateCab(${cab.id},'addDepth',+this.value)">
+          <div class="hint">超標深度自填</div></div>
+        <div class="field"><label>＋高加價 (元)</label>
+          <input type="number" min="0" value="${cab.addHeight||''}" placeholder="0" onchange="updateCab(${cab.id},'addHeight',+this.value)">
+          <div class="hint">超標高度自填</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="fsec-title">層板</div>
+      <div class="fgrid-2">
+        <div class="field"><label>層板總數量</label>
+          <input type="number" min="0" value="${cab.shelfCount}" onchange="updateCab(${cab.id},'shelfCount',+this.value)">
+          <div class="hint">內含 ${included} 片，超出每片=寬(尺)×${RATES.shelf}</div></div>
+        <div class="field"><label style="color:var(--text3)">吊衣桿</label>
+          <input value="免費不計價" readonly style="font-family:'Noto Sans TC',sans-serif;font-size:11px"></div>
+      </div>
+    </div>
+    <div>
+      <div class="fsec-title">門片</div>
+      <div class="field" style="max-width:220px"><label>門片樣式</label>
+        <select onchange="updateCab(${cab.id},'doorType',this.value)">
+          ${DOOR_TYPES.map(d=>`<option value="${d.key}" ${cab.doorType===d.key?'selected':''}>${d.label}</option>`).join('')}
+        </select></div>
+      ${doorSub}
+    </div>
+    <div>
+      <div class="fsec-title">門把</div>
+      <div class="field" style="max-width:220px"><label>把手樣式</label>
+        <select onchange="updateCab(${cab.id},'handleType',this.value)">
+          ${HANDLE_TYPES.map(h=>`<option value="${h.key}" ${cab.handleType===h.key?'selected':''}>${h.label}</option>`).join('')}
+        </select></div>
+      ${handleSub}
+    </div>
+    <div>
+      <div class="fsec-title">其他內裝</div>
+      <div class="opts-grid">
+        <label class="opt ${cab.hasDrawer?'on':''}" onclick="updateCab(${cab.id},'hasDrawer',${!cab.hasDrawer})">
+          <input type="checkbox" ${cab.hasDrawer?'checked':''}><span class="opt-dot">${cab.hasDrawer?'✓':''}</span>抽屜</label>
+        <label class="opt ${cab.hasLed?'on':''}" onclick="updateCab(${cab.id},'hasLed',${!cab.hasLed})">
+          <input type="checkbox" ${cab.hasLed?'checked':''}><span class="opt-dot">${cab.hasLed?'✓':''}</span>LED燈條</label>
+        <label class="opt ${cab.hasPegboard?'on':''}" onclick="updateCab(${cab.id},'hasPegboard',${!cab.hasPegboard})">
+          <input type="checkbox" ${cab.hasPegboard?'checked':''}><span class="opt-dot">${cab.hasPegboard?'✓':''}</span>洞洞板</label>
+        <label class="opt ${cab.hasFloating?'on':''}" onclick="updateCab(${cab.id},'hasFloating',${!cab.hasFloating})">
+          <input type="checkbox" ${cab.hasFloating?'checked':''}><span class="opt-dot">${cab.hasFloating?'✓':''}</span>懸板</label>
+      </div>
+      ${drawerSub}${ledSub}${pegSub}${floatSub}
+      <div class="fgrid-2" style="margin-top:8px">
+        <div class="field"><label>造型牆板 (元·帶圖估價)</label>
+          <input type="number" min="0" value="${cab.wallPanel||''}" placeholder="0" onchange="updateCab(${cab.id},'wallPanel',+this.value)"></div>
+      </div>
+      <div class="fgrid" style="margin-top:8px">
+        <div class="field" style="grid-column:span 2"><label>其他售價加項名稱</label>
+          <input value="${cab.otherPriceLabel||''}" placeholder="選填" style="font-family:'Noto Sans TC',sans-serif" onchange="updateCab(${cab.id},'otherPriceLabel',this.value)"></div>
+        <div class="field"><label>金額 (元)</label>
+          <input type="number" value="${cab.otherPrice||''}" placeholder="0" onchange="updateCab(${cab.id},'otherPrice',+this.value)"></div>
+      </div>
+    </div>
+    <div>
+      <div class="dtitle" style="color:var(--red)">系統櫃售價明細</div>
+      <div id="price-detail-${cab.id}">${buildPriceDetail(cab)}</div>
+    </div>`;
+}
+
+function buildPriceDetail(cab){
+  const {lines,total}=calcCabPrice(cab);
+  if(!lines.length)return'<div class="empty-table">請填入 寬 W / 高 H 後自動計算</div>';
+  const rows=lines.map((l,ri)=>`<tr style="background:${ri%2===0?'#fdf6f4':'#fff'}">
+    <td>${l.label}</td>
+    <td class="mono r">${l.qty}</td>
+    <td class="mono r" style="font-size:10px;color:var(--text3)">${l.unit}</td>
+    <td class="mono r" style="font-weight:600;color:var(--red)">$${Math.round(l.sub).toLocaleString()}</td>
+  </tr>`).join('');
+  return`<div class="dwrap"><table class="dt">
+    <thead><tr><th>項目</th><th class="r">數量</th><th class="r">單價</th><th class="r" style="color:var(--red)">小計</th></tr></thead>
+    <tbody>${rows}
+    <tr class="total-row"><td colspan="3" style="color:var(--red);font-weight:600">售價小計</td>
+      <td class="mono r" style="color:var(--red);font-weight:700;font-size:13px">$${Math.round(total).toLocaleString()}</td></tr>
+    </tbody></table></div>`;
+}
+
+</script>
+<script>
+/* ── 右側組裝工資面板 ── */
+function buildWagePanel(cab){
+  const {lines,total}=calcCabWage(cab);
+  // 上半：系統櫃連動自動帶入（唯讀）
+  let auto='';
+  lines.filter(l=>l.auto).forEach(l=>{
+    auto+=`<div class="wage-item">
+      <div class="wage-label">${l.label}<small>${l.qty} × ${l.unit}</small></div>
+      <div class="wage-auto">$${Math.round(l.sub).toLocaleString()}</div>
+    </div>`;
+  });
+  if(!auto)auto=`<div style="font-size:11px;color:var(--text3);padding:6px 0">填入尺寸/門片/內裝後自動帶入</div>`;
+
+  // 下半：組裝報價表 F1~F70 逐項（填數量 or 金額）
+  const wq=cab.wageQty||{}, we=cab.wageEst||{};
+  let list='';
+  WAGE_ITEMS.forEach(d=>{
+    if(d.sec){ list+=`<div class="wage-section-title">${d.sec}</div>`; return; }
+    if(d.auto){
+      // 連動項在上方已算，這裡顯示唯讀提示（灰）避免重複填
+      list+=`<div class="wage-item">
+        <div class="wage-label" style="color:var(--text3)">${d.label}<small>$${rateW(d.code,d.price)}/${d.unit}　（系統櫃自動帶入）</small></div>
+        <div style="font-size:10px;color:var(--text3);text-align:right">自動</div>
+      </div>`;
+      return;
+    }
+    if(d.est){
+      const v=we[d.code]||'';
+      list+=`<div class="wage-item">
+        <div class="wage-label">${d.label}<small>另外報價·直接填元</small></div>
+        <input class="wage-estimate" type="number" min="0" value="${v}" placeholder="0"
+          style="text-align:right;font-family:'DM Mono',monospace"
+          onchange="updateWageEst(${cab.id},'${d.code}',this.value)">
+      </div>`;
+    } else {
+      const v=wq[d.code]||'';
+      list+=`<div class="wage-item">
+        <div class="wage-label">${d.label}<small>$${rateW(d.code,d.price)}/${d.unit}</small></div>
+        <input class="wage-input" type="number" min="0" value="${v}" placeholder="0"
+          onchange="updateWageQty(${cab.id},'${d.code}',this.value)">
+      </div>`;
+    }
+  });
+
+  return `
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:10px">組裝工資（系統櫃自動帶入）</div>
+    ${auto}
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin:16px 0 6px;padding-top:12px;border-top:2px solid var(--border)">其他組裝項目（填數量）</div>
+    ${list}
+    <div class="wage-section-title">自訂項目</div>
+    <div class="wage-item" style="grid-template-columns:1fr">
+      <input class="wage-estimate" value="${cab.extraWageLabel||''}" placeholder="自訂項目名稱"
+        onchange="updateCab(${cab.id},'extraWageLabel',this.value)">
+    </div>
+    <div class="wage-item">
+      <div class="wage-label">金額<small>直接填元</small></div>
+      <input class="wage-input" type="number" value="${cab.extraWage||''}" placeholder="0"
+        onchange="updateCab(${cab.id},'extraWage',+this.value)">
+    </div>
+    <div style="margin-top:12px;padding:10px 12px;background:var(--accent-light);border:1px solid #F0C49A;border-radius:var(--radius-sm);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:11px;color:var(--accent);font-weight:600">此櫃組裝小計</span>
+      <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--accent)">$${Math.round(total).toLocaleString()}</span>
+    </div>
+    <div style="margin-top:14px">
+      <div class="dtitle" style="color:var(--accent)">組裝工資明細</div>
+      <div id="wage-detail-${cab.id}">${buildWageDetail(cab)}</div>
+    </div>`;
+}
+
+function buildWageDetail(cab){
+  const {lines,total}=calcCabWage(cab);
+  if(!lines.length)return'<div class="empty-table">請填入 寬 / 高</div>';
+  const rows=lines.map((l,ri)=>`<tr style="background:${ri%2===0?'#fff8f4':'#fff'}">
+    <td>${l.label}</td>
+    <td class="mono r">${l.qty}</td>
+    <td class="mono r" style="font-weight:600;color:var(--accent)">$${Math.round(l.sub).toLocaleString()}</td>
+  </tr>`).join('');
+  return`<div class="dwrap"><table class="dt">
+    <thead><tr><th>項目</th><th class="r">數量</th><th class="r" style="color:var(--accent)">小計</th></tr></thead>
+    <tbody>${rows}
+    <tr class="total-row"><td colspan="2" style="color:var(--accent);font-weight:600">組裝小計</td>
+      <td class="mono r" style="color:var(--accent);font-weight:700">$${Math.round(total).toLocaleString()}</td></tr>
+    </tbody></table></div>`;
+}
+
+/* =========================================================
+   全案彙總
+   ========================================================= */
+function computeTotals(showWageArg){
+  let priceSum=0, wageSum=0;
+  const rows=[];
+  cabinets.forEach(cab=>{
+    const {total:p}=calcCabPrice(cab);
+    const {total:w}=calcCabWage(cab);
+    priceSum+=p; wageSum+=w;
+    rows.push({space:cab.space,name:cab.name,p,w});
+  });
+  // 編輯畫面一律含組裝；報價單可傳 false 排除
+  const withWage = (showWageArg===undefined) ? includeWage() : showWageArg;
+  if(!withWage) wageSum=0;
+  // 組裝費最低消（僅含組裝時套用）
+  const wMin=RATES.wMin||0;
+  const wageEff = (withWage && wageSum>0 && wageSum<wMin) ? wMin : wageSum;
+  const wageBumped = (withWage && wageSum>0 && wageSum<wMin);
+
+  const freight=parseFloat(document.getElementById('in-freight').value)||0;
+  const adjust=parseFloat(document.getElementById('in-adjust').value)||0;
+  const taxPct=parseFloat(document.getElementById('in-tax').value)||0;
+
+  const subtotal = priceSum + wageEff + freight + adjust;
+  const tax = subtotal * taxPct/100;
+  let grand = subtotal + tax;
+
+  const override=parseFloat(document.getElementById('in-override').value);
+  const hasOverride = !isNaN(override) && document.getElementById('in-override').value!=='';
+  if(hasOverride) grand=override;
+
+  return {priceSum,wageSum,wageEff,wageBumped,freight,adjust,taxPct,tax,subtotal,grand,hasOverride,rows,wMin,withWage};
+}
+
+function renderSummary(){
+  const t=computeTotals();
+  document.getElementById('tot-price').textContent='$'+Math.round(t.priceSum).toLocaleString();
+  document.getElementById('tot-wage').textContent='$'+Math.round(t.wageEff).toLocaleString();
+  document.getElementById('tot-grand').textContent='$'+Math.round(t.grand).toLocaleString();
+
+  // 只算售價模式：隱藏組裝費那行
+  const rowWage=document.getElementById('row-wage');
+  if(rowWage)rowWage.style.display = t.withWage ? '' : 'none';
+
+  const warn=document.getElementById('wage-warn');
+  warn.innerHTML = (t.withWage && t.wageBumped)
+    ? `<div class="warn-box" style="margin:0 12px 6px">⚠️ 組裝費 $${Math.round(t.wageSum).toLocaleString()} 未滿 $${t.wMin.toLocaleString()}，自動補至 $${t.wMin.toLocaleString()}</div>`
+    : '';
+
+  // 各櫃列表（依空間分組顯示）
+  const per=document.getElementById('per-list');
+  if(!t.rows.length){per.innerHTML='<div style="padding:16px;text-align:center;font-size:12px;color:var(--text3)">尚無櫃體</div>';return;}
+  per.innerHTML=t.rows.map(r=>`
+    <div class="per-row">
+      <div class="per-name">${r.space?`<span class="per-space">${r.space}</span>`:''}${r.name}</div>
+      <div class="per-val" style="color:var(--red)">$${Math.round(r.p).toLocaleString()}</div>
+      ${t.withWage?`<div class="per-val" style="color:var(--accent)">$${Math.round(r.w).toLocaleString()}</div>`:''}
+    </div>`).join('');
+}
+
+/* =========================================================
+   儲存 / 讀取（localStorage）
+   ========================================================= */
+function collectProject(){
+  return {
+    proj:{
+      company:document.getElementById('proj-company').value,
+      companyEn:document.getElementById('proj-company-en').value,
+      name:document.getElementById('proj-name').value,
+      designer:document.getElementById('proj-designer').value,
+      owner:document.getElementById('proj-owner').value,
+      phone:document.getElementById('proj-phone').value,
+      date:document.getElementById('proj-date').value,
+    },
+    unit, cabinets, nextId, RATES,
+    extras:{
+      freight:document.getElementById('in-freight').value,
+      adjust:document.getElementById('in-adjust').value,
+      tax:document.getElementById('in-tax').value,
+      override:document.getElementById('in-override').value,
+    },
+    savedAt: new Date().toISOString()
+  };
+}
+
+/* ── 多筆案場儲存（依案場名稱）+ 自動草稿 ── */
+const PROJECTS_KEY='sysCabinetProjects_v2';   // { 名稱: 專案資料 }
+const DRAFT_KEY='sysCabinetDraft_v2';          // 自動存的草稿（單一）
+
+function readProjects(){
+  try{return JSON.parse(localStorage.getItem(PROJECTS_KEY))||{};}catch(e){return {};}
+}
+function writeProjects(obj){
+  localStorage.setItem(PROJECTS_KEY, JSON.stringify(obj));
+}
+
+// 儲存為案場（用案場名稱當 key）
+function saveAsProject(){
+  const data=collectProject();
+  let nm=(data.proj.name||'').trim();
+  nm = prompt('請輸入要儲存的案場名稱：', nm||'');
+  if(nm===null) return;              // 取消
+  nm=nm.trim();
+  if(!nm){alert('案場名稱不可空白');return;}
+  const all=readProjects();
+  if(all[nm] && !confirm(`已有「${nm}」，要覆蓋更新嗎？`)) return;
+  // 若使用者改了名稱，也把畫面上的案場名同步成這個
+  document.getElementById('proj-name').value=nm;
+  data.proj.name=nm;
+  all[nm]=data;
+  writeProjects(all);
+  saveDraft();                       // 順便更新草稿
+  flash(`已儲存案場：${nm} ✓`);
+}
+
+// 自動存草稿（即時，不彈窗）
+let _draftTimer=null;
+function saveDraft(){
+  try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(collectProject())); }catch(e){}
+}
+function autoSaveDraft(){
+  clearTimeout(_draftTimer);
+  _draftTimer=setTimeout(saveDraft, 600);   // 停止操作 0.6 秒後存
+}
+
+// 新報價（清空畫面，不動已存案場）
+function newProject(){
+  if(cabinets.length || document.getElementById('proj-name').value.trim()){
+    if(!confirm('要開新的空白報價嗎？（目前未「儲存為案場」的內容會清除；已儲存的案場不受影響）')) return;
+  }
+  cabinets=[]; nextId=1;
+  document.getElementById('proj-company').value='';
+  document.getElementById('proj-company-en').value='';
+  document.getElementById('proj-name').value='';
+  document.getElementById('proj-designer').value='';
+  document.getElementById('proj-owner').value='';
+  document.getElementById('proj-phone').value='';
+  document.getElementById('proj-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('in-freight').value='';
+  document.getElementById('in-adjust').value='';
+  document.getElementById('in-tax').value='';
+  document.getElementById('in-override').value='';
+  // 費率恢復預設
+  Object.assign(RATES, DEFAULT_RATES());
+  syncRateInputs();
+  setUnit('chi');
+  renderAll();
+  saveDraft();
+  flash('已開新報價 ✨');
+}
+
+// 已儲存案場清單
+function openSavedModal(){
+  const all=readProjects();
+  const names=Object.keys(all).sort((a,b)=>{
+    const ta=all[a].savedAt||'', tb=all[b].savedAt||''; return tb.localeCompare(ta);
+  });
+  let rows='';
+  if(!names.length){
+    rows=`<div style="padding:26px;text-align:center;color:var(--text3);font-size:13px">尚無已儲存的案場<br><span style="font-size:11px">編輯後按「💾 儲存為案場」即可存檔</span></div>`;
+  }else{
+    names.forEach(nm=>{
+      const d=all[nm];
+      const cnt=(d.cabinets||[]).length;
+      const when=d.savedAt?fmtWhen(d.savedAt):'';
+      const owner=(d.proj&&d.proj.owner)?d.proj.owner:'';
+      rows+=`<div class="load-row">
+        <div class="load-info">
+          <div class="load-name">${nm}</div>
+          <div class="load-meta">${cnt} 櫃${owner?' · '+owner:''} · ${when}</div>
+        </div>
+        <div class="load-actions">
+          <button class="load-btn load-open" onclick="loadProject('${encodeURIComponent(nm)}')">讀取</button>
+          <button class="load-btn load-del" onclick="deleteProject('${encodeURIComponent(nm)}')">刪除</button>
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('load-modal-title').textContent='📁 已儲存案場';
+  document.getElementById('load-modal-foot').textContent='改好價格後記得再按「💾 儲存為案場」覆蓋更新。';
+  document.getElementById('load-list').innerHTML = rows;
+  document.getElementById('load-modal').style.display='flex';
+}
+
+// 草稿箱（只留最新一份自動草稿）
+function openDraftModal(){
+  let row='';
+  const draftRaw=localStorage.getItem(DRAFT_KEY);
+  if(draftRaw){
+    try{
+      const d=JSON.parse(draftRaw);
+      const dn=(d.proj&&d.proj.name)?d.proj.name:'（未命名報價）';
+      const cnt=(d.cabinets||[]).length;
+      const when=d.savedAt?fmtWhen(d.savedAt):'';
+      row=`<div class="load-row load-draft">
+        <div class="load-info">
+          <div class="load-name">🕒 最新自動草稿　<span class="load-sub">${dn}</span></div>
+          <div class="load-meta">${cnt} 櫃 · ${when}</div>
+        </div>
+        <div class="load-actions">
+          <button class="load-btn load-open" onclick="loadFromDraft()">讀取</button>
+          <button class="load-btn load-del" onclick="deleteDraft()">清除</button>
+        </div>
+      </div>`;
+    }catch(e){}
+  }
+  if(!row){
+    row=`<div style="padding:26px;text-align:center;color:var(--text3);font-size:13px">草稿箱是空的<br><span style="font-size:11px">編輯報價時會自動存最新一份到這裡</span></div>`;
+  }
+  document.getElementById('load-modal-title').textContent='🕒 草稿箱（自動存最新一份）';
+  document.getElementById('load-modal-foot').textContent='草稿是誤關救回用；正式要留的請用「儲存為案場」。';
+  document.getElementById('load-list').innerHTML = row;
+  document.getElementById('load-modal').style.display='flex';
+}
+function deleteDraft(){
+  if(!confirm('確定清除目前的自動草稿？')) return;
+  localStorage.removeItem(DRAFT_KEY);
+  openDraftModal();
+  flash('已清除草稿');
+}
+function closeLoadModal(){ document.getElementById('load-modal').style.display='none'; }
+
+function fmtWhen(iso){
+  try{
+    const d=new Date(iso);
+    const p=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }catch(e){return '';}
+}
+
+function loadProject(encName){
+  const nm=decodeURIComponent(encName);
+  const all=readProjects();
+  if(!all[nm]){alert('找不到此案場');return;}
+  applyProject(all[nm]);
+  closeLoadModal();
+  saveDraft();
+  flash(`已讀取案場：${nm} ✓`);
+}
+function loadFromDraft(){
+  try{
+    const raw=localStorage.getItem(DRAFT_KEY);
+    if(!raw){alert('沒有草稿');return;}
+    applyProject(JSON.parse(raw));
+    closeLoadModal();
+    flash('已讀取自動草稿 ✓');
+  }catch(e){alert('讀取失敗：'+e.message);}
+}
+function deleteProject(encName){
+  const nm=decodeURIComponent(encName);
+  if(!confirm(`確定刪除已儲存的案場「${nm}」？此動作無法復原。`)) return;
+  const all=readProjects();
+  delete all[nm];
+  writeProjects(all);
+  openSavedModal();   // 重新整理清單
+  flash(`已刪除：${nm}`);
+}
+
+function applyProject(data){
+  if(!data)return;
+  const p=data.proj||{};
+  document.getElementById('proj-company').value=p.company||'';
+  document.getElementById('proj-company-en').value=p.companyEn||'';
+  document.getElementById('proj-name').value=p.name||'';
+  document.getElementById('proj-designer').value=p.designer||'';
+  document.getElementById('proj-owner').value=p.owner||'';
+  document.getElementById('proj-phone').value=p.phone||'';
+  document.getElementById('proj-date').value=p.date||new Date().toISOString().slice(0,10);
+  // 費率：先套預設再覆蓋，避免舊檔缺欄位
+  Object.assign(RATES, DEFAULT_RATES());
+  if(data.RATES)Object.assign(RATES,data.RATES);
+  syncRateInputs();
+  const ex=data.extras||{};
+  document.getElementById('in-freight').value=ex.freight||'';
+  document.getElementById('in-adjust').value=ex.adjust||'';
+  document.getElementById('in-tax').value=ex.tax||'';
+  document.getElementById('in-override').value=ex.override||'';
+  cabinets=data.cabinets||[];
+  nextId=data.nextId||(cabinets.reduce((m,c)=>Math.max(m,c.id),0)+1);
+  setUnit(data.unit||'chi');
+}
+function syncRateInputs(){
+  const map={'p-tall':'tall','p-short':'short','p-shelf':'shelf','p-door-sys':'doorSys',
+    'p-door-grille':'doorGrille','p-door-glass':'doorGlass','p-door-mold':'doorMold','p-door-crystal':'doorCrystal',
+    'p-door-slide':'doorSlide',
+    'p-drawer':'drawer','p-led':'led','p-pegboard':'pegboard','p-floating':'floating',
+    'p-h-ladder':'hLadder','p-h-arc':'hArc','p-h-j':'hJ','p-h-slope':'hSlope','p-h-z':'hZ',
+    'w-tall':'wTall','w-short':'wShort','w-hang':'wHang','w-drawer':'wDrawer','w-shelf':'wShelf',
+    'w-led':'wLed','w-pegboard':'wPegboard','w-slide-tall':'wSlideTall','w-slide-short':'wSlideShort','w-slide-low':'wSlideLow','w-min':'wMin'};
+  for(const id in map){const el=document.getElementById(id);if(el)el.value=RATES[map[id]];}
+  buildWItemRates();
+}
+function flash(msg){
+  const d=document.createElement('div');
+  d.textContent=msg;
+  d.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2C5F2E;color:#fff;padding:10px 22px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.2)';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(),1800);
+}
+
+</script>
+<script>
+/* =========================================================
+   產生報價單（新視窗，可列印/存PDF）— 依空間分類
+   ========================================================= */
+function openQuoteWindow(){
+  if(!cabinets.length){alert('請先新增櫃體');return;}
+  document.getElementById('export-modal').style.display='flex';
+}
+// 手機下拉選單
+function toggleHdrMenu(){
+  const m=document.getElementById('hdr-menu');
+  m.classList.toggle('open');
+}
+function closeHdrMenu(){
+  document.getElementById('hdr-menu').classList.remove('open');
+}
+function closeExportModal(){
+  document.getElementById('export-modal').style.display='none';
+}
+function confirmExport(){
+  const sel=document.querySelector('input[name="exp-wage"]:checked');
+  const showWage = !sel || sel.value==='show';
+  closeExportModal();
+  doExport(showWage);
+}
+function doExport(showWage){
+  const company=document.getElementById('proj-company').value.trim();
+  const companyEn=document.getElementById('proj-company-en').value.trim();
+  const projName=document.getElementById('proj-name').value||'（未填案場）';
+  const designer=document.getElementById('proj-designer').value||'';
+  const owner=document.getElementById('proj-owner').value||'';
+  const phone=document.getElementById('proj-phone').value||'';
+  const date=document.getElementById('proj-date').value||'';
+  const title=company||'系統櫃報價單';
+  const t=computeTotals(showWage);
+  const U=unitLabel();
+
+  // 依空間分組
+  const groups={};
+  cabinets.forEach(cab=>{
+    const key=cab.space||'（未分類）';
+    if(!groups[key])groups[key]=[];
+    groups[key].push(cab);
+  });
+
+  const money=n=>Number(Math.round(n)).toLocaleString();
+
+  /* ── 櫃體總覽表 ── */
+  let overviewRows='';
+  let ov=0;
+  cabinets.forEach(cab=>{
+    ov++;
+    const {total:pTotal}=calcCabPrice(cab);
+    const {total:wTotal}=calcCabWage(cab);
+    const cabTotal = t.withWage ? (pTotal+wTotal) : pTotal;
+    overviewRows+=`<tr>
+      <td class="ov-seq">${String(ov).padStart(2,'0')}</td>
+      <td class="ov-name">${cab.name}</td>
+      <td class="ov-loc">${cab.space||'—'}</td>
+      <td class="ov-num">${money(pTotal)}</td>
+      ${t.withWage?`<td class="ov-num">${money(wTotal)}</td>`:''}
+      <td class="ov-num ov-bold">${money(cabTotal)}</td>
+    </tr>`;
+  });
+  const ovColspan = t.withWage ? 6 : 5;
+  const overview=`
+    <div class="sec-head"><span class="sec-bar"></span>櫃體總覽</div>
+    <table class="ov-table">
+      <thead><tr>
+        <th class="ov-seq">序號</th><th class="ov-name">櫃號</th><th class="ov-loc">位置</th>
+        <th class="ov-num">售價</th>${t.withWage?'<th class="ov-num">組裝</th>':''}<th class="ov-num">合計</th>
+      </tr></thead>
+      <tbody>${overviewRows}</tbody>
+    </table>
+    <div class="ov-totals">
+      <div class="ov-totals-left">
+        <div><span>系統櫃售價合計</span><b>NT$ ${money(t.priceSum)}</b></div>
+        ${t.withWage?`<div><span>組裝費合計</span><b>NT$ ${money(t.wageEff)}</b></div>`:''}
+        ${t.freight>0?`<div><span>運費</span><b>NT$ ${money(t.freight)}</b></div>`:''}
+        ${t.adjust!==0?`<div><span>其他加項/折讓</span><b>NT$ ${money(t.adjust)}</b></div>`:''}
+        ${t.taxPct>0?`<div><span>營業稅 ${t.taxPct}%</span><b>NT$ ${money(t.tax)}</b></div>`:''}
+      </div>
+      <div class="ov-totals-right">
+        <div class="ov-grand-label">總　價</div>
+        <div class="ov-grand">NT$ ${money(t.grand)}</div>
+        <div class="ov-grand-note">${t.taxPct>0?'已含稅':'未稅 UNTAXED'}</div>
+      </div>
+    </div>`;
+
+  /* ── 櫃體明細 ── */
+  let detail='';
+  let seq=0;
+  for(const space in groups){
+    detail+=`<div class="det-space"><span class="det-space-bar">◆</span> ${space}</div>`;
+    groups[space].forEach(cab=>{
+      seq++;
+      const {lines:pLines,total:pTotal}=calcCabPrice(cab);
+      const {lines:wLines,total:wTotal}=calcCabWage(cab);
+      const ptype=cabDisplayTier(cab);
+      const typeShort=ptype==='short'?'矮櫃':ptype==='hang'?'吊櫃':'高櫃';
+      const cabTotal = t.withWage ? (pTotal+wTotal) : pTotal;
+
+      const priceRows=pLines.map(l=>`<tr>
+        <td class="d-item">${l.label}</td>
+        <td class="d-qty">${l.qty}</td>
+        <td class="d-unit">${l.unit}</td>
+        <td class="d-sub">${money(l.sub)}</td>
+      </tr>`).join('');
+      const wageRows=wLines.map(l=>`<tr>
+        <td class="d-item">${l.label}</td>
+        <td class="d-qty">${l.qty}</td>
+        <td class="d-unit">${l.unit}</td>
+        <td class="d-sub">${money(l.sub)}</td>
+      </tr>`).join('');
+
+      const wageBlock = t.withWage ? `
+        <tr class="d-section d-section-w"><td colspan="4">組裝工資</td></tr>
+        ${wageRows}
+        <tr class="d-subtotal d-subtotal-w"><td colspan="3">組裝工資小計</td><td class="d-sub">${money(wTotal)}</td></tr>` : '';
+
+      detail+=`<div class="det-card">
+        <div class="det-card-head">
+          <span class="det-seq">${String(seq).padStart(2,'0')}</span>
+          <span class="det-cabname">${cab.name}</span>
+          <span class="det-type">${typeShort}</span>
+          <span class="det-dim">W${cab.W}×H${cab.H}×D${cab.D} ${U}</span>
+          <span class="det-total">合計 NT$ ${money(cabTotal)}</span>
+        </div>
+        <table class="det-table">
+          <thead><tr><th class="d-item">項目</th><th class="d-qty">數量</th><th class="d-unit">單價</th><th class="d-sub">小計</th></tr></thead>
+          <tbody>
+            <tr class="d-section d-section-p"><td colspan="4">系統櫃售價</td></tr>
+            ${priceRows}
+            <tr class="d-subtotal d-subtotal-p"><td colspan="3">系統櫃售價小計</td><td class="d-sub">${money(pTotal)}</td></tr>
+            ${wageBlock}
+          </tbody>
+        </table>
+      </div>`;
+    });
+  }
+
+  const noteText = t.withWage
+    ? '★ 系統櫃售價與組裝費為分開計價；組裝費、運費、稅金為另計項目。'
+    : '★ 本報價僅列系統櫃售價（組裝費不另計）。';
+
+  const w=window.open('','_blank','width=920,height=780');
+  w.document.write(`<!DOCTYPE html><html lang="zh-TW"><head>
+  <meta charset="UTF-8"><title>報價單_${title}_${projName}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --brown:#8A6D45;--brown-d:#6E5535;--brown-l:#A88A5E;
+      --cream:#F7F1E7;--cream-d:#EDE3D2;--gold:#B89B6B;
+      --ink:#3A2E22;--ink2:#7A6A56;--line:#E4D9C6;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;font-size:12px;color:var(--ink);background:#fff}
+    .page{padding:14mm 14mm 16mm}
+    .mono{font-family:'DM Mono',monospace}
+
+    /* 標題橫幅 */
+    .banner{background:linear-gradient(135deg,var(--brown) 0%,var(--brown-d) 100%);color:#fff;border-radius:12px;padding:26px 30px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+    .brand{font-size:30px;font-weight:900;letter-spacing:3px;line-height:1}
+    .brand-en{font-size:10px;letter-spacing:4px;color:rgba(255,255,255,.7);margin-top:8px;font-weight:400}
+    .banner-r{text-align:right}
+    .banner-r .zh{font-size:22px;font-weight:700;letter-spacing:4px}
+    .banner-r .en{font-size:9px;letter-spacing:2.5px;color:rgba(255,255,255,.7);margin-top:6px}
+
+    /* 資訊列 */
+    .info-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+    .info-box{border:1px solid var(--line);border-radius:8px;padding:10px 14px;background:var(--cream)}
+    .info-box .lbl{font-size:9px;letter-spacing:2px;color:var(--ink2);margin-bottom:4px}
+    .info-box .val{font-size:14px;font-weight:700;color:var(--ink)}
+
+    .note{background:var(--cream);border:1px solid var(--line);border-radius:8px;padding:9px 14px;font-size:11px;color:var(--brown-d);margin-bottom:18px;font-weight:500}
+
+    /* 區塊標題 */
+    .sec-head{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--brown-d);margin:6px 0 10px}
+    .sec-bar{width:5px;height:18px;background:var(--brown);border-radius:3px;display:inline-block}
+
+    /* 總覽表 */
+    .ov-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:0}
+    .ov-table thead th{background:var(--cream-d);color:var(--brown-d);font-weight:700;padding:11px 12px;text-align:left;font-size:12.5px;border-bottom:2px solid var(--gold)}
+    .ov-table td{padding:11px 12px;border-bottom:1px solid var(--line)}
+    .ov-table tbody tr:nth-child(even){background:var(--cream)}
+    .ov-seq{width:44px;color:var(--ink2);font-family:'DM Mono',monospace;font-size:12.5px}
+    .ov-name{font-weight:600;white-space:nowrap}
+    .ov-loc{color:var(--ink2)}
+    .ov-num{text-align:right;font-family:'DM Mono',monospace;white-space:nowrap}
+    th.ov-num{text-align:right}
+    .ov-bold{font-weight:700;color:var(--ink)}
+
+    /* 總覽底部總計 */
+    .ov-totals{display:flex;justify-content:space-between;align-items:stretch;background:linear-gradient(135deg,var(--brown) 0%,var(--brown-d) 100%);color:#fff;border-radius:0 0 12px 12px;padding:18px 26px;margin-top:0}
+    .ov-totals-left{display:flex;flex-direction:column;justify-content:center;gap:5px;font-size:12px}
+    .ov-totals-left>div{display:flex;gap:14px;justify-content:space-between;min-width:230px}
+    .ov-totals-left span{color:rgba(255,255,255,.78)}
+    .ov-totals-left b{font-family:'DM Mono',monospace;font-weight:500}
+    .ov-totals-right{text-align:right;display:flex;flex-direction:column;justify-content:center}
+    .ov-grand-label{font-size:14px;letter-spacing:6px;color:rgba(255,255,255,.85)}
+    .ov-grand{font-size:34px;font-weight:900;font-family:'DM Mono',monospace;line-height:1.1;margin-top:2px}
+    .ov-grand-note{font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.6);margin-top:2px}
+
+    /* 明細 */
+    .det-space{font-size:16px;font-weight:700;color:var(--brown-d);letter-spacing:2px;margin:24px 0 12px}
+    .det-space-bar{color:var(--gold)}
+    .det-card{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px;break-inside:avoid}
+    .det-card-head{display:flex;align-items:center;gap:11px;background:var(--cream-d);padding:12px 16px;font-size:15.5px}
+    .det-seq{font-family:'DM Mono',monospace;font-weight:700;color:var(--brown-d)}
+    .det-cabname{font-weight:700}
+    .det-type{color:var(--ink2);font-size:13.5px}
+    .det-dim{color:var(--ink2);font-size:13.5px;font-family:'DM Mono',monospace}
+    .det-total{margin-left:auto;font-weight:700;color:var(--brown-d);font-size:15.5px}
+    .det-table{width:100%;border-collapse:collapse;font-size:15px}
+    .det-table thead th{background:#fbf8f2;color:var(--ink2);font-weight:600;padding:9px 14px;text-align:left;font-size:13px;border-bottom:1px solid var(--line)}
+    th.d-qty,th.d-unit,th.d-sub{text-align:right}
+    .det-table td{padding:9px 14px;border-bottom:1px solid #f0ebe0}
+    .d-item{color:var(--ink)}
+    .d-qty{text-align:right;font-family:'DM Mono',monospace;white-space:nowrap}
+    .d-unit{text-align:right;font-family:'DM Mono',monospace;color:var(--ink2);font-size:13px}
+    .d-sub{text-align:right;font-family:'DM Mono',monospace;font-weight:600}
+    .d-section td{background:var(--cream);font-weight:700;font-size:12.5px;letter-spacing:1px;padding:8px 14px;color:var(--brown-d)}
+    .d-section-w td{color:var(--brown)}
+    .d-subtotal td{font-weight:700;background:#faf6ee}
+    .d-subtotal-p td,.d-subtotal-p .d-sub{color:var(--brown-d)}
+    .d-subtotal-w td,.d-subtotal-w .d-sub{color:var(--brown)}
+
+    .foot{margin-top:22px;padding-top:12px;border-top:1px dashed var(--line);font-size:10px;color:var(--ink2);line-height:1.8}
+
+    .toolbar{background:var(--brown-d);color:#fff;padding:11px 18px;display:flex;align-items:center;justify-content:space-between}
+    .toolbar button{background:#fff;color:var(--brown-d);border:none;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+
+    @media print{
+      *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+      .no-print{display:none!important}
+      .page{padding:8mm 10mm}
+      .page-break{break-before:page}
+    }
+  </style></head><body>
+  <div class="toolbar no-print">
+    <span style="font-size:13px;font-weight:500">📄 ${title}　—　${projName}</span>
+    <button onclick="window.print()">列印 / 儲存為 PDF</button>
+  </div>
+  <div class="page">
+    <div class="banner">
+      <div>
+        <div class="brand">${title}</div>
+        ${companyEn?`<div class="brand-en">${companyEn}</div>`:''}
+      </div>
+      <div class="banner-r">
+        <div class="zh">系統櫃報價</div>
+        <div class="en">SYSTEM CABINET QUOTATION</div>
+      </div>
+    </div>
+    <div class="info-row">
+      <div class="info-box"><div class="lbl">業主 CLIENT</div><div class="val">${owner||projName}</div></div>
+      <div class="info-box"><div class="lbl">設計師 DESIGNER</div><div class="val">${designer||'—'}</div></div>
+      <div class="info-box"><div class="lbl">日期 DATE</div><div class="val mono">${date||'—'}</div></div>
+      <div class="info-box"><div class="lbl">櫃體 UNITS</div><div class="val">${cabinets.length} 個</div></div>
+    </div>
+    <div class="note">${noteText}</div>
+    ${overview}
+    <div class="page-break"></div>
+    <div class="sec-head" style="margin-top:20px"><span class="sec-bar"></span>櫃體明細</div>
+    ${detail}
+    <div class="foot">
+      換算說明：1 尺 = 30cm、進位 0.5 尺；才數 = 長cm × 寬cm ÷ 900。<br>
+      本報價單由系統櫃報價器自動產生，實際尺寸與工項以現場丈量為準。
+    </div>
+  </div>
+  </body></html>`);
+  w.document.close();
+}
+
+// ── INIT ──
+syncRateInputs();
+// 重開一律乾淨新版面：不自動載入上一份（草稿仍在，可從「讀取」叫回）
+setUnit('chi');
+renderAll();
+
+// 自動存草稿：任何輸入/變更後 0.6 秒存一次（安全網，重開不自動帶出）
+document.addEventListener('input', autoSaveDraft, true);
+document.addEventListener('change', autoSaveDraft, true);
+// 點選單以外的地方關閉手機選單
+document.addEventListener('click', function(e){
+  const m=document.getElementById('hdr-menu');
+  if(!m || !m.classList.contains('open'))return;
+  if(m.contains(e.target)) return;
+  if(e.target.closest('.hdr-menu-btn')) return;
+  m.classList.remove('open');
+}, true);
+window._inited=true;
+
+</script>
+</body>
+</html>
