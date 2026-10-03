@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b94</title>
+<title>PlanPad · 平面圖工具 b95</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -265,7 +265,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b94</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b95</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -325,6 +325,11 @@
     <div id="stage">
       <canvas id="c"></canvas>
       <div id="hint"></div>
+      <div id="circBar" style="display:none;position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;align-items:center;gap:10px;background:#fff;border:1px solid var(--line-strong);border-radius:14px;padding:8px 10px 8px 14px;box-shadow:0 4px 16px rgba(0,0,0,.14);white-space:nowrap;">
+        <span id="circBarTxt" style="font-size:13px;font-weight:600;color:#24282E"></span>
+        <button id="circNo" style="min-height:40px;padding:0 14px;border:1px solid var(--line-strong);border-radius:10px;background:#fff;font-size:14px">取消</button>
+        <button id="circOk" style="min-height:40px;padding:0 18px;border:0;border-radius:10px;background:#275C7A;color:#fff;font-size:14px;font-weight:600">完成</button>
+      </div>
       <div id="calibBar"><span id="calibStep"></span><button id="calibCancel">取消</button></div>
       <div id="lenbox"></div>
       <input id="numIn" inputmode="decimal" autocomplete="off">
@@ -458,6 +463,14 @@
           <div class="lay-note" id="ulHint">校正後就可以直接用牆工具描圖。</div>
         </div>
       </div>
+      <div class="psec" data-layer="circuit">
+        <div class="ptitle">開關</div>
+        <div class="furn-list" id="swList"></div>
+        <div class="ptitle" style="margin-top:16px">迴路</div>
+        <button class="btn primary" id="circNew">＋ 建立迴路</button>
+        <div class="lay-note">先點開關，再依序點要接的燈，最後按「完成」。雙控就把兩顆開關都點進來。</div>
+        <div class="furn-list" id="circList" style="margin-top:8px"></div>
+      </div>
       <div class="psec" data-layer="light">
         <div class="ptitle">燈具圖示庫</div>
         <div class="furn-cats" id="lightCats"></div>
@@ -576,6 +589,7 @@
     texts: [],      // {id,x,y,text,size}
     furniture: [],  // {id,cat,name,shape,x,y,w,h,rot,layer}
     mep: [],        // {id,kind,x,y,rot,h,showDim,layer:'elec'}
+    circuits: [],   // {id,name,color,sw:[mepId],lights:[mepId]}
     meta: {},       // {firm,designer,client,sheet} — printed on the title block
     layer: 'plan',  // which layer new annotations land on
     layerVis: {},   // {layerId:false} to hide
@@ -639,6 +653,7 @@
   // the tidy exterior chains are built only for the exported sheet.
   let EXPORT_MODE = false;
   const TOOL_HINT = {
+    circuit:'建立迴路：先點開關，再依序點要接的燈，按下方「完成」',
     select:'選取工具：灰色圓點＝牆已接合，紅色空心圈＝該端沒接到東西（不會形成空間）。點牆體選取後，圓形握把＝拉伸端點，方形握把＝整面牆平行推移',
     wall:'畫牆：按住拖曳＝畫線。只要牆體看起來有貼在一起（牆身有重疊），放開後就會自動接合並形成空間；輕點數字不拖曳＝改尺寸，會出現移動方向箭頭',
     door:'放門：點在牆上放置。右側「畫門設定」可先選門／推拉門／門洞，放好後也能隨時改',
@@ -834,7 +849,7 @@
 
   // ================= History =================
   const history=[]; let hi=-1;
-  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,rooms:state.rooms,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,underlay:state.underlay,ceilingH:state.ceilingH,_seq:state._seq}); }
+  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,circuits:state.circuits,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,rooms:state.rooms,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,underlay:state.underlay,ceilingH:state.ceilingH,_seq:state._seq}); }
   function pushHistory(){
     cleanupStrayWalls();
     mergeCoincidentWalls();   // two walls sitting on each other are one party wall
@@ -959,6 +974,7 @@
     state.columns=arr(o.columns); state.beams=arr(o.beams);
     state.ink=arr(o.ink); state.notes=arr(o.notes); state.furniture=arr(o.furniture);
     state.mep=arr(o.mep);
+    state.circuits=arr(o.circuits);
     state.layer=o.layer||'plan';
     state.layerVis=(o.layerVis&&typeof o.layerVis==='object')?o.layerVis:{};
     state.baseLock=!!o.baseLock;
@@ -2096,6 +2112,7 @@
     toScreen, toWorld, wallLen,
     api:{ enterFocus, exitFocus, mergeCoincidentWalls, healJunctions, recomputeRooms,
           draw, pushHistory, renderExport, exportPDF, buildDXF:(o)=>buildDXF(o),
+          circStart:(id)=>circStart(id), circFinish:()=>circFinish(),
           mepGaps:(m)=>mepGaps(m), dimGeom:(d)=>dimGeom(d), mepTally:(o)=>mepTally(o), setTool:(t)=>setTool(t), gapsToDims:(m)=>gapsToDims(m),
           get LAYERS(){ return LAYERS; }, get pdfOpt(){ return pdfOpt; } }
   };
@@ -2245,7 +2262,7 @@
     };
     // electrical symbols and lights on visible layers
     for(const m of state.mep){
-      if(!layerVisible(m.layer||'elec')) continue;
+      if(!devVisible(m)) continue;
       const nm=mepName(m.kind);
       if(isLinear(m)){
         // no centre anchor: a linear fitting is measured to its edge
@@ -2633,7 +2650,7 @@
   function hitTest(wx,wy){
     for(let i=state.mep.length-1;i>=0;i--){
       const m=state.mep[i];
-      if(!itemLive(m)) continue;
+      if(!devLive(m)) continue;
       if(mepHit(m,wx,wy)) return {kind:'mep',id:m.id};
     }
     // furniture and notes sit above the plan, and only what is on the layer you
@@ -3357,7 +3374,9 @@
     drawExteriorDims();      // the sheet always drew these; now the screen does too
     drawDims();
     drawFurniture();
+    drawCircLines();
     drawMEP();
+    drawCircLabels();
     drawTexts();
     drawCalibSpan();
     drawCalibMark();
@@ -4066,20 +4085,20 @@
     // A room's name block is the one label you also want to MOVE — the centroid is
     // often the wrong spot (an L-shaped space, or two rooms whose labels collide).
     // Press and drag moves it; press and release without moving still renames it.
-    if(lab && lab.kind==='calibval' && ui.tool!=='wall' && ui.tool!=='dim'){
+    if(lab && lab.kind==='calibval' && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep'){
       try{stage.releasePointerCapture(e.pointerId);}catch(_){}
       pointers.delete(e.pointerId);
       underlayEditCalib();
       return;
     }
-    if(lab && lab.kind==='name' && ui.tool!=='wall' && ui.tool!=='dim'){
+    if(lab && lab.kind==='name' && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep'){
       dragging={hit:{kind:'roomname', key:lab.room.key}, start:[wx,wy], moved:false,
                 orig:Object.assign({dx:0,dy:0},(state.roomLabelOff||{})[lab.room.key]),
                 lab, downPx:[px,py]};
       draw();
       return;
     }
-    if(lab && ui.tool!=='wall' && ui.tool!=='dim'){ dbg(`  -> hit label kind=${lab.kind}`); try{stage.releasePointerCapture(e.pointerId);}catch(_){}
+    if(lab && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep'){ dbg(`  -> hit label kind=${lab.kind}`); try{stage.releasePointerCapture(e.pointerId);}catch(_){}
       pointers.delete(e.pointerId);
       openLabelEditor(lab,px,py);
       return; }
@@ -4114,6 +4133,7 @@
     else if(ui.tool==='door'||ui.tool==='window'){ placeOpening(wx,wy,ui.tool); }
     else if(ui.tool==='shaft'){ placeColumn(wx,wy,'shaft'); }
     else if(ui.tool==='furn'){ placeFurniture(wx,wy); }
+    else if(ui.tool==='circuit'){ circTap(wx,wy); }
     else if(ui.tool==='mep'){
       if(ui.mepPick && LIGHT_SPEC[ui.mepPick] && LIGHT_SPEC[ui.mepPick].strip){
         const sp=devSnap(ui.mepPick,wx,wy);
@@ -4505,7 +4525,7 @@
       if(s){ for(const p of [s.a,s.b]){ if(Math.hypot(wx-p.x,wy-p.y)<thr) return {kind:'wallSide', id:w.id}; } }
     } else if(ui.selected.kind==='mep'){
       const m=state.mep.find(v=>v.id===ui.selected.id);
-      if(m && isLinear(m) && itemLive(m)){
+      if(m && isLinear(m) && devLive(m)){
         const e=devEnds(m), thr2=Math.max(thr,16/view.scale);
         if(Math.hypot(wx-e[0].x,wy-e[0].y)<thr2) return {kind:'mepEnd', id:m.id, which:1};
         if(Math.hypot(wx-e[1].x,wy-e[1].y)<thr2) return {kind:'mepEnd', id:m.id, which:2};
@@ -4809,6 +4829,23 @@
       const fh=document.getElementById('pFlipH'); if(fh) fh.onclick=()=>{ o.flipH=!o.flipH; pushHistory(); draw(); };
       document.getElementById('pDel').onclick=deleteSelected;
     }
+    else if(s.kind==='circuit'){ const c=state.circuits.find(v=>v.id===s.id);
+      if(!c){ propBody.innerHTML='<div class="empty">這個迴路已經不存在了。</div>'; return; }
+      const swNames=c.sw.map(mepById).filter(Boolean).map(m=>mepName(m.kind)).join('、');
+      const by={}; c.lights.map(mepById).filter(Boolean).forEach(m=>{ const k=devLabel(m); by[k]=(by[k]||0)+1; });
+      propBody.innerHTML=`
+      <div class="row"><label>迴路</label><span style="font-size:13px;font-weight:700;color:${c.color}">${circRoomName(c)} · ${c.name}</span></div>
+      <div class="row"><label>代號</label><div class="field"><input type="text" id="pCname" maxlength="3" value="${String(c.name).replace(/"/g,'&quot;')}"></div></div>
+      <div class="row"><label>顏色</label><div id="pCcol" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end">${CIRC_PAL.map(k=>`<button data-c="${k}" style="width:30px;height:30px;border-radius:50%;background:${k};border:${k===c.color?'3px solid #24282E':'2px solid #fff'};box-shadow:0 0 0 1px var(--line-strong)"></button>`).join('')}</div></div>
+      <div class="row"><label>開關</label><span style="font-size:12px;color:var(--muted);text-align:right">${swNames}</span></div>
+      <div class="row"><label>燈具</label><span style="font-size:12px;color:var(--muted);text-align:right">${Object.keys(by).map(k=>k+' ×'+by[k]).join('<br>')}</span></div>
+      <button class="btn" id="pCedit" style="margin:4px 0 10px">編輯開關與燈具</button>
+      <button class="del-btn" id="pDel">刪除迴路</button>`;
+      document.getElementById('pCname').onchange=ev=>{ const v=String(ev.target.value||'').trim(); if(v){ c.name=v; pushHistory(); } refreshProp(); syncCircUI(); draw(); };
+      document.querySelectorAll('#pCcol button').forEach(b=>b.onclick=()=>{ c.color=b.dataset.c; pushHistory(); refreshProp(); syncCircUI(); draw(); });
+      document.getElementById('pCedit').onclick=()=>circStart(c.id);
+      document.getElementById('pDel').onclick=deleteSelected;
+    }
     else if(s.kind==='mep'){ const m=state.mep.find(v=>v.id===s.id);
       const lsp=lightSpec(m), wallDev=isWallDevice(m), light=isLight(m);
       const num=(id,val,step)=>`<div class="field"><input type="number" id="${id}" value="${val}" step="${step||1}" min="0"><span class="unit">${U}</span></div>`;
@@ -4830,6 +4867,8 @@
       ${wallDev?`<div class="row"><label>標註離牆</label><div class="seg" id="pMdimSeg"><button data-v="1"${m.showDim!==false?' class="on"':''}>顯示</button><button data-v="0"${m.showDim===false?' class="on"':''}>隱藏</button></div></div>`:''}
       <div class="row"><label>角度</label><div class="seg" id="pMrotSeg"><button data-r="0">0°</button><button data-r="90">90°</button><button data-r="180">180°</button><button data-r="270">270°</button></div></div>
       <div class="row"><label></label><div class="field"><input type="number" id="pMrot" value="${Math.round(m.rot||0)}" step="5"><span class="unit">°</span></div></div>
+      ${light?(()=>{ const c=circuitOf(m); return `<div class="row"><label>迴路</label><span style="font-size:12px;font-weight:700;color:${c?c.color:'var(--muted)'}">${c?(circRoomName(c)+' · '+c.name):'尚未接迴路'}</span></div>`; })():''}
+      ${isSwitch(m)?(()=>{ const cs=circuitsOfSwitch(m); return `<div class="row"><label>控制迴路</label><span style="font-size:12px;font-weight:700">${cs.length?cs.map(c=>`<span style="color:${c.color}">${c.name}</span>`).join(' '):'<span style="color:var(--muted);font-weight:400">尚未接迴路</span>'} <span style="color:var(--muted);font-weight:400">（${cs.length}/${swGang(m)}）</span></span></div>`; })():''}
       <div class="row"><label>圖層</label><span style="font-size:12px;color:var(--muted)">${layerName(m.layer||'elec')}</span></div>
       <button class="del-btn" id="pDel">刪除${light?'燈具':'符號'}</button>`;
       const on=(id,fn)=>{ const el=document.getElementById(id); if(el) el.onchange=fn; };
@@ -5004,7 +5043,8 @@
     const s=ui.selected; if(!s) return;
     if(s.kind==='room'){ flashHint('空間是由牆圍出來的：要刪除請選取並刪掉它的牆'); return; }
     if(s.kind==='wall'){ state.walls=state.walls.filter(w=>w.id!==s.id); state.openings=state.openings.filter(o=>o.wallId!==s.id); }
-    else if(s.kind==='mep'){ state.mep=state.mep.filter(v=>v.id!==s.id); }
+    else if(s.kind==='mep'){ state.mep=state.mep.filter(v=>v.id!==s.id); cleanCircuits(); }
+    else if(s.kind==='circuit'){ state.circuits=state.circuits.filter(v=>v.id!==s.id); }
     else if(s.kind==='furn'){ state.furniture=state.furniture.filter(v=>v.id!==s.id); }
     else if(s.kind==='note'){
       const n=state.notes.find(v=>v.id===s.id);
@@ -5027,7 +5067,7 @@
         draw:()=>draw(), recompute:()=>recomputeRooms(), toScreen:(x,y)=>toScreen(x,y),
         editDimLabel:(l,x,y)=>editDimLabel(l,x,y), pushHistory:()=>pushHistory(),
         hitLabel:(x,y)=>hitLabel(x,y), openLabelEditor:(l,x,y)=>openLabelEditor(l,x,y) }; }catch(_){ }
-  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),ulcalib:'底圖校正'})[ui.tool]||''; }
+  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ulcalib:'底圖校正'})[ui.tool]||''; }
   function flashHint(msg){ hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
   function showToolHint(){ flashHint(TOOL_HINT[ui.tool]); }
 
@@ -5068,6 +5108,7 @@
       pick.innerHTML='<span class="dot"></span>'+L.name+(L.fixed?'<span style="font-size:10px;color:var(--muted);margin-left:auto">底圖</span>':'');
       pick.onclick=()=>{
         state.layer=L.id; ui.selected=null;
+        if(ui.tool==='circuit') setTool('select');
         state.layerVis[L.id]=true;      // switching to a hidden layer un-hides it
         syncLayerUI(); syncToolSections(); syncFurnUI(); syncMepUI(); refreshProp(); draw(); autosave();
         flashHint('現在畫在「'+L.name+'」');
@@ -5139,7 +5180,7 @@
     }
   }
   function syncMepUI(){
-    syncLightUI();
+    syncLightUI(); syncCircUI();
     const cats=document.getElementById('mepCats'), list=document.getElementById('mepList');
     if(!cats||!list) return;
     cats.innerHTML='';
@@ -5227,6 +5268,8 @@
   }
   function setTool(t){
     ui.tool=t; draft=null; typedNum=''; hideLenBox();
+    if(t!=='circuit') ui.cdraft=null;
+    syncCircBar();
     document.querySelectorAll('.tool').forEach(el=>el.classList.toggle('active',el.dataset.tool===t));
     syncToolSections(); syncFurnUI(); syncMepUI();
     setHint(); showToolHint();
@@ -5398,7 +5441,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b94';
+  const BUILD='b95';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -6071,7 +6114,9 @@
     drawExteriorDims();
     drawDims();
     drawFurniture();
+    drawCircLines();
     drawMEP();
+    drawCircLabels();
     drawTexts();
     drawNotes(); drawInk();
     } finally {
@@ -6867,11 +6912,20 @@
     outletUSB: (s,g)=>socket(g,s,'USB'),
     outletFloor:(s,g)=>boxed(g,s,'FL'),
     // ---- 開關 ----
-    sw1:  (s,g)=>sw(g,s,'S'),
-    sw2:  (s,g)=>sw(g,s,'S²'),
-    sw3:  (s,g)=>sw(g,s,'S³'),
-    swDim:(s,g)=>sw(g,s,'SD'),
-    swSns:(s,g)=>sw(g,s,'SS'),
+    // a plain letter is an ordinary switch; a ringed one is 雙控 or a function switch
+    sw1:  (s,g)=>T(g,'S', 0,0,s*0.62,700),
+    sw2:  (s,g)=>T(g,'S2',0,0,s*0.56,700),
+    sw3:  (s,g)=>T(g,'S3',0,0,s*0.56,700),
+    sw4:  (s,g)=>T(g,'S4',0,0,s*0.56,700),
+    swW1: (s,g)=>lv(g,s,'S'),
+    swW2: (s,g)=>lv(g,s,'S2'),
+    swW3: (s,g)=>lv(g,s,'S3'),
+    swW4: (s,g)=>lv(g,s,'S4'),
+    swDim:(s,g)=>lv(g,s,'SD'),
+    swSns:(s,g)=>lv(g,s,'SS'),
+    swT:  (s,g)=>lv(g,s,'ST'),
+    swM:  (s,g)=>lv(g,s,'SM'),
+    swK:  (s,g)=>lv(g,s,'SK'),
     // ---- 弱電 ----
     tel: (s,g)=>lv(g,s,'T'),
     lan: (s,g)=>lv(g,s,'C'),
@@ -6906,7 +6960,7 @@
     outlet2:'outlet',outletWP:'outlet',outletAC:'outlet',outletWH:'outlet',
     outletREF:'outlet',outletMW:'outlet',outlet220:'outlet',outlet110D:'outlet',
     outlet220D:'outlet',outletUSB:'outlet',outletFloor:'outlet',
-    sw1:'outlet',sw2:'outlet',sw3:'outlet',swDim:'outlet',swSns:'outlet',
+    sw1:'outlet',sw2:'outlet',sw3:'outlet',sw4:'outlet',swW1:'outlet',swW2:'outlet',swW3:'outlet',swW4:'outlet',swDim:'outlet',swSns:'outlet',swT:'outlet',swM:'outlet',swK:'outlet',
     tel:'low',lan:'low',tv:'low',intercom:'low',bell:'low',
     exhaust:'equip',heater:'equip',
     panelMain:'panel',panelWeak:'panel',
@@ -6928,8 +6982,16 @@
    ['開關','sw1','單切開關'],
    ['開關','sw2','雙切開關'],
    ['開關','sw3','三切開關'],
+   ['開關','sw4','四切開關'],
+   ['開關','swW1','雙控單切'],
+   ['開關','swW2','雙控雙切'],
+   ['開關','swW3','雙控三切'],
+   ['開關','swW4','雙控四切'],
    ['開關','swDim','調光開關'],
    ['開關','swSns','感應開關'],
+   ['開關','swT','定時 / 延遲開關'],
+   ['開關','swM','情境 / 智慧面板'],
+   ['開關','swK','插卡取電'],
    ['弱電','tel','電話出線口'],
    ['弱電','lan','網路出線口'],
    ['弱電','tv','電視出線口'],
@@ -7121,7 +7183,7 @@
   let mepNear=new Map();
   function mepRecalcSpacing(){
     mepNear=new Map();
-    const L=state.mep.filter(m=>layerVisible(m.layer||'elec'));
+    const L=state.mep.filter(m=>devVisible(m));
     for(const a of L){
       let best=Infinity;
       for(const b of L){
@@ -7213,7 +7275,7 @@
                     y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)), what:'樑', pt:false});
     }
     for(const o of state.mep){
-      if(o.id===m.id || !isLight(o) || !layerVisible(o.layer||'light')) continue;
+      if(o.id===m.id || !isLight(o) || !devVisible(o)) continue;
       targets.push({...devBoxW(o), what:mepName(o.kind), pt:!isLinear(o), tid:o.id});
     }
     const scan=(dir)=>{
@@ -7304,7 +7366,7 @@
     const T=Math.max((sp.thick||4)*view.scale, fpx(sp.strip?5:6));
     const n=Math.max(2, Math.min(12, Math.round(devLen(m)/40)));
     ctx.save();
-    ctx.globalAlpha=layerAlpha(m.layer||'light');
+    ctx.globalAlpha=devAlpha(m);
     ctx.translate(sx,sy); ctx.rotate((m.rot||0)*Math.PI/180);
     ctx.strokeStyle=sel?'#275C7A':col; ctx.lineWidth=Math.max(1.3, 1.6*TS);
     ctx.lineJoin='round'; ctx.lineCap='round'; ctx.setLineDash([]);
@@ -7442,7 +7504,7 @@
     if(!state.mep.length) return;
     mepRecalcSpacing();
     alongRuns=[];
-    const mepShown=state.mep.filter(m=>layerVisible(m.layer||'elec'));
+    const mepShown=state.mep.filter(m=>devVisible(m));
     // pass one: nothing is drawn, every symbol simply says where it is
     const mepBox=new Map();
     for(const m of mepShown){
@@ -7453,7 +7515,7 @@
     for(const m of mepShown){
       const sel = ui.selected && ui.selected.kind==='mep' && ui.selected.id===m.id;
       const [sx,sy]=toScreen(m.x,m.y);
-      const px=devPx(m), col=mepColor(m.kind);
+      const px=devPx(m), col=devColor(m);
       const gbox=mepBox.get(m.id);
       if(isLinear(m)){
         drawLinearDev(m, sel, col);
@@ -7462,7 +7524,7 @@
         continue;
       }
       ctx.save();
-      ctx.globalAlpha=layerAlpha(m.layer||'elec');
+      ctx.globalAlpha=devAlpha(m);
       // The LEADER goes down before the symbol so the symbol caps it cleanly. The
       // number does NOT: drawn here it was painted over by the very symbol it
       // belongs to, which is why a 200 came out reading "0". It is deferred until
@@ -7523,7 +7585,8 @@
           }
         }
       }
-      ctx.translate(sx,sy); ctx.rotate((m.rot||0)*Math.PI/180);
+      // a switch is lettering — it stays upright whatever wall it is on
+      ctx.translate(sx,sy); ctx.rotate((isSwitch(m)?0:(m.rot||0))*Math.PI/180);
       ctx.strokeStyle=sel?'#275C7A':col; ctx.fillStyle='#fff';
       // a panel is drawn at real size; its line weight still follows the normal symbol
       ctx.lineWidth=MEP_LW*((lightSpec(m).sz?mepPx(m):px)/110); ctx.lineJoin='round'; ctx.lineCap='round';
@@ -7547,7 +7610,7 @@
       // Two sockets side by side used to stamp their heights on top of one another;
       // now the second one drops to the next line down (or goes above) instead.
       ctx.save();
-      ctx.globalAlpha=layerAlpha(m.layer||'elec');
+      ctx.globalAlpha=devAlpha(m);
       const cap=MEP_BELOW_CAP[m.kind]||'';
       const htxt='H'+Math.round(toDisp(m.h||0));
       const tlines = cap ? [cap, htxt] : [htxt];
@@ -7731,7 +7794,7 @@
     const vis=(id)=> layersOpt ? layersOpt[id]!==false : layerVisible(id);
     const by=new Map();
     for(const m of state.mep){
-      if(!vis(m.layer||'elec')) continue;
+      if(!vis(m.layer||'elec') && !(isCircItem(m) && vis('circuit') && (layersOpt || circMode()))) continue;
       const key=m.kind+'|'+devLabel(m);
       const e=by.get(key)||{kind:m.kind, name:devLabel(m), n:0, len:0};
       e.n++; e.len+=isStrip(m)?devLen(m):0;
@@ -7743,6 +7806,267 @@
       .map(e=>({kind:e.kind, name:e.name,
                 n: LIGHT_SPEC[e.kind]&&LIGHT_SPEC[e.kind].strip ? (Math.round(e.len)/100).toFixed(1)+' m' : e.n}));
   }
+
+  // ================= 燈具迴路 =================
+  // A circuit is a group of lights plus the switch(es) that control it. It only
+  // exists while it has BOTH — a switch with nothing on it, or lights nobody can
+  // turn on, is not a circuit. Switches are the same objects as on the 水電 sheet
+  // (one switch, two drawings); a light belongs to at most one circuit; a switch
+  // can carry as many circuits as it has gangs.
+  const isSwitch=(m)=>!!m && /^sw/.test(m.kind);
+  const isCircItem=(m)=>isLight(m)||isSwitch(m);
+  const SW_GANG={sw1:1,sw2:2,sw3:3,sw4:4,swW1:1,swW2:2,swW3:3,swW4:4,swDim:1,swSns:1,swT:1,swM:8,swK:1};
+  const swGang=(m)=>SW_GANG[m.kind]||1;
+  const CIRC_PAL=['#E8590C','#1C7ED6','#2F9E44','#9C36B5','#D6336C','#0C8599','#A17A00','#5F3DC4'];
+  const CIRC_IDLE='#9AA1A8';
+  function circMode(){ return layerVisible('circuit') && (state.layer==='circuit'||state.layer==='__all__'); }
+  function devVisible(m){ return layerVisible(m.layer||'elec') || (isCircItem(m) && circMode()); }
+  function devAlpha(m){ return (state.layer==='circuit' && isCircItem(m)) ? 1 : layerAlpha(m.layer||'elec'); }
+  function devLive(m){ return itemLive(m) || (state.layer==='circuit' && layerVisible('circuit') && isCircItem(m)); }
+  function circuitOf(m){ return (state.circuits||[]).find(c=>c.lights.includes(m.id)); }
+  function circuitsOfSwitch(m){ return (state.circuits||[]).filter(c=>c.sw.includes(m.id)); }
+  function devColor(m){
+    if(isLight(m) && circMode()){ const c=circuitOf(m); return c?c.color:CIRC_IDLE; }
+    return mepColor(m.kind);
+  }
+  const mepById=(id)=>state.mep.find(v=>v.id===id);
+  // drop members that no longer exist, and circuits that lost their lights or switches
+  function cleanCircuits(){
+    if(!Array.isArray(state.circuits)){ state.circuits=[]; return; }
+    const ids=new Set(state.mep.map(m=>m.id));
+    for(const c of state.circuits){
+      c.lights=(c.lights||[]).filter(id=>ids.has(id));
+      c.sw=(c.sw||[]).filter(id=>ids.has(id));
+    }
+    const n=state.circuits.length;
+    state.circuits=state.circuits.filter(c=>c.lights.length && c.sw.length);
+    if(state.circuits.length!==n && ui.selected && ui.selected.kind==='circuit'
+       && !state.circuits.some(c=>c.id===ui.selected.id)) ui.selected=null;
+  }
+  // which room a circuit lives in: the room of its first light
+  function circRoom(c){
+    const m=mepById(c.lights[0]); if(!m) return null;
+    return roomAt(m.x,m.y);
+  }
+  function circRoomName(c){ const r=circRoom(c); return r ? (r.name||'未命名') : '室外'; }
+  // letters restart in every room, and a colour is never reused inside one room
+  function nextCircName(lightIds, skipId){
+    const m=mepById(lightIds[0]); const r=m?roomAt(m.x,m.y):null;
+    const used=new Set(state.circuits.filter(c=>c.id!==skipId && circRoom(c)===r).map(c=>c.name));
+    for(let i=0;i<26;i++){ const k=String.fromCharCode(97+i); if(!used.has(k)) return {name:k, color:CIRC_PAL[i%CIRC_PAL.length]}; }
+    return {name:'z', color:CIRC_PAL[0]};
+  }
+  // ---- building a circuit: tap the switch, tap the lights, press 完成 ----
+  function circStart(editId){
+    setTool('circuit');
+    const c=editId!=null ? state.circuits.find(v=>v.id===editId) : null;
+    ui.cdraft={sw:c?[...c.sw]:[], lights:c?[...c.lights]:[], editId:c?c.id:null};
+    syncCircBar(); draw();
+  }
+  function circTap(wx,wy){
+    const d=ui.cdraft; if(!d) return;
+    let m=null;
+    for(let i=state.mep.length-1;i>=0;i--){
+      const v=state.mep[i];
+      if(isCircItem(v) && devVisible(v) && mepHit(v,wx,wy)){ m=v; break; }
+    }
+    if(!m){ flashHint('請點開關或燈具'); return; }
+    if(isSwitch(m)){
+      const i=d.sw.indexOf(m.id);
+      if(i>=0) d.sw.splice(i,1);
+      else {
+        const usedBy=circuitsOfSwitch(m).filter(c=>c.id!==d.editId).length;
+        if(usedBy>=swGang(m)){ flashHint('這顆「'+mepName(m.kind)+'」已經接滿 '+swGang(m)+' 個迴路'); return; }
+        d.sw.push(m.id);
+      }
+    } else {
+      const i=d.lights.indexOf(m.id);
+      if(i>=0) d.lights.splice(i,1); else d.lights.push(m.id);
+    }
+    syncCircBar(); draw();
+  }
+  function circFinish(){
+    const d=ui.cdraft; if(!d) return;
+    if(!d.sw.length && !d.lights.length){ flashHint('還沒選開關和燈具'); return; }
+    if(!d.sw.length){ flashHint('還缺開關：有開關和燈具才能形成迴路'); return; }
+    if(!d.lights.length){ flashHint('還缺燈具：有開關和燈具才能形成迴路'); return; }
+    let c = d.editId!=null ? state.circuits.find(v=>v.id===d.editId) : null;
+    // a light can only be on one circuit, so it leaves whichever one it was on
+    for(const o of state.circuits){ if(o!==c) o.lights=o.lights.filter(id=>!d.lights.includes(id)); }
+    if(c){ c.sw=[...d.sw]; c.lights=[...d.lights]; }
+    else {
+      const nm=nextCircName(d.lights,null);
+      c={id:uid(), name:nm.name, color:nm.color, sw:[...d.sw], lights:[...d.lights]};
+      state.circuits.push(c);
+    }
+    cleanCircuits();
+    setTool('select');
+    ui.selected={kind:'circuit',id:c.id};
+    pushHistory(); refreshProp(); syncCircUI(); draw();
+    flashHint('迴路 '+c.name+'：'+c.sw.length+' 顆開關、'+c.lights.length+' 盞燈');
+  }
+  function circCancel(){ setTool('select'); draw(); }
+  function syncCircBar(){
+    const bar=document.getElementById('circBar'); if(!bar) return;
+    const on = ui.tool==='circuit' && !!ui.cdraft;
+    bar.style.display = on ? 'flex' : 'none';
+    if(!on) return;
+    const d=ui.cdraft;
+    document.getElementById('circBarTxt').textContent =
+      (d.editId!=null?'編輯迴路':'建立迴路')+'：開關 '+d.sw.length+'、燈具 '+d.lights.length
+      + (!d.sw.length ? '（先點開關）' : !d.lights.length ? '（再點要接的燈）' : '');
+  }
+  // order the lights into a chain starting from the first switch, nearest first
+  function circChain(c){
+    const S=c.sw.map(mepById).filter(Boolean), L=c.lights.map(mepById).filter(Boolean);
+    if(!S.length||!L.length) return null;
+    const rest=[...L], chain=[]; let cur=S[0];
+    while(rest.length){
+      let bi=0, bd=Infinity;
+      rest.forEach((m,i)=>{ const dd=Math.hypot(m.x-cur.x,m.y-cur.y); if(dd<bd){ bd=dd; bi=i; } });
+      cur=rest.splice(bi,1)[0]; chain.push(cur);
+    }
+    const links=[[S[0],chain[0]]];
+    for(let i=0;i<chain.length-1;i++) links.push([chain[i],chain[i+1]]);
+    // every further switch (雙控) joins at the light nearest to it
+    for(const s of S.slice(1)){
+      let b=chain[0], bd=Infinity;
+      for(const m of chain){ const dd=Math.hypot(m.x-s.x,m.y-s.y); if(dd<bd){ bd=dd; b=m; } }
+      links.push([b,s]);
+    }
+    return {S,L,links};
+  }
+  const circTrim=(m)=> isLinear(m) ? fpx(4) : devPx(m)*(isSwitch(m)?0.42:0.34);
+  function drawCircLines(){
+    try{ cleanCircuits(); }catch(_){}
+    if(!layerVisible('circuit') || !state.circuits.length) return;
+    ctx.save();
+    ctx.globalAlpha=(state.layer==='circuit'||state.layer==='__all__')?1:0.42;
+    for(const c of state.circuits){
+      const ch=circChain(c); if(!ch) continue;
+      const sel=ui.selected && ui.selected.kind==='circuit' && ui.selected.id===c.id;
+      ctx.strokeStyle=c.color; ctx.lineWidth=Math.max(1.4,1.4*TS)*(sel?1.9:1);
+      ctx.setLineDash([6*TS,4*TS]); ctx.lineCap='round';
+      for(const [a,b] of ch.links){
+        const [x1,y1]=toScreen(a.x,a.y), [x2,y2]=toScreen(b.x,b.y);
+        const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy); if(len<2) continue;
+        // a shallow arc, always bowing the same way, so a run of lights reads as one string
+        const bend=Math.min(len*0.16, fpx(46));
+        const cx=(x1+x2)/2 - dy/len*bend, cy=(y1+y2)/2 + dx/len*bend;
+        const t0=Math.min(0.4, circTrim(a)/len), t1=1-Math.min(0.4, circTrim(b)/len);
+        ctx.beginPath();
+        for(let i=0;i<=18;i++){
+          const t=t0+(t1-t0)*i/18, u=1-t;
+          const px=u*u*x1+2*u*t*cx+t*t*x2, py=u*u*y1+2*u*t*cy+t*t*y2;
+          i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+  function drawCircLabels(){
+    if(!layerVisible('circuit')) return;
+    const active=(state.layer==='circuit'||state.layer==='__all__');
+    ctx.save();
+    ctx.globalAlpha=active?1:0.42;
+    ctx.font=`700 ${fpx(12)}px -apple-system,system-ui,sans-serif`;
+    ctx.textBaseline='middle'; ctx.lineJoin='round';
+    const put=(txt,x,y,col,align)=>{
+      ctx.textAlign=align||'center';
+      ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=3*TS; ctx.setLineDash([]); ctx.strokeText(txt,x,y);
+      ctx.fillStyle=col; ctx.fillText(txt,x,y);
+    };
+    for(const c of state.circuits){
+      for(const id of c.lights){
+        const m=mepById(id); if(!m) continue;
+        const [sx,sy]=toScreen(m.x,m.y);
+        if(isLinear(m)){
+          const a=(m.rot||0)*Math.PI/180, off=fpx(11);
+          put(c.name, sx+Math.sin(a)*off, sy-Math.cos(a)*off, c.color);
+        } else { const p=devPx(m); put(c.name, sx+p*0.42, sy-p*0.42, c.color); }
+      }
+    }
+    // a switch lists every circuit it controls, each in that circuit's colour
+    for(const m of state.mep){
+      if(!isSwitch(m)) continue;
+      const cs=circuitsOfSwitch(m); if(!cs.length) continue;
+      const [sx,sy]=toScreen(m.x,m.y), p=devPx(m);
+      const step=fpx(9); let x=sx-(cs.length-1)*step/2;
+      for(const c of cs){ put(c.name, x, sy+p*0.62, c.color); x+=step; }
+    }
+    // while a circuit is being built, show what has been picked so far
+    const d=ui.cdraft;
+    if(d && ui.tool==='circuit' && !EXPORT_MODE){
+      const ring=(m,col,txt)=>{
+        const [sx,sy]=toScreen(m.x,m.y), r=Math.max(devPx(m)*0.62, 16);
+        ctx.setLineDash([]); ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.fillStyle=col+'22';
+        ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        if(txt){ ctx.font='700 11px -apple-system,system-ui,sans-serif';
+          ctx.fillStyle=col; ctx.beginPath(); ctx.arc(sx+r*0.75,sy-r*0.75,8,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.fillText(txt,sx+r*0.75,sy-r*0.75); }
+      };
+      d.sw.forEach(id=>{ const m=mepById(id); if(m) ring(m,'#275C7A','S'); });
+      d.lights.forEach((id,i)=>{ const m=mepById(id); if(m) ring(m,'#12B76A',String(i+1)); });
+    }
+    ctx.restore();
+  }
+  function swThumb(kind){
+    const DPR2=Math.max(1,window.devicePixelRatio||1), bw=44, bh=30;
+    const cv=document.createElement('canvas');
+    cv.width=bw*DPR2; cv.height=bh*DPR2; cv.style.cssText='width:'+bw+'px;height:'+bh+'px;flex:0 0 auto;';
+    const cg=cv.getContext('2d'); cg.scale(DPR2,DPR2); cg.translate(bw/2,bh/2);
+    cg.strokeStyle=mepColor(kind); cg.fillStyle='#fff'; cg.lineWidth=1.4;
+    MEP_SY[kind](30,cg);
+    return cv;
+  }
+  function syncCircUI(){
+    const list=document.getElementById('swList'), cl=document.getElementById('circList');
+    if(!list||!cl) return;
+    list.innerHTML='';
+    for(const [cat,kind,name] of MEP_LIST){
+      if(cat!=='開關') continue;
+      const b=document.createElement('button');
+      b.className='furn-item'+(ui.mepPick===kind?' on':'');
+      b.appendChild(swThumb(kind));
+      const nm=document.createElement('b'); nm.textContent=name; nm.style.marginLeft='6px';
+      const hh=document.createElement('span'); hh.textContent='H'+Math.round(toDisp(mepDefH(kind)));
+      b.appendChild(nm); b.appendChild(hh);
+      b.onclick=()=>{ ui.mepPick=kind; setTool('mep'); flashHint('已選「'+name+'」，點牆面放下'); };
+      list.appendChild(b);
+    }
+    cl.innerHTML='';
+    if(!state.circuits || !state.circuits.length){
+      cl.innerHTML='<div class="lay-note">還沒有迴路。</div>'; return;
+    }
+    const rows=state.circuits.map(c=>({c, room:circRoomName(c)}))
+      .sort((a,b)=>a.room.localeCompare(b.room)||a.c.name.localeCompare(b.c.name));
+    for(const {c,room} of rows){
+      const b=document.createElement('button');
+      const on=ui.selected && ui.selected.kind==='circuit' && ui.selected.id===c.id;
+      b.className='furn-item'+(on?' on':'');
+      const dot=document.createElement('i');
+      dot.style.cssText='width:14px;height:14px;border-radius:50%;flex:0 0 auto;margin:0 8px 0 4px;background:'+c.color;
+      const nm=document.createElement('b'); nm.textContent=room+' · '+c.name;
+      const hh=document.createElement('span'); hh.textContent='開關'+c.sw.length+' 燈'+c.lights.length;
+      b.appendChild(dot); b.appendChild(nm); b.appendChild(hh);
+      b.onclick=()=>{ if(ui.tool!=='select') setTool('select'); ui.selected={kind:'circuit',id:c.id}; refreshProp(); syncCircUI(); draw(); };
+      cl.appendChild(b);
+    }
+  }
+  (function wireCircUI(){
+    const nb=document.getElementById('circNew'); if(nb) nb.onclick=()=>{
+      if(!state.mep.some(isSwitch)){ flashHint('先放一顆開關，才能建立迴路'); return; }
+      if(!state.mep.some(isLight)){ flashHint('先到「燈具配置」放燈具，才能建立迴路'); return; }
+      circStart(null);
+    };
+    const bar=document.getElementById('circBar');
+    if(bar){
+      for(const ev of ['pointerdown','pointerup','mousedown','touchstart']) bar.addEventListener(ev,e=>e.stopPropagation());
+      document.getElementById('circOk').onclick=circFinish;
+      document.getElementById('circNo').onclick=circCancel;
+    }
+  })();
 
   // ================= layers =================
   // Structure (walls, columns, beams, openings, shafts) always lives on the base
@@ -8600,7 +8924,7 @@
   // Written as DXF R12 (the most widely accepted flavour) in pure ASCII: any
   // non-ASCII character is emitted as the \U+XXXX escape that AutoCAD decodes back
   // into the original glyph, so 主臥 survives without any codepage guessing.
-  const DXF_LAYERS=[['WALL',7],['COLUMN',8],['SHAFT',9],['BEAM',30],['OPENING',5],['DIM',1],['ROOM',3],['TEXT',2],['INK',6],['NOTE',4],['FURN',2],['MEP',1],['LIGHT',6]];
+  const DXF_LAYERS=[['WALL',7],['COLUMN',8],['SHAFT',9],['BEAM',30],['OPENING',5],['DIM',1],['ROOM',3],['TEXT',2],['INK',6],['NOTE',4],['FURN',2],['MEP',1],['LIGHT',6],['CIRCUIT',3]];
   function dxfAscii(str){
     let out='';
     for(const ch of String(str)){
@@ -8672,10 +8996,15 @@
       poly('FURN', furnCorners(f));
       text('FURN', f.x, f.y, th, f.name||'', true, 0);
     }
+    if(layerVisible('circuit')) for(const c of state.circuits){
+      const ch=circChain(c); if(!ch) continue;
+      for(const [a,b] of ch.links) line('CIRCUIT',a.x,a.y,b.x,b.y);
+      for(const m of ch.L) text('CIRCUIT', m.x+10, m.y-10, th*0.8, c.name, true, 0);
+    }
     // electrical symbols and lights: a marker at the true position plus the name,
     // linear fittings at their real length
     for(const m of state.mep){
-      if(!layerVisible(m.layer||'elec')) continue;
+      if(!devVisible(m)) continue;
       const lay=isLight(m)?'LIGHT':'MEP';
       if(isLinear(m)){ const p=devPoly(m); if(isStrip(m)){ const e2=devEnds(m); line(lay,e2[0].x,e2[0].y,e2[1].x,e2[1].y); } else poly(lay,p); }
       else {
@@ -8786,7 +9115,7 @@
     // reading a number wrong by a factor of ten
     return {walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,
             columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,
-            furniture:state.furniture, mep:state.mep, layer:state.layer, layerVis:state.layerVis, baseLock:state.baseLock,
+            furniture:state.furniture, mep:state.mep, circuits:state.circuits, layer:state.layer, layerVis:state.layerVis, baseLock:state.baseLock,
             meta:state.meta,
             rooms:state.rooms, roomNames:state.roomNames, ceilingH:state.ceilingH,_seq:state._seq, unit:ui.unit};
   }
@@ -8907,7 +9236,7 @@
   }
   function blankPlan(){
     state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
-    state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[];
+    state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[]; state.circuits=[];
     state.layer='plan'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.underlay=null; underlayImg=null;
     // the studio name survives a new project; the client and sheet number do not
     state.meta={firm:(state.meta&&state.meta.firm)||'', designer:(state.meta&&state.meta.designer)||''};
