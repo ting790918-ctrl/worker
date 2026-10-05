@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b95</title>
+<title>PlanPad · 平面圖工具 b97</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -148,6 +148,8 @@
      tappable with a finger: a couple of pixels of movement and the gesture is
      read as a scroll, so the button appears not to work at all. 44px is Apple's
      minimum for a reason, and touch-action stops the tap being stolen. */
+  .chipb{min-height:32px; padding:0 10px; border:1px solid var(--line-strong); border-radius:16px; background:#fff; font-size:12px;}
+  .chipb.on{background:#275C7A; color:#fff; border-color:#275C7A;}
   .btn{width:100%; min-height:44px; padding:0 12px; border:1px solid var(--line-strong);
        background:#fff; color:var(--text); border-radius:9px; font-size:14px; cursor:pointer;
        display:flex; align-items:center; justify-content:center; gap:6px;
@@ -265,7 +267,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b95</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b97</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -463,6 +465,17 @@
           <div class="lay-note" id="ulHint">校正後就可以直接用牆工具描圖。</div>
         </div>
       </div>
+      <div class="psec" data-layer="ceil">
+        <div class="ptitle">天花板</div>
+        <div class="furn-list" id="ceilTools"></div>
+        <div class="row" style="margin-top:10px"><label>內縮距離</label><div class="field"><input type="number" id="ceilOff" min="1" step="1" value="40"><span class="unit" id="ceilOffU">cm</span></div></div>
+        <div class="row"><label>高度標示</label><div class="seg" id="ceilLabSeg"><button data-v="ch">CH</button><button data-v="drop">下降</button><button data-v="both">兩者</button></div></div>
+        <div class="ptitle" style="margin-top:16px">各空間平釘完成面高</div>
+        <div id="ceilRooms"></div>
+        <div class="lay-note">預設是樓高減 20。填成跟樓高一樣，就代表這個空間不做天花。</div>
+        <div class="ptitle" style="margin-top:16px">數量</div>
+        <div id="ceilQty"></div>
+      </div>
       <div class="psec" data-layer="circuit">
         <div class="ptitle">開關</div>
         <div class="furn-list" id="swList"></div>
@@ -590,6 +603,8 @@
     furniture: [],  // {id,cat,name,shape,x,y,w,h,rot,layer}
     mep: [],        // {id,kind,x,y,rot,h,showDim,layer:'elec'}
     circuits: [],   // {id,name,color,sw:[mepId],lights:[mepId]}
+    ceil: [],       // ceiling zones and fittings, see 天花板施工
+    ceilLabel: 'ch',
     meta: {},       // {firm,designer,client,sheet} — printed on the title block
     layer: 'plan',  // which layer new annotations land on
     layerVis: {},   // {layerId:false} to hide
@@ -631,7 +646,7 @@
     shaftW: 60, shaftH: 60,                    // pipe shaft defaults (cm)
     doorSub: 'swing', winSub: 'fixed',         // which kind the next tap creates
     furnCat: 'living', furnPick: null,         // library category / armed item
-    mepCat: '插座', mepPick: null, lightCat: '崁燈類',
+    mepCat: '插座', mepPick: null, lightCat: '崁燈類', ceilPick: null, cpoly: null, ceilOff: 40,
     inkColor: '#C0392B', inkWidth: 1.2,        // pen colour / stroke width (cm)
     inkErase: false,                           // tap-a-stroke-to-delete mode
     beamW: 30, beamH: 60,                       // beam defaults (cm)
@@ -654,6 +669,7 @@
   let EXPORT_MODE = false;
   const TOOL_HINT = {
     circuit:'建立迴路：先點開關，再依序點要接的燈，按下方「完成」',
+    ceil:'天花板：照右邊選的工具，在畫面上拖曳或點一下',
     select:'選取工具：灰色圓點＝牆已接合，紅色空心圈＝該端沒接到東西（不會形成空間）。點牆體選取後，圓形握把＝拉伸端點，方形握把＝整面牆平行推移',
     wall:'畫牆：按住拖曳＝畫線。只要牆體看起來有貼在一起（牆身有重疊），放開後就會自動接合並形成空間；輕點數字不拖曳＝改尺寸，會出現移動方向箭頭',
     door:'放門：點在牆上放置。右側「畫門設定」可先選門／推拉門／門洞，放好後也能隨時改',
@@ -849,14 +865,60 @@
 
   // ================= History =================
   const history=[]; let hi=-1;
-  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,circuits:state.circuits,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,rooms:state.rooms,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,underlay:state.underlay,ceilingH:state.ceilingH,_seq:state._seq}); }
+  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,circuits:state.circuits,ceil:state.ceil,ceilLabel:state.ceilLabel,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,rooms:state.rooms,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,underlay:state.underlay,ceilingH:state.ceilingH,_seq:state._seq}); }
+  // A length typed on a free-standing wall is what the tape read between two
+  // FACES — the clear size of the room. But a lone wall has no faces to measure
+  // between yet, so the number can only be applied to its centreline; then the
+  // neighbours arrive, each eats half its thickness at the corner, and a typed
+  // 3000 turns into a 2920 room. So the typed figure is kept on the wall
+  // (w.clear), and the moment that wall becomes one whole side of a room the room
+  // is resized so that side reads exactly what was typed.
+  function fitTypedRooms(){
+    const typed=state.walls.filter(w=>w.clear!=null);
+    if(!typed.length) return false;
+    // typing locks the wall, and a locked wall refuses to weld at its corners —
+    // let them settle first, then put the locks back
+    const relock=typed.filter(w=>w.locked); relock.forEach(w=>{ w.locked=false; });
+    let changed=false;
+    try{
+      healJunctions(); recomputeRooms();
+      for(let pass=0; pass<12; pass++){
+        let did=false;
+        search:
+        for(const r of roomsCache){
+          if(r.V.length<3) continue;
+          for(let i=0;i<r.edges.length;i++){
+            const e=r.edges[i], ids=(e.wids||[e.wid]).filter(x=>x!=null);
+            if(ids.length!==1) continue;
+            const w=state.walls.find(v=>v.id===ids[0]);
+            if(!w || w.clear==null) continue;
+            // only when the wall is the WHOLE side; a wall another one tees into
+            // bounds two rooms and its typed length belongs to neither alone
+            if(Math.abs(Math.hypot(e.x2-e.x1,e.y2-e.y1)-wallLen(w)) > (w.t||15)*1.5+2) continue;
+            const want=w.clear; delete w.clear;
+            if(Math.abs(r.lens[i]-want)<0.05) continue;
+            const ws=[...focusWallSet(r)].map(id=>state.walls.find(v=>v.id===id)).filter(Boolean);
+            const was=ws.map(x=>x.locked); ws.forEach(x=>{ x.locked=false; });
+            let ok=false;
+            try{ ok=editRoomEdge(r,i,want,'fixMin') || editRoomEdge(r,i,want,'fixMax'); }catch(_){}
+            ws.forEach((x,k)=>{ x.locked=was[k]; });
+            if(ok){ did=true; changed=true; relock.push(w); healJunctions(); recomputeRooms(); break search; }
+          }
+        }
+        if(!did) break;
+      }
+    } finally { relock.forEach(w=>{ if(state.walls.includes(w)) w.locked=true; }); }
+    return changed;
+  }
   function pushHistory(){
     cleanupStrayWalls();
     mergeCoincidentWalls();   // two walls sitting on each other are one party wall
     healJunctions();
     cleanupStrayWalls();   // healing can collapse a stub to zero length
+    try{ if(fitTypedRooms()) flashHint('空間已依你輸入的室內淨尺寸調整'); }catch(_){}
     history.splice(hi+1);
     history.push(snapshot());
+    try{ if(state.layer==='ceil') syncCeilUI(); }catch(_){}
     if(history.length>80) history.shift();
     hi=history.length-1;
     recomputeRooms();
@@ -975,6 +1037,7 @@
     state.ink=arr(o.ink); state.notes=arr(o.notes); state.furniture=arr(o.furniture);
     state.mep=arr(o.mep);
     state.circuits=arr(o.circuits);
+    state.ceil=arr(o.ceil); state.ceilLabel=o.ceilLabel||'ch';
     state.layer=o.layer||'plan';
     state.layerVis=(o.layerVis&&typeof o.layerVis==='object')?o.layerVis:{};
     state.baseLock=!!o.baseLock;
@@ -1860,6 +1923,9 @@
       if(!ok && lockBlocked){ flashHint('這道牆的長度已鎖定，先按「已鎖」解開再改'); draw(); return; }
       // a number you took the trouble to type is a measurement — hold on to it
       lockWall(w,true);
+      // ...and it is the CLEAR size of the room this wall will bound, not the wall's
+      // own end-to-end length. Remembered here, honoured when the room closes.
+      w.clear=nl;
       pushHistory(); draw();
     }, horiz?'h':'v', [w.id]);
   }
@@ -2005,6 +2071,7 @@
   }
   function objCenter(kind,id){
     const f=(a)=>a?{x:a.x,y:a.y}:null;
+    if(kind==='ceil'){ const z=ceilById(id); return z?ceilCentre(z):null; }
     if(kind==='furn') return f(state.furniture.find(v=>v.id===id));
     if(kind==='mep')  return f(state.mep.find(v=>v.id===id));
     if(kind==='column') return f(state.columns.find(v=>v.id===id));
@@ -2112,6 +2179,7 @@
     toScreen, toWorld, wallLen,
     api:{ enterFocus, exitFocus, mergeCoincidentWalls, healJunctions, recomputeRooms,
           draw, pushHistory, renderExport, exportPDF, buildDXF:(o)=>buildDXF(o),
+          ceilTally:(v)=>ceilTally(v), ceilArea:(z)=>ceilArea(z), coveLen:(z)=>coveLen(z), ceilGaps:(z)=>ceilGaps(z),
           circStart:(id)=>circStart(id), circFinish:()=>circFinish(),
           mepGaps:(m)=>mepGaps(m), dimGeom:(d)=>dimGeom(d), mepTally:(o)=>mepTally(o), setTool:(t)=>setTool(t), gapsToDims:(m)=>gapsToDims(m),
           get LAYERS(){ return LAYERS; }, get pdfOpt(){ return pdfOpt; } }
@@ -2246,6 +2314,7 @@
       if(r.k==='j'){ const j=g.jambs[r.i]; return j?{ln:{x1:j[0].x,y1:j[0].y,x2:j[1].x,y2:j[1].y}}:null; }
       return rectPart(g.corners,'p',r.i);
     }
+    if(r.t==='cz'){ const z=ceilById(r.id); if(!z) return null; if(z.shape==='ell') return {pt:{x:z.cx,y:z.cy}}; return rectPart(ceilVerts(z),r.k,r.i); }
     if(r.t==='col'){ const c=state.columns.find(v=>v.id===r.id); return c?rectPart(colPoly(c),r.k,r.i):null; }
     if(r.t==='furn'){ const f=state.furniture.find(v=>v.id===r.id); return f?rectPart(furnCorners(f),r.k,r.i):null; }
     if(r.t==='beam'){ const b=state.beams.find(v=>v.id===r.id); return b&&wallLen(b)>=1?rectPart(beamCorners(b),r.k,r.i):null; }
@@ -2307,6 +2376,14 @@
       if(!layerVisible(f.layer||'plan')) continue;
       const nm=f.name||'家具';
       addPoly(furnCorners(f),(k,i)=>({t:'furn',id:f.id,k,i}),[nm+'角',nm+'邊',nm+'中心']);
+    }
+    if(ceilShow()) for(const z of state.ceil){
+      const nm=z.kind==='zone'?'造型':CEIL_NAME[z.kind];
+      if(z.shape==='ell'){ T.push({pt:true,x:z.cx,y:z.cy,ref:{t:'cz',id:z.id,k:'c'},what:nm+'圓心'}); continue; }
+      const V=ceilVerts(z), bz=(z.kind==='zone'&&z.bz)||[];
+      V.forEach((p,i)=>T.push({pt:true,x:p.x,y:p.y,ref:{t:'cz',id:z.id,k:'p',i},what:nm+'角'}));
+      V.forEach((p,i)=>{ if(bz[i]) return; const q=V[(i+1)%V.length];
+        T.push({pt:false,x1:p.x,y1:p.y,x2:q.x,y2:q.y,ref:{t:'cz',id:z.id,k:'e',i},what:nm+'邊'}); });
     }
     // ends of existing dimensions, for running a chain on
     for(const d of state.dims){
@@ -2648,6 +2725,7 @@
   // ================= Hit testing =================
   const structureLocked=()=> !!state.baseLock;
   function hitTest(wx,wy){
+    { const cz=ceilHitTest(wx,wy); if(cz) return cz; }
     for(let i=state.mep.length-1;i>=0;i--){
       const m=state.mep[i];
       if(!devLive(m)) continue;
@@ -3365,6 +3443,7 @@
     drawGrid();
     drawUnderlay();          // below everything you draw, above the grid
     drawRoomsFill();
+    drawCeilFill();
     drawWalls(false);
     drawBeams(false);
     drawColumns();
@@ -3374,6 +3453,7 @@
     drawExteriorDims();      // the sheet always drew these; now the screen does too
     drawDims();
     drawFurniture();
+    drawCeil();
     drawCircLines();
     drawMEP();
     drawCircLabels();
@@ -4085,20 +4165,20 @@
     // A room's name block is the one label you also want to MOVE — the centroid is
     // often the wrong spot (an L-shaped space, or two rooms whose labels collide).
     // Press and drag moves it; press and release without moving still renames it.
-    if(lab && lab.kind==='calibval' && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep'){
+    if(lab && lab.kind==='calibval' && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep' && ui.tool!=='ceil'){
       try{stage.releasePointerCapture(e.pointerId);}catch(_){}
       pointers.delete(e.pointerId);
       underlayEditCalib();
       return;
     }
-    if(lab && lab.kind==='name' && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep'){
+    if(lab && lab.kind==='name' && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep' && ui.tool!=='ceil'){
       dragging={hit:{kind:'roomname', key:lab.room.key}, start:[wx,wy], moved:false,
                 orig:Object.assign({dx:0,dy:0},(state.roomLabelOff||{})[lab.room.key]),
                 lab, downPx:[px,py]};
       draw();
       return;
     }
-    if(lab && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep'){ dbg(`  -> hit label kind=${lab.kind}`); try{stage.releasePointerCapture(e.pointerId);}catch(_){}
+    if(lab && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep' && ui.tool!=='ceil'){ dbg(`  -> hit label kind=${lab.kind}`); try{stage.releasePointerCapture(e.pointerId);}catch(_){}
       pointers.delete(e.pointerId);
       openLabelEditor(lab,px,py);
       return; }
@@ -4133,6 +4213,13 @@
     else if(ui.tool==='door'||ui.tool==='window'){ placeOpening(wx,wy,ui.tool); }
     else if(ui.tool==='shaft'){ placeColumn(wx,wy,'shaft'); }
     else if(ui.tool==='furn'){ placeFurniture(wx,wy); }
+    else if(ui.tool==='ceil'){
+      const pk=ui.ceilPick;
+      if(pk==='rect'||pk==='ell'||pk==='curtain'){
+        const p={x:gsnap(wx),y:gsnap(wy)};
+        draft={kind:'cdraw',sub:pk,a:p,cur:{...p},pointerId:e.pointerId,pointerType:e.pointerType};
+      } else ceilTap(wx,wy);
+    }
     else if(ui.tool==='circuit'){ circTap(wx,wy); }
     else if(ui.tool==='mep'){
       if(ui.mepPick && LIGHT_SPEC[ui.mepPick] && LIGHT_SPEC[ui.mepPick].strip){
@@ -4193,6 +4280,13 @@
 
     // drag-drawing preview (wall / dim) — only the finger that owns this draft may drive it
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> move IGNORED, not draft owner`); return; }
+    if(draft && draft.kind==='cdraw'){
+      draft.cur={x:gsnap(wx),y:gsnap(wy)};
+      const [lx,ly]=toScreen(draft.cur.x,draft.cur.y);
+      showLenBox(lx,ly, draft.sub==='ell' ? 'R '+fmtLenU(Math.hypot(draft.cur.x-draft.a.x,draft.cur.y-draft.a.y))
+        : fmtLen(Math.abs(draft.cur.x-draft.a.x))+' × '+fmtLenU(Math.abs(draft.cur.y-draft.a.y)));
+      draw(); return;
+    }
     if(draft && draft.kind==='dim'){
       let s2=dimSnap(wx,wy,draft.T);
       // the start anchor itself is not a valid end
@@ -4300,6 +4394,7 @@
     }
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> UP IGNORED, not draft owner`); return; }
     if(draft && draft.kind==='dim'){ commitDimDraft(); return; }
+    if(draft && draft.kind==='cdraw'){ commitCeilDraft(); return; }
     if(draft && draft.kind==='wall' && draft.pendingLabel){
       dbg(`  -> treated as LABEL TAP, wall NOT created`);
       const lab=draft.pendingLabel; const [px,py]=draft.downPx;
@@ -4314,6 +4409,7 @@
       if(len>15){
         if(draft.kind==='wall'){
           const w={id:uid(),x1:a.x,y1:a.y,x2:c.x,y2:c.y,t:ui.thick,align:ui.wallAlign};
+          if(typedNum!=='' && parseFloat(typedNum)>0) w.clear=parseFloat(typedNum);
           state.walls.push(w); weldWall(w); pushHistory();
           dbg(`  -> WALL CREATED id=${w.id} (${a.x.toFixed(0)},${a.y.toFixed(0)})-(${c.x.toFixed(0)},${c.y.toFixed(0)})`);
           draft=null; typedNum=''; hideLenBox();
@@ -4349,6 +4445,7 @@
     // instead of silently throwing away everything the user just dragged.
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> CANCEL IGNORED, not draft owner`); return; }
     if(draft && draft.kind==='dim'){ commitDimDraft(); return; }
+    if(draft && draft.kind==='cdraw'){ commitCeilDraft(); return; }
     if(draft && draft.kind==='strip'){ const a=draft.a,c=draft.cur||draft.a; if(dist(a.x,a.y,c.x,c.y)>15) makeStrip(a,c); draft=null; hideLenBox(); draw(); return; }
     if(draft && draft.kind==='wall' && draft.pendingLabel){ dbg(`  -> pendingLabel set, discarding without creating`); draft=null; typedNum=''; hideLenBox(); draw(); return; }
     if(draft){
@@ -4523,6 +4620,9 @@
       // the whole wall sideways, dragging its neighbours along so they stretch
       const s=wallSideHandles(w);
       if(s){ for(const p of [s.a,s.b]){ if(Math.hypot(wx-p.x,wy-p.y)<thr) return {kind:'wallSide', id:w.id}; } }
+    } else if(ui.selected.kind==='ceil'){
+      const z=ceilById(ui.selected.id);
+      if(z && state.layer==='ceil'){ const h=ceilHandleHit(z,wx,wy); if(h) return h; }
     } else if(ui.selected.kind==='mep'){
       const m=state.mep.find(v=>v.id===ui.selected.id);
       if(m && isLinear(m) && devLive(m)){
@@ -4564,6 +4664,7 @@
     return links;
   }
   function cloneForDrag(hit){
+    if(/^ceil/.test(hit.kind)){ const z=ceilById(hit.id); return z?JSON.parse(JSON.stringify(z)):{}; }
     if(hit.kind==='wall'){ const w=state.walls.find(v=>v.id===hit.id); return {...w}; }
     if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); return {...o}; }
     if(hit.kind==='dim'){ const d=state.dims.find(v=>v.id===hit.id); return {...d}; }
@@ -4580,6 +4681,7 @@
   function doDrag(wx,wy){
     const {hit,start,orig}=dragging; const dx=wx-start[0], dy=wy-start[1];
     if(Math.hypot(dx,dy)>2/view.scale) dragging.moved=true;
+    if(/^ceil/.test(hit.kind)){ ceilDrag(hit,orig,dx,dy,wx,wy); refreshProp(); draw(); return; }
     // NOTE: grid-snap the MOVEMENT, not each endpoint separately. Rounding both
     // ends independently is what used to quietly bend a wall a degree or two off
     // square every time it was dragged.
@@ -4829,6 +4931,10 @@
       const fh=document.getElementById('pFlipH'); if(fh) fh.onclick=()=>{ o.flipH=!o.flipH; pushHistory(); draw(); };
       document.getElementById('pDel').onclick=deleteSelected;
     }
+    else if(s.kind==='ceil'){ const z=ceilById(s.id);
+      if(!z){ propBody.innerHTML='<div class="empty">這個區域已經不存在了。</div>'; return; }
+      propBody.innerHTML=ceilPropHTML(z,U); ceilPropBind(z);
+    }
     else if(s.kind==='circuit'){ const c=state.circuits.find(v=>v.id===s.id);
       if(!c){ propBody.innerHTML='<div class="empty">這個迴路已經不存在了。</div>'; return; }
       const swNames=c.sw.map(mepById).filter(Boolean).map(m=>mepName(m.kind)).join('、');
@@ -5024,7 +5130,9 @@
       <div class="row"><label>樑高</label><div class="field"><input type="number" id="pBh" value="${Math.round(toDisp(bm.h))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>離頂距離</label><div class="field"><input type="number" id="pBdt" value="${Math.round(toDisp(bm.distTop||0))}" step="1"><span class="unit">${U}</span></div></div>
       ${gapRows||'<div class="row"><label style="color:var(--muted);font-size:11px">兩側沒有平行的牆，無法量離牆距離</label></div>'}
+      <div class="row"><label>天花包樑</label><div class="seg" id="pBwrap"><button data-v="1"${bm.wrap?' class="on"':''}>包</button><button data-v="0"${!bm.wrap?' class="on"':''}>不包</button></div></div>
       <button class="del-btn" id="pDel">刪除樑</button>`;
+      document.querySelectorAll('#pBwrap button').forEach(b=>b.onclick=()=>{ bm.wrap=b.dataset.v==='1'; pushHistory(); refreshProp(); draw(); });
       document.querySelectorAll('.pBgap').forEach(inp=>{ inp.onchange=ev=>{
         const g=fromDisp(parseFloat(ev.target.value));
         if(!isFinite(g)||g<0) { refreshProp(); return; }
@@ -5045,6 +5153,7 @@
     if(s.kind==='wall'){ state.walls=state.walls.filter(w=>w.id!==s.id); state.openings=state.openings.filter(o=>o.wallId!==s.id); }
     else if(s.kind==='mep'){ state.mep=state.mep.filter(v=>v.id!==s.id); cleanCircuits(); }
     else if(s.kind==='circuit'){ state.circuits=state.circuits.filter(v=>v.id!==s.id); }
+    else if(s.kind==='ceil'){ state.ceil=state.ceil.filter(v=>v.id!==s.id); }
     else if(s.kind==='furn'){ state.furniture=state.furniture.filter(v=>v.id!==s.id); }
     else if(s.kind==='note'){
       const n=state.notes.find(v=>v.id===s.id);
@@ -5067,7 +5176,7 @@
         draw:()=>draw(), recompute:()=>recomputeRooms(), toScreen:(x,y)=>toScreen(x,y),
         editDimLabel:(l,x,y)=>editDimLabel(l,x,y), pushHistory:()=>pushHistory(),
         hitLabel:(x,y)=>hitLabel(x,y), openLabelEditor:(l,x,y)=>openLabelEditor(l,x,y) }; }catch(_){ }
-  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ulcalib:'底圖校正'})[ui.tool]||''; }
+  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ceil:'天花板',ulcalib:'底圖校正'})[ui.tool]||''; }
   function flashHint(msg){ hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
   function showToolHint(){ flashHint(TOOL_HINT[ui.tool]); }
 
@@ -5108,7 +5217,7 @@
       pick.innerHTML='<span class="dot"></span>'+L.name+(L.fixed?'<span style="font-size:10px;color:var(--muted);margin-left:auto">底圖</span>':'');
       pick.onclick=()=>{
         state.layer=L.id; ui.selected=null;
-        if(ui.tool==='circuit') setTool('select');
+        if(ui.tool==='circuit'||ui.tool==='ceil') setTool('select');
         state.layerVis[L.id]=true;      // switching to a hidden layer un-hides it
         syncLayerUI(); syncToolSections(); syncFurnUI(); syncMepUI(); refreshProp(); draw(); autosave();
         flashHint('現在畫在「'+L.name+'」');
@@ -5180,7 +5289,7 @@
     }
   }
   function syncMepUI(){
-    syncLightUI(); syncCircUI();
+    syncLightUI(); syncCircUI(); syncCeilUI();
     const cats=document.getElementById('mepCats'), list=document.getElementById('mepList');
     if(!cats||!list) return;
     cats.innerHTML='';
@@ -5258,7 +5367,7 @@
   // 門 tool used to leave two doors stacked on each other, and you would not
   // notice until the plan looked wrong. Drawing tools (wall, beam, dimension,
   // handwriting) stay armed, because those are used in runs.
-  const ONE_SHOT = new Set(['door','window','column','shaft','furn','mep','note','photo','text']);
+  const ONE_SHOT = new Set(['door','window','column','shaft','furn','mep','note','photo','text','ceil']);
   function afterPlace(){
     if(!ONE_SHOT.has(ui.tool)) return;
     const sel=ui.selected;          // setTool clears it; the new object should
@@ -5269,6 +5378,7 @@
   function setTool(t){
     ui.tool=t; draft=null; typedNum=''; hideLenBox();
     if(t!=='circuit') ui.cdraft=null;
+    if(t!=='ceil'){ ui.ceilPick=null; ui.cpoly=null; }
     syncCircBar();
     document.querySelectorAll('.tool').forEach(el=>el.classList.toggle('active',el.dataset.tool===t));
     syncToolSections(); syncFurnUI(); syncMepUI();
@@ -5295,6 +5405,7 @@
     if(!state.walls.length&&!state.dims.length&&!state.texts.length&&!state.ink.length&&!state.notes.length&&!state.furniture.length&&!state.mep.length) return null; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; const acc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}; for(const w of state.walls){acc(w.x1,w.y1);acc(w.x2,w.y2);} for(const d of state.dims){acc(d.x1,d.y1);acc(d.x2,d.y2);} for(const t of state.texts){acc(t.x,t.y);}
     for(const s2 of state.ink){ const b=strokeBBox(s2); acc(b.x0,b.y0); acc(b.x1,b.y1); }
     for(const f of state.furniture) for(const c of furnCorners(f)) acc(c.x,c.y);
+    for(const z of (state.ceil||[])){ const b2=ceilBBox(z); acc(b2.x0,b2.y0); acc(b2.x1,b2.y1); }
     for(const m of state.mep){ const r=isLinear(m)?devLen(m)/2+5:(lightSpec(m).sz?devSz(m)/2+5:MEP_SIZE*(isLight(m)?lightScale(m):1)); acc(m.x-r,m.y-r); acc(m.x+r,m.y+r); }
     for(const n of state.notes){
       if(isPin(n) ? !inclPhotos : !inclNotes) continue;
@@ -5441,7 +5552,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b95';
+  const BUILD='b97';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -6010,7 +6121,7 @@
   // A legend the contractor can count from. It is built from the symbols actually
   // on this sheet, so the quantities can never disagree with the drawing.
   function drawLegend(g, pwMM, phMM, mMM, tb, layersOpt){
-    const items=mepTally(layersOpt);
+    const items=mepTally(layersOpt).concat(ceilTally(layersOpt));
     if(!items.length) return null;
     const colMM=96, rowMM=8.5, headMM=9;
     // A long legend in one column is a tall block, and a tall block steals the
@@ -6045,7 +6156,7 @@
       g.translate(cx0+MM(9), ry+rh/2);
       g.strokeStyle=mepColor(it.kind); g.fillStyle='#fff';
       g.lineWidth=MEP_LW*(sp/110); g.lineJoin='round'; g.lineCap='round';
-      (MEP_SY[it.kind]||MEP_SY.outlet2)(sp, g);
+      if(it.sw) it.sw(g,sp); else (MEP_SY[it.kind]||MEP_SY.outlet2)(sp, g);
       g.restore();
       g.fillStyle='#24282E'; g.textAlign='left'; g.textBaseline='middle';
       g.font='500 '+Math.round(MM(2.9))+'px '+SHEET_FONT;
@@ -6106,6 +6217,7 @@
     try{ resolveDims(); }catch(_){}
     ctx=g; view.scale=scale; view.ox=pad.l-b.x0*scale; view.oy=pad.t-b.y0*scale; W=cw; H=ch; ui.grid=false;
     try{
+    drawCeilFill();
     drawWalls(true); drawBeams(true); drawColumns();
     // these two were missing entirely, which is why an exported PNG came out with
     // no room dimensions and no name/坪數 even though the screen showed them
@@ -6114,6 +6226,7 @@
     drawExteriorDims();
     drawDims();
     drawFurniture();
+    drawCeil();
     drawCircLines();
     drawMEP();
     drawCircLabels();
@@ -7807,6 +7920,651 @@
                 n: LIGHT_SPEC[e.kind]&&LIGHT_SPEC[e.kind].strip ? (Math.round(e.len)/100).toFixed(1)+' m' : e.n}));
   }
 
+  // ================= 天花板施工 =================
+  // A ceiling is a set of REGIONS, each with one finished height. Every room has
+  // a base (the flat 平釘 ceiling); on top of it sit shaped zones — a recess, a
+  // dropped panel, a circle. A zone's edge can carry a light trough (間照).
+  // Everything is stored in state.ceil:
+  //   zone     shape 'rect' {x,y,w,h} | 'poly' {pts} | 'ell' {cx,cy,rx,ry}
+  //            ch (finished height), r / rv[] (corner radii), bz[] (arc edges),
+  //            cove {on, edges|null, w, lip, dir}
+  //   curtain / hatch / ventS / ventR   plain rectangles {x,y,w,h}
+  const CEIL_INK='#0F6E56', CEIL_COVE='#B0357F', CEIL_GREY='#5B646E';
+  const CEIL_NAME={zone:'造型區域',curtain:'窗簾盒',hatch:'維修孔',ventS:'出風口',ventR:'回風口'};
+  const ceilById=(id)=>(state.ceil||[]).find(v=>v.id===id);
+  function ceilShow(){ return layerVisible('ceil'); }
+  function ceilActive(){ return state.layer==='ceil' || state.layer==='__all__'; }
+  // the tinted fills belong to the ceiling sheet only; over a furniture plan they
+  // would bury the plan, so there the ceiling is outlines only
+  function ceilFillOn(){ return ceilShow() && (state.layer==='ceil' || (state.layer==='__all__' && !layerVisible('plan'))); }
+  function roomEntry(r){ return (r && r.rid!=null) ? roomById(r.rid) : null; }
+  function slabH(r){ const e=roomEntry(r); return (e&&e.ceilingH)||state.ceilingH; }
+  function roomBaseCH(r){ const e=roomEntry(r); return (e && e.ceilCH!=null) ? e.ceilCH : slabH(r)-20; }
+  function ceilHText(ch, slab){
+    const a='CH '+fmtLen(ch), b='降 '+fmtLen(Math.max(0,slab-ch));
+    const m=state.ceilLabel||'ch';
+    return m==='drop' ? b : m==='both' ? a+'（'+b+'）' : a;
+  }
+  function ceilVerts(z){
+    if(z.shape==='poly') return z.pts;
+    if(z.shape==='ell') return null;
+    return [{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}];
+  }
+  // the outline as a dense polyline; E[k] says which edge segment k→k+1 belongs to
+  function ceilOutline(z){
+    const P=[], E=[];
+    if(z.shape==='ell'){
+      for(let i=0;i<72;i++){ const a=i/72*Math.PI*2; P.push({x:z.cx+z.rx*Math.cos(a), y:z.cy+z.ry*Math.sin(a)}); E.push(0); }
+      return {P,E};
+    }
+    const V=ceilVerts(z), n=V.length, bz=(z.kind==='zone'&&z.bz)||[];
+    const rad=(i)=>{ if(z.kind!=='zone') return 0; const rv=z.rv&&z.rv[i]; return rv!=null ? rv : (z.r||0); };
+    const cor=[];
+    for(let i=0;i<n;i++){
+      const p=V[(i-1+n)%n], v=V[i], q=V[(i+1)%n];
+      let r=rad(i); if(bz[i]||bz[(i-1+n)%n]) r=0;      // an arc edge keeps its sharp ends
+      const ax=p.x-v.x, ay=p.y-v.y, bx=q.x-v.x, by=q.y-v.y, la=Math.hypot(ax,ay), lb=Math.hypot(bx,by);
+      cor[i]={A:v,B:v,C:null};
+      if(r>0 && la>1 && lb>1){
+        const th=Math.acos(Math.max(-1,Math.min(1,(ax*bx+ay*by)/(la*lb))));
+        if(th>0.05 && th<Math.PI-0.05){
+          let t=r/Math.tan(th/2); const tmax=Math.min(la,lb)/2;
+          if(t>tmax){ t=tmax; r=t*Math.tan(th/2); }
+          const uax=ax/la, uay=ay/la, ubx=bx/lb, uby=by/lb;
+          let mx=uax+ubx, my=uay+uby; const ml=Math.hypot(mx,my)||1; mx/=ml; my/=ml;
+          const cd=r/Math.sin(th/2);
+          cor[i]={A:{x:v.x+uax*t,y:v.y+uay*t}, B:{x:v.x+ubx*t,y:v.y+uby*t}, C:{x:v.x+mx*cd,y:v.y+my*cd}, r};
+        }
+      }
+    }
+    const norm=(a)=>{ while(a>Math.PI) a-=Math.PI*2; while(a<=-Math.PI) a+=Math.PI*2; return a; };
+    for(let i=0;i<n;i++){
+      const c=cor[i];
+      if(c.C){
+        const a0=Math.atan2(c.A.y-c.C.y,c.A.x-c.C.x), d=norm(Math.atan2(c.B.y-c.C.y,c.B.x-c.C.x)-a0);
+        const st=Math.max(3,Math.ceil(Math.abs(d)/(Math.PI/28)));
+        for(let k=0;k<=st;k++){ const a=a0+d*k/st; P.push({x:c.C.x+c.r*Math.cos(a), y:c.C.y+c.r*Math.sin(a)}); E.push(i); }
+      } else { P.push({x:c.B.x,y:c.B.y}); E.push(i); }
+      const s=c.B, e=cor[(i+1)%n].A, h=bz[i]||0;
+      if(h){
+        const L=Math.hypot(e.x-s.x,e.y-s.y); if(L<1) continue;
+        const nx=(e.y-s.y)/L, ny=-(e.x-s.x)/L, R=(L*L/4+h*h)/(2*Math.abs(h));
+        const mx=(s.x+e.x)/2, my=(s.y+e.y)/2, ap={x:mx+nx*h,y:my+ny*h};
+        const C={x:ap.x-nx*R*Math.sign(h), y:ap.y-ny*R*Math.sign(h)};
+        const as=Math.atan2(s.y-C.y,s.x-C.x), am=Math.atan2(ap.y-C.y,ap.x-C.x), ae=Math.atan2(e.y-C.y,e.x-C.x);
+        const d1=norm(am-as), d2=norm(ae-am), st=12;
+        for(let k=1;k<=st;k++){ const a=as+d1*k/st; P.push({x:C.x+R*Math.cos(a),y:C.y+R*Math.sin(a)}); E.push(i); }
+        for(let k=1;k<st;k++){ const a=am+d2*k/st; P.push({x:C.x+R*Math.cos(a),y:C.y+R*Math.sin(a)}); E.push(i); }
+      }
+    }
+    return {P,E};
+  }
+  function polyArea(P){ let a=0; for(let i=0;i<P.length;i++){ const p=P[i], q=P[(i+1)%P.length]; a+=p.x*q.y-q.x*p.y; } return a/2; }
+  function ceilArea(z){ return Math.abs(polyArea(ceilOutline(z).P)); }
+  function ceilCentre(z){
+    if(z.shape==='ell') return {x:z.cx,y:z.cy};
+    const V=ceilVerts(z); return {x:V.reduce((a,p)=>a+p.x,0)/V.length, y:V.reduce((a,p)=>a+p.y,0)/V.length};
+  }
+  function ceilBBox(z){
+    const P=ceilOutline(z).P;
+    return {x0:Math.min(...P.map(p=>p.x)), x1:Math.max(...P.map(p=>p.x)), y0:Math.min(...P.map(p=>p.y)), y1:Math.max(...P.map(p=>p.y))};
+  }
+  function ceilEdgeCount(z){ return z.shape==='ell' ? 1 : ceilVerts(z).length; }
+  function coveEdges(z){
+    if(!z.cove || !z.cove.on) return null;
+    const n=ceilEdgeCount(z);
+    return new Set(Array.isArray(z.cove.edges) ? z.cove.edges.filter(i=>i<n) : [...Array(n).keys()]);
+  }
+  function coveLen(z){
+    const set=coveEdges(z); if(!set) return 0;
+    const {P,E}=ceilOutline(z); let L=0;
+    for(let k=0;k<P.length;k++){ if(!set.has(E[k])) continue; const q=P[(k+1)%P.length]; L+=Math.hypot(q.x-P[k].x,q.y-P[k].y); }
+    return L;
+  }
+  function ceilRoom(z){ const c=ceilCentre(z); return roomAt(c.x,c.y); }
+  function zoneTitle(z){
+    if(z.name) return z.name;
+    const r=ceilRoom(z), base=r?roomBaseCH(r):state.ceilingH-20;
+    return z.ch>base+0.5 ? '上凹造型' : z.ch<base-0.5 ? '下降造型' : '平釘造型';
+  }
+  function ceilHit(z,wx,wy){
+    if(z.kind==='zone') return polyContains({x:wx,y:wy}, ceilOutline(z).P);
+    const pad=6/view.scale;
+    return wx>=z.x-pad && wx<=z.x+z.w+pad && wy>=z.y-pad && wy<=z.y+z.h+pad;
+  }
+  function ceilHitTest(wx,wy){
+    if(state.layer!=='ceil' || !ceilShow()) return null;
+    const L=state.ceil.filter(z=>ceilHit(z,wx,wy));
+    if(!L.length) return null;
+    // small things on top: a hatch inside a zone must stay pickable
+    L.sort((a,b)=>(a.kind==='zone')-(b.kind==='zone') || ceilArea(a)-ceilArea(b));
+    return {kind:'ceil', id:L[0].id};
+  }
+  // ---- drawing ----
+  function ceilPathScreen(P){
+    ctx.beginPath();
+    P.forEach((p,i)=>{ const s=toScreen(p.x,p.y); i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]); });
+    ctx.closePath();
+  }
+  function ceilTint(ch, base){ return ch>base+0.5 ? '#FFFFFF' : ch<base-0.5 ? '#BFE3D5' : '#DFF1EA'; }
+  function ceilText(txt,x,y,col,size,ang,weight){
+    ctx.save(); ctx.translate(x,y); if(ang) ctx.rotate(ang);
+    ctx.font=`${weight||700} ${fpx(size||11)}px -apple-system,system-ui,sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.lineJoin='round'; ctx.setLineDash([]);
+    ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=3*TS; ctx.strokeText(txt,0,0);
+    ctx.fillStyle=col; ctx.fillText(txt,0,0); ctx.restore();
+  }
+  function drawCeilFill(){
+    if(!ceilFillOn()) return;
+    ctx.save();
+    for(const r of roomsCache){
+      if(r.V.length<3) continue;
+      ctx.fillStyle='#DFF1EA'; ceilPathScreen(r.V); ctx.fill();
+    }
+    const zs=state.ceil.filter(z=>z.kind==='zone').sort((a,b)=>ceilArea(b)-ceilArea(a));
+    for(const z of zs){
+      const r=ceilRoom(z);
+      ctx.fillStyle=ceilTint(z.ch, r?roomBaseCH(r):state.ceilingH-20);
+      ceilPathScreen(ceilOutline(z).P); ctx.fill();
+    }
+    ctx.restore();
+  }
+  // a point inside the room that no zone covers, for the base-ceiling label
+  function ceilFreeSpot(r){
+    const xs=r.V.map(p=>p.x), ys=r.V.map(p=>p.y);
+    const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+    const items=state.ceil.filter(z=>ceilRoom(z)===r);
+    const m=Math.max(14/view.scale*TS, 18);
+    const cands=[[x0+60,y1-m],[x1-60,y1-m],[(x0+x1)/2,y1-m],[x0+60,y0+m+22],[(x0+x1)/2,y0+m+22],[x1-60,y0+m+22],[x0+m+30,(y0+y1)/2],[x1-m-30,(y0+y1)/2],[(x0+x1)/2,(y0+y1)/2]];
+    for(const [x,y] of cands){
+      if(!polyContains({x,y},r.V)) continue;
+      if(items.some(z=>{ const b=ceilBBox(z), pd=8; return x>b.x0-pd&&x<b.x1+pd&&y>b.y0-pd&&y<b.y1+pd; })) continue;
+      return {x,y};
+    }
+    return null;
+  }
+  function drawCeil(){
+    if(!ceilShow()) return;
+    const act=ceilActive();
+    ctx.save();
+    ctx.globalAlpha=act?1:0.42;
+    ctx.lineJoin='round';
+    const lw=Math.max(1.4,1.5*TS);
+    // wrapped beams read as part of the ceiling
+    for(const bm of state.beams){
+      if(!bm.wrap || wallLen(bm)<1) continue;
+      const c=beamCorners(bm);
+      if(ceilFillOn()){ ctx.fillStyle='#BFE3D5'; ceilPathScreen(c); ctx.fill(); }
+      ctx.strokeStyle=CEIL_INK; ctx.lineWidth=lw; ctx.setLineDash([]); ceilPathScreen(c); ctx.stroke();
+      const mx=(bm.x1+bm.x2)/2, my=(bm.y1+bm.y2)/2, r=roomAt(mx,my);
+      const slab=r?slabH(r):state.ceilingH, ch=slab-(bm.distTop||0)-(bm.h||0);
+      const [sx,sy]=toScreen(mx,my); let a=Math.atan2(bm.y2-bm.y1,bm.x2-bm.x1); if(a>Math.PI/2||a<=-Math.PI/2) a+=Math.PI;
+      ceilText('包樑 '+ceilHText(ch,slab), sx, sy, CEIL_INK, 10, a);
+    }
+    // base ceiling label, one per room
+    if(act) for(const r of roomsCache){
+      if(r.V.length<3) continue;
+      const sp=ceilFreeSpot(r); if(!sp) continue;
+      const slab=slabH(r), ch=roomBaseCH(r);
+      const [sx,sy]=toScreen(sp.x,sp.y);
+      ceilText((ch>=slab-0.5?'原始天花 ':'平釘 ')+ceilHText(ch,slab), sx, sy, CEIL_INK, 11);
+    }
+    const order=state.ceil.slice().sort((a,b)=>(b.kind==='zone')-(a.kind==='zone') || ceilArea(b)-ceilArea(a));
+    for(const z of order){
+      const sel=ui.selected && ui.selected.kind==='ceil' && ui.selected.id===z.id;
+      const {P,E}=ceilOutline(z);
+      const c=ceilCentre(z), [cx,cy]=toScreen(c.x,c.y);
+      const bb=ceilBBox(z), wS=(bb.x1-bb.x0)*view.scale, hS=(bb.y1-bb.y0)*view.scale;
+      ctx.setLineDash([]);
+      if(z.kind==='zone'){
+        ctx.strokeStyle=sel?'#275C7A':CEIL_INK; ctx.lineWidth=lw*(sel?1.5:1);
+        ceilPathScreen(P); ctx.stroke();
+        // 間照: a dashed line riding just off the edge, on the lower side
+        const set=coveEdges(z);
+        if(set){
+          const r=ceilRoom(z), base=r?roomBaseCH(r):state.ceilingH-20;
+          const out=(z.ch>=base-0.5?1:-1) * (polyArea(P)>0?1:-1);
+          const off=((z.cove.w||15)/2)*out, n=P.length;
+          ctx.save(); ctx.strokeStyle=CEIL_COVE; ctx.lineWidth=Math.max(1.8,2*TS); ctx.setLineDash([7*TS,4*TS]); ctx.lineCap='butt';
+          const Q=P.map((p,k)=>{ const a=P[(k-1+n)%n], b=P[(k+1)%n]; const tx=b.x-a.x, ty=b.y-a.y, tl=Math.hypot(tx,ty)||1;
+            return {x:p.x+ty/tl*off, y:p.y-tx/tl*off}; });
+          ctx.beginPath(); let pen=false;
+          for(let k=0;k<n;k++){
+            if(!set.has(E[k])){ pen=false; continue; }
+            const s=toScreen(Q[k].x,Q[k].y), e2=toScreen(Q[(k+1)%n].x,Q[(k+1)%n].y);
+            if(!pen){ ctx.moveTo(s[0],s[1]); pen=true; }
+            ctx.lineTo(e2[0],e2[1]);
+          }
+          ctx.stroke(); ctx.restore();
+        }
+        const r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
+        const lines=[[ceilHText(z.ch,slab),CEIL_INK,12,700],[zoneTitle(z)+(z.r&&z.shape!=='ell'?' · R'+fmtLen(z.r):''),CEIL_GREY,10,600]];
+        if(set) lines.push(['間照 '+fmtLenU(coveLen(z)),CEIL_COVE,10,700]);
+        const lh=fpx(14);
+        // the room's own name and 坪數 sit at its centre; step above them rather than print on top
+        let ys=0;
+        if(r && r.center && showOpt.rooms){ const rc=toScreen(r.center.x,r.center.y);
+          if(Math.abs(rc[0]-cx)<fpx(95) && Math.abs(rc[1]-cy)<fpx(22)+lh*lines.length/2) ys=(rc[1]-cy)-(lh*lines.length/2+fpx(20)); }
+        const y0=cy+ys-(lines.length-1)*lh/2;
+        if(wS>fpx(60) && hS>lh*lines.length) lines.forEach((l,i)=>ceilText(l[0],cx,y0+i*lh,l[1],l[2],0,l[3]));
+        else ceilText(lines[0][0],cx,cy+ys,CEIL_INK,10);
+      } else if(z.kind==='curtain'){
+        const [x0,y0]=toScreen(z.x,z.y), w=z.w*view.scale, h=z.h*view.scale;
+        ctx.save(); ctx.beginPath(); ctx.rect(x0,y0,w,h); ctx.fillStyle='#F3F4F6'; ctx.fill(); ctx.clip();
+        ctx.strokeStyle='#B4BAC1'; ctx.lineWidth=Math.max(0.8,0.8*TS); const st=fpx(9);
+        ctx.beginPath(); for(let d=-h; d<w; d+=st){ ctx.moveTo(x0+d,y0+h); ctx.lineTo(x0+d+h,y0); } ctx.stroke(); ctx.restore();
+        ctx.strokeStyle=sel?'#275C7A':CEIL_INK; ctx.lineWidth=lw; ctx.strokeRect(x0,y0,w,h);
+        ceilText('窗簾盒 深'+fmtLen(Math.min(z.w,z.h)), cx, cy, CEIL_GREY, 10, z.h>z.w?Math.PI/2:0, 600);
+      } else if(z.kind==='hatch'){
+        const [x0,y0]=toScreen(z.x,z.y), w=z.w*view.scale, h=z.h*view.scale;
+        ctx.strokeStyle=sel?'#275C7A':CEIL_GREY; ctx.lineWidth=Math.max(1.1,1.1*TS); ctx.setLineDash([4*TS,3*TS]);
+        ctx.strokeRect(x0,y0,w,h);
+        ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0+w,y0+h); ctx.moveTo(x0+w,y0); ctx.lineTo(x0,y0+h); ctx.stroke();
+        ceilText('維修孔 '+fmtLen(z.w)+'×'+fmtLen(z.h), cx, y0+h+fpx(9), CEIL_GREY, 9, 0, 600);
+      } else {
+        const [x0,y0]=toScreen(z.x,z.y), w=z.w*view.scale, h=z.h*view.scale;
+        ctx.fillStyle='#FFFFFF'; ctx.fillRect(x0,y0,w,h);
+        ctx.strokeStyle=sel?'#275C7A':CEIL_GREY; ctx.lineWidth=Math.max(1.1,1.1*TS);
+        ctx.strokeRect(x0,y0,w,h);
+        ctx.save(); ctx.beginPath(); ctx.rect(x0,y0,w,h); ctx.clip(); ctx.lineWidth=Math.max(0.8,0.8*TS);
+        ctx.beginPath();
+        const horiz=w>=h, t=horiz?h:w;
+        for(const f of [0.25,0.5,0.75]){ if(horiz){ ctx.moveTo(x0,y0+t*f); ctx.lineTo(x0+w,y0+t*f); } else { ctx.moveTo(x0+t*f,y0); ctx.lineTo(x0+t*f,y0+h); } }
+        if(z.kind==='ventR'){ const st=Math.max(t*0.9,fpx(8)); for(let d=-t; d<(horiz?w:h); d+=st){ if(horiz){ ctx.moveTo(x0+d,y0+h); ctx.lineTo(x0+d+t,y0); } else { ctx.moveTo(x0,y0+d+t); ctx.lineTo(x0+w,y0+d); } } }
+        ctx.stroke(); ctx.restore();
+        const txt=CEIL_NAME[z.kind]+' '+fmtLen(Math.max(z.w,z.h))+'×'+fmtLen(Math.min(z.w,z.h));
+        if(horiz) ceilText(txt, cx, y0+h+fpx(9), CEIL_GREY, 9, 0, 600);
+        else ceilText(txt, x0+w+fpx(9), cy, CEIL_GREY, 9, Math.PI/2, 600);
+      }
+      if(sel && !EXPORT_MODE) drawCeilHandles(z);
+    }
+    // drafts
+    if(ui.tool==='ceil' && ui.cpoly && ui.cpoly.length){
+      ctx.strokeStyle=CEIL_INK; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+      ctx.beginPath(); ui.cpoly.forEach((p,i)=>{ const s=toScreen(p.x,p.y); i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]); }); ctx.stroke();
+      ctx.setLineDash([]); ui.cpoly.forEach((p,i)=>{ const s=toScreen(p.x,p.y); handle(s[0],s[1]);
+        if(i===0 && ui.cpoly.length>=3){ ctx.strokeStyle='#12B76A'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(s[0],s[1],11,0,Math.PI*2); ctx.stroke(); } });
+    }
+    if(draft && draft.kind==='cdraw'){
+      const a=draft.a, c=draft.cur;
+      ctx.strokeStyle=CEIL_INK; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+      if(draft.sub==='ell'){ const R=Math.hypot(c.x-a.x,c.y-a.y)*view.scale, s=toScreen(a.x,a.y); ctx.beginPath(); ctx.arc(s[0],s[1],R,0,Math.PI*2); ctx.stroke(); }
+      else { const s=toScreen(Math.min(a.x,c.x),Math.min(a.y,c.y)); ctx.strokeRect(s[0],s[1],Math.abs(c.x-a.x)*view.scale,Math.abs(c.y-a.y)*view.scale); }
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+  function ceilMidHandles(z){
+    if(z.kind!=='zone' || z.shape==='ell') return [];
+    const V=ceilVerts(z), n=V.length, bz=z.bz||[], out=[];
+    for(let i=0;i<n;i++){
+      const s=V[i], e=V[(i+1)%n], L=Math.hypot(e.x-s.x,e.y-s.y); if(L<20) continue;
+      const nx=(e.y-s.y)/L, ny=-(e.x-s.x)/L, h=bz[i]||0;
+      out.push({i, x:(s.x+e.x)/2+nx*h, y:(s.y+e.y)/2+ny*h, nx, ny, mx:(s.x+e.x)/2, my:(s.y+e.y)/2});
+    }
+    return out;
+  }
+  function drawCeilHandles(z){
+    ctx.save(); ctx.globalAlpha=1;
+    if(z.shape==='ell'){
+      for(const p of [[z.cx+z.rx,z.cy],[z.cx,z.cy+z.ry]]){ const s=toScreen(p[0],p[1]); handle(s[0],s[1]); }
+    } else {
+      ceilVerts(z).forEach(p=>{ const s=toScreen(p.x,p.y); handle(s[0],s[1]); });
+      const mids=ceilMidHandles(z);
+      for(const m of mids){
+        const s=toScreen(m.x,m.y);
+        ctx.setLineDash([]); ctx.fillStyle='#fff'; ctx.strokeStyle=CEIL_COVE; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(s[0],s[1]-6); ctx.lineTo(s[0]+6,s[1]); ctx.lineTo(s[0],s[1]+6); ctx.lineTo(s[0]-6,s[1]); ctx.closePath(); ctx.fill(); ctx.stroke();
+        // edge numbers, so the 間照 chips in the panel can be matched to the drawing
+        const q=toScreen(m.mx - m.nx*16/view.scale, m.my - m.ny*16/view.scale);
+        ctx.font='700 11px -apple-system,system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillStyle='#275C7A'; ctx.beginPath(); ctx.arc(q[0],q[1],8,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#fff'; ctx.fillText(String(m.i+1),q[0],q[1]);
+      }
+    }
+    ctx.restore();
+  }
+  function ceilHandleHit(z,wx,wy){
+    const thr=Math.max(12,16)/view.scale;
+    if(z.shape==='ell'){
+      if(Math.hypot(wx-(z.cx+z.rx),wy-z.cy)<thr) return {kind:'ceilR', id:z.id, which:'rx'};
+      if(Math.hypot(wx-z.cx,wy-(z.cy+z.ry))<thr) return {kind:'ceilR', id:z.id, which:'ry'};
+      return null;
+    }
+    const V=ceilVerts(z);
+    for(let i=0;i<V.length;i++) if(Math.hypot(wx-V[i].x,wy-V[i].y)<thr) return {kind:'ceilV', id:z.id, which:i};
+    for(const m of ceilMidHandles(z)) if(Math.hypot(wx-m.x,wy-m.y)<thr) return {kind:'ceilB', id:z.id, which:m.i};
+    return null;
+  }
+  const gsnap=(v)=> ui.snap ? Math.round(v/ui.gridSize)*ui.gridSize : Math.round(v);
+  function ceilDrag(hit,orig,dx,dy,wx,wy){
+    const z=ceilById(hit.id); if(!z) return;
+    if(hit.kind==='ceil'){
+      if(z.shape==='poly'){ const ddx=gsnap(orig.pts[0].x+dx)-orig.pts[0].x, ddy=gsnap(orig.pts[0].y+dy)-orig.pts[0].y;
+        z.pts=orig.pts.map(p=>({x:p.x+ddx,y:p.y+ddy})); }
+      else if(z.shape==='ell'){ z.cx=gsnap(orig.cx+dx); z.cy=gsnap(orig.cy+dy); }
+      else { z.x=gsnap(orig.x+dx); z.y=gsnap(orig.y+dy); }
+    } else if(hit.kind==='ceilV'){
+      const px=gsnap(wx), py=gsnap(wy), i=hit.which;
+      if(z.shape==='poly'){ z.pts=orig.pts.map((p,k)=>k===i?{x:px,y:py}:{...p}); }
+      else {
+        // a rectangle stays a rectangle: the opposite corner is the anchor
+        const V=[[orig.x,orig.y],[orig.x+orig.w,orig.y],[orig.x+orig.w,orig.y+orig.h],[orig.x,orig.y+orig.h]];
+        const o=V[(i+2)%4];
+        z.x=Math.min(o[0],px); z.y=Math.min(o[1],py);
+        z.w=Math.max(5,Math.abs(px-o[0])); z.h=Math.max(5,Math.abs(py-o[1]));
+      }
+    } else if(hit.kind==='ceilR'){
+      if(hit.which==='rx') z.rx=Math.max(5,gsnap(Math.abs(wx-z.cx)));
+      else z.ry=Math.max(5,gsnap(Math.abs(wy-z.cy)));
+      if(orig.rx===orig.ry && !orig.oval) z.rx=z.ry=(hit.which==='rx'?z.rx:z.ry);   // a circle stays a circle
+    } else if(hit.kind==='ceilB'){
+      const V=ceilVerts(z), i=hit.which, s=V[i], e=V[(i+1)%V.length], L=Math.hypot(e.x-s.x,e.y-s.y)||1;
+      const nx=(e.y-s.y)/L, ny=-(e.x-s.x)/L;
+      let h=(wx-(s.x+e.x)/2)*nx+(wy-(s.y+e.y)/2)*ny;
+      h=Math.max(-L/2,Math.min(L/2,gsnap(h)));
+      if(Math.abs(h)<3) h=0;                         // near straight snaps back to straight
+      z.bz=(z.bz||[]).slice(); while(z.bz.length<V.length) z.bz.push(0); z.bz[i]=h;
+    }
+  }
+  // ---- making things ----
+  function newZoneCH(c){ const r=roomAt(c.x,c.y); if(!r) return state.ceilingH-10; return Math.min(roomBaseCH(r)+10, slabH(r)-5); }
+  function addCeil(z){
+    z.id=uid(); z.layer='ceil'; state.ceil.push(z);
+    ui.selected={kind:'ceil',id:z.id};
+    pushHistory(); refreshProp(); afterPlace();
+    return z;
+  }
+  function commitCeilDraft(){
+    const dr=draft; draft=null; hideLenBox();
+    const a=dr.a, c=dr.cur;
+    if(dr.sub==='ell'){
+      const R=Math.round(Math.hypot(c.x-a.x,c.y-a.y)); if(R<8){ draw(); return; }
+      addCeil({kind:'zone',shape:'ell',cx:a.x,cy:a.y,rx:R,ry:R,ch:newZoneCH(a)});
+      return;
+    }
+    const x=Math.min(a.x,c.x), y=Math.min(a.y,c.y), w=Math.abs(c.x-a.x), h=Math.abs(c.y-a.y);
+    if(w<8||h<8){ draw(); return; }
+    if(dr.sub==='curtain') addCeil({kind:'curtain',x,y,w,h});
+    else addCeil({kind:'zone',shape:'rect',x,y,w,h,r:0,ch:newZoneCH({x:x+w/2,y:y+h/2})});
+  }
+  function ceilTap(wx,wy){
+    const pk=ui.ceilPick;
+    if(pk==='hatch'){ const s=60; addCeil({kind:'hatch',x:gsnap(wx-s/2),y:gsnap(wy-s/2),w:s,h:s}); return; }
+    if(pk==='ventS'||pk==='ventR'){ addCeil({kind:pk,x:gsnap(wx-50),y:gsnap(wy-7.5),w:100,h:15}); return; }
+    if(pk==='poly'){
+      const p={x:gsnap(wx),y:gsnap(wy)}; ui.cpoly=ui.cpoly||[];
+      const f=ui.cpoly[0];
+      if(f && ui.cpoly.length>=3 && Math.hypot(wx-f.x,wy-f.y)<16/view.scale){ ceilPolyFinish(); return; }
+      const l=ui.cpoly[ui.cpoly.length-1];
+      if(!l || Math.hypot(p.x-l.x,p.y-l.y)>2) ui.cpoly.push(p);
+      syncCircBar(); draw(); return;
+    }
+    if(pk==='offset'){ ceilOffsetAt(wx,wy); return; }
+  }
+  function ceilPolyFinish(){
+    const P=ui.cpoly||[];
+    if(P.length<3){ flashHint('多邊形至少要 3 個點'); return; }
+    ui.cpoly=null;
+    const c={x:P.reduce((a,p)=>a+p.x,0)/P.length, y:P.reduce((a,p)=>a+p.y,0)/P.length};
+    addCeil({kind:'zone',shape:'poly',pts:P.map(p=>({...p})),r:0,ch:newZoneCH(c)});
+    syncCircBar();
+  }
+  // shrink a polygon inward by d; null when d is too large for the shape
+  function insetPoly(V,d){
+    const n=V.length, s=polyArea(V)>0?1:-1, out=[];
+    for(let i=0;i<n;i++){
+      const p=V[(i-1+n)%n], v=V[i], q=V[(i+1)%n];
+      const l1=Math.hypot(v.x-p.x,v.y-p.y)||1, l2=Math.hypot(q.x-v.x,q.y-v.y)||1;
+      const n1={x:-(v.y-p.y)/l1*s, y:(v.x-p.x)/l1*s}, n2={x:-(q.y-v.y)/l2*s, y:(q.x-v.x)/l2*s};
+      const A={x1:p.x+n1.x*d,y1:p.y+n1.y*d,x2:v.x+n1.x*d,y2:v.y+n1.y*d};
+      const B={x1:v.x+n2.x*d,y1:v.y+n2.y*d,x2:q.x+n2.x*d,y2:q.y+n2.y*d};
+      out.push(lineCross(A,B) || {x:v.x+n1.x*d, y:v.y+n1.y*d});
+    }
+    const a0=polyArea(V), a1=polyArea(out);
+    if(Math.sign(a0)!==Math.sign(a1) || Math.abs(a1)<400) return null;
+    for(let i=0;i<n;i++){               // an edge that flipped direction means the inset overshot
+      const e0x=V[(i+1)%n].x-V[i].x, e0y=V[(i+1)%n].y-V[i].y, e1x=out[(i+1)%n].x-out[i].x, e1y=out[(i+1)%n].y-out[i].y;
+      if(e0x*e1x+e0y*e1y<=0) return null;
+    }
+    return out;
+  }
+  function ceilOffsetAt(wx,wy){
+    const d=Math.max(1, +ui.ceilOff||40);
+    const inside=state.ceil.filter(z=>z.kind==='zone' && ceilHit(z,wx,wy)).sort((a,b)=>ceilArea(a)-ceilArea(b))[0];
+    const isBox=(V)=>V.length===4 && V.every((p,i)=>{ const q=V[(i+1)%4]; return Math.abs(p.x-q.x)<0.5||Math.abs(p.y-q.y)<0.5; });
+    const fromVerts=(V,ch,r)=>{
+      const Q=insetPoly(V,d); if(!Q){ flashHint('內縮 '+fmtLenU(d)+' 太大，放不下'); return; }
+      if(isBox(Q)){ const xs=Q.map(p=>p.x), ys=Q.map(p=>p.y);
+        addCeil({kind:'zone',shape:'rect',x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys),r:Math.max(0,(r||0)-d),ch}); }
+      else addCeil({kind:'zone',shape:'poly',pts:Q,r:Math.max(0,(r||0)-d),ch});
+    };
+    if(inside){
+      const r=ceilRoom(inside), ch=Math.min(inside.ch+5, r?slabH(r):inside.ch+5);
+      if(inside.shape==='ell'){
+        if(inside.rx-d<8||inside.ry-d<8){ flashHint('內縮 '+fmtLenU(d)+' 太大，放不下'); return; }
+        addCeil({kind:'zone',shape:'ell',cx:inside.cx,cy:inside.cy,rx:inside.rx-d,ry:inside.ry-d,ch});
+      } else fromVerts(ceilVerts(inside), ch, inside.r);
+      return;
+    }
+    const r=roomAt(wx,wy);
+    if(!r){ flashHint('請點在空間裡面，或點一個已有的造型區域'); return; }
+    fromVerts(r.V.map(p=>({x:p.x,y:p.y})), Math.min(roomBaseCH(r)+10, slabH(r)-5), 0);
+  }
+  // distance from a rectangle-like item to the nearest wall face on each side
+  function ceilGaps(z){
+    const b=ceilBBox(z), out=[], T=[];
+    for(const w of state.walls){ if(wallLen(w)>=1) T.push(wallRect(w)); }
+    const scan=(dir)=>{
+      let best=Infinity, face=null;
+      for(const R of T){
+        if(dir==='left'||dir==='right'){
+          if(R.y1<=b.y0+1 || R.y0>=b.y1-1) continue;
+          const g = dir==='left' ? b.x0-R.x1 : R.x0-b.x1;
+          if(g>-1 && g<best){ best=g; face=(dir==='left'?R.x1:R.x0); }
+        } else {
+          if(R.x1<=b.x0+1 || R.x0>=b.x1-1) continue;
+          const g = dir==='up' ? b.y0-R.y1 : R.y0-b.y1;
+          if(g>-1 && g<best){ best=g; face=(dir==='up'?R.y1:R.y0); }
+        }
+      }
+      if(best<3000) out.push({dir, gap:Math.max(0,best), face});
+    };
+    scan('up'); scan('down'); scan('left'); scan('right');
+    return out;
+  }
+  function ceilShift(z,dx,dy){
+    if(z.shape==='poly') z.pts=z.pts.map(p=>({x:p.x+dx,y:p.y+dy}));
+    else if(z.shape==='ell'){ z.cx+=dx; z.cy+=dy; }
+    else { z.x+=dx; z.y+=dy; }
+  }
+  function setCeilGap(z,dir,want){
+    const g=ceilGaps(z).find(v=>v.dir===dir); if(!g) return false;
+    const d=Math.max(0,want)-g.gap;
+    if(dir==='left') ceilShift(z,d,0); if(dir==='right') ceilShift(z,-d,0);
+    if(dir==='up') ceilShift(z,0,d);   if(dir==='down') ceilShift(z,0,-d);
+    return true;
+  }
+  // ---- quantities ----
+  function ceilTally(vis){
+    const on = vis ? vis.ceil!==false : ceilShow();
+    if(!on) return [];
+    const rows=[], add=(key,name,val,sw)=>{ let r=rows.find(v=>v.key===key); if(!r){ r={key,name,val:0,sw}; rows.push(r); } r.val+=val; };
+    const fill=(col,stroke,dash)=>(g,sp)=>{ g.fillStyle=col; g.strokeStyle=stroke||CEIL_INK; g.lineWidth=Math.max(1,sp*0.07); g.setLineDash(dash?[sp*0.2,sp*0.14]:[]);
+      g.beginPath(); g.rect(-sp*0.55,-sp*0.36,sp*1.1,sp*0.72); g.fill(); g.stroke(); g.setLineDash([]); };
+    const line=(col)=>(g,sp)=>{ g.strokeStyle=col; g.lineWidth=Math.max(1.4,sp*0.1); g.setLineDash([sp*0.26,sp*0.16]); g.beginPath(); g.moveTo(-sp*0.6,0); g.lineTo(sp*0.6,0); g.stroke(); g.setLineDash([]); };
+    for(const r of roomsCache){
+      if(r.V.length<3) continue;
+      let a=Math.abs(polyArea(r.V));
+      for(const z of state.ceil){ if((z.kind==='zone'||z.kind==='curtain') && ceilRoom(z)===r) a-=ceilArea(z); }
+      const ch=roomBaseCH(r), slab=slabH(r);
+      if(ch<slab-0.5 && a>100) add('b'+Math.round(ch),'平釘 CH '+fmtLen(ch),a,fill('#DFF1EA'));
+    }
+    for(const z of state.ceil){
+      if(z.kind==='zone'){
+        const r=ceilRoom(z), base=r?roomBaseCH(r):0;
+        add('z'+zoneTitle(z)+Math.round(z.ch), zoneTitle(z)+' CH '+fmtLen(z.ch), ceilArea(z), fill(ceilTint(z.ch,base)));
+      }
+    }
+    let cv=0; for(const z of state.ceil) if(z.kind==='zone') cv+=coveLen(z);
+    const out=rows.map(r=>({name:r.name, n:fmtArea(r.val), sw:r.sw}));
+    if(cv>1) out.push({name:'間照燈槽', n:fmtLenU(cv), sw:line(CEIL_COVE)});
+    let cu=0; for(const z of state.ceil) if(z.kind==='curtain') cu+=Math.max(z.w,z.h);
+    if(cu>1) out.push({name:'窗簾盒', n:fmtLenU(cu), sw:fill('#F3F4F6')});
+    let bw=0; for(const bm of state.beams) if(bm.wrap) bw+=wallLen(bm);
+    if(bw>1) out.push({name:'包樑', n:fmtLenU(bw), sw:fill('#BFE3D5')});
+    const cnt={};
+    for(const z of state.ceil){
+      if(z.kind==='hatch'||z.kind==='ventS'||z.kind==='ventR'){
+        const k=CEIL_NAME[z.kind]+' '+fmtLen(Math.max(z.w,z.h))+'×'+fmtLen(Math.min(z.w,z.h));
+        (cnt[k]=cnt[k]||{n:0,kind:z.kind}).n++;
+      }
+    }
+    for(const k of Object.keys(cnt)) out.push({name:k, n:cnt[k].n, sw:fill('#FFFFFF',CEIL_GREY,cnt[k].kind==='hatch')});
+    return out;
+  }
+  // ---- panel ----
+  const CEIL_TOOLS=[['rect','矩形區域','拖曳畫出'],['poly','多邊形區域','逐點點出'],['ell','圓形區域','從圓心拖出'],
+    ['offset','內縮一圈','點空間或區域'],['curtain','窗簾盒','拖曳畫出'],['hatch','維修孔','點一下放置'],
+    ['ventS','出風口','點一下放置'],['ventR','回風口','點一下放置']];
+  function syncCeilUI(){
+    const box=document.getElementById('ceilTools'); if(!box) return;
+    box.innerHTML='';
+    for(const [k,name,how] of CEIL_TOOLS){
+      const b=document.createElement('button');
+      b.className='furn-item'+(ui.tool==='ceil'&&ui.ceilPick===k?' on':'');
+      const nm=document.createElement('b'); nm.textContent=name; nm.style.marginLeft='4px';
+      const hh=document.createElement('span'); hh.textContent=how;
+      b.appendChild(nm); b.appendChild(hh);
+      b.onclick=()=>{ ui.ceilPick=k; ui.cpoly=null; setTool('ceil');
+        flashHint(k==='poly'?'多邊形：一點一點點出外框，點回第一點或按「完成」':k==='offset'?'點一個空間或造型區域，往內縮 '+fmtLenU(+ui.ceilOff||40)+' 做出一圈':'已選「'+name+'」：'+how); };
+      box.appendChild(b);
+    }
+    const off=document.getElementById('ceilOff'); if(off && document.activeElement!==off) off.value=Math.round(toDisp(+ui.ceilOff||40));
+    const ou=document.getElementById('ceilOffU'); if(ou) ou.textContent=ui.unit;
+    document.querySelectorAll('#ceilLabSeg button').forEach(b=>b.classList.toggle('on',(state.ceilLabel||'ch')===b.dataset.v));
+    const rl=document.getElementById('ceilRooms');
+    if(rl && !rl.contains(document.activeElement)){
+      rl.innerHTML='';
+      const rs=roomsCache.filter(r=>r.V.length>=3);
+      if(!rs.length) rl.innerHTML='<div class="lay-note">還沒有圍起來的空間。</div>';
+      for(const r of rs){
+        const row=document.createElement('div'); row.className='row';
+        row.innerHTML=`<label>${(r.name||'未命名').replace(/</g,'&lt;')}</label><div class="field"><input type="number" step="1" value="${Math.round(toDisp(roomBaseCH(r)))}"><span class="unit">${ui.unit}</span></div>`;
+        row.querySelector('input').onchange=(ev)=>{
+          const e=roomEntry(r), v=fromDisp(parseFloat(ev.target.value));
+          if(e && isFinite(v) && v>100){ e.ceilCH=Math.min(v,slabH(r)); pushHistory(); draw(); }
+          ev.target.value=Math.round(toDisp(roomBaseCH(r)));
+        };
+        rl.appendChild(row);
+      }
+    }
+    const q=document.getElementById('ceilQty');
+    if(q){
+      const t=ceilTally(null);
+      q.innerHTML = t.length ? t.map(r=>`<div class="row"><label>${r.name}</label><span style="font-size:13px;font-weight:600">${r.n}</span></div>`).join('')
+                             : '<div class="lay-note">畫了區域之後，這裡會列出面積與長度。</div>';
+    }
+  }
+  (function wireCeilUI(){
+    const off=document.getElementById('ceilOff');
+    if(off) off.onchange=()=>{ const v=fromDisp(parseFloat(off.value)); if(isFinite(v)&&v>0) ui.ceilOff=v; syncCeilUI(); };
+    document.querySelectorAll('#ceilLabSeg button').forEach(b=>b.onclick=()=>{ state.ceilLabel=b.dataset.v; pushHistory(); syncCeilUI(); refreshProp(); draw(); });
+  })();
+  // the little section that explains a light trough, drawn from the real numbers
+  function drawCoveSection(cv, z){
+    const DPR2=Math.max(1,window.devicePixelRatio||1), Wc=cv.clientWidth||260, Hc=120;
+    cv.width=Wc*DPR2; cv.height=Hc*DPR2; cv.style.height=Hc+'px';
+    const g=cv.getContext('2d'); g.scale(DPR2,DPR2);
+    const r=ceilRoom(z), base=r?roomBaseCH(r):z.ch-20;
+    const hi=Math.max(z.ch,base), lo=Math.min(z.ch,base);
+    const x0=8, x1=Wc-8, slabY=10, loY=Hc-26, upY=Math.max(slabY+18, loY-Math.min(52,Math.max(22,(hi-lo)*2)));
+    const mid=x0+(x1-x0)*0.4, lipX=mid+Math.min(70,Math.max(30,(z.cove.w||15)*3));
+    const T=(t,x,y,c,al)=>{ g.font='600 10px -apple-system,system-ui,sans-serif'; g.textAlign=al||'center'; g.textBaseline='middle'; g.fillStyle=c; g.fillText(t,x,y); };
+    g.fillStyle='#9BA0A6'; g.fillRect(x0,slabY-8,x1-x0,8);
+    g.strokeStyle=CEIL_INK; g.lineWidth=1.8; g.lineJoin='round';
+    g.beginPath(); g.moveTo(x0,loY); g.lineTo(lipX,loY); g.lineTo(lipX,loY-Math.min(26,Math.max(10,(z.cove.lip||10)*1.6))); g.stroke();
+    g.beginPath(); g.moveTo(mid,loY); g.lineTo(mid,upY); g.lineTo(x1,upY); g.stroke();
+    g.fillStyle=CEIL_COVE;
+    if(z.cove.dir==='side') g.fillRect(mid+3,loY-16,5,12); else g.fillRect(mid+8,loY-8,22,5);
+    T('CH '+fmtLen(lo), x0+(mid-x0)/2, loY+12, CEIL_INK);
+    T('CH '+fmtLen(hi), mid+(x1-mid)*0.66, upY+11, CEIL_INK);
+    T('槽寬 '+fmtLen(z.cove.w||15), (mid+lipX)/2, loY+12, CEIL_COVE);
+    T('擋板 '+fmtLen(z.cove.lip||10), lipX+5, loY-12, CEIL_COVE, 'left');
+  }
+  function ceilPropHTML(z,U){
+    const num=(id,val,step,extra)=>`<div class="field"><input type="number" id="${id}" value="${val}" step="${step||1}" ${extra||''}><span class="unit">${U}</span></div>`;
+    const D={up:'上',down:'下',left:'左',right:'右'};
+    const gaps=ceilGaps(z).map(g=>`<div class="row"><label>${D[g.dir]}·離牆</label><div class="field"><input type="number" class="pZgap" data-dir="${g.dir}" min="0" value="${Math.round(toDisp(g.gap))}" step="1"><span class="unit">${U}</span></div></div>`).join('');
+    if(z.kind!=='zone'){
+      return `
+      <div class="row"><label>構件</label><span style="font-size:13px;font-weight:600;color:${CEIL_INK}">${CEIL_NAME[z.kind]}</span></div>
+      ${z.kind==='hatch'?`<div class="row"><label>規格</label><div class="seg" id="pZhatch"><button data-s="45">450</button><button data-s="60">600</button></div></div>`:''}
+      <div class="row"><label>寬（橫）</label>${num('pZw',Math.round(toDisp(z.w)))}</div>
+      <div class="row"><label>深（直）</label>${num('pZh',Math.round(toDisp(z.h)))}</div>
+      ${gaps}
+      <button class="btn" id="pZrot" style="margin:4px 0 10px">旋轉 90°</button>
+      <button class="del-btn" id="pDel">刪除${CEIL_NAME[z.kind]}</button>`;
+    }
+    const r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
+    const n=ceilEdgeCount(z), set=coveEdges(z), cv=z.cove||{};
+    const hasBz=(z.bz||[]).some(v=>v);
+    return `
+      <div class="row"><label>名稱</label><div class="field"><input type="text" id="pZname" placeholder="${zoneTitle({...z,name:''})}" value="${String(z.name||'').replace(/"/g,'&quot;')}" style="text-align:left"></div></div>
+      <div class="row"><label>完成面高 CH</label>${num('pZch',Math.round(toDisp(z.ch)))}</div>
+      <div class="row"><label>比樓板下降</label>${num('pZdrop',Math.round(toDisp(Math.max(0,slab-z.ch))))}</div>
+      <div class="row"><label>面積</label><span style="font-size:13px;color:var(--muted)">${fmtArea(ceilArea(z))}</span></div>
+      ${z.shape==='rect'?`<div class="row"><label>寬（橫）</label>${num('pZw',Math.round(toDisp(z.w)))}</div><div class="row"><label>深（直）</label>${num('pZh',Math.round(toDisp(z.h)))}</div>`:''}
+      ${z.shape==='ell'?`<div class="row"><label>寬（橫）</label>${num('pZrx',Math.round(toDisp(z.rx*2)))}</div><div class="row"><label>深（直）</label>${num('pZry',Math.round(toDisp(z.ry*2)))}</div>`:''}
+      ${z.shape!=='ell'?`<div class="row"><label>圓角 R（全部）</label>${num('pZr',Math.round(toDisp(z.r||0)),5,'min="0"')}</div>`:''}
+      ${z.shape==='rect'?`<div class="row"><label>個別圓角</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;width:150px">${['左上','右上','右下','左下'].map((t,i)=>`<input type="number" class="pZrv" data-i="${i}" placeholder="${t}" min="0" value="${z.rv&&z.rv[i]!=null?Math.round(toDisp(z.rv[i])):''}" style="width:100%;min-height:36px;text-align:center;border:1px solid var(--line-strong);border-radius:8px;font-size:13px">`).join('')}</div></div>`:''}
+      ${z.shape!=='ell'?`<div class="row"><label style="font-size:11px;color:var(--muted)">弧邊：拖曳邊中點的菱形握把</label>${hasBz?'<button class="btn" id="pZflat" style="width:auto;min-height:34px;padding:0 10px">全部拉直</button>':''}</div>`:''}
+      ${gaps}
+      <div class="row"><label>間照</label><div class="seg" id="pZcove"><button data-v="1"${cv.on?' class="on"':''}>有</button><button data-v="0"${!cv.on?' class="on"':''}>無</button></div></div>
+      ${cv.on?`
+        ${n>1?`<div class="row"><label>範圍</label><div id="pZedges" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end"><button data-e="all" class="chipb${!Array.isArray(cv.edges)?' on':''}">整圈</button>${[...Array(n).keys()].map(i=>`<button data-e="${i}" class="chipb${Array.isArray(cv.edges)&&set.has(i)?' on':''}">邊${i+1}</button>`).join('')}</div></div>`:''}
+        <div class="row"><label>燈槽寬</label>${num('pZcw',Math.round(toDisp(cv.w||15)))}</div>
+        <div class="row"><label>擋板高</label>${num('pZcl',Math.round(toDisp(cv.lip||10)))}</div>
+        <div class="row"><label>發光方向</label><div class="seg" id="pZdir"><button data-v="up"${cv.dir!=='side'?' class="on"':''}>向上</button><button data-v="side"${cv.dir==='side'?' class="on"':''}>側向</button></div></div>
+        <div class="row"><label>間照長度</label><span style="font-size:13px;font-weight:600;color:${CEIL_COVE}">${fmtLenU(coveLen(z))}</span></div>
+        <canvas id="pZsec" style="width:100%;display:block;border:1px solid var(--line);border-radius:10px;background:#fff;margin:4px 0 10px"></canvas>`:''}
+      <button class="del-btn" id="pDel">刪除區域</button>`;
+  }
+  function ceilPropBind(z){
+    const done=()=>{ pushHistory(); refreshProp(); draw(); };
+    const on=(id,fn)=>{ const el=document.getElementById(id); if(el) el.onchange=(ev)=>{ fn(ev.target.value); done(); }; };
+    const val=(v)=>fromDisp(parseFloat(v));
+    const r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
+    on('pZname',v=>{ z.name=String(v||'').trim(); });
+    on('pZch',v=>{ const x=val(v); if(x>100) z.ch=x; });
+    on('pZdrop',v=>{ const x=val(v); if(x>=0) z.ch=slab-x; });
+    on('pZw',v=>{ const x=val(v); if(x>=5) z.w=x; });
+    on('pZh',v=>{ const x=val(v); if(x>=5) z.h=x; });
+    on('pZrx',v=>{ const x=val(v); if(x>=10){ z.rx=x/2; z.oval=z.rx!==z.ry; } });
+    on('pZry',v=>{ const x=val(v); if(x>=10){ z.ry=x/2; z.oval=z.rx!==z.ry; } });
+    on('pZr',v=>{ const x=val(v); z.r=x>0?x:0; });
+    on('pZcw',v=>{ const x=val(v); if(x>0) z.cove.w=x; });
+    on('pZcl',v=>{ const x=val(v); if(x>0) z.cove.lip=x; });
+    document.querySelectorAll('.pZrv').forEach(inp=>inp.onchange=()=>{
+      z.rv=(z.rv||[null,null,null,null]).slice(); const x=val(inp.value);
+      z.rv[+inp.dataset.i]=(inp.value===''||!isFinite(x))?null:Math.max(0,x); done(); });
+    document.querySelectorAll('.pZgap').forEach(inp=>inp.onchange=()=>{ const x=val(inp.value); if(isFinite(x)&&x>=0) setCeilGap(z,inp.dataset.dir,x); done(); });
+    const b=(id,fn)=>{ const el=document.getElementById(id); if(el) el.onclick=()=>{ fn(); done(); }; };
+    b('pZflat',()=>{ z.bz=[]; });
+    b('pZrot',()=>{ const cx=z.x+z.w/2, cy=z.y+z.h/2, w=z.h, h=z.w; z.w=w; z.h=h; z.x=cx-w/2; z.y=cy-h/2; });
+    document.querySelectorAll('#pZhatch button').forEach(bt=>bt.onclick=()=>{ const s=+bt.dataset.s, cx=z.x+z.w/2, cy=z.y+z.h/2; z.w=z.h=s; z.x=cx-s/2; z.y=cy-s/2; done(); });
+    document.querySelectorAll('#pZcove button').forEach(bt=>bt.onclick=()=>{
+      z.cove=Object.assign({w:15,lip:10,dir:'up',edges:null}, z.cove||{}); z.cove.on=bt.dataset.v==='1'; done(); });
+    document.querySelectorAll('#pZdir button').forEach(bt=>bt.onclick=()=>{ z.cove.dir=bt.dataset.v; done(); });
+    document.querySelectorAll('#pZedges button').forEach(bt=>bt.onclick=()=>{
+      if(bt.dataset.e==='all'){ z.cove.edges=null; }
+      else { const i=+bt.dataset.e, cur=Array.isArray(z.cove.edges)?z.cove.edges.slice():[]; const k=cur.indexOf(i);
+        if(k>=0) cur.splice(k,1); else cur.push(i); z.cove.edges=cur.length?cur:null; }
+      done(); });
+    const sec=document.getElementById('pZsec'); if(sec) drawCoveSection(sec,z);
+    document.getElementById('pDel').onclick=deleteSelected;
+  }
+
   // ================= 燈具迴路 =================
   // A circuit is a group of lights plus the switch(es) that control it. It only
   // exists while it has BOTH — a switch with nothing on it, or lights nobody can
@@ -7908,9 +8666,11 @@
   function circCancel(){ setTool('select'); draw(); }
   function syncCircBar(){
     const bar=document.getElementById('circBar'); if(!bar) return;
-    const on = ui.tool==='circuit' && !!ui.cdraft;
+    const poly = ui.tool==='ceil' && ui.ceilPick==='poly';
+    const on = (ui.tool==='circuit' && !!ui.cdraft) || poly;
     bar.style.display = on ? 'flex' : 'none';
     if(!on) return;
+    if(poly){ document.getElementById('circBarTxt').textContent='多邊形區域：已點 '+((ui.cpoly||[]).length)+' 點'; return; }
     const d=ui.cdraft;
     document.getElementById('circBarTxt').textContent =
       (d.editId!=null?'編輯迴路':'建立迴路')+'：開關 '+d.sw.length+'、燈具 '+d.lights.length
@@ -8063,8 +8823,8 @@
     const bar=document.getElementById('circBar');
     if(bar){
       for(const ev of ['pointerdown','pointerup','mousedown','touchstart']) bar.addEventListener(ev,e=>e.stopPropagation());
-      document.getElementById('circOk').onclick=circFinish;
-      document.getElementById('circNo').onclick=circCancel;
+      document.getElementById('circOk').onclick=()=>{ if(ui.tool==='ceil') ceilPolyFinish(); else circFinish(); };
+      document.getElementById('circNo').onclick=()=>{ if(ui.tool==='ceil'){ setTool('select'); draw(); } else circCancel(); };
     }
   })();
 
@@ -8924,7 +9684,7 @@
   // Written as DXF R12 (the most widely accepted flavour) in pure ASCII: any
   // non-ASCII character is emitted as the \U+XXXX escape that AutoCAD decodes back
   // into the original glyph, so 主臥 survives without any codepage guessing.
-  const DXF_LAYERS=[['WALL',7],['COLUMN',8],['SHAFT',9],['BEAM',30],['OPENING',5],['DIM',1],['ROOM',3],['TEXT',2],['INK',6],['NOTE',4],['FURN',2],['MEP',1],['LIGHT',6],['CIRCUIT',3]];
+  const DXF_LAYERS=[['WALL',7],['COLUMN',8],['SHAFT',9],['BEAM',30],['OPENING',5],['DIM',1],['ROOM',3],['TEXT',2],['INK',6],['NOTE',4],['FURN',2],['MEP',1],['LIGHT',6],['CIRCUIT',3],['CEILING',4]];
   function dxfAscii(str){
     let out='';
     for(const ch of String(str)){
@@ -8995,6 +9755,11 @@
       if(!layerVisible(f.layer||'plan')) continue;
       poly('FURN', furnCorners(f));
       text('FURN', f.x, f.y, th, f.name||'', true, 0);
+    }
+    if(ceilShow()) for(const z of state.ceil){
+      poly('CEILING', ceilOutline(z).P);
+      const c=ceilCentre(z);
+      text('CEILING', c.x, c.y, th*0.85, z.kind==='zone'?('CH '+fmtLen(z.ch)):CEIL_NAME[z.kind], true, 0);
     }
     if(layerVisible('circuit')) for(const c of state.circuits){
       const ch=circChain(c); if(!ch) continue;
@@ -9115,7 +9880,7 @@
     // reading a number wrong by a factor of ten
     return {walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,
             columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,
-            furniture:state.furniture, mep:state.mep, circuits:state.circuits, layer:state.layer, layerVis:state.layerVis, baseLock:state.baseLock,
+            furniture:state.furniture, mep:state.mep, circuits:state.circuits, ceil:state.ceil, ceilLabel:state.ceilLabel, layer:state.layer, layerVis:state.layerVis, baseLock:state.baseLock,
             meta:state.meta,
             rooms:state.rooms, roomNames:state.roomNames, ceilingH:state.ceilingH,_seq:state._seq, unit:ui.unit};
   }
@@ -9236,7 +10001,7 @@
   }
   function blankPlan(){
     state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
-    state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[]; state.circuits=[];
+    state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[]; state.circuits=[]; state.ceil=[]; state.ceilLabel='ch';
     state.layer='plan'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.underlay=null; underlayImg=null;
     // the studio name survives a new project; the client and sheet number do not
     state.meta={firm:(state.meta&&state.meta.firm)||'', designer:(state.meta&&state.meta.designer)||''};
