@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b98</title>
+<title>PlanPad · 平面圖工具 b99</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -267,7 +267,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b98</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b99</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -876,46 +876,74 @@
   function fitTypedRooms(){
     const typed=state.walls.filter(w=>w.clear!=null);
     if(!typed.length) return false;
+    const target=new Map(typed.map(w=>[w.id,w.clear]));
     // typing locks the wall, and a locked wall refuses to weld at its corners —
-    // let them settle first, then put the locks back
-    const relock=typed.filter(w=>w.locked); relock.forEach(w=>{ w.locked=false; });
-    let changed=false;
+    // let them settle first, then put the locks back. They stay marked as typed
+    // (pin), so the healer still treats where they stand as measured.
+    const relock=typed.filter(w=>w.locked);
+    typed.forEach(w=>{ w.pin=true; }); relock.forEach(w=>{ w.locked=false; });
+    const snap=()=>JSON.stringify(state.walls.map(x=>[x.id,x.x1,x.y1,x.x2,x.y2]));
+    const put=(js)=>{ for(const [id,x1,y1,x2,y2] of JSON.parse(js)){ const x=state.walls.find(v=>v.id===id); if(x){ x.x1=x1; x.y1=y1; x.x2=x2; x.y2=y2; } } };
+    // every typed wall that is, right now, one whole side of a room
+    const sides=()=>{
+      const out=[];
+      for(const r of roomsCache){
+        if(r.V.length<3) continue;
+        r.edges.forEach((e,i)=>{
+          const ids=(e.wids||[e.wid]).filter(x=>x!=null);
+          if(ids.length!==1 || !target.has(ids[0])) return;
+          const w=state.walls.find(v=>v.id===ids[0]); if(!w) return;
+          // only when the wall is the WHOLE side; a wall another one tees into
+          // bounds two rooms and its typed length belongs to neither alone
+          if(Math.abs(Math.hypot(e.x2-e.x1,e.y2-e.y1)-wallLen(w)) > (w.t||15)*1.5+2) return;
+          out.push({r,i,w,len:r.lens[i]});
+        });
+      }
+      return out;
+    };
+    const hit=(s)=>Math.abs(s.len-target.get(s.w.id))<0.06;
+    let changed=false, left=0;
+    const tried=new Set();
     try{
       healJunctions(); recomputeRooms();
-      for(let pass=0; pass<12; pass++){
-        let did=false;
-        search:
-        for(const r of roomsCache){
-          if(r.V.length<3) continue;
-          for(let i=0;i<r.edges.length;i++){
-            const e=r.edges[i], ids=(e.wids||[e.wid]).filter(x=>x!=null);
-            if(ids.length!==1) continue;
-            const w=state.walls.find(v=>v.id===ids[0]);
-            if(!w || w.clear==null) continue;
-            // only when the wall is the WHOLE side; a wall another one tees into
-            // bounds two rooms and its typed length belongs to neither alone
-            if(Math.abs(Math.hypot(e.x2-e.x1,e.y2-e.y1)-wallLen(w)) > (w.t||15)*1.5+2) continue;
-            const want=w.clear; delete w.clear;
-            if(Math.abs(r.lens[i]-want)<0.05) continue;
-            const ws=[...focusWallSet(r)].map(id=>state.walls.find(v=>v.id===id)).filter(Boolean);
-            const was=ws.map(x=>x.locked); ws.forEach(x=>{ x.locked=false; });
-            let ok=false;
-            const keep=JSON.stringify(state.walls.map(x=>[x.id,x.x1,x.y1,x.x2,x.y2])), nR=roomsCache.length;
-            try{ ok=editRoomEdge(r,i,want,'fixMin') || editRoomEdge(r,i,want,'fixMax'); }catch(_){}
-            ws.forEach((x,k)=>{ x.locked=was[k]; });
-            if(ok){
-              healJunctions(); recomputeRooms();
-              if(roomsCache.length<nR){            // it tore a corner: put every wall back
-                for(const [id,x1,y1,x2,y2] of JSON.parse(keep)){ const x=state.walls.find(v=>v.id===id); if(x){ x.x1=x1; x.y1=y1; x.x2=x2; x.y2=y2; } }
-                recomputeRooms();
-              } else { changed=true; relock.push(w); }
-              did=true; break search;
-            }
-          }
+      for(let pass=0; pass<40; pass++){
+        const todo=sides().find(s=>!tried.has(s.w.id) && !hit(s));
+        if(!todo) break;
+        tried.add(todo.w.id);
+        const id=todo.w.id, want=target.get(id), base=snap(), nR=roomsCache.length;
+        // A side can be made the right length by moving the wall at either end of
+        // it. Which one matters: the other typed sides of the room are measured to
+        // those same walls. So both are tried, and the one that leaves the MOST
+        // typed sides reading what was typed is kept — with consistent
+        // measurements that is the one arrangement that satisfies all of them.
+        let best=null;
+        for(const mode of ['fixMin','fixMax']){
+          put(base); recomputeRooms();
+          const s=sides().find(v=>v.w.id===id); if(!s) continue;
+          const ws=[...focusWallSet(s.r)].map(k=>state.walls.find(v=>v.id===k)).filter(Boolean);
+          const was=ws.map(x=>x.locked); ws.forEach(x=>{ x.locked=false; });
+          let ok=false;
+          try{ ok=editRoomEdge(s.r,s.i,want,mode); }catch(_){}
+          ws.forEach((x,k)=>{ x.locked=was[k]; });
+          if(!ok) continue;
+          healJunctions(); recomputeRooms();
+          if(roomsCache.length<nR) continue;                 // it tore a corner
+          const all=sides(), me=all.find(v=>v.w.id===id);
+          if(!me || !hit(me)) continue;
+          const sc=all.filter(hit).length;
+          if(!best || sc>best.sc) best={sc, js:snap()};
         }
-        if(!did) break;
+        put(best?best.js:base); recomputeRooms();
+        if(best) changed=true;
       }
-    } finally { relock.forEach(w=>{ if(state.walls.includes(w)) w.locked=true; }); }
+      const end=sides();
+      left=end.filter(s=>!hit(s)).length;
+      for(const s of end) delete s.w.clear;                   // used, whether or not it fitted
+    } finally {
+      typed.forEach(w=>{ delete w.pin; });
+      relock.forEach(w=>{ if(state.walls.includes(w)) w.locked=true; });
+    }
+    fitTypedRooms.left=left;
     return changed;
   }
   function pushHistory(){
@@ -923,7 +951,9 @@
     mergeCoincidentWalls();   // two walls sitting on each other are one party wall
     healJunctions();
     cleanupStrayWalls();   // healing can collapse a stub to zero length
-    try{ if(fitTypedRooms()) flashHint('空間已依你輸入的室內淨尺寸調整'); }catch(_){}
+    try{
+      if(fitTypedRooms()) flashHint(fitTypedRooms.left ? ('空間已依輸入的淨尺寸調整；有 '+fitTypedRooms.left+' 道尺寸彼此對不起來，維持圖面位置') : '空間已依你輸入的室內淨尺寸調整');
+    }catch(_){}
     history.splice(hi+1);
     history.push(snapshot());
     try{ if(state.layer==='ceil') syncCeilUI(); }catch(_){}
@@ -1580,10 +1610,31 @@
       const sideSpan = (w)=> key==='x'
         ? [Math.min(w.y1,w.y2), Math.max(w.y1,w.y2)]
         : [Math.min(w.x1,w.x2), Math.max(w.x1,w.x2)];
+      // Is this wall's line position something the user MEASURED? Either the wall
+      // itself carries a typed length, or a wall with a typed length ends on it —
+      // in which case sliding this wall sideways would change that typed number.
+      const typedWall=(u)=>!!(u.locked || u.pin || u.clear!=null);
+      const pinned=(w)=>{
+        if(typedWall(w)) return true;
+        const c = key==='x' ? w.x1 : w.y1;
+        for(const u of axisW){
+          if(u.id===w.id || runsAlong(u) || !typedWall(u)) continue;
+          for(const q of [[u.x1,u.y1],[u.x2,u.y2]]){
+            if(Math.abs((key==='x'?q[0]:q[1])-c)>0.6) continue;
+            if(projPointToSeg(q[0],q[1],w.x1,w.y1,w.x2,w.y2).d<=(w.t+u.t)/2+1) return true;
+          }
+        }
+        return false;
+      };
       const parallelRivals=(a,b,gap)=>{
         if(a.id===b.id) return false;
         if(!runsAlong(a) || !runsAlong(b)) return false;
         if(gap<=PAR_GAP) return false;              // too close to be intentional
+        // Two walls in line but a few centimetres apart, each held where it is by a
+        // typed dimension: that step is real — the top of the room measured 2810 and
+        // the bottom 2745, so the wall on that side is NOT one straight line. Pulling
+        // them into line made the drawing tidier and both measurements wrong.
+        if(pinned(a) && pinned(b)) return true;
         const [a1,a2]=sideSpan(a), [b1,b2]=sideSpan(b);
         return Math.min(a2,b2)-Math.max(a1,b1) > 1; // genuinely alongside each other
       };
@@ -1619,6 +1670,11 @@
                                                     // cluster can never chain-drift wide
           if(grp.some(k=>parallelRivals(items[k].w, items[j].w, Math.abs(items[j].get()-items[k].get())))) break;  // keep the gap the user asked for
           if(!grp.some(k=>meets(items[k],items[j]))) continue;      // lines up, but is somewhere else
+          // An end already sitting exactly on a wall that must stay apart from this
+          // group belongs with THAT wall — it is the corner the two of them make.
+          // Dragging it over here would open that corner.
+          if(items.some((m,mi)=>mi!==j && !grp.includes(mi) && Math.abs(m.get()-items[j].get())<=0.01 && m.w!==items[j].w
+               && meets(m,items[j]) && grp.some(k=>parallelRivals(items[k].w, m.w, Math.abs(m.get()-items[k].get()))))) continue;
           grp.push(j); used[j]=true;
         }
         if(grp.length>1){
@@ -5611,7 +5667,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b98';
+  const BUILD='b99';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
