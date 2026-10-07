@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b97</title>
+<title>PlanPad · 平面圖工具 b98</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -267,7 +267,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b97</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b98</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -900,9 +900,17 @@
             const ws=[...focusWallSet(r)].map(id=>state.walls.find(v=>v.id===id)).filter(Boolean);
             const was=ws.map(x=>x.locked); ws.forEach(x=>{ x.locked=false; });
             let ok=false;
+            const keep=JSON.stringify(state.walls.map(x=>[x.id,x.x1,x.y1,x.x2,x.y2])), nR=roomsCache.length;
             try{ ok=editRoomEdge(r,i,want,'fixMin') || editRoomEdge(r,i,want,'fixMax'); }catch(_){}
             ws.forEach((x,k)=>{ x.locked=was[k]; });
-            if(ok){ did=true; changed=true; relock.push(w); healJunctions(); recomputeRooms(); break search; }
+            if(ok){
+              healJunctions(); recomputeRooms();
+              if(roomsCache.length<nR){            // it tore a corner: put every wall back
+                for(const [id,x1,y1,x2,y2] of JSON.parse(keep)){ const x=state.walls.find(v=>v.id===id); if(x){ x.x1=x1; x.y1=y1; x.x2=x2; x.y2=y2; } }
+                recomputeRooms();
+              } else { changed=true; relock.push(w); }
+              did=true; break search;
+            }
           }
         }
         if(!did) break;
@@ -1438,31 +1446,37 @@
         moved.add(w.id); lo=Math.min(lo,a); hi=Math.max(hi,b); grew=true;
       }
     }
-    // Dry run first. Pass 2 below drags ONE endpoint of every wall that lands on
-    // this line, which changes that wall's length — so if any of them is locked,
-    // the whole move is refused instead of half-applied. (Pass 1 only translates,
-    // so a locked wall travelling sideways is fine and never blocks anything.)
+    // Which ends come along. An end exactly on the line, obviously — but also an
+    // end that stops INSIDE the junction, within the moving wall's own thickness.
+    // A wall drawn up to another wall's face rather than its centreline looks
+    // joined, is treated as joined everywhere else, and used to be left behind
+    // here: the line moved, that wall stayed, and the corner opened.
+    const perp=(w)=> axis==='x' ? Math.abs(w.x1-w.x2)>1 : Math.abs(w.y1-w.y2)>1;
+    const movers=state.walls.filter(w=>moved.has(w.id));
+    const inJoint=(px,py)=>movers.some(m=>projPointToSeg(px,py,m.x1,m.y1,m.x2,m.y2).d<=(m.t||15)/2+1.5);
+    const onSpan=(px,py)=> axis==='x'
+      ? (Math.abs(px-coord)<EPS && py>=lo-EPS && py<=hi+EPS)
+      : (Math.abs(py-coord)<EPS && px>=lo-EPS && px<=hi+EPS);
+    const drag=[];
     for(const w of state.walls){
-      if(moved.has(w.id) || on(w) || !isLocked(w)) continue;
-      const touch = axis==='x'
-        ? ((Math.abs(w.x1-coord)<EPS && w.y1>=lo-EPS && w.y1<=hi+EPS) || (Math.abs(w.x2-coord)<EPS && w.y2>=lo-EPS && w.y2<=hi+EPS))
-        : ((Math.abs(w.y1-coord)<EPS && w.x1>=lo-EPS && w.x1<=hi+EPS) || (Math.abs(w.y2-coord)<EPS && w.x2>=lo-EPS && w.x2<=hi+EPS));
-      if(touch){ lockBlocked=w; return false; }
-    }
-    for(const w of state.walls){ if(!moved.has(w.id)) continue;
-      if(axis==='x'){ w.x1+=delta; w.x2+=delta; } else { w.y1+=delta; w.y2+=delta; }
-    }
-    for(const w of state.walls){ if(moved.has(w.id)) continue;
       // a collinear wall we deliberately left behind must not get one end dragged
       // along either — that would just bend it instead of moving it
-      if(on(w)) continue;
-      if(axis==='x'){
-        if(Math.abs(w.x1-coord)<EPS && w.y1>=lo-EPS && w.y1<=hi+EPS) w.x1+=delta;
-        if(Math.abs(w.x2-coord)<EPS && w.y2>=lo-EPS && w.y2<=hi+EPS) w.x2+=delta;
-      } else {
-        if(Math.abs(w.y1-coord)<EPS && w.x1>=lo-EPS && w.x1<=hi+EPS) w.y1+=delta;
-        if(Math.abs(w.y2-coord)<EPS && w.x2>=lo-EPS && w.x2<=hi+EPS) w.y2+=delta;
-      }
+      if(moved.has(w.id) || on(w) || wallLen(w)<1) continue;
+      const p=perp(w);
+      const a=onSpan(w.x1,w.y1) || (p && inJoint(w.x1,w.y1));
+      const b=onSpan(w.x2,w.y2) || (p && inJoint(w.x2,w.y2));
+      if(a||b) drag.push({w,a,b});
+    }
+    // Dragging one end changes that wall's length — so if any of them is locked,
+    // the whole move is refused instead of half-applied. (The line itself only
+    // translates, so a locked wall travelling sideways is fine.)
+    for(const d of drag){ if(isLocked(d.w)){ lockBlocked=d.w; return false; } }
+    for(const w of movers){
+      if(axis==='x'){ w.x1+=delta; w.x2+=delta; } else { w.y1+=delta; w.y2+=delta; }
+    }
+    for(const d of drag){
+      if(axis==='x'){ if(d.a) d.w.x1+=delta; if(d.b) d.w.x2+=delta; }
+      else          { if(d.a) d.w.y1+=delta; if(d.b) d.w.y2+=delta; }
     }
     return moved.size>0;
   }
@@ -1575,37 +1589,50 @@
       };
       const items=[];
       for(const w of axisW){
-        items.push({w, get:()=>key==='x'?w.x1:w.y1, set:v=>{ if(key==='x') w.x1=v; else w.y1=v; }});
-        items.push({w, get:()=>key==='x'?w.x2:w.y2, set:v=>{ if(key==='x') w.x2=v; else w.y2=v; }});
+        items.push({w, pt:()=>[w.x1,w.y1], get:()=>key==='x'?w.x1:w.y1, set:v=>{ if(key==='x') w.x1=v; else w.y1=v; }});
+        items.push({w, pt:()=>[w.x2,w.y2], get:()=>key==='x'?w.x2:w.y2, set:v=>{ if(key==='x') w.x2=v; else w.y2=v; }});
       }
       items.sort((a,b)=>a.get()-b.get());
-      let i=0;
-      while(i<items.length){
-        const anchor=items[i].get();
-        let j=i+1;
-        while(j<items.length){
+      // Two ends may share a coordinate only if the walls actually MEET there.
+      // The sweep below compares coordinates alone, so on its own it also fused a
+      // short return wall with some unrelated wall across the building that merely
+      // happened to sit within a wall-thickness of the same line. The return wall
+      // was pulled over by a few centimetres, any locked wall joined to it could
+      // not follow, and the corner came apart — on an edit made somewhere else
+      // entirely. An end now has to be within reach of the other wall itself.
+      const meets=(a,b)=>{
+        if(a.w===b.w) return true;
+        const reach=(a.w.t+b.w.t)/2+1;
+        const pa=a.pt(), pb=b.pt();
+        return projPointToSeg(pa[0],pa[1],b.w.x1,b.w.y1,b.w.x2,b.w.y2).d<=reach
+            || projPointToSeg(pb[0],pb[1],a.w.x1,a.w.y1,a.w.x2,a.w.y2).d<=reach;
+      };
+      const used=new Array(items.length).fill(false);
+      for(let i=0;i<items.length;i++){
+        if(used[i]) continue;
+        used[i]=true;
+        const anchor=items[i].get(), grp=[i];
+        for(let j=i+1;j<items.length;j++){
+          if(used[j]) continue;
           const tol=(items[i].w.t+items[j].w.t)/2;
           if(items[j].get()-anchor>tol) break;      // measured from the anchor, so a
-          let rival=false;                          // cluster can never chain-drift wide
-          for(let k=i;k<j;k++){
-            if(parallelRivals(items[k].w, items[j].w, Math.abs(items[j].get()-items[k].get()))){ rival=true; break; }
-          }
-          if(rival) break;                          // keep the gap the user asked for
-          j++;
+                                                    // cluster can never chain-drift wide
+          if(grp.some(k=>parallelRivals(items[k].w, items[j].w, Math.abs(items[j].get()-items[k].get())))) break;  // keep the gap the user asked for
+          if(!grp.some(k=>meets(items[k],items[j]))) continue;      // lines up, but is somewhere else
+          grp.push(j); used[j]=true;
         }
-        if(j-i>1){
+        if(grp.length>1){
           // A locked wall defines the coordinate for its whole cluster — everything
           // else comes to it. Otherwise the longest wall wins, as before.
           let lead=-1;
-          for(let k=i;k<j;k++) if(isLocked(items[k].w) && coordStretches(items[k].w,key)){ lead=k; break; }
-          if(lead<0){ lead=i; for(let k=i;k<j;k++) if(wallLen(items[k].w)>wallLen(items[lead].w)) lead=k; }
+          for(const k of grp) if(isLocked(items[k].w) && coordStretches(items[k].w,key)){ lead=k; break; }
+          if(lead<0){ lead=grp[0]; for(const k of grp) if(wallLen(items[k].w)>wallLen(items[lead].w)) lead=k; }
           const v=items[lead].get();
-          for(let k=i;k<j;k++){
+          for(const k of grp){
             if(k!==lead && isLocked(items[k].w) && coordStretches(items[k].w,key)) continue;  // would resize it
             if(Math.abs(items[k].get()-v)>0.001){ items[k].set(v); changed=true; }
           }
         }
-        i=j;
       }
     };
     snapAxis('x'); snapAxis('y');
@@ -1988,6 +2015,70 @@
     }
     return false;
   }
+  // Change one side of a room to a typed length — and either get exactly that
+  // length with every corner still joined, or change nothing at all.
+  //
+  // This used to fall back, when the proper resize was refused (usually by a
+  // locked neighbour), to pushing a single wall on its own. That "worked" in the
+  // sense that something moved: one wall slid away from the two it was joined to,
+  // the corners opened, and the room stopped being a room. A dimension that cannot
+  // be honoured cleanly is now refused, with the reason, and the drawing is left
+  // exactly as it was.
+  // force: undefined = ask before touching another locked dimension,
+  //        true = go ahead, false = never (refuse quietly)
+  function applyRoomDim(r,i,newLen,mode,force){
+    const e=r.edges[i];
+    const keep=JSON.stringify({w:state.walls,o:state.openings}), nRooms=roomsCache.length;
+    const back=(msg)=>{ const k=JSON.parse(keep); state.walls=k.w; state.openings=k.o; recomputeRooms(); flashHint(msg); draw(); return false; };
+    const sig=()=>state.walls.map(w=>`${w.id}:${w.x1.toFixed(2)},${w.y1.toFixed(2)},${w.x2.toFixed(2)},${w.y2.toFixed(2)}`).join('|');
+    const before=sig();
+    // the number being typed IS this side, so its own lock must not stand in the way
+    const own=(e.wids||[e.wid]).map(wd=>state.walls.find(x=>x.id===wd)).filter(Boolean);
+    own.forEach(w=>{ w.locked=false; });
+    let ok=false; const gave=[];
+    for(let guard=0; guard<24; guard++){
+      // every attempt starts from the untouched drawing, so a move that got halfway
+      // before meeting a lock never leaves its half behind
+      const k=JSON.parse(keep); state.walls=k.w; state.openings=k.o;
+      for(const w of state.walls) if(own.some(o=>o.id===w.id) || gave.includes(w.id)) w.locked=false;
+      lockBlocked=null;
+      try{ ok=editRoomEdge(r,i,newLen,mode); }catch(_){ ok=false; }
+      if(!lockBlocked || force!==true) break;
+      // told to go ahead: the locked wall in the way gives, and is locked again
+      // afterwards at whatever length it ends up
+      gave.push(lockBlocked.id);
+    }
+    if(lockBlocked){
+      if(force===undefined){
+        const blkLen=fmtLenU(wallLen(lockBlocked));
+        back('');
+        uiConfirm('這樣改會連帶改到另一道已鎖定的牆（目前 '+blkLen+'）。\n\n要讓它一起變動嗎？改完會重新鎖定。',{okText:'一起改',cancelText:'取消'})
+          .then(yes=>{ if(yes) applyRoomDim(r,i,newLen,mode,true); });
+        return false;
+      }
+      return back('改不動：這個方向會動到另一道鎖定的尺寸。請換另一個方向鍵，或先解開那道鎖');
+    }
+    if(sig()===before){
+      if(Math.abs(newLen-r.lens[i])<0.01){ const k=JSON.parse(keep); state.walls=k.w; state.openings=k.o; recomputeRooms(); draw(); return true; }
+      return back('這道尺寸改不動：兩端的牆不是垂直相接。請改用選取工具拖曳牆面握把');
+    }
+    healJunctions(); recomputeRooms();
+    let got=null;
+    const ids=own.map(w=>w.id);
+    for(const r2 of roomsCache){
+      if(r2.rid!==r.rid) continue;
+      r2.edges.forEach((e2,j)=>{ if((e2.wids||[e2.wid]).some(x=>ids.includes(x))) got=r2.lens[j]; });
+    }
+    if(roomsCache.length<nRooms || got==null)
+      return back('這樣改會讓牆角脫開、空間散掉，已取消。請換另一個方向鍵，或改用拖曳');
+    if(Math.abs(got-newLen)>0.6)
+      return back('這道尺寸沒辦法剛好改成這個數字（旁邊的牆擋住了），已取消');
+    for(const w of own){ const w2=state.walls.find(x=>x.id===w.id); if(w2){ w2.locked=true; delete w2.clear; } }
+    for(const id of gave){ const w2=state.walls.find(x=>x.id===id); if(w2){ w2.locked=true; delete w2.clear; } }
+    pushHistory(); draw();
+    if(gave.length) flashHint('已修改，另外 '+gave.length+' 道鎖定的牆跟著變動並重新鎖定');
+    return true;
+  }
   function editDimLabel(l, sx, sy){
     const r=l.room, i=l.edgeIndex, curLen=r.lens[i];
     const e=r.edges[i];
@@ -2000,39 +2091,7 @@
       const pad=l.outer||0;
       showDimEditor(sx, sy, toDisp(curLen+pad), (v,mode)=>{
         const newLen=fromDisp(v)-pad; if(!(newLen>0)) return;
-        // fingerprint the geometry so we can tell whether anything actually moved
-        const sig=()=>state.walls.map(w=>`${w.id}:${w.x1.toFixed(2)},${w.y1.toFixed(2)},${w.x2.toFixed(2)},${w.y2.toFixed(2)}`).join('|');
-        const before=sig();
-        lockBlocked=null;
-        let ok=editRoomEdge(r,i,newLen,mode);
-        if(!ok){
-          // Couldn't resolve the capping walls. Before giving up, try sliding this
-          // edge's own wall line — for a side made of several merged walls that is
-          // the right move anyway, and setWallLength would only have nudged one of
-          // them (which looked like nothing happening).
-          const e2=r.edges[i];
-          const hz=Math.abs(e2.y1-e2.y2)<1;
-          const cur=hz?e2.y1:e2.x1;
-          const lo=hz?Math.min(e2.x1,e2.x2):Math.min(e2.y1,e2.y2);
-          const hi=hz?Math.max(e2.x1,e2.x2):Math.max(e2.y1,e2.y2);
-          const d=newLen-r.lens[i];
-          withOpeningsPreserved(()=>{ ok=moveWallLine(hz?'y':'x', cur, hz?-d:-d, lo, hi); });
-          if(!ok){
-            const w=state.walls.find(x=>x.id===l.wid);
-            if(w) withOpeningsPreserved(()=>setWallLength(w,newLen));
-          }
-        }
-        if(sig()===before){
-          if(lockBlocked){
-            flashHint('改不動：旁邊有鎖定的尺寸擋著。先解開那道鎖，或從另一邊調整');
-          } else {
-            // nothing moved at all — say so rather than leaving you tapping a dead number
-            flashHint('這道尺寸改不動：兩端的牆沒有辦法判定。請改用選取工具拖曳牆面握把');
-          }
-          draw(); return;
-        }
-        for(const wd of (e.wids||[e.wid])) lockWall(state.walls.find(x=>x.id===wd), true);
-        pushHistory(); draw();
+        applyRoomDim(r,i,newLen,mode);
       }, horiz?'h':'v', (e.wids||[e.wid]));
     } else {
       showNumInput(sx, sy, toDisp(curLen), (v)=>{
@@ -2177,7 +2236,7 @@
   window.__planpad = {
     state, ui, view, get rooms(){ return roomsCache; },
     toScreen, toWorld, wallLen,
-    api:{ enterFocus, exitFocus, mergeCoincidentWalls, healJunctions, recomputeRooms,
+    api:{ enterFocus, exitFocus, mergeCoincidentWalls, healJunctions, recomputeRooms, editRoomEdge:(r,i,l,m)=>editRoomEdge(r,i,l,m), applyRoomDim:(r,i,l,m,f)=>applyRoomDim(r,i,l,m,f),
           draw, pushHistory, renderExport, exportPDF, buildDXF:(o)=>buildDXF(o),
           ceilTally:(v)=>ceilTally(v), ceilArea:(z)=>ceilArea(z), coveLen:(z)=>coveLen(z), ceilGaps:(z)=>ceilGaps(z),
           circStart:(id)=>circStart(id), circFinish:()=>circFinish(),
@@ -5177,7 +5236,7 @@
         editDimLabel:(l,x,y)=>editDimLabel(l,x,y), pushHistory:()=>pushHistory(),
         hitLabel:(x,y)=>hitLabel(x,y), openLabelEditor:(l,x,y)=>openLabelEditor(l,x,y) }; }catch(_){ }
   function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ceil:'天花板',ulcalib:'底圖校正'})[ui.tool]||''; }
-  function flashHint(msg){ hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
+  function flashHint(msg){ if(!msg) return; hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
   function showToolHint(){ flashHint(TOOL_HINT[ui.tool]); }
 
   // ================= Tool switching =================
@@ -5552,7 +5611,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b97';
+  const BUILD='b98';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
