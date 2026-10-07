@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b99</title>
+<title>PlanPad · 平面圖工具 b100</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -267,7 +267,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b99</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b100</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -670,6 +670,7 @@
   const TOOL_HINT = {
     circuit:'建立迴路：先點開關，再依序點要接的燈，按下方「完成」',
     ceil:'天花板：照右邊選的工具，在畫面上拖曳或點一下',
+    split:'拆分：在這道牆上點一下要切開的位置',
     select:'選取工具：灰色圓點＝牆已接合，紅色空心圈＝該端沒接到東西（不會形成空間）。點牆體選取後，圓形握把＝拉伸端點，方形握把＝整面牆平行推移',
     wall:'畫牆：按住拖曳＝畫線。只要牆體看起來有貼在一起（牆身有重疊），放開後就會自動接合並形成空間；輕點數字不拖曳＝改尺寸，會出現移動方向箭頭',
     door:'放門：點在牆上放置。右側「畫門設定」可先選門／推拉門／門洞，放好後也能隨時改',
@@ -873,6 +874,90 @@
   // 3000 turns into a 2920 room. So the typed figure is kept on the wall
   // (w.clear), and the moment that wall becomes one whole side of a room the room
   // is resized so that side reads exactly what was typed.
+  // ================= 拆分 =================
+  // Cut one wall into two at a chosen point. The point is set by tapping the wall
+  // and then typing a distance — from the wall face at the nearer end, or from the
+  // edge of a door or window if one stands between the tap and that end, because
+  // that is the thing you would actually hold the tape against.
+  function splitStart(id){
+    const w=state.walls.find(v=>v.id===id); if(!w) return;
+    setTool('split'); ui.splitId=id; ui.splitPrev=null;
+    flashHint('拆分：在這道牆上點一下要切開的位置');
+    draw();
+  }
+  function splitRefs(w,d){
+    const L=wallLen(w), ins=wallEndInset(w);
+    let lo={pos:ins.s, what:'牆面'}, hi={pos:L-ins.e, what:'牆面'}, inside=null;
+    for(const o of state.openings){
+      if(o.wallId!==w.id) continue;
+      const a=o.pos*L, a0=a-o.width/2, a1=a+o.width/2, nm=o.type==='door'?'門邊':'窗邊';
+      if(d>a0+0.01 && d<a1-0.01){ inside=o; continue; }
+      if(a1<=d+0.01 && a1>lo.pos) lo={pos:a1, what:nm};
+      if(a0>=d-0.01 && a0<hi.pos) hi={pos:a0, what:nm};
+    }
+    return {lo,hi,inside,L};
+  }
+  function splitTap(wx,wy,px,py){
+    const w=state.walls.find(v=>v.id===ui.splitId);
+    if(!w){ setTool('select'); return; }
+    const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2);
+    if(pr.d > Math.max(w.t, 26/view.scale)){ flashHint('請點在要拆分的那道牆上'); return; }
+    const L=wallLen(w); let d=Math.round(pr.t*L);
+    const R=splitRefs(w,d);
+    if(R.inside){ flashHint('這個位置是門窗，不能從門窗中間切。請點在門窗以外的牆上'); return; }
+    const fromLo = (d-R.lo.pos) <= (R.hi.pos-d);
+    const ref=fromLo?R.lo:R.hi;
+    ui.splitPrev={d, ref:ref.pos, what:ref.what, fromLo};
+    draw();
+    flashHint('離'+ref.what+'的距離，可直接改數字後按 ✓');
+    showNumInput(px,py, toDisp(Math.abs(d-ref.pos)), (v)=>{
+      const dd=fromDisp(v); if(!(dd>0)) return;
+      splitAt(w.id, fromLo ? ref.pos+dd : ref.pos-dd);
+    });
+  }
+  function splitAt(id,d){
+    const w=state.walls.find(v=>v.id===id); if(!w) return false;
+    const L=wallLen(w);
+    if(!(d>=10 && d<=L-10)){ flashHint('切點太靠近牆端了，每一段至少要 '+fmtLenU(10)); return false; }
+    if(splitRefs(w,d).inside){ flashHint('切點落在門窗範圍內，請改一個距離'); return false; }
+    const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, px=w.x1+ux*d, py=w.y1+uy*d;
+    const w2=Object.assign({}, w, {id:uid(), x1:px, y1:py});
+    delete w2.clear; delete w.clear;
+    for(const o of state.openings){
+      if(o.wallId!==w.id) continue;
+      const a=o.pos*L;
+      if(a<d) o.pos=a/d; else { o.wallId=w2.id; o.pos=(a-d)/(L-d); }
+    }
+    w.x2=px; w.y2=py;
+    state.walls.push(w2);
+    setTool('select');
+    ui.selected={kind:'wall',id:w2.id};
+    pushHistory(); refreshProp(); draw();
+    flashHint('已拆成兩道牆。拖曳其中一段就能往內或往外推，相鄰的牆會跟著接上');
+    return w2;
+  }
+  function drawSplitPreview(){
+    if(ui.tool!=='split') return;
+    const w=state.walls.find(v=>v.id===ui.splitId); if(!w) return;
+    const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux, h=w.t/2;
+    ctx.save();
+    const c=wallCorners(w), P=[c.L1,c.L2,c.R2,c.R1].map(p=>toScreen(p.x,p.y));
+    ctx.strokeStyle='#12B76A'; ctx.lineWidth=2.5; ctx.setLineDash([]);
+    ctx.beginPath(); P.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.stroke();
+    const sp=ui.splitPrev;
+    if(sp){
+      const at=(d,k)=>toScreen(w.x1+ux*d+nx*k, w.y1+uy*d+ny*k);
+      const a=at(sp.d,-h-8), b=at(sp.d,h+8);
+      ctx.strokeStyle='#C0392B'; ctx.lineWidth=2.5; ctx.setLineDash([6,4]);
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+      const r0=at(sp.ref,h+14), r1=at(sp.d,h+14);
+      ctx.setLineDash([]); ctx.strokeStyle='#A23B2D'; ctx.lineWidth=1.3;
+      ctx.beginPath(); ctx.moveTo(r0[0],r0[1]); ctx.lineTo(r1[0],r1[1]); ctx.stroke();
+      const q0=at(sp.ref,-h), q1=at(sp.ref,h+18);
+      ctx.beginPath(); ctx.moveTo(q0[0],q0[1]); ctx.lineTo(q1[0],q1[1]); ctx.stroke();
+    }
+    ctx.restore();
+  }
   function fitTypedRooms(){
     const typed=state.walls.filter(w=>w.clear!=null);
     if(!typed.length) return false;
@@ -947,6 +1032,7 @@
     return changed;
   }
   function pushHistory(){
+    unlockAllWalls();
     cleanupStrayWalls();
     mergeCoincidentWalls();   // two walls sitting on each other are one party wall
     healJunctions();
@@ -1070,6 +1156,7 @@
     const o=JSON.parse(js)||{};
     const arr=(v)=>Array.isArray(v)?v:[];
     state.walls=arr(o.walls); state.openings=arr(o.openings);
+    unlockAllWalls();            // projects saved by older builds carry locks
     state.dims=arr(o.dims); state.texts=arr(o.texts);
     state.columns=arr(o.columns); state.beams=arr(o.beams);
     state.ink=arr(o.ink); state.notes=arr(o.notes); state.furniture=arr(o.furniture);
@@ -1613,7 +1700,7 @@
       // Is this wall's line position something the user MEASURED? Either the wall
       // itself carries a typed length, or a wall with a typed length ends on it —
       // in which case sliding this wall sideways would change that typed number.
-      const typedWall=(u)=>!!(u.locked || u.pin || u.clear!=null);
+      const typedWall=(u)=>!!(u.meas || u.locked || u.pin || u.clear!=null);
       const pinned=(w)=>{
         if(typedWall(w)) return true;
         const c = key==='x' ? w.x1 : w.y1;
@@ -1681,7 +1768,7 @@
           // A locked wall defines the coordinate for its whole cluster — everything
           // else comes to it. Otherwise the longest wall wins, as before.
           let lead=-1;
-          for(const k of grp) if(isLocked(items[k].w) && coordStretches(items[k].w,key)){ lead=k; break; }
+          for(const k of grp) if(items[k].w.meas && coordStretches(items[k].w,key)){ lead=k; break; }
           if(lead<0){ lead=grp[0]; for(const k of grp) if(wallLen(items[k].w)>wallLen(items[lead].w)) lead=k; }
           const v=items[lead].get();
           for(const k of grp){
@@ -1748,8 +1835,14 @@
   // do is get one end dragged and come out a different length. When an edit would
   // require exactly that, the edit is refused and says so, rather than silently
   // winning the argument.
-  function isLocked(w){ return !!(w&&w.locked); }
-  function lockWall(w,on){ if(w) w.locked=!!on; }
+  // There is no per-wall lock any more. It was put on automatically the moment a
+  // length was typed, and then stood in the way of the very next edit — while the
+  // 結構 lock on the layer already covers "don't let me drag this by accident".
+  // What survives is the knowledge that a wall was MEASURED (w.meas): the healer
+  // still will not straighten a measured step away. Nothing is ever refused.
+  function isLocked(w){ return false; }
+  function lockWall(w,on){ if(w && on) w.meas=true; }
+  function unlockAllWalls(){ for(const w of state.walls){ if(w.locked) w.meas=true; delete w.locked; } }
   // does changing this coordinate stretch the wall, or just slide it?
   function coordStretches(w,key){
     const vert=Math.abs(w.x1-w.x2)<0.6, horiz=Math.abs(w.y1-w.y2)<0.6;
@@ -1820,7 +1913,7 @@
       const keep={id:a.id, x1:nx1,y1:ny1,x2:nx2,y2:ny2,
                   t:Math.max(a.t||20,b.t||20),
                   align:(a.align===b.align?(a.align||'mid'):'mid'),
-                  locked:!!(a.locked||b.locked)};
+                  locked:false, meas:!!(a.meas||b.meas||a.locked||b.locked)};
       const oldA={x1:a.x1,y1:a.y1,x2:a.x2,y2:a.y2}, oldB={x1:b.x1,y1:b.y1,x2:b.x2,y2:b.y2};
       Object.assign(a, keep);
       for(const o of state.openings){
@@ -1891,7 +1984,7 @@
   };
   function showDimEditor(sx,sy,curVal,onApply,orient,lockIds){
     dimApply=onApply;
-    dimLockIds=Array.isArray(lockIds)?lockIds.filter(x=>x!=null):null;
+    dimLockIds=null;             // the lock button is gone
     syncDimLockBtn();
     const v = orient==='v';
     dimBtnMin.textContent = v?'↑':'←';
@@ -2295,6 +2388,7 @@
     api:{ enterFocus, exitFocus, mergeCoincidentWalls, healJunctions, recomputeRooms, editRoomEdge:(r,i,l,m)=>editRoomEdge(r,i,l,m), applyRoomDim:(r,i,l,m,f)=>applyRoomDim(r,i,l,m,f),
           draw, pushHistory, renderExport, exportPDF, buildDXF:(o)=>buildDXF(o),
           ceilTally:(v)=>ceilTally(v), ceilArea:(z)=>ceilArea(z), coveLen:(z)=>coveLen(z), ceilGaps:(z)=>ceilGaps(z),
+          splitAt:(id,d)=>splitAt(id,d), splitStart:(id)=>splitStart(id),
           circStart:(id)=>circStart(id), circFinish:()=>circFinish(),
           mepGaps:(m)=>mepGaps(m), dimGeom:(d)=>dimGeom(d), mepTally:(o)=>mepTally(o), setTool:(t)=>setTool(t), gapsToDims:(m)=>gapsToDims(m),
           get LAYERS(){ return LAYERS; }, get pdfOpt(){ return pdfOpt; } }
@@ -3579,6 +3673,7 @@
     drawInk();
     drawFocusVeil();
     drawGuides();
+    drawSplitPreview();
     if(ui.tool==='dim') drawDimAnchors(draft&&draft.T ? draft.T : buildDimTargets());
     drawDraft();
     drawSelection();
@@ -4280,20 +4375,20 @@
     // A room's name block is the one label you also want to MOVE — the centroid is
     // often the wrong spot (an L-shaped space, or two rooms whose labels collide).
     // Press and drag moves it; press and release without moving still renames it.
-    if(lab && lab.kind==='calibval' && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep' && ui.tool!=='ceil'){
+    if(lab && lab.kind==='calibval' && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep' && ui.tool!=='ceil' && ui.tool!=='split'){
       try{stage.releasePointerCapture(e.pointerId);}catch(_){}
       pointers.delete(e.pointerId);
       underlayEditCalib();
       return;
     }
-    if(lab && lab.kind==='name' && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep' && ui.tool!=='ceil'){
+    if(lab && lab.kind==='name' && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep' && ui.tool!=='ceil' && ui.tool!=='split'){
       dragging={hit:{kind:'roomname', key:lab.room.key}, start:[wx,wy], moved:false,
                 orig:Object.assign({dx:0,dy:0},(state.roomLabelOff||{})[lab.room.key]),
                 lab, downPx:[px,py]};
       draw();
       return;
     }
-    if(lab && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep' && ui.tool!=='ceil'){ dbg(`  -> hit label kind=${lab.kind}`); try{stage.releasePointerCapture(e.pointerId);}catch(_){}
+    if(lab && ui.tool!=='wall' && ui.tool!=='dim' && ui.tool!=='circuit' && ui.tool!=='mep' && ui.tool!=='ceil' && ui.tool!=='split'){ dbg(`  -> hit label kind=${lab.kind}`); try{stage.releasePointerCapture(e.pointerId);}catch(_){}
       pointers.delete(e.pointerId);
       openLabelEditor(lab,px,py);
       return; }
@@ -4328,6 +4423,7 @@
     else if(ui.tool==='door'||ui.tool==='window'){ placeOpening(wx,wy,ui.tool); }
     else if(ui.tool==='shaft'){ placeColumn(wx,wy,'shaft'); }
     else if(ui.tool==='furn'){ placeFurniture(wx,wy); }
+    else if(ui.tool==='split'){ splitTap(wx,wy,px,py); }
     else if(ui.tool==='ceil'){
       const pk=ui.ceilPick;
       if(pk==='rect'||pk==='ell'||pk==='curtain'){
@@ -4766,7 +4862,11 @@
         const vx = which===1 ? v.x1 : v.x2, vy = which===1 ? v.y1 : v.y2;
         // a corner: this wall's end sits on one of ours
         if(ends.some(e=>Math.hypot(vx-e.x, vy-e.y)<=tol)){
-          links.push({id:v.id, which, x:vx, y:vy, locked:!!v.locked});
+          // a wall that carries straight on from ours (the other half of a split
+          // wall) cannot stretch sideways with us — it gets a return wall instead
+          const vL=wallLen(v)||1, wL=wallLen(w)||1;
+          const col=Math.abs(((v.x2-v.x1)*(w.x2-w.x1)+(v.y2-v.y1)*(w.y2-w.y1))/(vL*wL))>0.99;
+          links.push({id:v.id, which, x:vx, y:vy, locked:false, col});
           continue;
         }
         // a T: a partition landing part-way along us. Its end has to travel with
@@ -4777,6 +4877,38 @@
       }
     }
     return links;
+  }
+  // Move a wall bodily by (ddx,ddy) from where the drag started. Walls joined to
+  // its ends at an angle stretch to follow. A wall that continues it in a straight
+  // line cannot — so the gap that opens between the two is closed with a short
+  // return wall, which is what turns "push this half back 300" into a proper jog
+  // instead of a wall floating off on its own.
+  function moveWallBody(w,orig,ddx,ddy){
+    // absolute positions from the captured originals every frame, so repeated
+    // dragging back and forth can never accumulate drift
+    w.x1=orig.x1+ddx; w.y1=orig.y1+ddy; w.x2=orig.x2+ddx; w.y2=orig.y2+ddy;
+    dragging.jogs=dragging.jogs||{};
+    for(const L of dragging.weld){
+      const v=state.walls.find(x=>x.id===L.id);
+      if(!v) continue;
+      if(!L.col){
+        if(L.which===1){ v.x1=L.x+ddx; v.y1=L.y+ddy; }
+        else           { v.x2=L.x+ddx; v.y2=L.y+ddy; }
+        continue;
+      }
+      const end = Math.hypot(L.x-orig.x1,L.y-orig.y1) <= Math.hypot(L.x-orig.x2,L.y-orig.y2) ? 1 : 2;
+      const ex = end===1 ? w.x1 : w.x2, ey = end===1 ? w.y1 : w.y2;
+      const key=L.id+':'+L.which;
+      let j=dragging.jogs[key] && state.walls.find(x=>x.id===dragging.jogs[key]);
+      if(!j){
+        if(Math.hypot(ex-L.x,ey-L.y)<0.5) continue;
+        j={id:uid(), x1:L.x,y1:L.y,x2:ex,y2:ey, t:w.t, align:w.align};
+        state.walls.push(j); dragging.jogs[key]=j.id;
+      }
+      j.x1=L.x; j.y1=L.y; j.x2=ex; j.y2=ey;
+      // the step is deliberate: tell the healer not to pull the two back in line
+      w.meas=true; v.meas=true;
+    }
   }
   function cloneForDrag(hit){
     if(/^ceil/.test(hit.kind)){ const z=ceilById(hit.id); return z?JSON.parse(JSON.stringify(z)):{}; }
@@ -4824,15 +4956,7 @@
         if(!dragging.lockWarned){ dragging.lockWarned=true; flashHint('轉角上有鎖定長度的牆，拉不動。先解開那道鎖'); }
         return;
       }
-      // absolute positions from the captured originals every frame, so repeated
-      // dragging back and forth can never accumulate drift
-      w.x1=orig.x1+ddx; w.y1=orig.y1+ddy; w.x2=orig.x2+ddx; w.y2=orig.y2+ddy;
-      for(const L of dragging.weld){
-        const v=state.walls.find(x=>x.id===L.id);
-        if(!v) continue;
-        if(L.which===1){ v.x1=L.x+ddx; v.y1=L.y+ddy; }
-        else           { v.x2=L.x+ddx; v.y2=L.y+ddy; }
-      }
+      moveWallBody(w,orig,ddx,ddy);
       recomputeRooms();
     }
     else if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); const w=state.walls.find(v=>v.id===o.wallId); const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,pr.t)); }
@@ -4903,7 +5027,16 @@
       if(w){
         const vert=Math.abs(w.x1-w.x2) < Math.abs(w.y1-w.y2);
         const square = vert ? Math.abs(w.x1-w.x2)<1 : Math.abs(w.y1-w.y2)<1;
-        if(square){
+        if(square && captureWeld(orig).some(L=>L.col) || (dragging.weld && dragging.weld.some(L=>L.col))){
+          // one piece of a split wall: it moves on its own, with return walls
+          const grabOff = vert ? (start[0]-orig.x1) : (start[1]-orig.y1);
+          let target = (vert?wx:wy) - grabOff;
+          if(ui.snap){ const g=ui.gridSize; target=Math.round(target/g)*g; }
+          const d=target-(vert?orig.x1:orig.y1);
+          if(!dragging.weld){ const keep={x1:w.x1,y1:w.y1,x2:w.x2,y2:w.y2}; Object.assign(w,{x1:orig.x1,y1:orig.y1,x2:orig.x2,y2:orig.y2}); dragging.weld=captureWeld(w); Object.assign(w,keep); }
+          moveWallBody(w,orig,vert?d:0,vert?0:d);
+          recomputeRooms();
+        } else if(square){
           const axis=vert?'x':'y';
           const cur = vert ? w.x1 : w.y1;
           const grabOff = vert ? (start[0]-orig.x1) : (start[1]-orig.y1);
@@ -5001,10 +5134,10 @@
       propBody.innerHTML=`
       <div class="row"><label>牆長</label><div class="field"><input type="number" id="pWlen" value="${Math.round(toDisp(wallLen(w)))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>牆厚</label><div class="field"><input type="number" id="pWt" value="${Math.round(toDisp(w.t))}" step="1"><span class="unit">${U}</span></div></div>
-      <div class="row"><label title="鎖定後，改別的房間或自動接合都不會動到這道長度">鎖定長度</label><div class="sw${w.locked?' on':''}" id="pWlock"></div></div>
+      <button class="btn" id="pWsplit" style="margin:4px 0 10px">拆分這道牆…</button>
       <button class="del-btn" id="pDel">刪除這道牆</button>`;
+      document.getElementById('pWsplit').onclick=()=>splitStart(w.id);
       document.getElementById('pWlen').onchange=ev=>{ setWallLength(w, fromDisp(parseFloat(ev.target.value)||0)); lockWall(w,true); pushHistory(); refreshProp(); draw(); };
-      document.getElementById('pWlock').onclick=ev=>{ lockWall(w,!w.locked); ev.currentTarget.classList.toggle('on',!!w.locked); pushHistory(); draw(); };
       document.getElementById('pWt').onchange=ev=>{ w.t=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); pushHistory(); draw(); };
       document.getElementById('pDel').onclick=deleteSelected;
     }
@@ -5291,7 +5424,7 @@
         draw:()=>draw(), recompute:()=>recomputeRooms(), toScreen:(x,y)=>toScreen(x,y),
         editDimLabel:(l,x,y)=>editDimLabel(l,x,y), pushHistory:()=>pushHistory(),
         hitLabel:(x,y)=>hitLabel(x,y), openLabelEditor:(l,x,y)=>openLabelEditor(l,x,y) }; }catch(_){ }
-  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ceil:'天花板',ulcalib:'底圖校正'})[ui.tool]||''; }
+  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ceil:'天花板',split:'拆分牆',ulcalib:'底圖校正'})[ui.tool]||''; }
   function flashHint(msg){ if(!msg) return; hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
   function showToolHint(){ flashHint(TOOL_HINT[ui.tool]); }
 
@@ -5494,6 +5627,7 @@
     ui.tool=t; draft=null; typedNum=''; hideLenBox();
     if(t!=='circuit') ui.cdraft=null;
     if(t!=='ceil'){ ui.ceilPick=null; ui.cpoly=null; }
+    if(t!=='split'){ ui.splitId=null; ui.splitPrev=null; }
     syncCircBar();
     document.querySelectorAll('.tool').forEach(el=>el.classList.toggle('active',el.dataset.tool===t));
     syncToolSections(); syncFurnUI(); syncMepUI();
@@ -5667,7 +5801,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b99';
+  const BUILD='b100';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
