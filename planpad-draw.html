@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PlanPad 戶型 · 測試版 d1</title>
+<title>PlanPad 戶型 · 測試版 d2</title>
 <style>
   :root{ --ink:#24282E; --muted:#7A828C; --line:#E3E7EB; --line-strong:#CBD2D9; --accent:#275C7A; --bg:#F6F7F8; }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -67,18 +67,28 @@
   #padArrows{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:8px; }
   #padArrows button{ font-size:20px; background:#F3F6F8; }
   #padNote{ font-size:11px; color:var(--muted); margin-top:8px; line-height:1.5; }
+  #bug{ font-size:20px; padding:0 10px; }
+  #bug.on{ background:#FDECEA; border-color:#E8A49B; }
+  #dbg{ position:fixed; left:80px; top:64px; width:min(560px,calc(100vw - 100px)); height:46vh; display:none; flex-direction:column; background:rgba(24,27,31,.96); color:#D7F5DA; border-radius:12px; z-index:20; box-shadow:0 8px 30px rgba(0,0,0,.35); }
+  #dbg.show{ display:flex; }
+  #dbgHead{ display:flex; align-items:center; gap:8px; padding:8px 10px; color:#fff; font-size:13px; font-weight:600; border-bottom:1px solid #3a3f46; }
+  #dbgHead span{ margin-right:auto; }
+  #dbgHead button{ min-height:36px; padding:0 12px; border:1px solid #555; border-radius:8px; background:#2E3339; color:#fff; font-size:13px; }
+  #dbgHead button.pri{ background:#2F7D4F; border-color:#2F7D4F; }
+  #dbgTxt{ flex:1; margin:0; padding:8px 10px; overflow:auto; -webkit-overflow-scrolling:touch; font:11px/1.45 ui-monospace,Menlo,monospace; white-space:pre-wrap; word-break:break-all; -webkit-user-select:text; user-select:text; border:0; background:transparent; color:inherit; resize:none; }
   @media (max-width:820px){ #app{ grid-template-columns:64px 1fr 240px; } #pad{ width:228px; padding:8px; } #padKeys button, #padDirs button, #padArrows button{ min-height:42px; font-size:17px; } }
 </style>
 </head>
 <body>
 <div id="app">
   <div id="top">
-    <span class="mark">PlanPad 戶型</span><span class="sub">新畫法 · 測試版 <span id="ver">d1</span></span>
+    <span class="mark">PlanPad 戶型</span><span class="sub">新畫法 · 測試版 <span id="ver">d2</span></span>
     <button class="tb" id="undo" title="復原">↶</button>
     <button class="tb" id="redo" title="重做">↷</button>
     <button class="tb" id="zout">−</button><button class="tb" id="zin">＋</button>
     <button class="tb" id="fit">全圖</button>
     <button class="tb" id="clear">清空</button>
+    <button class="tb" id="bug" title="除錯記錄">🐞</button>
   </div>
   <div id="tools">
     <button class="tool" data-tool="select"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3l14 8-6 2-2 6z"/></svg>選取</button>
@@ -124,6 +134,7 @@
       </div>
     </div>
   </div>
+  <div id="dbg"><div id="dbgHead"><span>除錯記錄</span><button id="dbgClr">清除</button><button id="dbgCopy" class="pri">複製</button><button id="dbgX">✕</button></div><textarea id="dbgTxt" readonly></textarea></div>
   <div id="pad">
       <div id="padTitle"></div>
       <div id="padFields"></div>
@@ -146,6 +157,17 @@ let S={nodes:[], walls:[], seq:1};                    // node {id,x,y,keep?}  wa
 const ui={tool:'wall', base:'in', t:200, ortho:true, snap:true, grid:50, unit:'mm',
           sel:null, chain:null, rect:null, split:null, align:null, penSeen:false};
 const KEY='planpad.draw.v1';
+// ---- debug log (🐞): always recording, so a problem can be copied after it happens
+const VER='d2', LOG=[], T0=performance.now();
+function dbg(...a){
+  const line=((performance.now()-T0)/1000).toFixed(2)+'s '+a.map(v=>typeof v==='string'?v:JSON.stringify(v)).join(' ');
+  LOG.push(line); if(LOG.length>1500) LOG.splice(0,LOG.length-1500);
+  const el=document.getElementById('dbg'); if(el && el.classList.contains('show')) dbgShow();
+}
+function dbgShow(){ const t=document.getElementById('dbgTxt'); if(t){ t.value=dbgText(); t.scrollTop=t.scrollHeight; } }
+window.addEventListener('error',e=>dbg('ERROR',String(e.message),(e.filename||'').split('/').pop()+':'+e.lineno+':'+e.colno));
+window.addEventListener('unhandledrejection',e=>dbg('ERROR(promise)',String(e.reason)));
+const r1=v=>Math.round(v);
 
 // ================= basics =================
 const toS=(x,y)=>[x*view.s+view.ox, y*view.s+view.oy];
@@ -1036,10 +1058,10 @@ $('ortho').onclick=()=>{ ui.ortho=!ui.ortho; save(); syncUI(); hint(ui.ortho?'�
 $('snap').onclick=()=>{ ui.snap=!ui.snap; save(); syncUI(); };
 $('tCustom').onclick=()=>askNumber('自訂牆厚',ui.t,v=>{ ui.t=Math.max(20,Math.round(v)); save(); syncUI(); draw(); });
 $('gridBtn').onclick=()=>askNumber('格線間距',ui.grid,v=>{ ui.grid=Math.max(1,Math.round(v)); save(); syncUI(); });
-$('undo').onclick=undo; $('redo').onclick=redo; $('fit').onclick=fitAll;
+$('undo').onclick=()=>undo(); $('redo').onclick=()=>redo(); $('fit').onclick=fitAll;
 $('zin').onclick=()=>zoomAt(W/2,H/2,1.25); $('zout').onclick=()=>zoomAt(W/2,H/2,1/1.25);
 $('clear').onclick=()=>{ if(!S.walls.length) return; if(confirm('清空整張圖？（可以按復原救回來）')){ S={nodes:[],walls:[],seq:S.seq}; ui.sel=null; endDrafts(); commit(); } };
-$('barBack').onclick=chainBack; $('barClose').onclick=chainClose; $('barDone').onclick=()=>{ padFlush(); chainFinish(false); };
+$('barBack').onclick=()=>chainBack(); $('barClose').onclick=()=>chainClose(); $('barDone').onclick=()=>{ padFlush(); chainFinish(false); };
 for(const ev of ['pointerdown','pointerup','touchstart','mousedown']) $('bar').addEventListener(ev,e=>e.stopPropagation());
 // hand the plan to the main PlanPad: same browser storage, as an ordinary project
 $('send').onclick=()=>{
@@ -1055,10 +1077,70 @@ $('send').onclick=()=>{
   try{ localStorage.setItem('planpad.projects.v1', JSON.stringify(all)); hint('已存成 PlanPad 專案「'+name+'」，到主程式的「檔案」打開'); }
   catch(_){ hint('存不進去：瀏覽器的儲存空間滿了，或是私密瀏覽模式'); }
 };
+// ---- debug: header + action logging ----
+function dbgText(){
+  let nR=0; try{ nR=rooms(index()).length; }catch(_){ nR='?'; }
+  const head=['PlanPad 戶型 '+VER, 'UA: '+navigator.userAgent,
+    '畫面: '+innerWidth+'x'+innerHeight+' dpr'+(window.devicePixelRatio||1)+(navigator.standalone?' (獨立)':''),
+    '單位: '+ui.unit+' 工具: '+ui.tool+' 縮放: '+(view.s*1000).toFixed(1)+'px/m',
+    '定位線: '+({in:'內線',mid:'中線',out:'外線'})[ui.base]+' 牆厚: '+ui.t+' 正交: '+(ui.ortho?'開':'關')+' 吸附: '+(ui.snap?'開':'關')+' 格線: '+ui.grid,
+    '內容: 節點'+S.nodes.length+' 牆'+S.walls.length+' 空間'+nR+'  歷史 '+(hi+1)+'/'+hist.length,
+    '牆: '+S.walls.map(w=>{ const a=node(w.a), b=node(w.b); return a&&b?'#'+w.id+'('+r1(a.x)+','+r1(a.y)+')-('+r1(b.x)+','+r1(b.y)+')t'+w.t:'#'+w.id+'?'; }).join(' '),
+    '----'];
+  return head.join('\n')+'\n'+LOG.join('\n');
+}
+const P=p=>p?'('+r1(p.x)+','+r1(p.y)+')'+(p.how?' '+p.how:''):'-';
+function wrapLog(name, fn, fmtArgs){
+  return function(...a){
+    let res, err=null; const before=S.walls.length;
+    try{ res=fn.apply(this,a); }catch(e){ err=e; }
+    dbg(name, fmtArgs?fmtArgs(...a):a.map(v=>typeof v==='object'&&v?P(v):String(v)).join(' '), '→ 牆'+before+'→'+S.walls.length+(err?' ERROR '+err.message:''));
+    if(err) throw err; return res;
+  };
+}
+chainStart=wrapLog('CHAIN START',chainStart,p=>P(p));
+chainAdd=wrapLog('CHAIN ADD',chainAdd,p=>P(p)+' 點數'+(ui.chain?ui.chain.pts.length:0));
+chainSetLen=wrapLog('CHAIN LEN',chainSetLen);
+chainArrow=wrapLog('CHAIN ARROW',chainArrow);
+chainBack=wrapLog('CHAIN BACK',chainBack,()=>'');
+chainClose=wrapLog('CHAIN CLOSE',chainClose,()=>'點數'+(ui.chain?ui.chain.pts.length:0)+' '+(ui.chain?ui.chain.pts.map(P).join(''):''));
+chainFinish=wrapLog('CHAIN FINISH',chainFinish,c=>c?'閉合':'開放');
+rectCommit=wrapLog('RECT',rectCommit,r=>r?'('+r1(r.x0)+','+r1(r.y0)+')-('+r1(r.x1)+','+r1(r.y1)+')':'');
+setSide=wrapLog('SET SIDE',setSide,(sd,mm,fix)=>'牆'+(sd&&sd.wids?sd.wids.join('+'):'?')+' 原'+(sd?r1(sd.len):'?')+' → '+mm+' 固定'+fix);
+moveWall=wrapLog('MOVE WALL',moveWall,(w,dx,dy)=>'#'+w+' d=('+r1(dx)+','+r1(dy)+')');
+splitWall=wrapLog('SPLIT',splitWall,(w,d)=>'#'+w+' 離a端 '+r1(d));
+joinWall=wrapLog('JOIN',joinWall,w=>'#'+w);
+undo=wrapLog('UNDO',undo,()=>'');
+redo=wrapLog('REDO',redo,()=>'');
+setTool=wrapLog('TOOL',setTool);
+{ const o=pad.open; pad.open=function(cfg){ dbg('PAD OPEN',cfg&&cfg.title||'');
+    if(cfg && cfg.onOk){ const ok=cfg.onOk; cfg.onOk=function(v,d){ dbg('PAD OK',(cfg.title||''),JSON.stringify(v),d||''); return ok.apply(this,arguments); }; }
+    return o.apply(this,arguments); }; }
+{ const h0=hint; hint=function(m){ dbg('HINT',m); return h0.apply(this,arguments); }; }
+// raw pointer trail (capture phase, sees every touch / pen on the drawing)
+let lastMoveLog=0;
+for(const ev of ['pointerdown','pointerup','pointercancel']) stage.addEventListener(ev,e=>{
+  const r=stage.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top, w=toW(px,py);
+  dbg(ev.replace('pointer','').toUpperCase(),'id='+e.pointerId,'type='+e.pointerType,'btn='+e.button,'scr=('+r1(px)+','+r1(py)+')','mm=('+r1(w[0])+','+r1(w[1])+')',
+      'pointers='+ptrs.size,'tool='+ui.tool,'chain='+(ui.chain?ui.chain.pts.length:'無'),'pad='+(pad.isOpen()?'開':'關'),'target='+(e.target.id||e.target.tagName));
+},true);
+stage.addEventListener('pointermove',e=>{ const t=performance.now(); if(t-lastMoveLog<250) return; lastMoveLog=t;
+  if(pinch) dbg('PINCH s='+view.s.toFixed(4)); else if(pan) dbg('PAN'); else if(gest) dbg('MOVE',gest.kind, ui.chain&&ui.chain.hover?'hover='+P(ui.chain.hover):'', gest.kind==='drag'?'d='+r1(gest.d||0):''); },true);
+{ const c0=commit; commit=function(){ const r=c0.apply(this,arguments); dbg('COMMIT 牆'+S.walls.length+' 節點'+S.nodes.length+' 空間'+(()=>{try{return rooms(index()).map(R=>R.sides.map(s=>r1(s.len)).join('/')).join(' | ');}catch(e){return 'ERR '+e.message;}})()); return r; }; }
+$('bug').onclick=()=>{ const el=$('dbg'), on=!el.classList.contains('show'); el.classList.toggle('show',on); $('bug').classList.toggle('on',on); if(on) dbgShow(); };
+$('dbgX').onclick=()=>{ $('dbg').classList.remove('show'); $('bug').classList.remove('on'); };
+$('dbgClr').onclick=()=>{ LOG.length=0; dbg('(已清除)'); dbgShow(); };
+$('dbgCopy').onclick=async()=>{
+  const txt=dbgText(); let ok=false;
+  try{ await navigator.clipboard.writeText(txt); ok=true; }catch(_){}
+  if(!ok){ const t=$('dbgTxt'); t.value=txt; t.removeAttribute('readonly'); t.focus(); t.select(); t.setSelectionRange(0,txt.length); try{ ok=document.execCommand('copy'); }catch(_){} t.setAttribute('readonly',''); t.blur(); }
+  hint(ok?'已複製除錯記錄，直接貼給開發者即可':'沒辦法自動複製：請在記錄框裡長按 → 全選 → 拷貝');
+};
+for(const ev of ['pointerdown','pointerup']) $('dbg').addEventListener(ev,e=>e.stopPropagation());
 // test hook
 window.__draw={ get S(){ return S; }, set S(v){ S=v; }, ui, view, toS, rooms:()=>rooms(index()), commit, buildWalls, setSide, moveWall, splitWall, joinWall, normalize, pad, chainArrow, chainClose };
 
-load(); normalize();
+load(); normalize(); dbg('啟動 '+VER,'牆'+S.walls.length);
 hist=[JSON.stringify(S)]; hi=0;
 window.addEventListener('resize',resize);
 resize(); syncUI(); syncBar();
