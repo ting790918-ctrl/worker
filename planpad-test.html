@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t3</title>
+<title>PlanPad · 測試版 t4</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t3</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t4</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -774,6 +774,14 @@
     const fieldsEl=document.getElementById('kpadFields');
     const hintNode=document.getElementById('kpadHint');
     let cfg=null, act=0;
+    // ✓ and ✕ close the pad on the finger going DOWN. iPad then delivers the tap's
+    // click to whatever is now under the finger — the pad sits over the settings
+    // column, so lifting off ✓ quietly pressed 外線 underneath it. That ghost
+    // click is thrown away.
+    let swallowUntil=0;
+    document.addEventListener('click',e=>{
+      if(performance.now()<swallowUntil && !el.contains(e.target)){ e.preventDefault(); e.stopPropagation(); swallowUntil=0; dbg('  (ghost click after keypad swallowed: '+(e.target.id||e.target.textContent||e.target.tagName).toString().slice(0,12)+')'); }
+    }, true);
 
     function shown(f){ return f.typed ? f.val : (f.live==null?'':String(f.live)); }
     function render(){
@@ -796,8 +804,8 @@
     function press(k){
       if(!cfg) return;
       const f=cfg.fields[act];
-      if(k==='esc'){ const c=cfg.onCancel; close(); if(c) c(); return; }
-      if(k==='ok'){ const c=cfg.onCommit, v=vals(); if(c) c(v); return; }
+      if(k==='esc'){ swallowUntil=performance.now()+700; const c=cfg.onCancel; close(); if(c) c(); return; }
+      if(k==='ok'){ swallowUntil=performance.now()+700; const c=cfg.onCommit, v=vals(); if(c) c(v); return; }
       if(k==='tab'){ act=(act+1)%cfg.fields.length; render(); return; }
       if(k==='neg'){
         if(!f.typed){ f.typed=true; f.val=String(f.live||''); }
@@ -6331,7 +6339,7 @@
     document.querySelectorAll('#alignSeg button').forEach(x=>x.classList.toggle('on',x.dataset.v===ui.wallAlign));
     const n=document.getElementById('alignNote'); if(n) n.textContent=({in:'你畫的線是室內牆面，打的長度＝室內淨尺寸，牆厚往外長。請順時針沿著牆畫。',mid:'你畫的線是牆中心。',out:'你畫的線是外牆面，打的長度是外尺寸，牆厚往內長。請順時針畫。'})[ui.wallAlign];
   }
-  document.querySelectorAll('#alignSeg button').forEach(b=>b.onclick=()=>{ ui.wallAlign=b.dataset.v; syncAlignUI(); try{localStorage.setItem('planpad.test.align',ui.wallAlign);}catch(_){} draw(); });
+  document.querySelectorAll('#alignSeg button').forEach(b=>b.onclick=()=>{ ui.wallAlign=b.dataset.v; dbg('  定位線 → '+ALIGN_NAME[ui.wallAlign]); syncAlignUI(); try{localStorage.setItem('planpad.test.align',ui.wallAlign);}catch(_){} draw(); });
   try{ const a=localStorage.getItem('planpad.test.align'); if(a==='in'||a==='mid'||a==='out') ui.wallAlign=a; }catch(_){}
   syncAlignUI();
   document.getElementById('gridSize').onchange=e=>{ ui.gridSize=Math.max(1,parseInt(e.target.value)||10); draw(); };
@@ -6413,7 +6421,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t3（測試版，由 b101 改）';
+  const BUILD='t4（測試版，由 b101 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
