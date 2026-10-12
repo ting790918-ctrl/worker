@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t4</title>
+<title>PlanPad · 測試版 t6</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t4</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t6</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -2140,6 +2140,12 @@
   // instead of ignoring you.
   function openLabelEditor(lab,px,py){
     if(!lab) return false;
+    // 結構 locked means locked: no wall, room, door/window, column or beam number
+    // can be retyped (the lock used to stop only selecting, not the numbers)
+    if(structureLocked() && ['dim','walllen','openleft','openright','beamdist','coldist'].includes(lab.kind)){
+      dbg(`  label ${lab.kind} refused: structure locked`);
+      flashHint('結構已鎖定，尺寸不能修改。要改請先到右邊「圖層」把結構解鎖'); draw(); return false;
+    }
     if(lab.kind==='dim'){ editDimLabel(lab,px,py); return true; }
     if(lab.kind==='name'){
       if(lab.room && lab.room.rid){ ui.selected={kind:'room', id:lab.room.rid}; refreshProp(); }
@@ -4391,6 +4397,10 @@
     const [px,py]=evtPos(e);
     const [wx,wy]=toWorld(px,py);
     if(e.button===1){ panStart={px,py,ox:view.ox,oy:view.oy}; return; }
+    if(structureLocked() && ['wall','room','door','window','column','shaft','beam','split'].includes(ui.tool)){
+      dbg(`  ${ui.tool} refused: structure locked`);
+      flashHint('結構已鎖定，不能再畫或改牆、門窗、柱、樑。要改請先到右邊「圖層」把結構解鎖'); return;
+    }
     if(ui.tool==='wall'||ui.tool==='room'){ chainDown(e,px,py,wx,wy); return; }
 
 
@@ -6169,6 +6179,17 @@
     // tapping the last corner again ends the run
     if(tap && Math.hypot(wx-last.x,wy-last.y)<R){ chainFinish(false); return; }
     const p=chainPoint(last,wx,wy,g.T,c.pts.length>=3?s:null);
+    // going straight back over the wall just drawn would fold it onto itself
+    // (that is what turned into a slanted wall) — refuse it and say why
+    if(c.pts.length>=2){
+      const q=c.pts[c.pts.length-2], ux=last.x-q.x, uy=last.y-q.y, vx=p.x-last.x, vy=p.y-last.y;
+      const lu=Math.hypot(ux,uy)||1, lv=Math.hypot(vx,vy)||1;
+      if(Math.abs(ux*vy-uy*vx)/(lu*lv)<0.02 && ux*vx+uy*vy<0){
+        dbg('  CHAIN REFUSED: folds back over the last wall');
+        flashHint('不能沿著剛畫的牆往回折。要改方向請按上面「復原」退一個轉角');
+        draw(); return;
+      }
+    }
     chainAdd(p); draw();
   }
 
@@ -6421,7 +6442,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t4（測試版，由 b101 改）';
+  const BUILD='t6（測試版，由 b101 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
