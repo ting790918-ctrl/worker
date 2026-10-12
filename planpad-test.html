@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t2</title>
+<title>PlanPad · 測試版 t3</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t2</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t3</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -2109,19 +2109,19 @@
   function editWallLenLabel(w, sx, sy){
     const horiz=Math.abs(w.y1-w.y2)<1, vert=Math.abs(w.x1-w.x2)<1;
     if(!horiz && !vert){
-      showNumInput(sx,sy,toDisp(wallLen(w)),(v)=>{ const nl=fromDisp(v); if(nl>0){ withOpeningsPreserved(()=>setWallLength(w,nl)); pushHistory(); draw(); } });
+      showNumInput(sx,sy,toDisp(wallShownLen(w)),(v)=>{ const nl=fromDisp(v); if(nl>0){ withOpeningsPreserved(()=>setWallLength(w,shownToCentre(w,nl))); pushHistory(); draw(); } });
       return;
     }
-    showDimEditor(sx, sy, toDisp(wallLen(w)), (v,mode)=>{
+    showDimEditor(sx, sy, toDisp(wallShownLen(w)), (v,mode)=>{
       const nl=fromDisp(v); if(!(nl>0)) return;
       lockBlocked=null;
-      const ok=setWallLengthDirectional(w,nl,mode);
+      const ok=setWallLengthDirectional(w,shownToCentre(w,nl),mode);
       if(!ok && lockBlocked){ flashHint('這道牆的長度已鎖定，先按「已鎖」解開再改'); draw(); return; }
       // a number you took the trouble to type is a measurement — hold on to it
       lockWall(w,true);
       // ...and it is the CLEAR size of the room this wall will bound, not the wall's
       // own end-to-end length. Remembered here, honoured when the room closes.
-      w.clear=nl;
+      if(!w.ref || w.refIn) w.clear=nl;
       pushHistory(); draw();
     }, horiz?'h':'v', [w.id]);
   }
@@ -3188,24 +3188,39 @@
       return {x1:nodes[i1].x,y1:nodes[i1].y,x2:nodes[i2].x,y2:nodes[i2].y};
     });
   }
+  // A wall end that meets another wall is carried on by half a thickness, which
+  // fills the corner square. An end that meets NOTHING stops exactly where it was
+  // drawn — it used to get the same half-thickness cap, so the corner you could
+  // see sat 10 cm past the real end and tapping it attached to nothing.
+  function wallEndJoined(cl, x, y, all){
+    for(const o of all){ if(o===cl) continue;
+      if(Math.hypot(o.x1-x,o.y1-y)<2.5||Math.hypot(o.x2-x,o.y2-y)<2.5) return true;
+      if(projPointToSeg(x,y,o.x1,o.y1,o.x2,o.y2).d<1.5) return true; }
+    return false;
+  }
   function drawWalls(forExport){
-    const groups={};
-    for(const w of state.walls){ if(wallLen(w)<1) continue; (groups[w.t]=groups[w.t]||[]).push(wallCenterline(w)); }
-    ctx.lineCap='square'; ctx.lineJoin='miter'; ctx.miterLimit=6;
-    for(const t in groups){
-      const tn=parseFloat(t);
-      const cls=normalizedCenterlines(groups[t]);
-      ctx.beginPath();
-      for(const cl of cls){ const [a,b]=toScreen(cl.x1,cl.y1),[c,d]=toScreen(cl.x2,cl.y2); ctx.moveTo(a,b); ctx.lineTo(c,d); }
-      ctx.lineWidth=Math.max(1,tn*view.scale+2.4); ctx.strokeStyle=WALL_EDGE; ctx.stroke();
-    }
-    for(const t in groups){
-      const tn=parseFloat(t);
-      const cls=normalizedCenterlines(groups[t]);
-      ctx.beginPath();
-      for(const cl of cls){ const [a,b]=toScreen(cl.x1,cl.y1),[c,d]=toScreen(cl.x2,cl.y2); ctx.moveTo(a,b); ctx.lineTo(c,d); }
-      ctx.lineWidth=Math.max(1,tn*view.scale); ctx.strokeStyle=WALL_FILL; ctx.stroke();
-    }
+    const groups={}, all=[];
+    for(const w of state.walls){ if(wallLen(w)<1) continue; const c=wallCenterline(w); all.push(c); (groups[w.t]=groups[w.t]||[]).push(c); }
+    const norm={}; for(const t in groups) norm[t]=normalizedCenterlines(groups[t]);
+    const allN=[].concat(...Object.values(norm));
+    ctx.lineCap='butt'; ctx.lineJoin='miter'; ctx.miterLimit=6;
+    const pass=(edge)=>{
+      for(const t in norm){
+        const tn=parseFloat(t);
+        ctx.beginPath();
+        for(const cl of norm[t]){
+          const L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1, ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L;
+          const freeExt = edge ? 1.2/view.scale : 0;
+          const e1 = wallEndJoined(cl,cl.x1,cl.y1,allN) ? tn/2 : freeExt;
+          const e2 = wallEndJoined(cl,cl.x2,cl.y2,allN) ? tn/2 : freeExt;
+          const [a,b]=toScreen(cl.x1-ux*e1,cl.y1-uy*e1),[c,d]=toScreen(cl.x2+ux*e2,cl.y2+uy*e2); ctx.moveTo(a,b); ctx.lineTo(c,d);
+        }
+        if(edge){ ctx.lineWidth=Math.max(1,tn*view.scale+2.4); ctx.strokeStyle=WALL_EDGE; }
+        else { ctx.lineWidth=Math.max(1,tn*view.scale); ctx.strokeStyle=WALL_FILL; }
+        ctx.stroke();
+      }
+    };
+    pass(true); pass(false);
     // openings
     for(const o of state.openings){ const w=state.walls.find(v=>v.id===o.wallId); if(!w) continue; drawOpening(o,w,forExport); }
   }
@@ -3391,7 +3406,10 @@
     const {kind,id}=ui.selected;
     if(kind==='room') return;      // the focus veil already shows which space it is
     ctx.strokeStyle='#275C7A'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-    if(kind==='wall'){ const w=state.walls.find(v=>v.id===id); if(w){ const c=wallCorners(w); const cl=toScreen((c.L1.x+c.R1.x)/2,(c.L1.y+c.R1.y)/2), cl2=toScreen((c.L2.x+c.R2.x)/2,(c.L2.y+c.R2.y)/2); ctx.beginPath(); ctx.moveTo(cl[0],cl[1]); ctx.lineTo(cl2[0],cl2[1]); ctx.stroke(); ctx.setLineDash([]);
+    if(kind==='wall'){ const w=state.walls.find(v=>v.id===id); if(w){ const c=wallCorners(w); const ro=wallRefOff(w); let cl=toScreen((c.L1.x+c.R1.x)/2+ro.x,(c.L1.y+c.R1.y)/2+ro.y), cl2=toScreen((c.L2.x+c.R2.x)/2+ro.x,(c.L2.y+c.R2.y)/2+ro.y);
+      if(w.ref){ const f=wallFace(w), a=toScreen(f.p1.x,f.p1.y), b=toScreen(f.p2.x,f.p2.y); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
+      else { ctx.beginPath(); ctx.moveTo(cl[0],cl[1]); ctx.lineTo(cl2[0],cl2[1]); ctx.stroke(); }
+      ctx.setLineDash([]);
       const sh=wallSideHandles(w); if(sh){ const a=toScreen(sh.a.x,sh.a.y), b=toScreen(sh.b.x,sh.b.y); sqHandle(a[0],a[1]); sqHandle(b[0],b[1]); }
       handle(cl[0],cl[1]); handle(cl2[0],cl2[1]);
       if(!roomWallIds.has(w.id)) wallLenLabel(w,true); } }
@@ -3570,14 +3588,56 @@
   // square = slide the whole wall sideways (round = stretch that end)
   function sqHandle(x,y){ ctx.setLineDash([]); ctx.fillStyle='#275C7A'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.rect(x-5,y-5,10,10); ctx.fill(); ctx.stroke(); }
   function handle(x,y){ ctx.setLineDash([]); ctx.fillStyle='#fff'; ctx.strokeStyle='#275C7A'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fill(); ctx.stroke(); }
+  // The face you drew, as it shows on screen: where it starts and stops after the
+  // corners are filled. For a wall drawn by 中線 (or an old wall) this is simply
+  // the centre line.
+  function wallFace(w){
+    const c=wallCenterline(w), L=Math.hypot(c.x2-c.x1,c.y2-c.y1)||1, ux=(c.x2-c.x1)/L, uy=(c.y2-c.y1)/L;
+    const s=w.ref||0, h=w.t/2, nx=-uy*s*h, ny=ux*s*h;
+    const F0={x:c.x1+nx, y:c.y1+ny};
+    if(!s) return {p1:{x:c.x1,y:c.y1}, p2:{x:c.x2,y:c.y2}, len:L, ux, uy, F0, L};
+    const others=state.walls.filter(o=>o!==w && wallLen(o)>=1).map(o=>{ const d=wallCenterline(o), M=Math.hypot(d.x2-d.x1,d.y2-d.y1)||1; return {d,M,vx:(d.x2-d.x1)/M,vy:(d.y2-d.y1)/M,h:o.t/2}; });
+    const atEnd=(x,y)=>others.filter(o=>Math.hypot(o.d.x1-x,o.d.y1-y)<2.5||Math.hypot(o.d.x2-x,o.d.y2-y)<2.5||projPointToSeg(x,y,o.d.x1,o.d.y1,o.d.x2,o.d.y2).d<1.5);
+    // where along the face line (param s) it is buried inside wall o
+    const span=(o)=>{
+      const a0=(F0.x-o.d.x1)*o.vx+(F0.y-o.d.y1)*o.vy, da=ux*o.vx+uy*o.vy;
+      const b0=-(F0.x-o.d.x1)*o.vy+(F0.y-o.d.y1)*o.vx, db=-ux*o.vy+uy*o.vx;
+      let lo=-Infinity, hi=Infinity;
+      const clip=(v0,dv,mn,mx)=>{ if(Math.abs(dv)<1e-9){ if(v0<=mn+0.05||v0>=mx-0.05){ lo=1; hi=0; } return; }
+        let t1=(mn-v0)/dv, t2=(mx-v0)/dv; if(t1>t2){ const q=t1; t1=t2; t2=q; } lo=Math.max(lo,t1); hi=Math.min(hi,t2); };
+      clip(a0,da,-o.h-0.05,o.M+o.h+0.05); clip(b0,db,-o.h,o.h);
+      return lo<hi ? [lo,hi] : null;
+    };
+    const endAt=(k)=>{
+      const x=k===1?c.x1:c.x2, y=k===1?c.y1:c.y2, base=k===1?0:L, nb=atEnd(x,y);
+      let ext=0, best=null;
+      for(const o of nb){
+        if(Math.abs(ux*o.vy-uy*o.vx)<0.05) continue;            // carries straight on
+        ext=Math.max(ext,o.h);
+        const sp=span(o); if(!sp) continue;
+        if(k===2){ if(sp[0]>base-o.h-1 && sp[0]<base+o.h+1) best = best==null ? sp[0] : Math.min(best,sp[0]); }
+        else     { if(sp[1]<base+o.h+1 && sp[1]>base-o.h-1) best = best==null ? sp[1] : Math.max(best,sp[1]); }
+      }
+      return best!=null ? best : (k===2 ? base+ext : base-ext);
+    };
+    const t1=endAt(1), t2=endAt(2);
+    return {p1:{x:F0.x+ux*t1,y:F0.y+uy*t1}, p2:{x:F0.x+ux*t2,y:F0.y+uy*t2}, len:t2-t1, ux, uy, F0, L};
+  }
+  // the length the wall is shown and edited by
+  const wallShownLen=(w)=> w.ref ? wallFace(w).len : wallLen(w);
+  // a shown length → the centre-line length that gives it
+  const shownToCentre=(w,v)=> v + (wallLen(w)-wallShownLen(w));
+  // the end handles sit on the drawn line, not on the centre
+  const wallRefOff=(w)=>{ if(!w.ref) return {x:0,y:0}; const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, h=w.t/2*w.ref; return {x:-uy*h, y:ux*h}; };
   function wallLenLabel(w, active){
     const L=wallLen(w)||1; const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
     const coff=alignCenterOffset(w);
-    const push=(w.t/2)+18/view.scale;   // sit just outside the wall face
-    const mxw=(w.x1+w.x2)/2 + nx*(coff+push);
-    const myw=(w.y1+w.y2)/2 + ny*(coff+push);
+    const sgn=w.ref||1, push=(w.t/2)+18/view.scale;   // sit just outside the drawn face
+    let mxw=(w.x1+w.x2)/2 + nx*(coff+push*sgn);
+    let myw=(w.y1+w.y2)/2 + ny*(coff+push*sgn);
+    if(w.ref){ const f=wallFace(w); mxw=(f.p1.x+f.p2.x)/2+nx*sgn*18/view.scale; myw=(f.p1.y+f.p2.y)/2+ny*sgn*18/view.scale; }
     const [mx,my]=toScreen(mxw,myw);
-    const txt=fmtLen(wallLen(w));
+    const txt=fmtLen(wallShownLen(w));
     let lang=Math.atan2(uy,ux); if(lang>Math.PI/2||lang<-Math.PI/2) lang+=Math.PI;
     const tw = active ? boxedLabel(txt,mx,my,lang,12) : plainLabel(txt,mx,my,lang,'#22262B',12);
     if(isLocked(w)) lockGlyph(mx+Math.cos(lang)*(tw/2+7*TS), my+Math.sin(lang)*(tw/2+7*TS), 10*TS);
@@ -3793,13 +3853,13 @@
       const c=wallCorners(w);
       const mxw=(c.L1.x+c.L2.x+c.R1.x+c.R2.x)/4, myw=(c.L1.y+c.L2.y+c.R1.y+c.R2.y)/4;
       const [mx,my]=toScreen(mxw,myw);
-      const txt=fmtLen(wallLen(w));
+      const txt=fmtLen(wallShownLen(w));
       const L=wallLen(w), ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L;
       let ang=Math.atan2(uy,ux); if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
       const active=wallIsActive(w.id);
       const tw = active ? boxedLabel(txt,mx,my,ang,12) : plainLabel(txt,mx,my,ang,'#22262B',12);
       const rect=labelRect(mx,my,tw,ang);
-      hitLabels.push({kind:'walllen', rect, wid:w.id, len:wallLen(w)});
+      hitLabels.push({kind:'walllen', rect, wid:w.id, len:wallShownLen(w)});
       placedLabels.push(rect);
     }
   }
@@ -3909,6 +3969,7 @@
     if(!WS.length) return;
     const nodes=[];
     for(const w of WS){
+      const off=wallRefOff(w);
       for(const p of [[w.x1,w.y1],[w.x2,w.y2]]){
         let joined=false;
         for(const o of WS){
@@ -3917,11 +3978,16 @@
           if(projPointToSeg(p[0],p[1],o.x1,o.y1,o.x2,o.y2).d<1.5){ joined=true; break; }
         }
         const ex=nodes.find(n=>Math.hypot(n.x-p[0],n.y-p[1])<1.5);
-        if(ex){ ex.joined=ex.joined||joined; } else nodes.push({x:p[0],y:p[1],joined});
+        if(ex){ ex.joined=ex.joined||joined; ex.allRef=ex.allRef&&!!w.ref; }
+        else nodes.push({x:p[0],y:p[1],joined,allRef:!!w.ref,fx:p[0]+off.x,fy:p[1]+off.y});
       }
     }
+    // walls drawn by 內線/外線 show nothing at the centre: an open end is marked
+    // on the line you drew, and a closed corner needs no dot at all
+    for(const n of nodes){ if(n.allRef){ if(n.joined) n.skip=true; else { n.x=n.fx; n.y=n.fy; } } }
     ctx.save();
     for(const n of nodes){
+      if(n.skip) continue;
       const [sx,sy]=toScreen(n.x,n.y);
       if(sx<-20||sy<-20||sx>W+20||sy>H+20) continue;
       if(n.joined){
@@ -4851,8 +4917,9 @@
     const thr=12/view.scale;
     if(ui.selected.kind==='wall'){
       const w=state.walls.find(v=>v.id===ui.selected.id); if(!w) return null;
-      if(Math.hypot(wx-w.x1,wy-w.y1)<thr) return {kind:'wallEndpoint', id:w.id, which:'x1'};
-      if(Math.hypot(wx-w.x2,wy-w.y2)<thr) return {kind:'wallEndpoint', id:w.id, which:'x2'};
+      const ro=wallRefOff(w);
+      if(Math.hypot(wx-w.x1-ro.x,wy-w.y1-ro.y)<thr) return {kind:'wallEndpoint', id:w.id, which:'x1'};
+      if(Math.hypot(wx-w.x2-ro.x,wy-w.y2-ro.y)<thr) return {kind:'wallEndpoint', id:w.id, which:'x2'};
       // the two square handles on the wall's long FACES: grab either one to slide
       // the whole wall sideways, dragging its neighbours along so they stretch
       const s=wallSideHandles(w);
@@ -5092,7 +5159,8 @@
     else if(hit.kind==='wallEndpoint'){
       const w=state.walls.find(v=>v.id===hit.id);
       const other = hit.which==='x1' ? {x:w.x2,y:w.y2} : {x:w.x1,y:w.y1};
-      const r=computeWallEnd(other, wx, wy);
+      const ro=wallRefOff(w);                    // the handle is on the drawn line
+      const r=computeWallEnd(other, wx-ro.x, wy-ro.y);
       if(hit.which==='x1'){ w.x1=r.x; w.y1=r.y; } else { w.x2=r.x; w.y2=r.y; }
       if(dbgOn) dbg(`  wallEndpoint drag: which=${hit.which} newpos=(${r.x.toFixed(0)},${r.y.toFixed(0)}) wall now=(${w.x1.toFixed(0)},${w.y1.toFixed(0)})-(${w.x2.toFixed(0)},${w.y2.toFixed(0)})`);
       // re-run room detection live so a wall pulled apart from its neighbours
@@ -5213,12 +5281,12 @@
     }
     else if(s.kind==='wall'){ const w=state.walls.find(v=>v.id===s.id);
       propBody.innerHTML=`
-      <div class="row"><label>牆長</label><div class="field"><input type="number" id="pWlen" value="${Math.round(toDisp(wallLen(w)))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>${w.ref?(w.refIn?'牆長（內線）':'牆長（外線）'):'牆長'}</label><div class="field"><input type="number" id="pWlen" value="${Math.round(toDisp(wallShownLen(w)))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>牆厚</label><div class="field"><input type="number" id="pWt" value="${Math.round(toDisp(w.t))}" step="1"><span class="unit">${U}</span></div></div>
       <button class="btn" id="pWsplit" style="margin:4px 0 10px">拆分這道牆…</button>
       <button class="del-btn" id="pDel">刪除這道牆</button>`;
       document.getElementById('pWsplit').onclick=()=>splitStart(w.id);
-      document.getElementById('pWlen').onchange=ev=>{ setWallLength(w, fromDisp(parseFloat(ev.target.value)||0)); lockWall(w,true); pushHistory(); refreshProp(); draw(); };
+      document.getElementById('pWlen').onchange=ev=>{ setWallLength(w, shownToCentre(w, fromDisp(parseFloat(ev.target.value)||0))); lockWall(w,true); pushHistory(); refreshProp(); draw(); };
       document.getElementById('pWt').onchange=ev=>{ w.t=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); pushHistory(); draw(); };
       document.getElementById('pDel').onclick=deleteSelected;
     }
@@ -5929,6 +5997,8 @@
     for(let i=0;i<(closed?n:n-1);i++){
       const a=C[i], b=C[(i+1)%n]; if(Math.hypot(b.x-a.x,b.y-a.y)<1) continue;
       const w={id:uid(), x1:a.x, y1:a.y, x2:b.x, y2:b.y, t:ui.thick, align:'mid'};
+      // which face is the line you drew: centre + ref·n·t/2, n = left normal of x1→x2
+      const sd=bodySide(pts,closed); if(sd){ w.ref=sd; w.refIn=(ui.wallAlign==='in'); }
       state.walls.push(w); made.push(w);
     }
     dbg(`  CHAIN BUILT ${closed?'closed':'open'} ${ALIGN_NAME[ui.wallAlign]} t=${ui.thick} pts=${pts.map(p=>'('+p.x.toFixed(1)+','+p.y.toFixed(1)+')').join('')} -> walls ${made.map(w=>'#'+w.id).join(',')}`);
@@ -6143,7 +6213,7 @@
     ctx.restore();
   }
 
-  try{ window.__planpad.chain={chainTargets,chainPoint,offsetLine,chainCentres}; }catch(_){}
+  try{ window.__planpad.chain={chainTargets,chainPoint,offsetLine,chainCentres,wallFace,wallShownLen}; }catch(_){}
   // Placement tools fire once. Tapping the canvas twice while still holding the
   // 門 tool used to leave two doors stacked on each other, and you would not
   // notice until the plan looked wrong. Drawing tools (wall, beam, dimension,
@@ -6343,7 +6413,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t2（測試版，由 b101 改）';
+  const BUILD='t3（測試版，由 b101 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
