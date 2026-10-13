@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t8</title>
+<title>PlanPad · 測試版 t9</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t8</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t9</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -4718,7 +4718,16 @@
         if(d.moved) pushHistory(); else openLabelEditor(d.lab, d.downPx[0], d.downPx[1]);
         draw(); return;
       }
-      if(dragging.moved) pushHistory();
+      if(dragging.moved){
+        // say where the thing ended up, so a report shows the result, not just "dragging"
+        try{ const h=dragging.hit, o=dragging.orig||{};
+          if(/^wall/.test(h.kind)){ const w=state.walls.find(v=>v.id===h.id);
+            if(w) dbg(`  DROP ${h.kind} #${w.id}: (${(o.x1||0).toFixed(1)},${(o.y1||0).toFixed(1)})-(${(o.x2||0).toFixed(1)},${(o.y2||0).toFixed(1)}) → (${w.x1.toFixed(1)},${w.y1.toFixed(1)})-(${w.x2.toFixed(1)},${w.y2.toFixed(1)})`); }
+          else if(h.kind==='column'){ const c=state.columns.find(v=>v.id===h.id); if(c) dbg(`  DROP column #${c.id}: (${(o.x||0).toFixed(1)},${(o.y||0).toFixed(1)}) → (${c.x.toFixed(1)},${c.y.toFixed(1)}) ${c.w}x${c.h}`); }
+        }catch(_){}
+        pushHistory();
+        if(/^wall/.test(dragging.hit.kind)) dbg('  walls now: '+state.walls.map(w=>'#'+w.id+'('+w.x1.toFixed(0)+','+w.y1.toFixed(0)+')-('+w.x2.toFixed(0)+','+w.y2.toFixed(0)+')').join(' '));
+      }
       else if(dragging.hit.kind==='note'){
         // a tap, not a drag: open whatever photo sits under the finger
         const n=state.notes.find(v=>v.id===dragging.hit.id);
@@ -5109,15 +5118,29 @@
         continue;
       }
       const end = Math.hypot(L.x-orig.x1,L.y-orig.y1) <= Math.hypot(L.x-orig.x2,L.y-orig.y2) ? 1 : 2;
-      const ex = end===1 ? w.x1 : w.x2, ey = end===1 ? w.y1 : w.y2;
+      // The step lands ON the split line. The return wall used to be centred on
+      // it, so each face turned half a thickness away from where you cut (cut at
+      // a column's edge, and the step came out 7 cm past the column). It now sits
+      // on the side of the piece that stays put: that piece's face stops exactly
+      // at the cut, and the moved piece's face starts exactly there.
+      const moved = Math.hypot(ddx,ddy)>=0.5;
+      const vo = L.which===1 ? {x:v.x2,y:v.y2} : {x:v.x1,y:v.y1};
+      const vl=Math.hypot(L.x-vo.x,L.y-vo.y)||1, sux=(L.x-vo.x)/vl, suy=(L.y-vo.y)/vl;
+      const sh = moved ? Math.min(w.t/2, vl-1) : 0;
+      const Jx=L.x-sux*sh, Jy=L.y-suy*sh;
+      if(L.which===1){ v.x1=Jx; v.y1=Jy; } else { v.x2=Jx; v.y2=Jy; }
+      const ex=Jx+ddx, ey=Jy+ddy;
+      if(end===1){ w.x1=ex; w.y1=ey; } else { w.x2=ex; w.y2=ey; }
       const key=L.id+':'+L.which;
       let j=dragging.jogs[key] && state.walls.find(x=>x.id===dragging.jogs[key]);
       if(!j){
-        if(Math.hypot(ex-L.x,ey-L.y)<0.5) continue;
-        j={id:uid(), x1:L.x,y1:L.y,x2:ex,y2:ey, t:w.t, align:w.align};
+        if(!moved) continue;
+        j={id:uid(), x1:Jx,y1:Jy,x2:ex,y2:ey, t:w.t, align:w.align};
+        if(w.kind) j.kind=w.kind;
         state.walls.push(j); dragging.jogs[key]=j.id;
       }
-      j.x1=L.x; j.y1=L.y; j.x2=ex; j.y2=ey;
+      j.x1=Jx; j.y1=Jy; j.x2=ex; j.y2=ey;
+      if(dbgOn) dbg(`  jog: wall #${v.id} stops at (${Jx.toFixed(1)},${Jy.toFixed(1)}), return #${j.id} to (${ex.toFixed(1)},${ey.toFixed(1)}), push (${ddx.toFixed(1)},${ddy.toFixed(1)})`);
       // the step is deliberate: tell the healer not to pull the two back in line
       w.meas=true; v.meas=true;
     }
@@ -6628,7 +6651,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t8（測試版，由 b102 改）';
+  const BUILD='t9（測試版，由 b102 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
