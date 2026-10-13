@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t6</title>
+<title>PlanPad · 測試版 t7</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t6</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t7</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -311,6 +311,7 @@
       <div class="tool active" data-tool="select" title="選取／移動 (V)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3l7 17 2.5-7L20 10.5 4 3z"/></svg><span class="lbl">選取</span></div>
       <div class="rail-sep"></div>
       <div class="tool" data-tool="wall" title="畫牆 (W)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="9" width="18" height="6"/><path d="M8 9v6M14 9v6"/></svg><span class="lbl">牆</span></div>
+      <div class="tool" data-tool="part" title="畫隔間"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="9" width="18" height="6"/><path d="M6 15l5-6M11 15l5-6M16 15l4-5"/></svg><span class="lbl">隔間</span></div>
       <div class="tool" data-tool="room" title="畫房間"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="14" stroke-width="3.2"/></svg><span class="lbl">房間</span></div>
       <div class="tool" data-tool="door" title="門 (D)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 20V5a1 1 0 0 1 1-1h8v16"/><path d="M14 20a9 9 0 0 0-9-9" stroke-dasharray="2 2"/></svg><span class="lbl">門</span></div>
       <div class="tool" data-tool="window" title="窗 (N)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="18" height="4"/><path d="M12 10v4"/></svg><span class="lbl">窗</span></div>
@@ -399,12 +400,25 @@
           <div class="seg" id="areaSeg"><button data-a="ping" class="on">坪</button><button data-a="m2">m²</button><button data-a="both">兩者</button></div>
         </div>
       </div>
+      <div class="psec" data-tool="part">
+        <div class="ptitle">畫隔間設定</div>
+        <div class="row"><label>種類</label></div>
+        <div class="chips" id="partKindChips"></div>
+        <div class="row"><label>厚度</label>
+          <div class="field"><input type="number" id="partThick" min="1" step="1"><span class="unit" id="partThickUnit">cm</span></div>
+        </div>
+        <div class="row"><label>定位線</label>
+          <div class="seg alignSeg"><button data-v="in" class="on">內線</button><button data-v="mid">中線</button><button data-v="out">外線</button></div>
+        </div>
+        <div class="row alignNote" style="display:block;font-size:12px;line-height:1.55;color:var(--muted)"></div>
+        <div class="row" style="display:block;font-size:12px;line-height:1.55;color:var(--muted)">畫法跟畫牆一樣。已經畫好的牆，也可以點選後在屬性欄改成隔間或拆除牆。</div>
+      </div>
       <div class="psec" data-tool="wall room">
         <div class="ptitle">畫牆設定</div>
         <div class="row"><label>定位線</label>
-          <div class="seg" id="alignSeg"><button data-v="in" class="on">內線</button><button data-v="mid">中線</button><button data-v="out">外線</button></div>
+          <div class="seg alignSeg"><button data-v="in" class="on">內線</button><button data-v="mid">中線</button><button data-v="out">外線</button></div>
         </div>
-        <div class="row" style="display:block;font-size:12px;line-height:1.55;color:var(--muted)" id="alignNote"></div>
+        <div class="row alignNote" style="display:block;font-size:12px;line-height:1.55;color:var(--muted)"></div>
         <div class="row"><label>牆厚</label>
           <div class="chips" id="thickChips"></div>
         </div>
@@ -681,6 +695,7 @@
     select:'選取工具：灰色圓點＝牆已接合，紅色空心圈＝該端沒接到東西（不會形成空間）。點牆體選取後，圓形握把＝拉伸端點，方形握把＝整面牆平行推移',
     wall:'畫牆：點起點，再沿著牆一個轉角一個轉角點下去（順時針），每段可直接打長度。點回起點＝圍成空間；再點一次最後一點＝結束；畫錯按上面「復原」退一個轉角',
     room:'畫房間：按住拖出矩形，再打寬和深，按 ✓ 建立',
+    part:'畫隔間：先在右邊選種類（輕隔間／磚牆／木作／玻璃），畫法跟畫牆一樣',
     door:'放門：點在牆上放置。右側「畫門設定」可先選門／推拉門／門洞，放好後也能隨時改',
     window:'放窗：點在牆上放置。右側「畫窗設定」可先選窗／落地窗／外凸窗，落地窗離地固定為 0',
     shaft:'放管道間：點一下放置。選取後可改長寬與旋轉，也能點四邊的離牆距離直接輸入',
@@ -3213,8 +3228,8 @@
     return false;
   }
   function drawWalls(forExport){
-    const groups={}, all=[];
-    for(const w of state.walls){ if(wallLen(w)<1) continue; const c=wallCenterline(w); all.push(c); (groups[w.t]=groups[w.t]||[]).push(c); }
+    const groups={}, all=[], skip={};
+    for(const w of state.walls){ if(wallLen(w)<1) continue; const c=wallCenterline(w); all.push(c); (groups[w.t]=groups[w.t]||[]).push(c); (skip[w.t]=skip[w.t]||[]).push(w.kind==='demo'); }
     const norm={}; for(const t in groups) norm[t]=normalizedCenterlines(groups[t]);
     const allN=[].concat(...Object.values(norm));
     ctx.lineCap='butt'; ctx.lineJoin='miter'; ctx.miterLimit=6;
@@ -3222,7 +3237,8 @@
       for(const t in norm){
         const tn=parseFloat(t);
         ctx.beginPath();
-        for(const cl of norm[t]){
+        for(let i=0;i<norm[t].length;i++){
+          const cl=norm[t][i]; if(skip[t][i]) continue;          // 拆除牆 is drawn on its own, dashed
           const L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1, ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L;
           const freeExt = edge ? 1.2/view.scale : 0;
           const e1 = wallEndJoined(cl,cl.x1,cl.y1,allN) ? tn/2 : freeExt;
@@ -3235,6 +3251,7 @@
       }
     };
     pass(true); pass(false);
+    drawWallKinds();
     // openings
     for(const o of state.openings){ const w=state.walls.find(v=>v.id===o.wallId); if(!w) continue; drawOpening(o,w,forExport); }
   }
@@ -4397,11 +4414,11 @@
     const [px,py]=evtPos(e);
     const [wx,wy]=toWorld(px,py);
     if(e.button===1){ panStart={px,py,ox:view.ox,oy:view.oy}; return; }
-    if(structureLocked() && ['wall','room','door','window','column','shaft','beam','split'].includes(ui.tool)){
+    if(structureLocked() && ['wall','room','part','door','window','column','shaft','beam','split'].includes(ui.tool)){
       dbg(`  ${ui.tool} refused: structure locked`);
       flashHint('結構已鎖定，不能再畫或改牆、門窗、柱、樑。要改請先到右邊「圖層」把結構解鎖'); return;
     }
-    if(ui.tool==='wall'||ui.tool==='room'){ chainDown(e,px,py,wx,wy); return; }
+    if(ui.tool==='wall'||ui.tool==='room'||ui.tool==='part'){ chainDown(e,px,py,wx,wy); return; }
 
 
     // if a wall/beam is already selected, its endpoint handles take priority
@@ -5301,9 +5318,12 @@
       propBody.innerHTML=`
       <div class="row"><label>${w.ref?(w.refIn?'牆長（內線）':'牆長（外線）'):'牆長'}</label><div class="field"><input type="number" id="pWlen" value="${Math.round(toDisp(wallShownLen(w)))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>牆厚</label><div class="field"><input type="number" id="pWt" value="${Math.round(toDisp(w.t))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>類型</label></div>
+      <div class="chips" id="pWkind" style="margin-bottom:10px">${WALL_KINDS.map(o=>`<div class="chip${wallKind(w)===o.k?' on':''}" data-k="${o.k}">${o.name}</div>`).join('')}</div>
       <button class="btn" id="pWsplit" style="margin:4px 0 10px">拆分這道牆…</button>
       <button class="del-btn" id="pDel">刪除這道牆</button>`;
       document.getElementById('pWsplit').onclick=()=>splitStart(w.id);
+      document.querySelectorAll('#pWkind .chip').forEach(c=>c.onclick=()=>{ const k=c.dataset.k; if(k==='exist') delete w.kind; else w.kind=k; dbg(`  wall #${w.id} kind → ${KIND[k].name}`); pushHistory(); refreshProp(); draw(); });
       document.getElementById('pWlen').onchange=ev=>{ setWallLength(w, shownToCentre(w, fromDisp(parseFloat(ev.target.value)||0))); lockWall(w,true); pushHistory(); refreshProp(); draw(); };
       document.getElementById('pWt').onchange=ev=>{ w.t=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); pushHistory(); draw(); };
       document.getElementById('pDel').onclick=deleteSelected;
@@ -5591,7 +5611,7 @@
         draw:()=>draw(), recompute:()=>recomputeRooms(), toScreen:(x,y)=>toScreen(x,y),
         editDimLabel:(l,x,y)=>editDimLabel(l,x,y), pushHistory:()=>pushHistory(),
         hitLabel:(x,y)=>hitLabel(x,y), openLabelEditor:(l,x,y)=>openLabelEditor(l,x,y) }; }catch(_){ }
-  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',room:'畫房間',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ceil:'天花板',split:'拆分牆',ulcalib:'底圖校正'})[ui.tool]||''; }
+  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',room:'畫房間',part:'畫隔間',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ceil:'天花板',split:'拆分牆',ulcalib:'底圖校正'})[ui.tool]||''; }
   function flashHint(msg){ if(!msg) return; hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
   function showToolHint(){ flashHint(TOOL_HINT[ui.tool]); }
 
@@ -5779,7 +5799,126 @@
     });
   }
 
-  // ================= 連續畫牆 / 畫房間 (測試版) =================
+
+  // ================= 隔間 / 拆除 =================
+  // Every wall has a kind. Unset = 原有牆 (the existing structure, solid grey).
+  // New partitions and walls to be demolished are drawn so a 隔間圖 / 拆除圖 reads
+  // at a glance — each kind its own fill and hatch, spaced in real centimetres
+  // so the printed sheet looks the same as the screen.
+  const WALL_KINDS=[
+    {k:'exist', name:'原有牆'},
+    {k:'light', name:'輕隔間',   t:10, fill:'#E6EDF5', line:'#4F6F94'},
+    {k:'brick', name:'磚牆',     t:12, fill:'#F7E4DC', line:'#A8432A'},
+    {k:'wood',  name:'木作隔間', t:10, fill:'#F1E2C6', line:'#8A5A24'},
+    {k:'glass', name:'玻璃隔間', t:10, fill:'#E1F2F8', line:'#2D84A8'},
+    {k:'demo',  name:'拆除牆',            fill:'#FCEEEC', line:'#C0392B'},
+  ];
+  const KIND=Object.fromEntries(WALL_KINDS.map(o=>[o.k,o]));
+  const PART_KINDS=['light','brick','wood','glass'];
+  const wallKind=(w)=> (w && w.kind && KIND[w.kind]) ? w.kind : 'exist';
+
+  // where along the line P0 + u·s the point is inside wall o's band
+  function lineInWall(P0, ux, uy, o){
+    const c=wallCenterline(o), M=Math.hypot(c.x2-c.x1,c.y2-c.y1)||1, vx=(c.x2-c.x1)/M, vy=(c.y2-c.y1)/M, h=o.t/2;
+    const a0=(P0.x-c.x1)*vx+(P0.y-c.y1)*vy, da=ux*vx+uy*vy;
+    const b0=-(P0.x-c.x1)*vy+(P0.y-c.y1)*vx, db=-ux*vy+uy*vx;
+    let lo=-Infinity, hi=Infinity;
+    const clip=(v0,dv,mn,mx)=>{ if(Math.abs(dv)<1e-9){ if(v0<=mn||v0>=mx){ lo=1; hi=0; } return; }
+      let t1=(mn-v0)/dv, t2=(mx-v0)/dv; if(t1>t2){ const q=t1; t1=t2; t2=q; } lo=Math.max(lo,t1); hi=Math.min(hi,t2); };
+    clip(a0,da,-h,M+h); clip(b0,db,-h+0.05,h-0.05);
+    return lo<hi ? [lo,hi] : null;
+  }
+  // the stretch of a wall that belongs to it alone: an end buried in a wall of
+  // another kind stops at that wall's face; an end meeting a wall of the same
+  // kind at an angle fills the corner square
+  function kindBand(w){
+    const c=wallCenterline(w), L=Math.hypot(c.x2-c.x1,c.y2-c.y1)||1, ux=(c.x2-c.x1)/L, uy=(c.y2-c.y1)/L, h=w.t/2, k=wallKind(w);
+    const P0={x:c.x1,y:c.y1};
+    let s1=0, s2=L, free1=true, free2=true;
+    for(const o of state.walls){
+      if(o===w || wallLen(o)<1) continue;
+      const oc=wallCenterline(o), M=Math.hypot(oc.x2-oc.x1,oc.y2-oc.y1)||1;
+      const par=Math.abs(ux*(oc.y2-oc.y1)/M-uy*(oc.x2-oc.x1)/M)<0.05;
+      for(const end of [1,2]){
+        const x=end===1?c.x1:c.x2, y=end===1?c.y1:c.y2;
+        const at = Math.hypot(oc.x1-x,oc.y1-y)<2.5||Math.hypot(oc.x2-x,oc.y2-y)<2.5||projPointToSeg(x,y,oc.x1,oc.y1,oc.x2,oc.y2).d<o.t/2+0.5;
+        if(!at) continue;
+        if(end===1) free1=false; else free2=false;
+        if(wallKind(o)===k){
+          if(!par){ if(end===1) s1=Math.min(s1,-Math.min(h,o.t/2)); else s2=Math.max(s2,L+Math.min(h,o.t/2)); }
+          continue;
+        }
+        if(par) continue;
+        const sp=lineInWall(P0,ux,uy,o); if(!sp) continue;
+        if(end===2 && sp[0]<L+0.5 && sp[1]>L-0.5) s2=Math.min(s2,sp[0]);
+        if(end===1 && sp[0]<0.5 && sp[1]>-0.5) s1=Math.max(s1,sp[1]);
+      }
+    }
+    if(s2-s1<0.5) return null;
+    const nx=-uy*h, ny=ux*h, A={x:c.x1+ux*s1,y:c.y1+uy*s1}, B={x:c.x1+ux*s2,y:c.y1+uy*s2};
+    return {poly:[{x:A.x+nx,y:A.y+ny},{x:B.x+nx,y:B.y+ny},{x:B.x-nx,y:B.y-ny},{x:A.x-nx,y:A.y-ny}], ux, uy, h, free1, free2, k};
+  }
+  // fill + hatch of one kind inside a polygon given in SCREEN coordinates.
+  // u = the wall's direction (screen), sp = how many screen px one cm is.
+  function paintKind(g, k, P, ux, uy, sp, hpx){
+    const st=KIND[k]; if(!st || k==='exist') return;
+    g.save();
+    g.beginPath(); P.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.closePath();
+    g.fillStyle=st.fill; g.fill();
+    g.clip();
+    const xs=P.map(p=>p[0]), ys=P.map(p=>p[1]);
+    const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+    const cx=(x0+x1)/2, cy=(y0+y1)/2, R=Math.hypot(x1-x0,y1-y0)/2+2;
+    g.strokeStyle=st.line; g.lineWidth=Math.max(0.7, 0.9*TS); g.setLineDash([]);
+    const hatch=(dx,dy,gap)=>{                         // parallel lines along (dx,dy), gap px apart
+      const nx=-dy, ny=dx; g.beginPath();
+      for(let o=-R; o<=R; o+=gap){ g.moveTo(cx+nx*o-dx*R, cy+ny*o-dy*R); g.lineTo(cx+nx*o+dx*R, cy+ny*o+dy*R); }
+      g.stroke();
+    };
+    const vx=-uy, vy=ux;                               // across the wall
+    const gap=Math.max(3, 5*sp);                       // ≈ 5 cm
+    const d45=[(ux+vx)/Math.SQRT2,(uy+vy)/Math.SQRT2], d135=[(ux-vx)/Math.SQRT2,(uy-vy)/Math.SQRT2];
+    if(k==='brick'){ hatch(d45[0],d45[1],gap); }
+    else if(k==='light'){ hatch(d45[0],d45[1],gap*1.4); hatch(d135[0],d135[1],gap*1.4); }
+    else if(k==='wood'){ hatch(ux,uy,Math.max(2.5,hpx*0.66)); }
+    else if(k==='glass'){ g.beginPath(); g.moveTo(cx-ux*R,cy-uy*R); g.lineTo(cx+ux*R,cy+uy*R); g.stroke(); }
+    g.restore();
+  }
+  function drawWallKinds(){
+    for(const w of state.walls){
+      const k=wallKind(w); if(k==='exist' || wallLen(w)<1) continue;
+      const b=kindBand(w); if(!b) continue;
+      const P=b.poly.map(p=>toScreen(p.x,p.y));
+      paintKind(ctx, k, P, b.ux, b.uy, view.scale, b.h*view.scale);
+      ctx.save(); ctx.lineCap='butt';
+      if(k==='demo'){
+        // to be removed: a dashed outline, nothing solid
+        ctx.strokeStyle=KIND.demo.line; ctx.lineWidth=Math.max(1.2,1.4*TS); ctx.setLineDash([6*TS,4*TS]);
+        ctx.beginPath(); P.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.stroke();
+      } else {
+        // the long faces (and a free end) get the wall outline back on top of the hatch
+        ctx.strokeStyle=WALL_EDGE; ctx.lineWidth=Math.max(1,1.2*TS);
+        ctx.beginPath(); ctx.moveTo(P[0][0],P[0][1]); ctx.lineTo(P[1][0],P[1][1]); ctx.moveTo(P[3][0],P[3][1]); ctx.lineTo(P[2][0],P[2][1]);
+        if(b.free1){ ctx.moveTo(P[0][0],P[0][1]); ctx.lineTo(P[3][0],P[3][1]); }
+        if(b.free2){ ctx.moveTo(P[1][0],P[1][1]); ctx.lineTo(P[2][0],P[2][1]); }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  // the legend: one row per kind on the sheet, with how many metres of it
+  function wallKindTally(){
+    const by={};
+    for(const w of state.walls){ const k=wallKind(w); if(k==='exist'||wallLen(w)<1) continue; by[k]=(by[k]||0)+wallShownLen(w); }
+    return WALL_KINDS.filter(o=>by[o.k]).map(o=>({kind:'wk_'+o.k, name:o.name, n:(Math.round(by[o.k])/100).toFixed(1)+' m',
+      sw:(g,sp)=>{ const w2=sp*1.1, h2=sp*0.32, P=[[-w2,-h2],[w2,-h2],[w2,h2],[-w2,h2]];
+        g.save(); g.lineWidth=Math.max(1,sp*0.03); g.lineCap='butt';
+        paintKind(g,o.k,P,1,0,sp/12,h2);
+        g.strokeStyle= o.k==='demo'?KIND.demo.line:WALL_EDGE; if(o.k==='demo') g.setLineDash([sp*0.18,sp*0.12]);
+        g.beginPath(); P.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.closePath(); g.stroke(); g.restore(); }}));
+  }
+
+  // ================= 連續畫牆 / 畫房間 =================
   // You walk the walls and tap one corner after another. The line you tap is the
   // 定位線 — with 內線 it is the room's inner face, so a typed length is the clear
   // size. Nothing is welded or pulled into line afterwards: every corner of the
@@ -5790,6 +5929,7 @@
   ui.rect=null;            // {x0,y0,x1,y1,asking}
   const ALIGN_NAME={in:'內線',mid:'中線',out:'外線'};
   const lenStep=()=> ui.snap ? ui.gridSize : 0.1;
+  const curThick=()=> ui.tool==='part' ? ui.partThick[ui.partKind] : ui.thick;
   const roundLen=v=> Math.round(v/lenStep())*lenStep();
 
   // ---- what a tapped point may land on ----
@@ -5982,7 +6122,7 @@
       const c=f.c, L=Math.hypot(c.x2-c.x1,c.y2-c.y1)||1, wx=(c.x2-c.x1)/L, wy=(c.y2-c.y1)/L;
       if(Math.abs(ux*wy-uy*wx)<0.05) continue;
       const X=lineCross({x1:Q.x,y1:Q.y,x2:P.x,y2:P.y},{x1:c.x1,y1:c.y1,x2:c.x2,y2:c.y2}); if(!X) continue;
-      const lim=f.w.t/2+ui.thick/2+1.5, dE=Math.hypot(X.x-f.x,X.y-f.y), dP=Math.hypot(X.x-P.x,X.y-P.y);
+      const lim=f.w.t/2+curThick()/2+1.5, dE=Math.hypot(X.x-f.x,X.y-f.y), dP=Math.hypot(X.x-P.x,X.y-P.y);
       if(dE>lim||dP>lim) continue;
       const sg=f.k===2?1:-1;
       if((X.x-f.x)*wx*sg+(X.y-f.y)*wy*sg < -0.5) continue;      // never cut back into the old wall
@@ -5992,7 +6132,7 @@
     return best;
   }
   function chainCentres(pts, closed){
-    const C=offsetLine(pts, closed, bodySide(pts,closed), ui.thick), n=C.length;
+    const C=offsetLine(pts, closed, bodySide(pts,closed), curThick()), n=C.length;
     C.joins=[];
     if(!closed && n>=2){
       const j0=cornerJoin(C[0],C[1]);
@@ -6014,12 +6154,13 @@
     }
     for(let i=0;i<(closed?n:n-1);i++){
       const a=C[i], b=C[(i+1)%n]; if(Math.hypot(b.x-a.x,b.y-a.y)<1) continue;
-      const w={id:uid(), x1:a.x, y1:a.y, x2:b.x, y2:b.y, t:ui.thick, align:'mid'};
+      const w={id:uid(), x1:a.x, y1:a.y, x2:b.x, y2:b.y, t:curThick(), align:'mid'};
+      if(ui.tool==='part') w.kind=ui.partKind;
       // which face is the line you drew: centre + ref·n·t/2, n = left normal of x1→x2
       const sd=bodySide(pts,closed); if(sd){ w.ref=sd; w.refIn=(ui.wallAlign==='in'); }
       state.walls.push(w); made.push(w);
     }
-    dbg(`  CHAIN BUILT ${closed?'closed':'open'} ${ALIGN_NAME[ui.wallAlign]} t=${ui.thick} pts=${pts.map(p=>'('+p.x.toFixed(1)+','+p.y.toFixed(1)+')').join('')} -> walls ${made.map(w=>'#'+w.id).join(',')}`);
+    dbg(`  CHAIN BUILT ${ui.tool==='part'?KIND[ui.partKind].name:'牆'} ${closed?'closed':'open'} ${ALIGN_NAME[ui.wallAlign]} t=${curThick()} pts=${pts.map(p=>'('+p.x.toFixed(1)+','+p.y.toFixed(1)+')').join('')} -> walls ${made.map(w=>'#'+w.id).join(',')}`);
     return made;
   }
 
@@ -6201,8 +6342,8 @@
     if(!pts) return;
     ctx.save();
     if(pts.length>=2){
-      const C=offsetLine(pts, closed, bodySide(pts,closed), ui.thick);
-      ctx.strokeStyle='rgba(43,47,54,.38)'; ctx.lineWidth=Math.max(1,ui.thick*view.scale);
+      const C=offsetLine(pts, closed, bodySide(pts,closed), curThick());
+      ctx.strokeStyle= ui.tool==='part' ? KIND[ui.partKind].line+'66' : 'rgba(43,47,54,.38)'; ctx.lineWidth=Math.max(1,curThick()*view.scale);
       ctx.lineJoin='miter'; ctx.miterLimit=10; ctx.lineCap='butt';
       ctx.beginPath(); C.forEach((p,i)=>{ const [x,y]=toScreen(p.x,p.y); if(i) ctx.lineTo(x,y); else ctx.moveTo(x,y); }); if(closed) ctx.closePath(); ctx.stroke();
       // the 定位線 itself
@@ -6242,7 +6383,7 @@
     ctx.restore();
   }
 
-  try{ window.__planpad.chain={chainTargets,chainPoint,offsetLine,chainCentres,wallFace,wallShownLen}; }catch(_){}
+  try{ window.__planpad.chain={chainTargets,chainPoint,offsetLine,chainCentres,wallFace,wallShownLen,wallKindTally}; }catch(_){}
   // Placement tools fire once. Tapping the canvas twice while still holding the
   // 門 tool used to leave two doors stacked on each other, and you would not
   // notice until the plan looked wrong. Drawing tools (wall, beam, dimension,
@@ -6256,7 +6397,8 @@
     ui.selected=sel; refreshProp(); draw();
   }
   function setTool(t){
-    if(ui.chain && t!=='wall') chainFinish(false);
+    if(t==='part') setTimeout(syncPartUI,0);
+    if(ui.chain && t!==ui.tool) chainFinish(false);
     if(ui.rect && t!=='room'){ if(ui.rect.asking) rectCommit(); else ui.rect=null; }
     ui.tool=t; draft=null; typedNum=''; hideLenBox();
     if(t!=='circuit') ui.cdraft=null;
@@ -6357,11 +6499,25 @@
   bindSwitch('swGrid','grid'); bindSwitch('swSnap','snap');
   document.querySelectorAll('#angleModeSeg button').forEach(b=>b.onclick=()=>{ ui.angleMode=b.dataset.v; document.querySelectorAll('#angleModeSeg button').forEach(x=>x.classList.toggle('on',x===b)); });
   function syncAlignUI(){
-    document.querySelectorAll('#alignSeg button').forEach(x=>x.classList.toggle('on',x.dataset.v===ui.wallAlign));
-    const n=document.getElementById('alignNote'); if(n) n.textContent=({in:'你畫的線是室內牆面，打的長度＝室內淨尺寸，牆厚往外長。請順時針沿著牆畫。',mid:'你畫的線是牆中心。',out:'你畫的線是外牆面，打的長度是外尺寸，牆厚往內長。請順時針畫。'})[ui.wallAlign];
+    document.querySelectorAll('.alignSeg button').forEach(x=>x.classList.toggle('on',x.dataset.v===ui.wallAlign));
+    const txt=({in:'你畫的線是室內牆面，打的長度＝室內淨尺寸，牆厚往外長。請順時針沿著牆畫。',mid:'你畫的線是牆中心。',out:'你畫的線是外牆面，打的長度是外尺寸，牆厚往內長。請順時針畫。'})[ui.wallAlign];
+    document.querySelectorAll('.alignNote').forEach(n=>n.textContent=txt);
   }
-  document.querySelectorAll('#alignSeg button').forEach(b=>b.onclick=()=>{ ui.wallAlign=b.dataset.v; dbg('  定位線 → '+ALIGN_NAME[ui.wallAlign]); syncAlignUI(); try{localStorage.setItem('planpad.test.align',ui.wallAlign);}catch(_){} draw(); });
-  try{ const a=localStorage.getItem('planpad.test.align'); if(a==='in'||a==='mid'||a==='out') ui.wallAlign=a; }catch(_){}
+  // 隔間: which kind, and each kind remembers its own thickness
+  ui.partKind='light'; ui.partThick={}; for(const k of PART_KINDS) ui.partThick[k]=KIND[k].t;
+  try{ const o=JSON.parse(localStorage.getItem('planpad.part')||'null'); if(o){ if(PART_KINDS.includes(o.kind)) ui.partKind=o.kind; for(const k of PART_KINDS) if(o.t&&o.t[k]>0) ui.partThick[k]=o.t[k]; } }catch(_){}
+  const savePart=()=>{ try{ localStorage.setItem('planpad.part',JSON.stringify({kind:ui.partKind,t:ui.partThick})); }catch(_){} };
+  function syncPartUI(){
+    const host=document.getElementById('partKindChips'); if(!host) return;
+    host.innerHTML=PART_KINDS.map(k=>`<div class="chip${k===ui.partKind?' on':''}" data-k="${k}">${KIND[k].name}</div>`).join('');
+    host.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ ui.partKind=c.dataset.k; savePart(); syncPartUI(); draw(); dbg('  隔間種類 → '+KIND[ui.partKind].name); });
+    const f=document.getElementById('partThick'); f.value=Math.round(toDisp(ui.partThick[ui.partKind]));
+    document.getElementById('partThickUnit').textContent=ui.unit;
+  }
+  document.getElementById('partThick').onchange=e=>{ const v=parseFloat(e.target.value); if(v>0){ ui.partThick[ui.partKind]=fromDisp(v); savePart(); draw(); } };
+  syncPartUI();
+  document.querySelectorAll('.alignSeg button').forEach(b=>b.onclick=()=>{ ui.wallAlign=b.dataset.v; dbg('  定位線 → '+ALIGN_NAME[ui.wallAlign]); syncAlignUI(); try{localStorage.setItem('planpad.align',ui.wallAlign);}catch(_){} draw(); });
+  try{ const a=localStorage.getItem('planpad.align'); if(a==='in'||a==='mid'||a==='out') ui.wallAlign=a; }catch(_){}
   syncAlignUI();
   document.getElementById('gridSize').onchange=e=>{ ui.gridSize=Math.max(1,parseInt(e.target.value)||10); draw(); };
   document.getElementById('ceilingH').onchange=e=>{ const v=fromDisp(parseFloat(e.target.value)||280); state.ceilingH=Math.max(150,v); pushHistory(); };
@@ -6442,7 +6598,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t6（測試版，由 b101 改）';
+  const BUILD='t7（測試版，由 b102 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -7020,7 +7176,7 @@
   // A legend the contractor can count from. It is built from the symbols actually
   // on this sheet, so the quantities can never disagree with the drawing.
   function drawLegend(g, pwMM, phMM, mMM, tb, layersOpt){
-    const items=mepTally(layersOpt).concat(ceilTally(layersOpt));
+    const items=wallKindTally().concat(mepTally(layersOpt)).concat(ceilTally(layersOpt));
     if(!items.length) return null;
     const colMM=96, rowMM=8.5, headMM=9;
     // A long legend in one column is a tall block, and a tall block steals the
