@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t7</title>
+<title>PlanPad · 測試版 t8</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t7</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t8</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -4916,10 +4916,40 @@
     if(w){ const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,o.pos)); }
   }
 
+  // A column (or shaft) pulled near a wall face lands flush on it. The old drag
+  // rounded the CENTRE to the 10 cm grid, so a 59 x 73 column could never get its
+  // edge onto a face — it always stopped a few cm short or sat a few cm inside.
+  // Each axis on its own: an edge within reach of a parallel wall face (either
+  // side of the wall) or another column's edge snaps to it; otherwise no grid.
+  function columnSnap(c, x, y){
+    const r=(((c.rot||0)%180)+180)%180;
+    if(r!==0 && r!==90) return {x,y,how:''};
+    const hx=(r===0?c.w:c.h)/2, hy=(r===0?c.h:c.w)/2;
+    const thr=Math.min(16/view.scale, 40);
+    let bx=null, dxb=thr, by=null, dyb=thr;
+    const tryX=(face, lo, hi)=>{ if(y+hy<lo-1 || y-hy>hi+1) return;
+      for(const e of [-hx,hx]){ const d=Math.abs(x+e-face); if(d<dxb){ dxb=d; bx=face-e; } } };
+    const tryY=(face, lo, hi)=>{ if(x+hx<lo-1 || x-hx>hi+1) return;
+      for(const e of [-hy,hy]){ const d=Math.abs(y+e-face); if(d<dyb){ dyb=d; by=face-e; } } };
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const cl=wallCenterline(w), h=w.t/2;
+      if(Math.abs(cl.x1-cl.x2)<0.5){ const lo=Math.min(cl.y1,cl.y2)-h, hi=Math.max(cl.y1,cl.y2)+h; tryX(cl.x1-h,lo,hi); tryX(cl.x1+h,lo,hi); }
+      else if(Math.abs(cl.y1-cl.y2)<0.5){ const lo=Math.min(cl.x1,cl.x2)-h, hi=Math.max(cl.x1,cl.x2)+h; tryY(cl.y1-h,lo,hi); tryY(cl.y1+h,lo,hi); }
+    }
+    for(const o of state.columns){
+      if(o===c || o.id===c.id) continue;
+      const ro=(((o.rot||0)%180)+180)%180; if(ro!==0&&ro!==90) continue;
+      const ohx=(ro===0?o.w:o.h)/2, ohy=(ro===0?o.h:o.w)/2;
+      tryX(o.x-ohx,o.y-ohy-200,o.y+ohy+200); tryX(o.x+ohx,o.y-ohy-200,o.y+ohy+200);
+      tryY(o.y-ohy,o.x-ohx-200,o.x+ohx+200); tryY(o.y+ohy,o.x-ohx-200,o.x+ohx+200);
+    }
+    return {x: bx!=null?bx:x, y: by!=null?by:y, how:(bx!=null||by!=null)?'face':''};
+  }
   function placeColumn(wx,wy,kind){
     let x=wx,y=wy;
-    if(ui.snap){ const g=ui.gridSize; x=Math.round(x/g)*g; y=Math.round(y/g)*g; }
     const shaft = kind==='shaft';
+    { const s=columnSnap({w:shaft?ui.shaftW:ui.colW,h:shaft?ui.shaftH:ui.colH,rot:0}, x, y); x=s.x; y=s.y; }
     const c={id:uid(),x,y,w:shaft?ui.shaftW:ui.colW,h:shaft?ui.shaftH:ui.colH,rot:0,
              kind:shaft?'shaft':'col', layer:state.layer};
     state.columns.push(c); ui.selected={kind:'column',id:c.id}; refreshProp(); pushHistory(); draw(); afterPlace();
@@ -5189,7 +5219,7 @@
       // moving the box carries its handwriting along, so a note never comes apart
       else { moveNote(n,(orig.x+dx)-n.x,(orig.y+dy)-n.y); }
     }
-    else if(hit.kind==='column'){ const c=state.columns.find(v=>v.id===hit.id); let nx=orig.x+dx,ny=orig.y+dy; if(ui.snap){nx=Math.round(nx/ui.gridSize)*ui.gridSize;ny=Math.round(ny/ui.gridSize)*ui.gridSize;} c.x=nx;c.y=ny; }
+    else if(hit.kind==='column'){ const c=state.columns.find(v=>v.id===hit.id); const sn=columnSnap(c, orig.x+dx, orig.y+dy); c.x=sn.x; c.y=sn.y; }
     else if(hit.kind==='beam'){ const b=state.beams.find(v=>v.id===hit.id); let ddx=dx,ddy=dy; if(ui.snap){const g=ui.gridSize; ddx=Math.round((orig.x1+dx)/g)*g-orig.x1; ddy=Math.round((orig.y1+dy)/g)*g-orig.y1;} b.x1=orig.x1+ddx;b.y1=orig.y1+ddy;b.x2=orig.x2+ddx;b.y2=orig.y2+ddy; }
     else if(hit.kind==='wallEndpoint'){
       const w=state.walls.find(v=>v.id===hit.id);
@@ -6598,7 +6628,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t7（測試版，由 b102 改）';
+  const BUILD='t8（測試版，由 b102 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
