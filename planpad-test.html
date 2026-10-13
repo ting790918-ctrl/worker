@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t9</title>
+<title>PlanPad · 測試版 t10</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t9</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t10</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -5100,6 +5100,36 @@
       else if(t>L){ v.x2=o.x1+ux*t; v.y2=o.y1+uy*t; }
     }
   }
+  // A wall slid sideways lands with a FACE flush on something real nearby — a
+  // column's edge or another wall's face running the same way — before the grid
+  // gets a say. With the grid alone a 14 cm wall could never line up with a
+  // column edge: it jumped 10 cm at a time straight past it.
+  // `target` is the wall's stored line coordinate (x for a vertical wall, y for a
+  // horizontal one); the snapped value comes back in the same terms.
+  function wallTargetSnap(w, orig, vert, target){
+    const cl=wallCenterline(orig), off=(vert?cl.x1-orig.x1:cl.y1-orig.y1), h=(w.t||20)/2;
+    const lo=vert?Math.min(cl.y1,cl.y2):Math.min(cl.x1,cl.x2), hi=vert?Math.max(cl.y1,cl.y2):Math.max(cl.x1,cl.x2);
+    const near=(a,b)=> b>=lo-h-150 && a<=hi+h+150;          // only things within 1.5 m along the wall
+    const lines=[];
+    for(const c of state.columns){
+      const r=(((c.rot||0)%180)+180)%180; if(r!==0&&r!==90) continue;
+      const hx=(r===0?c.w:c.h)/2, hy=(r===0?c.h:c.w)/2;
+      if(vert){ if(near(c.y-hy,c.y+hy)) lines.push(c.x-hx,c.x+hx); }
+      else    { if(near(c.x-hx,c.x+hx)) lines.push(c.y-hy,c.y+hy); }
+    }
+    for(const o of state.walls){
+      if(o.id===w.id || wallLen(o)<1) continue;
+      const oc=wallCenterline(o), oh=o.t/2;
+      if(vert && Math.abs(oc.x1-oc.x2)<0.5 && near(Math.min(oc.y1,oc.y2),Math.max(oc.y1,oc.y2))) lines.push(oc.x1-oh,oc.x1+oh);
+      if(!vert && Math.abs(oc.y1-oc.y2)<0.5 && near(Math.min(oc.x1,oc.x2),Math.max(oc.x1,oc.x2))) lines.push(oc.y1-oh,oc.y1+oh);
+    }
+    const thr=Math.min(16/view.scale,40);
+    let best=null, bd=thr;
+    for(const L of lines) for(const e of [-h,h]){ const d=Math.abs(target+off+e-L); if(d<bd){ bd=d; best=L-e-off; } }
+    if(best!=null) return best;
+    if(ui.snap){ const g=ui.gridSize; return Math.round(target/g)*g; }
+    return target;
+  }
   function moveWallBody(w,orig,ddx,ddy){
     if(!dragging.hosts) dragging.hosts=teeHosts(orig);
     // absolute positions from the captured originals every frame, so repeated
@@ -5177,8 +5207,8 @@
       // to the wall and skews every neighbour welded to its ends.
       const wVert =Math.abs(orig.x1-orig.x2)<0.6;
       const wHoriz=Math.abs(orig.y1-orig.y2)<0.6;
-      if(wVert && !wHoriz) ddy=0;
-      else if(wHoriz && !wVert) ddx=0;
+      if(wVert && !wHoriz){ ddy=0; ddx=wallTargetSnap(w,orig,true,orig.x1+dx)-orig.x1; }
+      else if(wHoriz && !wVert){ ddx=0; ddy=wallTargetSnap(w,orig,false,orig.y1+dy)-orig.y1; }
       else if(angleLockOn()){
         // a diagonal wall under angle lock still moves on one axis at a time,
         // whichever the finger has travelled further along
@@ -5267,8 +5297,7 @@
         if(square && captureWeld(orig).some(L=>L.col) || (dragging.weld && dragging.weld.some(L=>L.col))){
           // one piece of a split wall: it moves on its own, with return walls
           const grabOff = vert ? (start[0]-orig.x1) : (start[1]-orig.y1);
-          let target = (vert?wx:wy) - grabOff;
-          if(ui.snap){ const g=ui.gridSize; target=Math.round(target/g)*g; }
+          let target = wallTargetSnap(w, orig, vert, (vert?wx:wy) - grabOff);
           const d=target-(vert?orig.x1:orig.y1);
           if(!dragging.weld){ const keep={x1:w.x1,y1:w.y1,x2:w.x2,y2:w.y2}; Object.assign(w,{x1:orig.x1,y1:orig.y1,x2:orig.x2,y2:orig.y2}); dragging.weld=captureWeld(w); Object.assign(w,keep); }
           moveWallBody(w,orig,vert?d:0,vert?0:d);
@@ -5277,8 +5306,7 @@
           const axis=vert?'x':'y';
           const cur = vert ? w.x1 : w.y1;
           const grabOff = vert ? (start[0]-orig.x1) : (start[1]-orig.y1);
-          let target = (vert?wx:wy) - grabOff;
-          if(ui.snap){ const g=ui.gridSize; target=Math.round(target/g)*g; }
+          let target = wallTargetSnap(w, orig, vert, (vert?wx:wy) - grabOff);
           const d=target-cur;
           if(Math.abs(d)>0.001){
             const lo = vert?Math.min(w.y1,w.y2):Math.min(w.x1,w.x2);
@@ -6651,7 +6679,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t9（測試版，由 b102 改）';
+  const BUILD='t10（測試版，由 b102 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
