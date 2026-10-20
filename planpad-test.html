@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t10</title>
+<title>PlanPad · 測試版 t11</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t10</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t11</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -2157,7 +2157,7 @@
     if(!lab) return false;
     // 結構 locked means locked: no wall, room, door/window, column or beam number
     // can be retyped (the lock used to stop only selecting, not the numbers)
-    if(structureLocked() && ['dim','walllen','openleft','openright','beamdist','coldist'].includes(lab.kind)){
+    if(structureLocked() && ['dim','walllen','openleft','openright','beamdist','coldist','stubgap'].includes(lab.kind)){
       dbg(`  label ${lab.kind} refused: structure locked`);
       flashHint('結構已鎖定，尺寸不能修改。要改請先到右邊「圖層」把結構解鎖'); draw(); return false;
     }
@@ -2176,6 +2176,7 @@
       if(alt){ editDimLabel(alt,px,py); return true; }
       flashHint('這個尺寸的牆體已變更，請重新點一次'); draw(); return false;
     }
+    if(lab.kind==='stubgap'){ editStubGap(lab,px,py); return true; }
     if(lab.kind==='openleft'||lab.kind==='openright'){
       const o=state.openings.find(v=>v.id===lab.oid);
       if(!o){ flashHint('找不到這個門窗'); return false; }
@@ -3214,7 +3215,7 @@
     function nodeIdx(x,y){ for(let i=0;i<nodes.length;i++){ if(Math.hypot(nodes[i].x-x,nodes[i].y-y)<EPS) return i; } nodes.push({x,y}); return nodes.length-1; }
     return list.map(cl=>{
       const i1=nodeIdx(cl.x1,cl.y1), i2=nodeIdx(cl.x2,cl.y2);
-      return {x1:nodes[i1].x,y1:nodes[i1].y,x2:nodes[i2].x,y2:nodes[i2].y};
+      return {x1:nodes[i1].x,y1:nodes[i1].y,x2:nodes[i2].x,y2:nodes[i2].y,t:cl.t};
     });
   }
   // A wall end that meets another wall is carried on by half a thickness, which
@@ -3226,6 +3227,24 @@
       if(Math.hypot(o.x1-x,o.y1-y)<2.5||Math.hypot(o.x2-x,o.y2-y)<2.5) return true;
       if(projPointToSeg(x,y,o.x1,o.y1,o.x2,o.y2).d<1.5) return true; }
     return false;
+  }
+  // How far a wall end is carried past its point so the corner is filled — and no
+  // further. At an L it reaches the OTHER wall's outer face (half the other's
+  // thickness, not its own: a 20 cm wall meeting a 14 cm one used to poke 3 cm out
+  // past it). An end landing part-way along another wall (a T) stops where it is:
+  // it already sits inside that wall, and carrying it on pushed a lump out the far side.
+  function wallEndExt(cl, x, y, all, freeExt){
+    const L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1, ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L;
+    let ext=null, tee=false;
+    for(const o of all){ if(o===cl) continue;
+      const M=Math.hypot(o.x2-o.x1,o.y2-o.y1)||1, par=Math.abs(ux*(o.y2-o.y1)/M-uy*(o.x2-o.x1)/M)<0.05;
+      if(Math.hypot(o.x1-x,o.y1-y)<2.5||Math.hypot(o.x2-x,o.y2-y)<2.5){
+        const e = par ? 0 : (o.t||cl.t||20)/2;
+        ext = ext==null ? e : Math.max(ext,e);
+      } else if(projPointToSeg(x,y,o.x1,o.y1,o.x2,o.y2).d<1.5) tee=true;
+    }
+    if(ext!=null) return ext;
+    return tee ? 0 : freeExt;
   }
   function drawWalls(forExport){
     const groups={}, all=[], skip={};
@@ -3241,8 +3260,8 @@
           const cl=norm[t][i]; if(skip[t][i]) continue;          // 拆除牆 is drawn on its own, dashed
           const L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1, ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L;
           const freeExt = edge ? 1.2/view.scale : 0;
-          const e1 = wallEndJoined(cl,cl.x1,cl.y1,allN) ? tn/2 : freeExt;
-          const e2 = wallEndJoined(cl,cl.x2,cl.y2,allN) ? tn/2 : freeExt;
+          const e1 = wallEndExt(cl,cl.x1,cl.y1,allN,freeExt);
+          const e2 = wallEndExt(cl,cl.x2,cl.y2,allN,freeExt);
           const [a,b]=toScreen(cl.x1-ux*e1,cl.y1-uy*e1),[c,d]=toScreen(cl.x2+ux*e2,cl.y2+uy*e2); ctx.moveTo(a,b); ctx.lineTo(c,d);
         }
         if(edge){ ctx.lineWidth=Math.max(1,tn*view.scale+2.4); ctx.strokeStyle=WALL_EDGE; }
@@ -3771,6 +3790,7 @@
     drawJunctions();
     drawRoomsInfo();
     drawWallLabels();
+    drawStubGaps();
     drawExteriorDims();      // the sheet always drew these; now the screen does too
     drawDims();
     drawFurniture();
@@ -4144,6 +4164,91 @@
   function hitLabel(px,py){ for(let i=hitLabels.length-1;i>=0;i--){ const l=hitLabels[i], r=l.rect; if(px>=r[0]&&px<=r[0]+r[2]&&py>=r[1]&&py<=r[1]+r[3]) return l; } return null; }
 
   // door/window: draw tappable distance-to-left-wall / distance-to-right-wall on canvas
+  // A wall standing on another one part-way along it (a stub, a partition that
+  // does not reach across) gets the two clear distances either side of it,
+  // measured along the face it stands on to the next wall — the numbers you need
+  // to set it out on site. Tap one to type it; the stub slides to suit.
+  function stubGaps(){
+    const out=[];
+    const W=state.walls.filter(w=>wallLen(w)>=1);
+    for(const s of W){
+      if(roomWallIds.has(s.id)) continue;
+      const sc=wallCenterline(s), sL=Math.hypot(sc.x2-sc.x1,sc.y2-sc.y1)||1, sux=(sc.x2-sc.x1)/sL, suy=(sc.y2-sc.y1)/sL;
+      const sVert=Math.abs(sux)<0.01, sHorz=Math.abs(suy)<0.01; if(!sVert&&!sHorz) continue;
+      for(const end of [1,2]){
+        const ex=end===1?sc.x1:sc.x2, ey=end===1?sc.y1:sc.y2;
+        const host=W.find(h=>{ if(h===s) return false; const hc=wallCenterline(h);
+          const pr=projPointToSeg(ex,ey,hc.x1,hc.y1,hc.x2,hc.y2); return pr.d<h.t/2+0.6 && pr.t>0.001 && pr.t<0.999; });
+        if(!host) continue;
+        const hc=wallCenterline(host), hL=Math.hypot(hc.x2-hc.x1,hc.y2-hc.y1)||1, hux=(hc.x2-hc.x1)/hL, huy=(hc.y2-hc.y1)/hL;
+        if(Math.abs(hux*suy-huy*sux)<0.9) continue;                  // must be square to its host
+        // the host face on the stub's side
+        const ox=end===1?sc.x2:sc.x1, oy=end===1?sc.y2:sc.y1;
+        const side=Math.sign((ox-hc.x1)*(-huy)+(oy-hc.y1)*hux)||1;
+        const fx=hc.x1-huy*side*host.t/2, fy=hc.y1+hux*side*host.t/2;   // a point on that face
+        const along=(x,y)=>(x-fx)*hux+(y-fy)*huy;
+        const sa=along(ex,ey), half=s.t/2;
+        // obstacles along the face: walls crossing it, and the host's own ends
+        let lo=along(hc.x1,hc.y1), hi=along(hc.x2,hc.y2); if(lo>hi){ const q=lo; lo=hi; hi=q; }
+        let left=lo, right=hi;
+        for(const o of W){ if(o===s||o===host) continue;
+          const oc=wallCenterline(o), oL=Math.hypot(oc.x2-oc.x1,oc.y2-oc.y1)||1, oux=(oc.x2-oc.x1)/oL, ouy=(oc.y2-oc.y1)/oL;
+          if(Math.abs(oux*huy-ouy*hux)<0.9) continue;
+          // does it reach the face line (within its own band)?
+          // signed distance from the face, positive into the stub's side
+          const d1=((oc.x1-fx)*(-huy)+(oc.y1-fy)*hux)*side, d2=((oc.x2-fx)*(-huy)+(oc.y2-fy)*hux)*side;
+          if(!(Math.max(d1,d2)>=0.6 && Math.min(d1,d2)<=1)) continue;     // must stand on this face
+          const a=along(oc.x1,oc.y1);
+          if(a<sa && a+o.t/2>left) left=a+o.t/2;
+          if(a>sa && a-o.t/2<right) right=a-o.t/2;
+        }
+        const gl=sa-half-left, gr=right-(sa+half);
+        if(gl<0.5 && gr<0.5) continue;
+        out.push({s, host, fx, fy, hux, huy, side, sa, half, left, right, gl, gr, sVert});
+      }
+    }
+    return out;
+  }
+  function drawStubGaps(){
+    if(EXPORT_MODE || !showOpt.dims || view.scale<0.12) return;
+    for(const g of stubGaps()){
+      const off=-40/view.scale;                                  // out into the room, clear of the room's own number
+      const nx=-g.huy*g.side, ny=g.hux*g.side;
+      const P=(a)=>({x:g.fx+g.hux*a+nx*(-off), y:g.fy+g.huy*a+ny*(-off)});
+      const seg=(a0,a1,dir)=>{
+        if(a1-a0<0.5) return;
+        const A=toScreen(P(a0).x,P(a0).y), B=toScreen(P(a1).x,P(a1).y);
+        ctx.save(); ctx.strokeStyle='#C2410C'; ctx.lineWidth=1; ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
+        for(const Q of [A,B]){ ctx.beginPath(); ctx.moveTo(Q[0]-3,Q[1]-3); ctx.lineTo(Q[0]+3,Q[1]+3); ctx.stroke(); }
+        ctx.restore();
+        const M=P((a0+a1)/2), [mx,my]=toScreen(M.x,M.y);
+        let ang=Math.atan2(g.huy,g.hux); if(ang>Math.PI/2||ang<-Math.PI/2) ang+=Math.PI;
+        const txt=fmtLen(a1-a0);
+        const tw=boxedLabel(txt,mx,my,ang,11);
+        const rect=labelRect(mx,my,tw,ang);
+        hitLabels.push({kind:'stubgap', rect, wid:g.s.id, dir, gap:a1-a0});
+        placedLabels.push(rect);
+      };
+      seg(g.left, g.sa-g.half, -1);
+      seg(g.sa+g.half, g.right, 1);
+    }
+  }
+  function editStubGap(lab, sx, sy){
+    const g=stubGaps().find(x=>x.s.id===lab.wid); if(!g) return;
+    const cur = lab.dir<0 ? g.gl : g.gr;
+    showNumInput(sx,sy,toDisp(cur),(v)=>{
+      const want=fromDisp(v); if(!isFinite(want)||want<0) return;
+      const d = lab.dir<0 ? (want-cur) : (cur-want);          // + = slide along the host's direction
+      const room = lab.dir<0 ? g.gr : g.gl;
+      if((lab.dir<0 && d>g.gr+0.01) || (lab.dir>0 && -d>g.gl+0.01)){ flashHint('另一邊放不下，最多只能到 '+fmtLenU(cur+room)); return; }
+      const s=g.s;
+      if(g.sVert){ withOpeningsPreserved(()=>moveWallLine('x', s.x1, d*g.hux, Math.min(s.y1,s.y2), Math.max(s.y1,s.y2))); }
+      else       { withOpeningsPreserved(()=>moveWallLine('y', s.y1, d*g.huy, Math.min(s.x1,s.x2), Math.max(s.x1,s.x2))); }
+      dbg(`  STUB GAP wall #${s.id} ${lab.dir<0?'left':'right'} ${cur.toFixed(1)} → ${want.toFixed(1)}`);
+      pushHistory(); draw();
+    }, true);
+  }
   function drawOpeningGaps(o,w){
     const L=wallLen(w); if(L<1) return;
     const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
@@ -6679,7 +6784,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t10（測試版，由 b102 改）';
+  const BUILD='t11（測試版，由 b102 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
