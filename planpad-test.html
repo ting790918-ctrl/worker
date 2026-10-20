@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t11</title>
+<title>PlanPad · 測試版 t12</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t11</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t12</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -4212,20 +4212,16 @@
   function drawStubGaps(){
     if(EXPORT_MODE || !showOpt.dims || view.scale<0.12) return;
     for(const g of stubGaps()){
-      const off=-40/view.scale;                                  // out into the room, clear of the room's own number
+      const off=-36/view.scale;                                  // one line in from the room's own number
       const nx=-g.huy*g.side, ny=g.hux*g.side;
       const P=(a)=>({x:g.fx+g.hux*a+nx*(-off), y:g.fy+g.huy*a+ny*(-off)});
+      // plain numbers, set out like the room's own side lengths — no extra lines
       const seg=(a0,a1,dir)=>{
         if(a1-a0<0.5) return;
-        const A=toScreen(P(a0).x,P(a0).y), B=toScreen(P(a1).x,P(a1).y);
-        ctx.save(); ctx.strokeStyle='#C2410C'; ctx.lineWidth=1; ctx.setLineDash([]);
-        ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
-        for(const Q of [A,B]){ ctx.beginPath(); ctx.moveTo(Q[0]-3,Q[1]-3); ctx.lineTo(Q[0]+3,Q[1]+3); ctx.stroke(); }
-        ctx.restore();
         const M=P((a0+a1)/2), [mx,my]=toScreen(M.x,M.y);
         let ang=Math.atan2(g.huy,g.hux); if(ang>Math.PI/2||ang<-Math.PI/2) ang+=Math.PI;
         const txt=fmtLen(a1-a0);
-        const tw=boxedLabel(txt,mx,my,ang,11);
+        const tw=plainLabel(txt,mx,my,ang,'#22262B',12);
         const rect=labelRect(mx,my,tw,ang);
         hitLabels.push({kind:'stubgap', rect, wid:g.s.id, dir, gap:a1-a0});
         placedLabels.push(rect);
@@ -6784,7 +6780,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t11（測試版，由 b102 改）';
+  const BUILD='t12（測試版，由 b102 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
