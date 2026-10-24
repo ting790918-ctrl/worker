@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t13</title>
+<title>PlanPad · 測試版 t15</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t13</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t15</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -4525,7 +4525,13 @@
     // pinch. Drawing with the pen and steering the sheet with the other hand is
     // the whole point of a tablet — a stray fingertip used to drop points.
     if(e.pointerType==='pen') inkPenSeen=true;
-    if(inkPenSeen && e.pointerType==='touch' && ui.tool!=='select'){ panStart={px,py,ox:view.ox,oy:view.oy}; return; }
+    if(inkPenSeen && e.pointerType==='touch' && ui.tool!=='select'){
+      panStart={px,py,ox:view.ox,oy:view.oy};
+      // a finger still TAPS in the one-tap ceiling tools (整間平釘, 間接照明, 維修孔…):
+      // it is taken on lift, only if the finger did not move and no second finger came
+      if(ui.tool==='ceil' && ['room','cove','hatch','ventS','ventR','offset'].includes(ui.ceilPick)) ui._ceilTap={px,py,wx,wy,tool:true};
+      return;
+    }
     if(ui.tool==='wall'||ui.tool==='room'||ui.tool==='part'){ chainDown(e,px,py,wx,wy); return; }
 
 
@@ -4795,7 +4801,8 @@
     if(pointers.size<2){ pinch=null; }
     if(panStart){ panStart=null;
       if(ui._ceilTap){ const t=ui._ceilTap; ui._ceilTap=null; const [ux,uy]=evtPos(e);
-        if(Math.hypot(ux-t.px,uy-t.py)<8){ const r=roomAt(t.wx,t.wy); if(r && r.rid!=null){ ui.selected={kind:'room',id:r.rid}; refreshProp(); draw(); dbg(`  CEIL select room ${r.rid}`); } } }
+        if(t.tool){ if(Math.hypot(ux-t.px,uy-t.py)<10){ dbg('  finger tap → '+ui.ceilPick); ceilTap(t.wx,t.wy,ux,uy); draw(); } }
+        else if(Math.hypot(ux-t.px,uy-t.py)<8){ const r=roomAt(t.wx,t.wy); if(r && r.rid!=null){ ui.selected={kind:'room',id:r.rid}; refreshProp(); draw(); dbg(`  CEIL select room ${r.rid}`); } } }
     }
     if(cgest && cgest.pid===e.pointerId){ const g=cgest; cgest=null; chainUp(g,e); return; }
     // Every other tool in this app is press-drag-release. Calibration was the one
@@ -4846,6 +4853,7 @@
         try{ const h=dragging.hit, o=dragging.orig||{};
           if(/^wall/.test(h.kind)){ const w=state.walls.find(v=>v.id===h.id);
             if(w) dbg(`  DROP ${h.kind} #${w.id}: (${(o.x1||0).toFixed(1)},${(o.y1||0).toFixed(1)})-(${(o.x2||0).toFixed(1)},${(o.y2||0).toFixed(1)}) → (${w.x1.toFixed(1)},${w.y1.toFixed(1)})-(${w.x2.toFixed(1)},${w.y2.toFixed(1)})`); }
+          else if(/^ceil/.test(h.kind)){ const z=ceilById(h.id); if(z) dbg(`  DROP ${h.kind}${h.which!=null?'['+h.which+']':''} zone #${z.id}: ${JSON.stringify(z.shape==='poly'?{pts:z.pts.map(p=>[Math.round(p.x),Math.round(p.y)]),rv:z.rv}:{x:z.x,y:z.y,w:z.w,h:z.h,rv:z.rv,cx:z.cx,cy:z.cy,rx:z.rx,ry:z.ry})}`); }
           else if(h.kind==='column'){ const c=state.columns.find(v=>v.id===h.id); if(c) dbg(`  DROP column #${c.id}: (${(o.x||0).toFixed(1)},${(o.y||0).toFixed(1)}) → (${c.x.toFixed(1)},${c.y.toFixed(1)}) ${c.w}x${c.h}`); }
         }catch(_){}
         pushHistory();
@@ -6829,7 +6837,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t13（測試版，由 b102 改）';
+  const BUILD='t15（測試版，由 b102 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -9470,6 +9478,19 @@
         if(horiz) ceilText(txt, cx, y0+h+fpx(9), CEIL_GREY, 9, 0, 600);
         else ceilText(txt, x0+w+fpx(9), cy, CEIL_GREY, 9, Math.PI/2, 600);
       }
+      if(!EXPORT_MODE && ui.tool==='ceil' && ui.ceilPick==='cove' && z.kind==='zone'){
+        // the edges a light trough can go on, so it is obvious where to tap
+        const V=z.shape==='ell'?null:ceilVerts(z), set=coveEdges(z);
+        ctx.save(); ctx.lineWidth=6; ctx.lineCap='round';
+        if(V) for(let i=0;i<V.length;i++){ const a=toScreen(V[i].x,V[i].y), b=toScreen(V[(i+1)%V.length].x,V[(i+1)%V.length].y);
+          ctx.strokeStyle = set&&set.has(i) ? 'rgba(176,53,127,.55)' : 'rgba(176,53,127,.18)';
+          ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+          const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2; ctx.fillStyle='#fff'; ctx.strokeStyle=CEIL_COVE; ctx.lineWidth=1.5;
+          ctx.beginPath(); ctx.arc(mx,my,8,0,Math.PI*2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle=CEIL_COVE; ctx.font='700 12px -apple-system,system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText(set&&set.has(i)?'−':'+',mx,my+0.5); ctx.lineWidth=6; }
+        ctx.restore();
+      }
       if(sel && !EXPORT_MODE){ drawCeilHandles(z); if(z.kind==='zone'||z.kind==='curtain'||z.kind==='hatch'||z.kind==='ventS'||z.kind==='ventR') drawCeilGaps(z); }
     }
     // drafts
@@ -9522,7 +9543,7 @@
     ctx.restore();
   }
   function ceilHandleHit(z,wx,wy){
-    const thr=Math.max(12,16)/view.scale;
+    const thr=24/view.scale;
     if(z.shape==='ell'){
       if(Math.hypot(wx-(z.cx+z.rx),wy-z.cy)<thr) return {kind:'ceilR', id:z.id, which:'rx'};
       if(Math.hypot(wx-z.cx,wy-(z.cy+z.ry))<thr) return {kind:'ceilR', id:z.id, which:'ry'};
@@ -9531,27 +9552,38 @@
     const V=ceilVerts(z);
     for(let i=0;i<V.length;i++) if(Math.hypot(wx-V[i].x,wy-V[i].y)<thr) return {kind:'ceilV', id:z.id, which:i};
     for(const m of ceilMidHandles(z)) if(Math.hypot(wx-m.x,wy-m.y)<thr) return {kind:'ceilB', id:z.id, which:m.i};
+    // anywhere along an edge (not only its diamond) grabs that edge too
+    if(z.kind==='zone'){ const ethr=16/view.scale; let bi=-1, bd=ethr;
+      for(let i=0;i<V.length;i++){ const a=V[i], b=V[(i+1)%V.length], pr=projPointToSeg(wx,wy,a.x,a.y,b.x,b.y); if(pr.t>0.08 && pr.t<0.92 && pr.d<bd){ bd=pr.d; bi=i; } }
+      if(bi>=0) return {kind:'ceilB', id:z.id, which:bi}; }
     return null;
   }
   const gsnap=(v)=> ui.snap ? Math.round(v/ui.gridSize)*ui.gridSize : Math.round(v);
   function ceilDrag(hit,orig,dx,dy,wx,wy){
     const z=ceilById(hit.id); if(!z) return;
     if(hit.kind==='ceil'){
+      // A ceiling zone is fixed in place: it is shaped from its edges (菱形) and
+      // corners (圓點), never slid around by grabbing its middle — that kept
+      // happening by accident while aiming for a handle.
+      if(z.kind==='zone') return;
       if(z.shape==='poly'){ const ddx=gsnap(orig.pts[0].x+dx)-orig.pts[0].x, ddy=gsnap(orig.pts[0].y+dy)-orig.pts[0].y;
         z.pts=orig.pts.map(p=>({x:p.x+ddx,y:p.y+ddy})); }
       else if(z.shape==='ell'){ z.cx=gsnap(orig.cx+dx); z.cy=gsnap(orig.cy+dy); }
       else { z.x=gsnap(orig.x+dx); z.y=gsnap(orig.y+dy); }
     } else if(hit.kind==='ceilV'){
-      if(!dragging.T) dragging.T=chainTargets();
-      const q=chainPoint(null,wx,wy,dragging.T,null), px=q.x, py=q.y, i=hit.which;
-      if(z.shape==='poly'){ z.pts=orig.pts.map((p,k)=>k===i?{x:px,y:py}:{...p}); }
-      else {
-        // a rectangle stays a rectangle: the opposite corner is the anchor
-        const V=[[orig.x,orig.y],[orig.x+orig.w,orig.y],[orig.x+orig.w,orig.y+orig.h],[orig.x,orig.y+orig.h]];
-        const o=V[(i+2)%4];
-        z.x=Math.min(o[0],px); z.y=Math.min(o[1],py);
-        z.w=Math.max(5,Math.abs(px-o[0])); z.h=Math.max(5,Math.abs(py-o[1]));
-      }
+      // the round handle sets that corner's R: drag it in toward the zone and
+      // the corner rounds off; drag it back out to the corner for a sharp one
+      // a pen tap wobbles a few pixels; that is still a tap (it opens the R keypad)
+      if(!dragging.realMove){ if(Math.hypot(dx,dy)*view.scale<8){ dragging.moved=false; return; } dragging.realMove=true; }
+      const V=ceilVerts(orig), n=V.length, i=hit.which, c=V[i], a=V[(i-1+n)%n], b=V[(i+1)%n];
+      const la=Math.hypot(a.x-c.x,a.y-c.y)||1, lb=Math.hypot(b.x-c.x,b.y-c.y)||1;
+      const ua={x:(a.x-c.x)/la,y:(a.y-c.y)/la}, ub={x:(b.x-c.x)/lb,y:(b.y-c.y)/lb};
+      const fx=wx-c.x, fy=wy-c.y;
+      let R=Math.max(0,((fx*ua.x+fy*ua.y)+(fx*ub.x+fy*ub.y))/2);
+      R=Math.min(R, Math.min(la,lb)/2);
+      R=Math.round(R/(ui.snap?5:1))*(ui.snap?5:1);
+      z.rv=(orig.rv||[]).slice(); while(z.rv.length<n) z.rv.push(orig.r||0);
+      z.rv[i]=R;
     } else if(hit.kind==='ceilR'){
       if(hit.which==='rx') z.rx=Math.max(5,gsnap(Math.abs(wx-z.cx)));
       else z.ry=Math.max(5,gsnap(Math.abs(wy-z.cy)));
@@ -9605,7 +9637,7 @@
   }
   // ---- 間接照明: tap an edge of a zone to add / remove its trough; the middle = all round ----
   function ceilCoveTap(wx,wy){
-    const thr=18/view.scale;
+    const thr=26/view.scale;
     let best=null, bd=thr;
     for(const z of state.ceil){ if(z.kind!=='zone') continue;
       if(z.shape==='ell'){ const d=Math.abs(Math.hypot((wx-z.cx)/z.rx,(wy-z.cy)/z.ry)-1)*Math.min(z.rx,z.ry); if(d<bd){ bd=d; best={z,i:-1}; } continue; }
@@ -9838,7 +9870,7 @@
       const hh=document.createElement('span'); hh.textContent=how;
       b.appendChild(nm); b.appendChild(hh);
       b.onclick=()=>{ ui.ceilPick=k; ui.cpoly=null; setTool('ceil');
-        flashHint(k==='room'?'整間平釘：點一個空間，再打平釘高度':k==='cove'?'間接照明：點造型區域的某一條邊加上（或取消）間照；點區域中間＝整圈':k==='poly'?'多邊形：一點一點點出外框，點回第一點或按「完成」。角度跟著右邊的「角度鎖定」':k==='offset'?'點一個空間或造型區域，往內縮 '+fmtLenU(+ui.ceilOff||40)+' 做出一圈':'已選「'+name+'」：'+how); };
+        flashHint(k==='room'?'整間平釘：點一個空間，再打平釘高度':k==='cove'?(state.ceil.some(z=>z.kind==='zone')?'間接照明：點造型區域邊上的「＋」加上間照，再點一次取消；點區域中間＝整圈':'間接照明要加在造型區域的邊上：先用「內縮一圈」或「矩形區域」畫出區域，再回來點它的邊'):k==='poly'?'多邊形：一點一點點出外框，點回第一點或按「完成」。角度跟著右邊的「角度鎖定」':k==='offset'?'點一個空間或造型區域，往內縮 '+fmtLenU(+ui.ceilOff||40)+' 做出一圈':'已選「'+name+'」：'+how); };
       box.appendChild(b);
     }
     const off=document.getElementById('ceilOff'); if(off && document.activeElement!==off) off.value=Math.round(toDisp(+ui.ceilOff||40));
