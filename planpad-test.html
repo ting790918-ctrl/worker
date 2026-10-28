@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t17</title>
+<title>PlanPad · 測試版 t18</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t17</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t18</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -2177,6 +2177,12 @@
       flashHint('這個尺寸的牆體已變更，請重新點一次'); draw(); return false;
     }
     if(lab.kind==='stubgap'){ editStubGap(lab,px,py); return true; }
+    if(lab.kind==='ceilzoneh'){ const z=ceilById(lab.zid); if(!z) return false; const r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
+      ui.selected={kind:'ceil',id:z.id}; refreshProp(); draw();
+      ceilHeightPad(px,py,z.ch,slab,(v)=>{ z.ch=v; dbg(`  CEIL zone #${z.id} CH → ${v}`); pushHistory(); refreshProp(); draw(); }); return true; }
+    if(lab.kind==='ceilroomh'){ const e=roomById(lab.rid), r=roomCacheById(lab.rid); if(!e||!r) return false; const slab=slabH(r);
+      ui.selected={kind:'room',id:lab.rid}; refreshProp(); draw();
+      ceilHeightPad(px,py,roomBaseCH(r),slab,(v)=>{ e.ceilCH=v; dbg(`  CEIL room ${lab.rid} 平釘 CH → ${v}`); pushHistory(); refreshProp(); syncCeilUI(); draw(); }); return true; }
     if(lab.kind==='ceildim'){ const z=ceilById(lab.zid); if(!z) return false; const b=ceilBBox(z), cur=lab.axis==='h'?b.y1-b.y0:b.x1-b.x0;
       showNumInput(px,py,toDisp(cur),(v)=>{ const x=fromDisp(v); if(isFinite(x)&&x>5){ setCeilSize(z,lab.axis,x); dbg(`  CEIL SIZE zone #${z.id} ${lab.axis} → ${x}`); pushHistory(); refreshProp(); draw(); } }); return true; }
     if(lab.kind==='ceilgap'){ const z=ceilById(lab.zid); if(!z) return false; const g=ceilGaps(z).find(v=>v.dir===lab.dir); if(!g) return false;
@@ -6843,7 +6849,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t17（測試版，由 b102 改）';
+  const BUILD='t18（測試版，由 b102 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -9358,6 +9364,26 @@
     ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=3*TS; ctx.strokeText(txt,0,0);
     ctx.fillStyle=col; ctx.fillText(txt,0,0); ctx.restore();
   }
+  // On screen a height always reads both ways — CH and how far it drops from the
+  // slab — and the number is a button: tap it to type either one.
+  const ceilHBoth=(ch,slab)=>'CH '+fmtLen(ch)+'（降 '+fmtLen(Math.max(0,slab-ch))+'）';
+  function ceilHitText(txt,x,y,col,size,weight,lab){
+    ceilText(txt,x,y,col,size,0,weight);
+    if(EXPORT_MODE) return;
+    ctx.save(); ctx.font=`${weight||700} ${fpx(size||11)}px -apple-system,system-ui,sans-serif`; const w=ctx.measureText(txt).width; ctx.restore();
+    const h=fpx(size||11)+8; hitLabels.push(Object.assign({rect:[x-w/2-4,y-h/2,w+8,h]},lab));
+  }
+  function ceilHeightPad(sx,sy,ch,slab,apply){
+    kpad.open({owner:'num', fields:[{key:'ch',label:'完成面高 CH',unit:ui.unit,live:Math.round(toDisp(ch))},{key:'drop',label:'比樓板下降',unit:ui.unit,live:Math.round(toDisp(Math.max(0,slab-ch)))}],
+      hint:'打其中一個就好（⇥ 切換），按 ✓',
+      onCommit:(o)=>{ kpad.close();
+        const c0=Math.round(toDisp(ch)), d0=Math.round(toDisp(Math.max(0,slab-ch)));
+        let v=null;
+        if(o.drop!=null && o.drop!==d0) v=slab-fromDisp(o.drop);
+        else if(o.ch!=null && o.ch!==c0) v=fromDisp(o.ch);
+        if(v!=null && isFinite(v) && v>100){ apply(Math.min(v,slab)); }
+      }, onCancel:()=>{} });
+  }
   function drawCeilFill(){
     if(!ceilFillOn()) return;
     ctx.save();
@@ -9415,7 +9441,8 @@
       const sp=ceilFreeSpot(r); if(!sp) continue;
       const slab=slabH(r), ch=roomBaseCH(r);
       const [sx,sy]=toScreen(sp.x,sp.y);
-      ceilText('平釘 '+ceilHText(ch,slab), sx, sy, CEIL_INK, 11);
+      if(EXPORT_MODE) ceilText('平釘 '+ceilHText(ch,slab), sx, sy, CEIL_INK, 11);
+      else ceilHitText('平釘 '+ceilHBoth(ch,slab), sx, sy, CEIL_INK, 11, 700, {kind:'ceilroomh', rid:r.rid});
     }
     const order=state.ceil.slice().sort((a,b)=>(b.kind==='zone')-(a.kind==='zone') || ceilArea(b)-ceilArea(a));
     for(const z of order){
@@ -9446,7 +9473,7 @@
           ctx.stroke(); ctx.restore();
         }
         const r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
-        const lines=[[ceilHText(z.ch,slab),CEIL_INK,12,700],[zoneTitle(z)+(z.r&&z.shape!=='ell'?' · R'+fmtLen(z.r):''),CEIL_GREY,10,600]];
+        const lines=[[EXPORT_MODE?ceilHText(z.ch,slab):ceilHBoth(z.ch,slab),CEIL_INK,12,700],[zoneTitle(z)+(z.r&&z.shape!=='ell'?' · R'+fmtLen(z.r):''),CEIL_GREY,10,600]];
         if(set) lines.push(['間照 '+fmtLenU(coveLen(z)),CEIL_COVE,10,700]);
         const lh=fpx(14);
         // the room's own name and 坪數 sit at its centre; step above them rather than print on top
@@ -9454,8 +9481,8 @@
         if(r && r.center && showOpt.rooms){ const rc=toScreen(r.center.x,r.center.y);
           if(Math.abs(rc[0]-cx)<fpx(95) && Math.abs(rc[1]-cy)<fpx(22)+lh*lines.length/2) ys=(rc[1]-cy)-(lh*lines.length/2+fpx(20)); }
         const y0=cy+ys-(lines.length-1)*lh/2;
-        if(wS>fpx(60) && hS>lh*lines.length) lines.forEach((l,i)=>ceilText(l[0],cx,y0+i*lh,l[1],l[2],0,l[3]));
-        else ceilText(lines[0][0],cx,cy+ys,CEIL_INK,10);
+        if(wS>fpx(60) && hS>lh*lines.length) lines.forEach((l,i)=>{ if(i===0) ceilHitText(l[0],cx,y0,l[1],l[2],l[3],{kind:'ceilzoneh',zid:z.id}); else ceilText(l[0],cx,y0+i*lh,l[1],l[2],0,l[3]); });
+        else ceilHitText(lines[0][0],cx,cy+ys,CEIL_INK,10,700,{kind:'ceilzoneh',zid:z.id});
       } else if(z.kind==='curtain'){
         const [x0,y0]=toScreen(z.x,z.y), w=z.w*view.scale, h=z.h*view.scale;
         ctx.save(); ctx.beginPath(); ctx.rect(x0,y0,w,h); ctx.fillStyle='#F3F4F6'; ctx.fill(); ctx.clip();
