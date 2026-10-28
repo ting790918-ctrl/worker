@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t16</title>
+<title>PlanPad · 測試版 t17</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t16</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t17</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -2177,6 +2177,8 @@
       flashHint('這個尺寸的牆體已變更，請重新點一次'); draw(); return false;
     }
     if(lab.kind==='stubgap'){ editStubGap(lab,px,py); return true; }
+    if(lab.kind==='ceildim'){ const z=ceilById(lab.zid); if(!z) return false; const b=ceilBBox(z), cur=lab.axis==='h'?b.y1-b.y0:b.x1-b.x0;
+      showNumInput(px,py,toDisp(cur),(v)=>{ const x=fromDisp(v); if(isFinite(x)&&x>5){ setCeilSize(z,lab.axis,x); dbg(`  CEIL SIZE zone #${z.id} ${lab.axis} → ${x}`); pushHistory(); refreshProp(); draw(); } }); return true; }
     if(lab.kind==='ceilgap'){ const z=ceilById(lab.zid); if(!z) return false; const g=ceilGaps(z).find(v=>v.dir===lab.dir); if(!g) return false;
       showNumInput(px,py,toDisp(g.gap),(v)=>{ const x=fromDisp(v); if(isFinite(x)&&x>=0){ setCeilGap(z,lab.dir,x); dbg(`  CEIL GAP zone #${z.id} ${lab.dir} → ${x}`); pushHistory(); refreshProp(); draw(); } }, true); return true; }
     if(lab.kind==='openleft'||lab.kind==='openright'){
@@ -4542,7 +4544,11 @@
     // away from its neighbours makes the room disappear immediately (no longer
     // a closed loop), and pushing it back together makes it reappear.
     if(ui.tool==='select'){
-      let epHit=structureLocked()?null:hitEndpointHandle(wx,wy);
+      // The structure lock freezes walls and beams only. It used to swallow EVERY
+      // handle — ceiling corners and edges included — so with 結構 locked nothing
+      // on the ceiling could be dragged.
+      let epHit=hitEndpointHandle(wx,wy);
+      if(epHit && structureLocked() && /^(wall|beam)/.test(epHit.kind)) epHit=null;
       if(epHit && epHit.kind==='wall' && !focusAllows('wall',epHit.id)) epHit=null;
       if(dbgOn) dbg(`  select-tool down: ui.selected=${ui.selected?ui.selected.kind+'#'+ui.selected.id:'null'} epHit=${epHit?epHit.kind+'('+epHit.which+')':'null'}`);
       if(epHit){
@@ -6837,7 +6843,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t16（測試版，由 b102 改）';
+  const BUILD='t17（測試版，由 b102 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -9716,21 +9722,38 @@
     z.pts=V.map((p,k)=>k===i?{x:pa.x,y:pa.y}:k===(i+1)%n?{x:pb.x,y:pb.y}:{x:p.x,y:p.y});
   }
   // ---- the clear distances to the walls, on the drawing, for the selected zone ----
+  // On the drawing, a selected zone shows ITS OWN size — the depth and width of
+  // the ceiling — and you tap those to type them. A distance to a wall is shown
+  // only on an axis where the zone touches neither wall (it floats, so the gap is
+  // what places it); where it sits against a wall, its size already says it all.
   function drawCeilGaps(z){
-    if(z.kind==='zone' && z.shape==='ell') {}
-    const b=ceilBBox(z), my=(b.y0+b.y1)/2, mx=(b.x0+b.x1)/2;
-    for(const g of ceilGaps(z)){
-      if(g.gap<0.5 && g.gap>-0.5){} 
+    const b=ceilBBox(z), G=ceilGaps(z), gap=(d)=>{ const g=G.find(v=>v.dir===d); return g?g.gap:null; };
+    const flush=(d)=>{ const v=gap(d); return v!=null && v<0.6; };
+    const put=(txt,wx,wy,ang,lab)=>{ const [sx,sy]=toScreen(wx,wy), tw=boxedLabel(txt,sx,sy,ang,12), rect=labelRect(sx,sy,tw,ang); hitLabels.push(Object.assign({rect},lab)); placedLabels.push(rect); };
+    if(z.kind==='zone' && z.shape==='rect' || z.kind!=='zone'){
+      const W=b.x1-b.x0, H=b.y1-b.y0;
+      if(H*view.scale>26) put(fmtLen(H), b.x0+W*0.25, (b.y0+b.y1)/2, -Math.PI/2, {kind:'ceildim', zid:z.id, axis:'h'});
+      if(W*view.scale>40) put(fmtLen(W), (b.x0+b.x1)/2, b.y1-Math.min(H*0.25, 30/view.scale), 0, {kind:'ceildim', zid:z.id, axis:'w'});
+    }
+    const floatsX=!flush('left')&&!flush('right'), floatsY=!flush('up')&&!flush('down');
+    for(const g of G){
+      if((g.dir==='left'||g.dir==='right') ? !floatsX : !floatsY) continue;
       let px,py,ang=0;
-      if(g.dir==='left'){ px=(g.face+b.x0)/2; py=my; }
-      else if(g.dir==='right'){ px=(g.face+b.x1)/2; py=my; }
-      else if(g.dir==='up'){ px=mx; py=(g.face+b.y0)/2; ang=-Math.PI/2; }
-      else { px=mx; py=(g.face+b.y1)/2; ang=-Math.PI/2; }
-      const [sx,sy]=toScreen(px,py), txt=fmtLen(g.gap);
-      const tw=boxedLabel(txt,sx,sy,ang,11), rect=labelRect(sx,sy,tw,ang);
-      hitLabels.push({kind:'ceilgap', rect, zid:z.id, dir:g.dir}); placedLabels.push(rect);
+      if(g.dir==='left'){ px=(g.face+b.x0)/2; py=(b.y0+b.y1)/2; }
+      else if(g.dir==='right'){ px=(g.face+b.x1)/2; py=(b.y0+b.y1)/2; }
+      else if(g.dir==='up'){ px=(b.x0+b.x1)/2; py=(g.face+b.y0)/2; ang=-Math.PI/2; }
+      else { px=(b.x0+b.x1)/2; py=(g.face+b.y1)/2; ang=-Math.PI/2; }
+      put(fmtLen(g.gap), px, py, ang, {kind:'ceilgap', zid:z.id, dir:g.dir});
     }
   }
+  // typing a zone's size: the side against a wall stays put, the free side moves
+  function setCeilSize(z, axis, v){
+    if(!(v>5) || !(z.shape==='rect' || z.kind!=='zone')) return;
+    const G=ceilGaps(z), flush=(d)=>{ const g=G.find(x=>x.dir===d); return g && g.gap<0.6; };
+    if(axis==='h'){ if(flush('down') && !flush('up')){ const y1=z.y+z.h; z.h=v; z.y=y1-v; } else z.h=v; }
+    else { if(flush('right') && !flush('left')){ const x1=z.x+z.w; z.w=v; z.x=x1-v; } else z.w=v; }
+  }
+
   // ---- 天花線: a line across the room; the side you tap gets the ceiling ----
   function ceilLineSide(wx,wy){
     const L=ui.clinePending; if(!L) return;
