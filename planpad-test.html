@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t15</title>
+<title>PlanPad · 測試版 t16</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -268,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t15</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t16</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -4529,7 +4529,7 @@
       panStart={px,py,ox:view.ox,oy:view.oy};
       // a finger still TAPS in the one-tap ceiling tools (整間平釘, 間接照明, 維修孔…):
       // it is taken on lift, only if the finger did not move and no second finger came
-      if(ui.tool==='ceil' && ['room','cove','hatch','ventS','ventR','offset'].includes(ui.ceilPick)) ui._ceilTap={px,py,wx,wy,tool:true};
+      if(ui.tool==='ceil' && (['room','cove','hatch','ventS','ventR','offset'].includes(ui.ceilPick) || (ui.ceilPick==='line'&&ui.clinePending))) ui._ceilTap={px,py,wx,wy,tool:true};
       return;
     }
     if(ui.tool==='wall'||ui.tool==='room'||ui.tool==='part'){ chainDown(e,px,py,wx,wy); return; }
@@ -4665,7 +4665,7 @@
     else if(ui.tool==='split'){ splitTap(wx,wy,px,py); }
     else if(ui.tool==='ceil'){
       const pk=ui.ceilPick, T=chainTargets();
-      if(pk==='rect'||pk==='ell'||pk==='curtain'){
+      if(pk==='rect'||pk==='ell'||pk==='curtain'||(pk==='line'&&!ui.clinePending)){
         const q=chainPoint(null,wx,wy,T,null), p={x:q.x,y:q.y};
         draft={kind:'cdraw',sub:pk,a:p,cur:{...p},T,pointerId:e.pointerId,pointerType:e.pointerType};
       } else if(pk==='poly'){
@@ -4743,9 +4743,9 @@
       if(l){ const [lx,ly]=toScreen(ui.cpolyHover.x,ui.cpolyHover.y); showLenBox(lx,ly,fmtLenU(Math.hypot(ui.cpolyHover.x-l.x,ui.cpolyHover.y-l.y))+(ui.cpolyHover.how?'　'+ui.cpolyHover.how:'')); }
       draw(); return; }
     if(draft && draft.kind==='cdraw'){
-      { const q=chainPoint(null,wx,wy,draft.T||chainTargets(),null); draft.cur={x:q.x,y:q.y}; }
+      { const q=chainPoint(draft.sub==='line'?draft.a:null,wx,wy,draft.T||chainTargets(),null); draft.cur={x:q.x,y:q.y}; }
       const [lx,ly]=toScreen(draft.cur.x,draft.cur.y);
-      showLenBox(lx,ly, draft.sub==='ell' ? 'R '+fmtLenU(Math.hypot(draft.cur.x-draft.a.x,draft.cur.y-draft.a.y))
+      showLenBox(lx,ly, draft.sub==='line' ? fmtLenU(Math.hypot(draft.cur.x-draft.a.x,draft.cur.y-draft.a.y)) : draft.sub==='ell' ? 'R '+fmtLenU(Math.hypot(draft.cur.x-draft.a.x,draft.cur.y-draft.a.y))
         : fmtLen(Math.abs(draft.cur.x-draft.a.x))+' × '+fmtLenU(Math.abs(draft.cur.y-draft.a.y)));
       draw(); return;
     }
@@ -6641,7 +6641,7 @@
     if(ui.rect && t!=='room'){ if(ui.rect.asking) rectCommit(); else ui.rect=null; }
     ui.tool=t; draft=null; typedNum=''; hideLenBox();
     if(t!=='circuit') ui.cdraft=null;
-    if(t!=='ceil'){ ui.ceilPick=null; ui.cpoly=null; }
+    if(t!=='ceil'){ ui.ceilPick=null; ui.cpoly=null; ui.clinePending=null; }
     if(t!=='split'){ ui.splitId=null; ui.splitPrev=null; }
     syncCircBar();
     document.querySelectorAll('.tool').forEach(el=>el.classList.toggle('active',el.dataset.tool===t));
@@ -6837,7 +6837,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t15（測試版，由 b102 改）';
+  const BUILD='t16（測試版，由 b102 改）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -9501,10 +9501,16 @@
       ctx.setLineDash([]); ui.cpoly.forEach((p,i)=>{ const s=toScreen(p.x,p.y); handle(s[0],s[1]);
         if(i===0 && ui.cpoly.length>=3){ ctx.strokeStyle='#12B76A'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(s[0],s[1],11,0,Math.PI*2); ctx.stroke(); } });
     }
+    if(ui.tool==='ceil' && ui.ceilPick==='line' && ui.clinePending){
+      const L=ui.clinePending, s1=toScreen(L.a.x,L.a.y), s2=toScreen(L.c.x,L.c.y);
+      ctx.save(); ctx.strokeStyle=CEIL_INK; ctx.lineWidth=2.5; ctx.setLineDash([8,5]);
+      ctx.beginPath(); ctx.moveTo(s1[0],s1[1]); ctx.lineTo(s2[0],s2[1]); ctx.stroke(); ctx.restore();
+    }
     if(draft && draft.kind==='cdraw'){
       const a=draft.a, c=draft.cur;
       ctx.strokeStyle=CEIL_INK; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-      if(draft.sub==='ell'){ const R=Math.hypot(c.x-a.x,c.y-a.y)*view.scale, s=toScreen(a.x,a.y); ctx.beginPath(); ctx.arc(s[0],s[1],R,0,Math.PI*2); ctx.stroke(); }
+      if(draft.sub==='line'){ const s1=toScreen(a.x,a.y), s2=toScreen(c.x,c.y); ctx.beginPath(); ctx.moveTo(s1[0],s1[1]); ctx.lineTo(s2[0],s2[1]); ctx.stroke(); }
+      else if(draft.sub==='ell'){ const R=Math.hypot(c.x-a.x,c.y-a.y)*view.scale, s=toScreen(a.x,a.y); ctx.beginPath(); ctx.arc(s[0],s[1],R,0,Math.PI*2); ctx.stroke(); }
       else { const s=toScreen(Math.min(a.x,c.x),Math.min(a.y,c.y)); ctx.strokeRect(s[0],s[1],Math.abs(c.x-a.x)*view.scale,Math.abs(c.y-a.y)*view.scale); }
       ctx.setLineDash([]);
     }
@@ -9603,6 +9609,12 @@
   function commitCeilDraft(){
     const dr=draft; draft=null; hideLenBox();
     const a=dr.a, c=dr.cur;
+    if(dr.sub==='line'){
+      if(Math.hypot(c.x-a.x,c.y-a.y)<20){ flashHint('從一面牆按住拉到另一面牆，畫出天花板的邊線'); draw(); return; }
+      ui.clinePending={a:{...a},c:{...c}};
+      dbg(`  CEIL LINE (${a.x.toFixed(1)},${a.y.toFixed(1)})-(${c.x.toFixed(1)},${c.y.toFixed(1)})`);
+      flashHint('線畫好了：點一下要做天花板的那一邊'); draw(); return;
+    }
     if(dr.sub==='ell'){
       const R=Math.round(Math.hypot(c.x-a.x,c.y-a.y)); if(R<8){ draw(); return; }
       addCeil({kind:'zone',shape:'ell',cx:a.x,cy:a.y,rx:R,ry:R,ch:newZoneCH(a)});
@@ -9719,8 +9731,33 @@
       hitLabels.push({kind:'ceilgap', rect, zid:z.id, dir:g.dir}); placedLabels.push(rect);
     }
   }
+  // ---- 天花線: a line across the room; the side you tap gets the ceiling ----
+  function ceilLineSide(wx,wy){
+    const L=ui.clinePending; if(!L) return;
+    const r=roomAt(wx,wy); if(!r){ flashHint('請點在空間裡面，線的其中一邊'); return; }
+    const ux=L.c.x-L.a.x, uy=L.c.y-L.a.y, side=Math.sign(ux*(wy-L.a.y)-uy*(wx-L.a.x))||1;
+    const f=(p)=>side*(ux*(p.y-L.a.y)-uy*(p.x-L.a.x));
+    const V=r.V, out=[];
+    for(let i=0;i<V.length;i++){
+      const P=V[i], Q=V[(i+1)%V.length], fp=f(P), fq=f(Q);
+      if(fp>=-0.01) out.push({x:P.x,y:P.y});
+      if((fp>0.01&&fq<-0.01)||(fp<-0.01&&fq>0.01)){ const t=fp/(fp-fq); out.push({x:P.x+(Q.x-P.x)*t, y:P.y+(Q.y-P.y)*t}); }
+    }
+    const Q=out.filter((p,i)=>{ const n=out[(i+1)%out.length]; return Math.hypot(p.x-n.x,p.y-n.y)>0.5; });
+    if(Q.length<3 || Math.abs(polyArea(Q))<100){ flashHint('這條線沒有切到這個空間，請重畫'); ui.clinePending=null; draw(); return; }
+    ui.clinePending=null;
+    const ch = roomHasCeil(r) ? Math.max(100, roomBaseCH(r)-10) : slabH(r)-20;
+    const box=Q.length===4 && Q.every((p,i)=>{ const q=Q[(i+1)%4]; return Math.abs(p.x-q.x)<0.5||Math.abs(p.y-q.y)<0.5; });
+    let z;
+    if(box){ const xs=Q.map(p=>p.x), ys=Q.map(p=>p.y);
+      z=addCeil({kind:'zone',shape:'rect',x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys),r:0,ch}); }
+    else z=addCeil({kind:'zone',shape:'poly',pts:Q,r:0,ch});
+    dbg(`  CEIL LINE side → zone #${z.id} ${Q.length} corners CH ${ch}`);
+    flashHint('這一邊做天花板 CH '+fmtLenU(ch)+'：右邊可改高度；線那一邊要間照就用「間接照明」點它');
+  }
   function ceilTap(wx,wy,sx,sy){
     const pk=ui.ceilPick;
+    if(pk==='line'){ if(ui.clinePending) ceilLineSide(wx,wy); else flashHint('從一面牆按住拉到另一面牆，畫出天花板的邊線'); return; }
     if(pk==='room'){ const s2=toScreen(wx,wy); ceilRoomTap(wx,wy,sx!=null?sx:s2[0],sy!=null?sy:s2[1]); return; }
     if(pk==='cove'){ ceilCoveTap(wx,wy); return; }
     if(pk==='hatch'){ const s=60; addCeil({kind:'hatch',x:gsnap(wx-s/2),y:gsnap(wy-s/2),w:s,h:s}); return; }
@@ -9857,7 +9894,7 @@
     return out;
   }
   // ---- panel ----
-  const CEIL_TOOLS=[['room','整間平釘','點一下空間'],['cove','間接照明','點區域的邊'],['rect','矩形區域','拖曳畫出'],['poly','多邊形區域','逐點點出'],['ell','圓形區域','從圓心拖出'],
+  const CEIL_TOOLS=[['room','整間平釘','點一下空間'],['line','天花線','畫線切出一邊'],['cove','間接照明','點區域的邊'],['rect','矩形區域','拖曳畫出'],['poly','多邊形區域','逐點點出'],['ell','圓形區域','從圓心拖出'],
     ['offset','內縮一圈','點空間或區域'],['curtain','窗簾盒','拖曳畫出'],['hatch','維修孔','點一下放置'],
     ['ventS','出風口','點一下放置'],['ventR','回風口','點一下放置']];
   function syncCeilUI(){
@@ -9870,7 +9907,8 @@
       const hh=document.createElement('span'); hh.textContent=how;
       b.appendChild(nm); b.appendChild(hh);
       b.onclick=()=>{ ui.ceilPick=k; ui.cpoly=null; setTool('ceil');
-        flashHint(k==='room'?'整間平釘：點一個空間，再打平釘高度':k==='cove'?(state.ceil.some(z=>z.kind==='zone')?'間接照明：點造型區域邊上的「＋」加上間照，再點一次取消；點區域中間＝整圈':'間接照明要加在造型區域的邊上：先用「內縮一圈」或「矩形區域」畫出區域，再回來點它的邊'):k==='poly'?'多邊形：一點一點點出外框，點回第一點或按「完成」。角度跟著右邊的「角度鎖定」':k==='offset'?'點一個空間或造型區域，往內縮 '+fmtLenU(+ui.ceilOff||40)+' 做出一圈':'已選「'+name+'」：'+how); };
+        if(k!=='line') ui.clinePending=null;
+        flashHint(k==='line'?'天花線：從一面牆拉一條線到另一面牆，再點一下要做天花板的那一邊':k==='room'?'整間平釘：點一個空間，再打平釘高度':k==='cove'?(state.ceil.some(z=>z.kind==='zone')?'間接照明：點造型區域邊上的「＋」加上間照，再點一次取消；點區域中間＝整圈':'間接照明要加在造型區域的邊上：先用「內縮一圈」或「矩形區域」畫出區域，再回來點它的邊'):k==='poly'?'多邊形：一點一點點出外框，點回第一點或按「完成」。角度跟著右邊的「角度鎖定」':k==='offset'?'點一個空間或造型區域，往內縮 '+fmtLenU(+ui.ceilOff||40)+' 做出一圈':'已選「'+name+'」：'+how); };
       box.appendChild(b);
     }
     const off=document.getElementById('ceilOff'); if(off && document.activeElement!==off) off.value=Math.round(toDisp(+ui.ceilOff||40));
