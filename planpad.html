@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b100</title>
+<title>PlanPad · 平面圖工具 b103</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -93,6 +93,7 @@
         box-shadow:0 8px 28px rgba(0,0,0,.20); z-index:20; touch-action:manipulation; user-select:none;
         width:288px;}
   #kpad.show{display:block;}
+  #kpad.side{position:fixed; left:auto; right:8px; bottom:8px; transform:none; z-index:30;}
   #kpad .kf{display:flex; gap:6px; margin-bottom:8px;}
   #kpad .kfield{flex:1; border:1.5px solid var(--line-strong); border-radius:8px; padding:4px 6px; cursor:pointer; background:#FBFBFC; min-width:0;}
   #kpad .kfield.on{border-color:var(--accent); background:var(--accent-soft);}
@@ -267,7 +268,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b100</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b103</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -309,6 +310,8 @@
       <div class="tool active" data-tool="select" title="選取／移動 (V)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3l7 17 2.5-7L20 10.5 4 3z"/></svg><span class="lbl">選取</span></div>
       <div class="rail-sep"></div>
       <div class="tool" data-tool="wall" title="畫牆 (W)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="9" width="18" height="6"/><path d="M8 9v6M14 9v6"/></svg><span class="lbl">牆</span></div>
+      <div class="tool" data-tool="part" title="畫隔間"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="9" width="18" height="6"/><path d="M6 15l5-6M11 15l5-6M16 15l4-5"/></svg><span class="lbl">隔間</span></div>
+      <div class="tool" data-tool="room" title="畫房間"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="14" stroke-width="3.2"/></svg><span class="lbl">房間</span></div>
       <div class="tool" data-tool="door" title="門 (D)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 20V5a1 1 0 0 1 1-1h8v16"/><path d="M14 20a9 9 0 0 0-9-9" stroke-dasharray="2 2"/></svg><span class="lbl">門</span></div>
       <div class="tool" data-tool="window" title="窗 (N)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="18" height="4"/><path d="M12 10v4"/></svg><span class="lbl">窗</span></div>
       <div class="rail-sep"></div>
@@ -382,8 +385,8 @@
         <div class="row"><label>角度鎖定</label>
           <div class="seg" id="angleModeSeg">
             <button data-v="free">自由</button>
-            <button data-v="45" class="on">45°</button>
-            <button data-v="ortho">正交</button>
+            <button data-v="45">45°</button>
+            <button data-v="ortho" class="on">正交</button>
           </div>
         </div>
       </div>
@@ -396,8 +399,25 @@
           <div class="seg" id="areaSeg"><button data-a="ping" class="on">坪</button><button data-a="m2">m²</button><button data-a="both">兩者</button></div>
         </div>
       </div>
-      <div class="psec" data-tool="wall">
+      <div class="psec" data-tool="part">
+        <div class="ptitle">畫隔間設定</div>
+        <div class="row"><label>種類</label></div>
+        <div class="chips" id="partKindChips"></div>
+        <div class="row"><label>厚度</label>
+          <div class="field"><input type="number" id="partThick" min="1" step="1"><span class="unit" id="partThickUnit">cm</span></div>
+        </div>
+        <div class="row"><label>定位線</label>
+          <div class="seg alignSeg"><button data-v="in" class="on">內線</button><button data-v="mid">中線</button><button data-v="out">外線</button></div>
+        </div>
+        <div class="row alignNote" style="display:block;font-size:12px;line-height:1.55;color:var(--muted)"></div>
+        <div class="row" style="display:block;font-size:12px;line-height:1.55;color:var(--muted)">畫法跟畫牆一樣。已經畫好的牆，也可以點選後在屬性欄改成隔間或拆除牆。</div>
+      </div>
+      <div class="psec" data-tool="wall room">
         <div class="ptitle">畫牆設定</div>
+        <div class="row"><label>定位線</label>
+          <div class="seg alignSeg"><button data-v="in" class="on">內線</button><button data-v="mid">中線</button><button data-v="out">外線</button></div>
+        </div>
+        <div class="row alignNote" style="display:block;font-size:12px;line-height:1.55;color:var(--muted)"></div>
         <div class="row"><label>牆厚</label>
           <div class="chips" id="thickChips"></div>
         </div>
@@ -472,7 +492,7 @@
         <div class="row"><label>高度標示</label><div class="seg" id="ceilLabSeg"><button data-v="ch">CH</button><button data-v="drop">下降</button><button data-v="both">兩者</button></div></div>
         <div class="ptitle" style="margin-top:16px">各空間平釘完成面高</div>
         <div id="ceilRooms"></div>
-        <div class="lay-note">預設是樓高減 20。填成跟樓高一樣，就代表這個空間不做天花。</div>
+        <div class="lay-note">空白＝這間不做天花。用上面的「整間平釘」點一下空間，或直接在這裡打高度。</div>
         <div class="ptitle" style="margin-top:16px">數量</div>
         <div id="ceilQty"></div>
       </div>
@@ -637,8 +657,8 @@
   const view = { scale: 0.7, ox: 0, oy: 0 };  // scale = px per cm
   const ui = {
     tool: 'select',
-    grid: true, snap: true, angleMode: '45', gridSize: 10,
-    thick: 20, unit: 'mm', wallAlign: 'mid',   // wallAlign: 'in'|'mid'|'out'
+    grid: true, snap: true, angleMode: 'ortho', gridSize: 10,
+    thick: 20, unit: 'mm', wallAlign: 'in',   // wallAlign: 'in'|'mid'|'out'
     areaUnit: 'ping',                          // 'ping'|'m2'|'both' — 坪 is what a
                                                // Taiwanese client actually reads
 
@@ -672,7 +692,9 @@
     ceil:'天花板：照右邊選的工具，在畫面上拖曳或點一下',
     split:'拆分：在這道牆上點一下要切開的位置',
     select:'選取工具：灰色圓點＝牆已接合，紅色空心圈＝該端沒接到東西（不會形成空間）。點牆體選取後，圓形握把＝拉伸端點，方形握把＝整面牆平行推移',
-    wall:'畫牆：按住拖曳＝畫線。只要牆體看起來有貼在一起（牆身有重疊），放開後就會自動接合並形成空間；輕點數字不拖曳＝改尺寸，會出現移動方向箭頭',
+    wall:'畫牆：點起點，再沿著牆一個轉角一個轉角點下去（順時針），每段可直接打長度。點回起點＝圍成空間；再點一次最後一點＝結束；畫錯按上面「復原」退一個轉角',
+    room:'畫房間：按住拖出矩形，再打寬和深，按 ✓ 建立',
+    part:'畫隔間：先在右邊選種類（輕隔間／磚牆／木作／玻璃），畫法跟畫牆一樣',
     door:'放門：點在牆上放置。右側「畫門設定」可先選門／推拉門／門洞，放好後也能隨時改',
     window:'放窗：點在牆上放置。右側「畫窗設定」可先選窗／落地窗／外凸窗，落地窗離地固定為 0',
     shaft:'放管道間：點一下放置。選取後可改長寬與旋轉，也能點四邊的離牆距離直接輸入',
@@ -766,6 +788,14 @@
     const fieldsEl=document.getElementById('kpadFields');
     const hintNode=document.getElementById('kpadHint');
     let cfg=null, act=0;
+    // ✓ and ✕ close the pad on the finger going DOWN. iPad then delivers the tap's
+    // click to whatever is now under the finger — the pad sits over the settings
+    // column, so lifting off ✓ quietly pressed 外線 underneath it. That ghost
+    // click is thrown away.
+    let swallowUntil=0;
+    document.addEventListener('click',e=>{
+      if(performance.now()<swallowUntil && !el.contains(e.target)){ e.preventDefault(); e.stopPropagation(); swallowUntil=0; dbg('  (ghost click after keypad swallowed: '+(e.target.id||e.target.textContent||e.target.tagName).toString().slice(0,12)+')'); }
+    }, true);
 
     function shown(f){ return f.typed ? f.val : (f.live==null?'':String(f.live)); }
     function render(){
@@ -788,8 +818,8 @@
     function press(k){
       if(!cfg) return;
       const f=cfg.fields[act];
-      if(k==='esc'){ const c=cfg.onCancel; close(); if(c) c(); return; }
-      if(k==='ok'){ const c=cfg.onCommit, v=vals(); if(c) c(v); return; }
+      if(k==='esc'){ swallowUntil=performance.now()+700; const c=cfg.onCancel; close(); if(c) c(); return; }
+      if(k==='ok'){ swallowUntil=performance.now()+700; const c=cfg.onCommit, v=vals(); if(c) c(v); return; }
       if(k==='tab'){ act=(act+1)%cfg.fields.length; render(); return; }
       if(k==='neg'){
         if(!f.typed){ f.typed=true; f.val=String(f.live||''); }
@@ -826,7 +856,7 @@
         onInput:o.onInput||null, onCommit:o.onCommit||null, onCancel:o.onCancel||null,
         owner:o.owner||null
       };
-      act=0;
+      act=0; el.classList.toggle('side', !!o.side);
       hintNode.textContent=o.hint||'';
       render(); el.classList.add('show');
     }
@@ -1178,13 +1208,14 @@
     state.ceilingH=o.ceilingH||280;
     state._seq=o._seq||1000;
     ui.selected=null; draft=null; inkDraft=null; eraser=null; typedNum=''; hideLenBox();
+    ui.chain=null; ui.rect=null; cgest=null;
     kpad.close();
     if(ui.focusRoom && !state.rooms.some(r=>r.id===ui.focusRoom)) ui.focusRoom=null;
     recomputeRooms(); syncFocusBar(); refreshProp(); draw();
   }
-  function undo(){ if(hi>0){ hi--; restore(history[hi]); updateUndo(); } }
-  function redo(){ if(hi<history.length-1){ hi++; restore(history[hi]); updateUndo(); } }
-  function updateUndo(){ document.getElementById('undo').style.opacity=hi>0?1:.4; document.getElementById('redo').style.opacity=hi<history.length-1?1:.4; }
+  function undo(){ if(ui.chain){ chainBack(); return; } if(ui.rect){ ui.rect=null; kpad.closeIf('rect'); draw(); return; } if(hi>0){ hi--; restore(history[hi]); updateUndo(); } }
+  function redo(){ if(ui.chain||ui.rect) return; if(hi<history.length-1){ hi++; restore(history[hi]); updateUndo(); } }
+  function updateUndo(){ document.getElementById('undo').style.opacity=(hi>0||ui.chain||ui.rect)?1:.4; document.getElementById('redo').style.opacity=hi<history.length-1?1:.4; }
 
   // ================= Coord transforms =================
   function toScreen(x,y){ return [x*view.scale+view.ox, y*view.scale+view.oy]; }
@@ -1582,19 +1613,25 @@
       const p=perp(w);
       const a=onSpan(w.x1,w.y1) || (p && inJoint(w.x1,w.y1));
       const b=onSpan(w.x2,w.y2) || (p && inJoint(w.x2,w.y2));
-      if(a||b) drag.push({w,a,b});
+      if(a||b) drag.push({w,a,b, ka:a?endKeep(w,1,moved):null, kb:b?endKeep(w,2,moved):null});
     }
     // Dragging one end changes that wall's length — so if any of them is locked,
     // the whole move is refused instead of half-applied. (The line itself only
     // translates, so a locked wall travelling sideways is fine.)
     for(const d of drag){ if(isLocked(d.w)){ lockBlocked=d.w; return false; } }
+    const hostsOf=movers.map(w=>teeHosts(w).filter(h=>!moved.has(h.id)));
     for(const w of movers){
       if(axis==='x'){ w.x1+=delta; w.x2+=delta; } else { w.y1+=delta; w.y2+=delta; }
     }
     for(const d of drag){
-      if(axis==='x'){ if(d.a) d.w.x1+=delta; if(d.b) d.w.x2+=delta; }
-      else          { if(d.a) d.w.y1+=delta; if(d.b) d.w.y2+=delta; }
+      // an end follows the line — but is not pulled back past a wall resting on it
+      const lim=(k)=>{ if(!k || !isFinite(k.keep)) return delta; const u=axis==='x'?k.ux:k.uy, sh=delta*u; return sh>k.keep ? delta-(sh-k.keep)*u : delta; };
+      if(axis==='x'){ if(d.a) d.w.x1+=lim(d.ka); if(d.b) d.w.x2+=lim(d.kb); }
+      else          { if(d.a) d.w.y1+=lim(d.ka); if(d.b) d.w.y2+=lim(d.kb); }
     }
+    // a wall on the moving line that rests on a neighbour part-way along: the
+    // neighbour grows if the line has moved past its end
+    movers.forEach((w,k)=>{ for(const h of hostsOf[k]){ const v=state.walls.find(x=>x.id===h.id); if(v) h.o={x1:v.x1,y1:v.y1,x2:v.x2,y2:v.y2}; } stretchHosts(hostsOf[k],w); });
     return moved.size>0;
   }
 
@@ -1722,8 +1759,13 @@
         // the bottom 2745, so the wall on that side is NOT one straight line. Pulling
         // them into line made the drawing tidier and both measurements wrong.
         if(pinned(a) && pinned(b)) return true;
-        const [a1,a2]=sideSpan(a), [b1,b2]=sideSpan(b);
-        return Math.min(a2,b2)-Math.max(a1,b1) > 1; // genuinely alongside each other
+        // And beyond that: two walls running the same way, more than a wobble
+        // apart, are simply never pulled onto one line any more. Whether they sit
+        // side by side or end to end, a step of a few centimetres between them is
+        // far more often something that was drawn on purpose than a slip — and
+        // "tidying" it moved walls nobody had touched. Corners still weld; walls
+        // that are meant to be in line are drawn in line by the snap.
+        return true;
       };
       const items=[];
       for(const w of axisW){
@@ -2089,19 +2131,19 @@
   function editWallLenLabel(w, sx, sy){
     const horiz=Math.abs(w.y1-w.y2)<1, vert=Math.abs(w.x1-w.x2)<1;
     if(!horiz && !vert){
-      showNumInput(sx,sy,toDisp(wallLen(w)),(v)=>{ const nl=fromDisp(v); if(nl>0){ withOpeningsPreserved(()=>setWallLength(w,nl)); pushHistory(); draw(); } });
+      showNumInput(sx,sy,toDisp(wallShownLen(w)),(v)=>{ const nl=fromDisp(v); if(nl>0){ withOpeningsPreserved(()=>setWallLength(w,shownToCentre(w,nl))); pushHistory(); draw(); } });
       return;
     }
-    showDimEditor(sx, sy, toDisp(wallLen(w)), (v,mode)=>{
+    showDimEditor(sx, sy, toDisp(wallShownLen(w)), (v,mode)=>{
       const nl=fromDisp(v); if(!(nl>0)) return;
       lockBlocked=null;
-      const ok=setWallLengthDirectional(w,nl,mode);
+      const ok=setWallLengthDirectional(w,shownToCentre(w,nl),mode);
       if(!ok && lockBlocked){ flashHint('這道牆的長度已鎖定，先按「已鎖」解開再改'); draw(); return; }
       // a number you took the trouble to type is a measurement — hold on to it
       lockWall(w,true);
       // ...and it is the CLEAR size of the room this wall will bound, not the wall's
       // own end-to-end length. Remembered here, honoured when the room closes.
-      w.clear=nl;
+      if(!w.ref || w.refIn) w.clear=nl;
       pushHistory(); draw();
     }, horiz?'h':'v', [w.id]);
   }
@@ -2112,6 +2154,12 @@
   // instead of ignoring you.
   function openLabelEditor(lab,px,py){
     if(!lab) return false;
+    // 結構 locked means locked: no wall, room, door/window, column or beam number
+    // can be retyped (the lock used to stop only selecting, not the numbers)
+    if(structureLocked() && ['dim','walllen','openleft','openright','beamdist','coldist','stubgap'].includes(lab.kind)){
+      dbg(`  label ${lab.kind} refused: structure locked`);
+      flashHint('結構已鎖定，尺寸不能修改。要改請先到右邊「圖層」把結構解鎖'); draw(); return false;
+    }
     if(lab.kind==='dim'){ editDimLabel(lab,px,py); return true; }
     if(lab.kind==='name'){
       if(lab.room && lab.room.rid){ ui.selected={kind:'room', id:lab.room.rid}; refreshProp(); }
@@ -2127,6 +2175,21 @@
       if(alt){ editDimLabel(alt,px,py); return true; }
       flashHint('這個尺寸的牆體已變更，請重新點一次'); draw(); return false;
     }
+    if(lab.kind==='stubgap'){ editStubGap(lab,px,py); return true; }
+    if(lab.kind==='ceilzoneh'){ const z=ceilById(lab.zid); if(!z) return false; const r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
+      // The height sits in the middle of the zone — exactly where you tap to pick
+      // the zone. So the first tap only selects it; tapping the height AGAIN edits it.
+      if(ui.ceilHArmed!==z.id){ ui.ceilHArmed=z.id; ui.selected={kind:'ceil',id:z.id}; refreshProp(); draw(); flashHint('要改高度，再點一下高度數字'); return true; }
+      ui.selected={kind:'ceil',id:z.id}; refreshProp(); draw();
+      ceilHeightPad(px,py,z.ch,slab,(v)=>{ z.ch=v; dbg(`  CEIL zone #${z.id} CH → ${v}`); pushHistory(); refreshProp(); draw(); }); return true; }
+    if(lab.kind==='ceilroomh'){ const e=roomById(lab.rid), r=roomCacheById(lab.rid); if(!e||!r) return false; const slab=slabH(r);
+      if(ui.ceilHArmed!=='r'+lab.rid){ ui.ceilHArmed='r'+lab.rid; ui.selected={kind:'room',id:lab.rid}; refreshProp(); draw(); flashHint('要改平釘高度，再點一下高度數字'); return true; }
+      ui.selected={kind:'room',id:lab.rid}; refreshProp(); draw();
+      ceilHeightPad(px,py,roomBaseCH(r),slab,(v)=>{ e.ceilCH=v; dbg(`  CEIL room ${lab.rid} 平釘 CH → ${v}`); pushHistory(); refreshProp(); syncCeilUI(); draw(); }); return true; }
+    if(lab.kind==='ceildim'){ const z=ceilById(lab.zid); if(!z) return false; const b=ceilBBox(z), cur=lab.axis==='h'?b.y1-b.y0:b.x1-b.x0;
+      showNumInput(px,py,toDisp(cur),(v)=>{ const x=fromDisp(v); if(isFinite(x)&&x>5){ setCeilSize(z,lab.axis,x); dbg(`  CEIL SIZE zone #${z.id} ${lab.axis} → ${x}`); pushHistory(); refreshProp(); draw(); } }); return true; }
+    if(lab.kind==='ceilgap'){ const z=ceilById(lab.zid); if(!z) return false; const g=ceilGaps(z).find(v=>v.dir===lab.dir); if(!g) return false;
+      showNumInput(px,py,toDisp(g.gap),(v)=>{ const x=fromDisp(v); if(isFinite(x)&&x>=0){ setCeilGap(z,lab.dir,x); dbg(`  CEIL GAP zone #${z.id} ${lab.dir} → ${x}`); pushHistory(); refreshProp(); draw(); } }, true); return true; }
     if(lab.kind==='openleft'||lab.kind==='openright'){
       const o=state.openings.find(v=>v.id===lab.oid);
       if(!o){ flashHint('找不到這個門窗'); return false; }
@@ -3165,27 +3228,62 @@
     function nodeIdx(x,y){ for(let i=0;i<nodes.length;i++){ if(Math.hypot(nodes[i].x-x,nodes[i].y-y)<EPS) return i; } nodes.push({x,y}); return nodes.length-1; }
     return list.map(cl=>{
       const i1=nodeIdx(cl.x1,cl.y1), i2=nodeIdx(cl.x2,cl.y2);
-      return {x1:nodes[i1].x,y1:nodes[i1].y,x2:nodes[i2].x,y2:nodes[i2].y};
+      return {x1:nodes[i1].x,y1:nodes[i1].y,x2:nodes[i2].x,y2:nodes[i2].y,t:cl.t};
     });
   }
+  // A wall end that meets another wall is carried on by half a thickness, which
+  // fills the corner square. An end that meets NOTHING stops exactly where it was
+  // drawn — it used to get the same half-thickness cap, so the corner you could
+  // see sat 10 cm past the real end and tapping it attached to nothing.
+  function wallEndJoined(cl, x, y, all){
+    for(const o of all){ if(o===cl) continue;
+      if(Math.hypot(o.x1-x,o.y1-y)<2.5||Math.hypot(o.x2-x,o.y2-y)<2.5) return true;
+      if(projPointToSeg(x,y,o.x1,o.y1,o.x2,o.y2).d<1.5) return true; }
+    return false;
+  }
+  // How far a wall end is carried past its point so the corner is filled — and no
+  // further. At an L it reaches the OTHER wall's outer face (half the other's
+  // thickness, not its own: a 20 cm wall meeting a 14 cm one used to poke 3 cm out
+  // past it). An end landing part-way along another wall (a T) stops where it is:
+  // it already sits inside that wall, and carrying it on pushed a lump out the far side.
+  function wallEndExt(cl, x, y, all, freeExt){
+    const L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1, ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L;
+    let ext=null, tee=false;
+    for(const o of all){ if(o===cl) continue;
+      const M=Math.hypot(o.x2-o.x1,o.y2-o.y1)||1, par=Math.abs(ux*(o.y2-o.y1)/M-uy*(o.x2-o.x1)/M)<0.05;
+      if(Math.hypot(o.x1-x,o.y1-y)<2.5||Math.hypot(o.x2-x,o.y2-y)<2.5){
+        const e = par ? 0 : (o.t||cl.t||20)/2;
+        ext = ext==null ? e : Math.max(ext,e);
+      } else if(projPointToSeg(x,y,o.x1,o.y1,o.x2,o.y2).d<1.5) tee=true;
+    }
+    if(ext!=null) return ext;
+    return tee ? 0 : freeExt;
+  }
   function drawWalls(forExport){
-    const groups={};
-    for(const w of state.walls){ if(wallLen(w)<1) continue; (groups[w.t]=groups[w.t]||[]).push(wallCenterline(w)); }
-    ctx.lineCap='square'; ctx.lineJoin='miter'; ctx.miterLimit=6;
-    for(const t in groups){
-      const tn=parseFloat(t);
-      const cls=normalizedCenterlines(groups[t]);
-      ctx.beginPath();
-      for(const cl of cls){ const [a,b]=toScreen(cl.x1,cl.y1),[c,d]=toScreen(cl.x2,cl.y2); ctx.moveTo(a,b); ctx.lineTo(c,d); }
-      ctx.lineWidth=Math.max(1,tn*view.scale+2.4); ctx.strokeStyle=WALL_EDGE; ctx.stroke();
-    }
-    for(const t in groups){
-      const tn=parseFloat(t);
-      const cls=normalizedCenterlines(groups[t]);
-      ctx.beginPath();
-      for(const cl of cls){ const [a,b]=toScreen(cl.x1,cl.y1),[c,d]=toScreen(cl.x2,cl.y2); ctx.moveTo(a,b); ctx.lineTo(c,d); }
-      ctx.lineWidth=Math.max(1,tn*view.scale); ctx.strokeStyle=WALL_FILL; ctx.stroke();
-    }
+    const groups={}, all=[], skip={};
+    for(const w of state.walls){ if(wallLen(w)<1) continue; const c=wallCenterline(w); all.push(c); (groups[w.t]=groups[w.t]||[]).push(c); (skip[w.t]=skip[w.t]||[]).push(w.kind==='demo'); }
+    const norm={}; for(const t in groups) norm[t]=normalizedCenterlines(groups[t]);
+    const allN=[].concat(...Object.values(norm));
+    ctx.lineCap='butt'; ctx.lineJoin='miter'; ctx.miterLimit=6;
+    const pass=(edge)=>{
+      for(const t in norm){
+        const tn=parseFloat(t);
+        ctx.beginPath();
+        for(let i=0;i<norm[t].length;i++){
+          const cl=norm[t][i]; if(skip[t][i]) continue;          // 拆除牆 is drawn on its own, dashed
+          const L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1, ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L;
+          const freeExt = edge ? 1.2/view.scale : 0;
+          const e1 = wallEndExt(cl,cl.x1,cl.y1,allN,freeExt);
+          const e2 = wallEndExt(cl,cl.x2,cl.y2,allN,freeExt);
+          const [a,b]=toScreen(cl.x1-ux*e1,cl.y1-uy*e1),[c,d]=toScreen(cl.x2+ux*e2,cl.y2+uy*e2); ctx.moveTo(a,b); ctx.lineTo(c,d);
+        }
+        if(edge){ ctx.lineWidth=Math.max(1,tn*view.scale+2.4); ctx.strokeStyle=WALL_EDGE; }
+        else { ctx.lineWidth=Math.max(1,tn*view.scale); ctx.strokeStyle=WALL_FILL; }
+        ctx.stroke();
+      }
+    };
+    pass(true); pass(false);
+    drawWallKinds();
     // openings
     for(const o of state.openings){ const w=state.walls.find(v=>v.id===o.wallId); if(!w) continue; drawOpening(o,w,forExport); }
   }
@@ -3371,7 +3469,10 @@
     const {kind,id}=ui.selected;
     if(kind==='room') return;      // the focus veil already shows which space it is
     ctx.strokeStyle='#275C7A'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-    if(kind==='wall'){ const w=state.walls.find(v=>v.id===id); if(w){ const c=wallCorners(w); const cl=toScreen((c.L1.x+c.R1.x)/2,(c.L1.y+c.R1.y)/2), cl2=toScreen((c.L2.x+c.R2.x)/2,(c.L2.y+c.R2.y)/2); ctx.beginPath(); ctx.moveTo(cl[0],cl[1]); ctx.lineTo(cl2[0],cl2[1]); ctx.stroke(); ctx.setLineDash([]);
+    if(kind==='wall'){ const w=state.walls.find(v=>v.id===id); if(w){ const c=wallCorners(w); const ro=wallRefOff(w); let cl=toScreen((c.L1.x+c.R1.x)/2+ro.x,(c.L1.y+c.R1.y)/2+ro.y), cl2=toScreen((c.L2.x+c.R2.x)/2+ro.x,(c.L2.y+c.R2.y)/2+ro.y);
+      if(w.ref){ const f=wallFace(w), a=toScreen(f.p1.x,f.p1.y), b=toScreen(f.p2.x,f.p2.y); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
+      else { ctx.beginPath(); ctx.moveTo(cl[0],cl[1]); ctx.lineTo(cl2[0],cl2[1]); ctx.stroke(); }
+      ctx.setLineDash([]);
       const sh=wallSideHandles(w); if(sh){ const a=toScreen(sh.a.x,sh.a.y), b=toScreen(sh.b.x,sh.b.y); sqHandle(a[0],a[1]); sqHandle(b[0],b[1]); }
       handle(cl[0],cl[1]); handle(cl2[0],cl2[1]);
       if(!roomWallIds.has(w.id)) wallLenLabel(w,true); } }
@@ -3550,14 +3651,56 @@
   // square = slide the whole wall sideways (round = stretch that end)
   function sqHandle(x,y){ ctx.setLineDash([]); ctx.fillStyle='#275C7A'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.rect(x-5,y-5,10,10); ctx.fill(); ctx.stroke(); }
   function handle(x,y){ ctx.setLineDash([]); ctx.fillStyle='#fff'; ctx.strokeStyle='#275C7A'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fill(); ctx.stroke(); }
+  // The face you drew, as it shows on screen: where it starts and stops after the
+  // corners are filled. For a wall drawn by 中線 (or an old wall) this is simply
+  // the centre line.
+  function wallFace(w){
+    const c=wallCenterline(w), L=Math.hypot(c.x2-c.x1,c.y2-c.y1)||1, ux=(c.x2-c.x1)/L, uy=(c.y2-c.y1)/L;
+    const s=w.ref||0, h=w.t/2, nx=-uy*s*h, ny=ux*s*h;
+    const F0={x:c.x1+nx, y:c.y1+ny};
+    if(!s) return {p1:{x:c.x1,y:c.y1}, p2:{x:c.x2,y:c.y2}, len:L, ux, uy, F0, L};
+    const others=state.walls.filter(o=>o!==w && wallLen(o)>=1).map(o=>{ const d=wallCenterline(o), M=Math.hypot(d.x2-d.x1,d.y2-d.y1)||1; return {d,M,vx:(d.x2-d.x1)/M,vy:(d.y2-d.y1)/M,h:o.t/2}; });
+    const atEnd=(x,y)=>others.filter(o=>Math.hypot(o.d.x1-x,o.d.y1-y)<2.5||Math.hypot(o.d.x2-x,o.d.y2-y)<2.5||projPointToSeg(x,y,o.d.x1,o.d.y1,o.d.x2,o.d.y2).d<1.5);
+    // where along the face line (param s) it is buried inside wall o
+    const span=(o)=>{
+      const a0=(F0.x-o.d.x1)*o.vx+(F0.y-o.d.y1)*o.vy, da=ux*o.vx+uy*o.vy;
+      const b0=-(F0.x-o.d.x1)*o.vy+(F0.y-o.d.y1)*o.vx, db=-ux*o.vy+uy*o.vx;
+      let lo=-Infinity, hi=Infinity;
+      const clip=(v0,dv,mn,mx)=>{ if(Math.abs(dv)<1e-9){ if(v0<=mn+0.05||v0>=mx-0.05){ lo=1; hi=0; } return; }
+        let t1=(mn-v0)/dv, t2=(mx-v0)/dv; if(t1>t2){ const q=t1; t1=t2; t2=q; } lo=Math.max(lo,t1); hi=Math.min(hi,t2); };
+      clip(a0,da,-o.h-0.05,o.M+o.h+0.05); clip(b0,db,-o.h,o.h);
+      return lo<hi ? [lo,hi] : null;
+    };
+    const endAt=(k)=>{
+      const x=k===1?c.x1:c.x2, y=k===1?c.y1:c.y2, base=k===1?0:L, nb=atEnd(x,y);
+      let ext=0, best=null;
+      for(const o of nb){
+        if(Math.abs(ux*o.vy-uy*o.vx)<0.05) continue;            // carries straight on
+        ext=Math.max(ext,o.h);
+        const sp=span(o); if(!sp) continue;
+        if(k===2){ if(sp[0]>base-o.h-1 && sp[0]<base+o.h+1) best = best==null ? sp[0] : Math.min(best,sp[0]); }
+        else     { if(sp[1]<base+o.h+1 && sp[1]>base-o.h-1) best = best==null ? sp[1] : Math.max(best,sp[1]); }
+      }
+      return best!=null ? best : (k===2 ? base+ext : base-ext);
+    };
+    const t1=endAt(1), t2=endAt(2);
+    return {p1:{x:F0.x+ux*t1,y:F0.y+uy*t1}, p2:{x:F0.x+ux*t2,y:F0.y+uy*t2}, len:t2-t1, ux, uy, F0, L};
+  }
+  // the length the wall is shown and edited by
+  const wallShownLen=(w)=> w.ref ? wallFace(w).len : wallLen(w);
+  // a shown length → the centre-line length that gives it
+  const shownToCentre=(w,v)=> v + (wallLen(w)-wallShownLen(w));
+  // the end handles sit on the drawn line, not on the centre
+  const wallRefOff=(w)=>{ if(!w.ref) return {x:0,y:0}; const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, h=w.t/2*w.ref; return {x:-uy*h, y:ux*h}; };
   function wallLenLabel(w, active){
     const L=wallLen(w)||1; const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
     const coff=alignCenterOffset(w);
-    const push=(w.t/2)+18/view.scale;   // sit just outside the wall face
-    const mxw=(w.x1+w.x2)/2 + nx*(coff+push);
-    const myw=(w.y1+w.y2)/2 + ny*(coff+push);
+    const sgn=w.ref||1, push=(w.t/2)+18/view.scale;   // sit just outside the drawn face
+    let mxw=(w.x1+w.x2)/2 + nx*(coff+push*sgn);
+    let myw=(w.y1+w.y2)/2 + ny*(coff+push*sgn);
+    if(w.ref){ const f=wallFace(w); mxw=(f.p1.x+f.p2.x)/2+nx*sgn*18/view.scale; myw=(f.p1.y+f.p2.y)/2+ny*sgn*18/view.scale; }
     const [mx,my]=toScreen(mxw,myw);
-    const txt=fmtLen(wallLen(w));
+    const txt=fmtLen(wallShownLen(w));
     let lang=Math.atan2(uy,ux); if(lang>Math.PI/2||lang<-Math.PI/2) lang+=Math.PI;
     const tw = active ? boxedLabel(txt,mx,my,lang,12) : plainLabel(txt,mx,my,lang,'#22262B',12);
     if(isLocked(w)) lockGlyph(mx+Math.cos(lang)*(tw/2+7*TS), my+Math.sin(lang)*(tw/2+7*TS), 10*TS);
@@ -3599,6 +3742,7 @@
 
   // draft (while drag-drawing): {kind:'wall'|'dim', a:{x,y}, cur:{x,y}}
   let draft=null;
+  let cgest=null;          // the finger / pen drawing a wall run or a room right now
   let inkDraft=null;      // stroke being laid down right now
   let eraser=null;        // eraser being dragged
   let inkPenSeen=false;   // once a stylus is used, ignore fingers while inking
@@ -3659,6 +3803,7 @@
     drawJunctions();
     drawRoomsInfo();
     drawWallLabels();
+    drawStubGaps();
     drawExteriorDims();      // the sheet always drew these; now the screen does too
     drawDims();
     drawFurniture();
@@ -3676,6 +3821,7 @@
     drawSplitPreview();
     if(ui.tool==='dim') drawDimAnchors(draft&&draft.T ? draft.T : buildDimTargets());
     drawDraft();
+    drawChain();
     drawSelection();
   }
   // A beam is ABOVE the cut plane — you are looking up at it, not through it. The
@@ -3771,13 +3917,13 @@
       const c=wallCorners(w);
       const mxw=(c.L1.x+c.L2.x+c.R1.x+c.R2.x)/4, myw=(c.L1.y+c.L2.y+c.R1.y+c.R2.y)/4;
       const [mx,my]=toScreen(mxw,myw);
-      const txt=fmtLen(wallLen(w));
+      const txt=fmtLen(wallShownLen(w));
       const L=wallLen(w), ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L;
       let ang=Math.atan2(uy,ux); if(ang>Math.PI/2||ang<-Math.PI/2)ang+=Math.PI;
       const active=wallIsActive(w.id);
       const tw = active ? boxedLabel(txt,mx,my,ang,12) : plainLabel(txt,mx,my,ang,'#22262B',12);
       const rect=labelRect(mx,my,tw,ang);
-      hitLabels.push({kind:'walllen', rect, wid:w.id, len:wallLen(w)});
+      hitLabels.push({kind:'walllen', rect, wid:w.id, len:wallShownLen(w)});
       placedLabels.push(rect);
     }
   }
@@ -3887,6 +4033,7 @@
     if(!WS.length) return;
     const nodes=[];
     for(const w of WS){
+      const off=wallRefOff(w);
       for(const p of [[w.x1,w.y1],[w.x2,w.y2]]){
         let joined=false;
         for(const o of WS){
@@ -3895,11 +4042,16 @@
           if(projPointToSeg(p[0],p[1],o.x1,o.y1,o.x2,o.y2).d<1.5){ joined=true; break; }
         }
         const ex=nodes.find(n=>Math.hypot(n.x-p[0],n.y-p[1])<1.5);
-        if(ex){ ex.joined=ex.joined||joined; } else nodes.push({x:p[0],y:p[1],joined});
+        if(ex){ ex.joined=ex.joined||joined; ex.allRef=ex.allRef&&!!w.ref; }
+        else nodes.push({x:p[0],y:p[1],joined,allRef:!!w.ref,fx:p[0]+off.x,fy:p[1]+off.y});
       }
     }
+    // walls drawn by 內線/外線 show nothing at the centre: an open end is marked
+    // on the line you drew, and a closed corner needs no dot at all
+    for(const n of nodes){ if(n.allRef){ if(n.joined) n.skip=true; else { n.x=n.fx; n.y=n.fy; } } }
     ctx.save();
     for(const n of nodes){
+      if(n.skip) continue;
       const [sx,sy]=toScreen(n.x,n.y);
       if(sx<-20||sy<-20||sx>W+20||sy>H+20) continue;
       if(n.joined){
@@ -4025,6 +4177,87 @@
   function hitLabel(px,py){ for(let i=hitLabels.length-1;i>=0;i--){ const l=hitLabels[i], r=l.rect; if(px>=r[0]&&px<=r[0]+r[2]&&py>=r[1]&&py<=r[1]+r[3]) return l; } return null; }
 
   // door/window: draw tappable distance-to-left-wall / distance-to-right-wall on canvas
+  // A wall standing on another one part-way along it (a stub, a partition that
+  // does not reach across) gets the two clear distances either side of it,
+  // measured along the face it stands on to the next wall — the numbers you need
+  // to set it out on site. Tap one to type it; the stub slides to suit.
+  function stubGaps(){
+    const out=[];
+    const W=state.walls.filter(w=>wallLen(w)>=1);
+    for(const s of W){
+      if(roomWallIds.has(s.id)) continue;
+      const sc=wallCenterline(s), sL=Math.hypot(sc.x2-sc.x1,sc.y2-sc.y1)||1, sux=(sc.x2-sc.x1)/sL, suy=(sc.y2-sc.y1)/sL;
+      const sVert=Math.abs(sux)<0.01, sHorz=Math.abs(suy)<0.01; if(!sVert&&!sHorz) continue;
+      for(const end of [1,2]){
+        const ex=end===1?sc.x1:sc.x2, ey=end===1?sc.y1:sc.y2;
+        const host=W.find(h=>{ if(h===s) return false; const hc=wallCenterline(h);
+          const pr=projPointToSeg(ex,ey,hc.x1,hc.y1,hc.x2,hc.y2); return pr.d<h.t/2+0.6 && pr.t>0.001 && pr.t<0.999; });
+        if(!host) continue;
+        const hc=wallCenterline(host), hL=Math.hypot(hc.x2-hc.x1,hc.y2-hc.y1)||1, hux=(hc.x2-hc.x1)/hL, huy=(hc.y2-hc.y1)/hL;
+        if(Math.abs(hux*suy-huy*sux)<0.9) continue;                  // must be square to its host
+        // the host face on the stub's side
+        const ox=end===1?sc.x2:sc.x1, oy=end===1?sc.y2:sc.y1;
+        const side=Math.sign((ox-hc.x1)*(-huy)+(oy-hc.y1)*hux)||1;
+        const fx=hc.x1-huy*side*host.t/2, fy=hc.y1+hux*side*host.t/2;   // a point on that face
+        const along=(x,y)=>(x-fx)*hux+(y-fy)*huy;
+        const sa=along(ex,ey), half=s.t/2;
+        // obstacles along the face: walls crossing it, and the host's own ends
+        let lo=along(hc.x1,hc.y1), hi=along(hc.x2,hc.y2); if(lo>hi){ const q=lo; lo=hi; hi=q; }
+        let left=lo, right=hi;
+        for(const o of W){ if(o===s||o===host) continue;
+          const oc=wallCenterline(o), oL=Math.hypot(oc.x2-oc.x1,oc.y2-oc.y1)||1, oux=(oc.x2-oc.x1)/oL, ouy=(oc.y2-oc.y1)/oL;
+          if(Math.abs(oux*huy-ouy*hux)<0.9) continue;
+          // does it reach the face line (within its own band)?
+          // signed distance from the face, positive into the stub's side
+          const d1=((oc.x1-fx)*(-huy)+(oc.y1-fy)*hux)*side, d2=((oc.x2-fx)*(-huy)+(oc.y2-fy)*hux)*side;
+          if(!(Math.max(d1,d2)>=0.6 && Math.min(d1,d2)<=1)) continue;     // must stand on this face
+          const a=along(oc.x1,oc.y1);
+          if(a<sa && a+o.t/2>left) left=a+o.t/2;
+          if(a>sa && a-o.t/2<right) right=a-o.t/2;
+        }
+        const gl=sa-half-left, gr=right-(sa+half);
+        if(gl<0.5 && gr<0.5) continue;
+        out.push({s, host, fx, fy, hux, huy, side, sa, half, left, right, gl, gr, sVert});
+      }
+    }
+    return out;
+  }
+  function drawStubGaps(){
+    if(EXPORT_MODE || !showOpt.dims || view.scale<0.12) return;
+    for(const g of stubGaps()){
+      const off=-36/view.scale;                                  // one line in from the room's own number
+      const nx=-g.huy*g.side, ny=g.hux*g.side;
+      const P=(a)=>({x:g.fx+g.hux*a+nx*(-off), y:g.fy+g.huy*a+ny*(-off)});
+      // plain numbers, set out like the room's own side lengths — no extra lines
+      const seg=(a0,a1,dir)=>{
+        if(a1-a0<0.5) return;
+        const M=P((a0+a1)/2), [mx,my]=toScreen(M.x,M.y);
+        let ang=Math.atan2(g.huy,g.hux); if(ang>Math.PI/2||ang<-Math.PI/2) ang+=Math.PI;
+        const txt=fmtLen(a1-a0);
+        const tw=plainLabel(txt,mx,my,ang,'#22262B',12);
+        const rect=labelRect(mx,my,tw,ang);
+        hitLabels.push({kind:'stubgap', rect, wid:g.s.id, dir, gap:a1-a0});
+        placedLabels.push(rect);
+      };
+      seg(g.left, g.sa-g.half, -1);
+      seg(g.sa+g.half, g.right, 1);
+    }
+  }
+  function editStubGap(lab, sx, sy){
+    const g=stubGaps().find(x=>x.s.id===lab.wid); if(!g) return;
+    const cur = lab.dir<0 ? g.gl : g.gr;
+    showNumInput(sx,sy,toDisp(cur),(v)=>{
+      const want=fromDisp(v); if(!isFinite(want)||want<0) return;
+      const d = lab.dir<0 ? (want-cur) : (cur-want);          // + = slide along the host's direction
+      const room = lab.dir<0 ? g.gr : g.gl;
+      if((lab.dir<0 && d>g.gr+0.01) || (lab.dir>0 && -d>g.gl+0.01)){ flashHint('另一邊放不下，最多只能到 '+fmtLenU(cur+room)); return; }
+      const s=g.s;
+      if(g.sVert){ withOpeningsPreserved(()=>moveWallLine('x', s.x1, d*g.hux, Math.min(s.y1,s.y2), Math.max(s.y1,s.y2))); }
+      else       { withOpeningsPreserved(()=>moveWallLine('y', s.y1, d*g.huy, Math.min(s.x1,s.x2), Math.max(s.x1,s.x2))); }
+      dbg(`  STUB GAP wall #${s.id} ${lab.dir<0?'left':'right'} ${cur.toFixed(1)} → ${want.toFixed(1)}`);
+      pushHistory(); draw();
+    }, true);
+  }
   function drawOpeningGaps(o,w){
     const L=wallLen(w); if(L<1) return;
     const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
@@ -4295,6 +4528,22 @@
     const [px,py]=evtPos(e);
     const [wx,wy]=toWorld(px,py);
     if(e.button===1){ panStart={px,py,ox:view.ox,oy:view.oy}; return; }
+    if(structureLocked() && ['wall','room','part','door','window','column','shaft','beam','split'].includes(ui.tool)){
+      dbg(`  ${ui.tool} refused: structure locked`);
+      flashHint('結構已鎖定，不能再畫或改牆、門窗、柱、樑。要改請先到右邊「圖層」把結構解鎖'); return;
+    }
+    // Once the Pencil has been used, a finger never draws: one finger pans, two
+    // pinch. Drawing with the pen and steering the sheet with the other hand is
+    // the whole point of a tablet — a stray fingertip used to drop points.
+    if(e.pointerType==='pen') inkPenSeen=true;
+    if(inkPenSeen && e.pointerType==='touch' && ui.tool!=='select'){
+      panStart={px,py,ox:view.ox,oy:view.oy};
+      // a finger still TAPS in the one-tap ceiling tools (整間平釘, 間接照明, 維修孔…):
+      // it is taken on lift, only if the finger did not move and no second finger came
+      if(ui.tool==='ceil' && (['room','cove','hatch','ventS','ventR','offset'].includes(ui.ceilPick) || (ui.ceilPick==='line'&&ui.clinePending))) ui._ceilTap={px,py,wx,wy,tool:true};
+      return;
+    }
+    if(ui.tool==='wall'||ui.tool==='room'||ui.tool==='part'){ chainDown(e,px,py,wx,wy); return; }
 
 
     // if a wall/beam is already selected, its endpoint handles take priority
@@ -4304,7 +4553,11 @@
     // away from its neighbours makes the room disappear immediately (no longer
     // a closed loop), and pushing it back together makes it reappear.
     if(ui.tool==='select'){
-      let epHit=structureLocked()?null:hitEndpointHandle(wx,wy);
+      // The structure lock freezes walls and beams only. It used to swallow EVERY
+      // handle — ceiling corners and edges included — so with 結構 locked nothing
+      // on the ceiling could be dragged.
+      let epHit=hitEndpointHandle(wx,wy);
+      if(epHit && structureLocked() && /^(wall|beam)/.test(epHit.kind)) epHit=null;
       if(epHit && epHit.kind==='wall' && !focusAllows('wall',epHit.id)) epHit=null;
       if(dbgOn) dbg(`  select-tool down: ui.selected=${ui.selected?ui.selected.kind+'#'+ui.selected.id:'null'} epHit=${epHit?epHit.kind+'('+epHit.which+')':'null'}`);
       if(epHit){
@@ -4405,6 +4658,7 @@
         if(ui.focusRoom) ui.selected={kind:'room', id:ui.focusRoom};
         else ui.selected=null;
         refreshProp(); panStart={px,py,ox:view.ox,oy:view.oy};
+        if(state.layer==='ceil') ui._ceilTap={px,py,wx,wy};
       }
       draw();
     }
@@ -4425,11 +4679,18 @@
     else if(ui.tool==='furn'){ placeFurniture(wx,wy); }
     else if(ui.tool==='split'){ splitTap(wx,wy,px,py); }
     else if(ui.tool==='ceil'){
-      const pk=ui.ceilPick;
-      if(pk==='rect'||pk==='ell'||pk==='curtain'){
-        const p={x:gsnap(wx),y:gsnap(wy)};
-        draft={kind:'cdraw',sub:pk,a:p,cur:{...p},pointerId:e.pointerId,pointerType:e.pointerType};
-      } else ceilTap(wx,wy);
+      const pk=ui.ceilPick, T=chainTargets();
+      if(pk==='rect'||pk==='ell'||pk==='curtain'||(pk==='line'&&!ui.clinePending)){
+        const q=chainPoint(null,wx,wy,T,null), p={x:q.x,y:q.y};
+        draft={kind:'cdraw',sub:pk,a:p,cur:{...p},T,pointerId:e.pointerId,pointerType:e.pointerType};
+      } else if(pk==='poly'){
+        // a corner is placed when the pen LIFTS, snapped like a wall corner and
+        // held to the angle lock — so a pinch starting here places nothing
+        draft={kind:'cpoly',T,px,py,pointerId:e.pointerId,pointerType:e.pointerType};
+        ui.cpolyHover=cpolyPoint(wx,wy,T); draw();
+      } else {
+        draft={kind:'ctap',px,py,pointerId:e.pointerId,pointerType:e.pointerType};
+      }
     }
     else if(ui.tool==='circuit'){ circTap(wx,wy); }
     else if(ui.tool==='mep'){
@@ -4472,6 +4733,7 @@
     if(ui.tool==='ulcalib' && calibA){ hoverPt=calibOrtho({x:wx,y:wy}); draw(); return; }
 
     if(panStart && pointers.size<2){ view.ox=panStart.ox+(px-panStart.px); view.oy=panStart.oy+(py-panStart.py); draw(); return; }
+    if(cgest && cgest.pid===e.pointerId && !pinch){ chainMove(px,py,wx,wy); return; }
 
     if(eraser && eraser.pointerId===e.pointerId){
       eraser.x=wx; eraser.y=wy;
@@ -4491,10 +4753,14 @@
 
     // drag-drawing preview (wall / dim) — only the finger that owns this draft may drive it
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> move IGNORED, not draft owner`); return; }
+    if(draft && draft.kind==='ctap') return;
+    if(draft && draft.kind==='cpoly'){ ui.cpolyHover=cpolyPoint(wx,wy,draft.T); const P=ui.cpoly||[], l=P[P.length-1];
+      if(l){ const [lx,ly]=toScreen(ui.cpolyHover.x,ui.cpolyHover.y); showLenBox(lx,ly,fmtLenU(Math.hypot(ui.cpolyHover.x-l.x,ui.cpolyHover.y-l.y))+(ui.cpolyHover.how?'　'+ui.cpolyHover.how:'')); }
+      draw(); return; }
     if(draft && draft.kind==='cdraw'){
-      draft.cur={x:gsnap(wx),y:gsnap(wy)};
+      { const q=chainPoint(draft.sub==='line'?draft.a:null,wx,wy,draft.T||chainTargets(),null); draft.cur={x:q.x,y:q.y}; }
       const [lx,ly]=toScreen(draft.cur.x,draft.cur.y);
-      showLenBox(lx,ly, draft.sub==='ell' ? 'R '+fmtLenU(Math.hypot(draft.cur.x-draft.a.x,draft.cur.y-draft.a.y))
+      showLenBox(lx,ly, draft.sub==='line' ? fmtLenU(Math.hypot(draft.cur.x-draft.a.x,draft.cur.y-draft.a.y)) : draft.sub==='ell' ? 'R '+fmtLenU(Math.hypot(draft.cur.x-draft.a.x,draft.cur.y-draft.a.y))
         : fmtLen(Math.abs(draft.cur.x-draft.a.x))+' × '+fmtLenU(Math.abs(draft.cur.y-draft.a.y)));
       draw(); return;
     }
@@ -4548,7 +4814,12 @@
     dbg(`UP id=${e.pointerId} pointers.size(before)=${pointers.size} draft=${draft?draft.kind+'(pid='+draft.pointerId+',len='+(draft.cur?dist(draft.a.x,draft.a.y,draft.cur.x,draft.cur.y).toFixed(0):'?')+'cm,pending='+!!draft.pendingLabel+')':'null'}`);
     pointers.delete(e.pointerId);
     if(pointers.size<2){ pinch=null; }
-    if(panStart){ panStart=null; }
+    if(panStart){ panStart=null;
+      if(ui._ceilTap){ const t=ui._ceilTap; ui._ceilTap=null; const [ux,uy]=evtPos(e);
+        if(t.tool){ if(Math.hypot(ux-t.px,uy-t.py)<10){ dbg('  finger tap → '+ui.ceilPick); ceilTap(t.wx,t.wy,ux,uy); draw(); } }
+        else if(Math.hypot(ux-t.px,uy-t.py)<8){ const r=roomAt(t.wx,t.wy); if(r && r.rid!=null){ ui.selected={kind:'room',id:r.rid}; refreshProp(); draw(); dbg(`  CEIL select room ${r.rid}`); } } }
+    }
+    if(cgest && cgest.pid===e.pointerId){ const g=cgest; cgest=null; chainUp(g,e); return; }
     // Every other tool in this app is press-drag-release. Calibration was the one
     // exception — tap, then tap again — so a drag set only the FIRST point and the
     // second came from wherever the next press happened to land. The line looked
@@ -4592,7 +4863,21 @@
         if(d.moved) pushHistory(); else openLabelEditor(d.lab, d.downPx[0], d.downPx[1]);
         draw(); return;
       }
-      if(dragging.moved) pushHistory();
+      if(dragging.moved){
+        // say where the thing ended up, so a report shows the result, not just "dragging"
+        try{ const h=dragging.hit, o=dragging.orig||{};
+          if(/^wall/.test(h.kind)){ const w=state.walls.find(v=>v.id===h.id);
+            if(w) dbg(`  DROP ${h.kind} #${w.id}: (${(o.x1||0).toFixed(1)},${(o.y1||0).toFixed(1)})-(${(o.x2||0).toFixed(1)},${(o.y2||0).toFixed(1)}) → (${w.x1.toFixed(1)},${w.y1.toFixed(1)})-(${w.x2.toFixed(1)},${w.y2.toFixed(1)})`); }
+          else if(/^ceil/.test(h.kind)){ const z=ceilById(h.id); if(z) dbg(`  DROP ${h.kind}${h.which!=null?'['+h.which+']':''} zone #${z.id}: ${JSON.stringify(z.shape==='poly'?{pts:z.pts.map(p=>[Math.round(p.x),Math.round(p.y)]),rv:z.rv}:{x:z.x,y:z.y,w:z.w,h:z.h,rv:z.rv,cx:z.cx,cy:z.cy,rx:z.rx,ry:z.ry})}`); }
+          else if(h.kind==='column'){ const c=state.columns.find(v=>v.id===h.id); if(c) dbg(`  DROP column #${c.id}: (${(o.x||0).toFixed(1)},${(o.y||0).toFixed(1)}) → (${c.x.toFixed(1)},${c.y.toFixed(1)}) ${c.w}x${c.h}`); }
+        }catch(_){}
+        pushHistory();
+        if(/^wall/.test(dragging.hit.kind)) dbg('  walls now: '+state.walls.map(w=>'#'+w.id+'('+w.x1.toFixed(0)+','+w.y1.toFixed(0)+')-('+w.x2.toFixed(0)+','+w.y2.toFixed(0)+')').join(' '));
+      }
+      else if(dragging.hit.kind==='ceilV'){
+        // a tap (no drag) on a round corner handle: set that corner's R
+        const z=ceilById(dragging.hit.id), [ux,uy]=evtPos(e); if(z) ceilCornerR(z,dragging.hit.which,ux,uy);
+      }
       else if(dragging.hit.kind==='note'){
         // a tap, not a drag: open whatever photo sits under the finger
         const n=state.notes.find(v=>v.id===dragging.hit.id);
@@ -4606,6 +4891,9 @@
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> UP IGNORED, not draft owner`); return; }
     if(draft && draft.kind==='dim'){ commitDimDraft(); return; }
     if(draft && draft.kind==='cdraw'){ commitCeilDraft(); return; }
+    if(draft && draft.kind==='ctap'){ const d=draft; draft=null; const [ux,uy]=evtPos(e);
+      if(Math.hypot(ux-d.px,uy-d.py)<10){ const [wx2,wy2]=toWorld(ux,uy); ceilTap(wx2,wy2,ux,uy); } draw(); return; }
+    if(draft && draft.kind==='cpoly'){ const d=draft; draft=null; hideLenBox(); const [ux,uy]=evtPos(e), [wx2,wy2]=toWorld(ux,uy); cpolyAdd(wx2,wy2,d.T); return; }
     if(draft && draft.kind==='wall' && draft.pendingLabel){
       dbg(`  -> treated as LABEL TAP, wall NOT created`);
       const lab=draft.pendingLabel; const [px,py]=draft.downPx;
@@ -4648,6 +4936,7 @@
     pointers.delete(e.pointerId);
     pinch=null;
     if(pointers.size<2 && panStart) panStart=null;
+    if(cgest && cgest.pid===e.pointerId){ cgest=null; hideLenBox(); if(ui.chain) ui.chain.hover=null; if(ui.rect && !ui.rect.asking) ui.rect=null; draw(); return; }
     if(dragging){ if(dragging.moved) pushHistory(); dragging=null; }
     // a cancel on a finger that doesn't own the current draft (e.g. a stray
     // second-finger/palm touch) must NOT discard an in-progress wall drag —
@@ -4655,6 +4944,7 @@
     // touch appears, so we try to COMMIT the draft here just like pointerup,
     // instead of silently throwing away everything the user just dragged.
     if(draft && draft.pointerId!=null && draft.pointerId!==e.pointerId){ dbg(`  -> CANCEL IGNORED, not draft owner`); return; }
+    if(draft && (draft.kind==='ctap'||draft.kind==='cpoly')){ draft=null; ui.cpolyHover=null; hideLenBox(); draw(); return; }
     if(draft && draft.kind==='dim'){ commitDimDraft(); return; }
     if(draft && draft.kind==='cdraw'){ commitCeilDraft(); return; }
     if(draft && draft.kind==='strip'){ const a=draft.a,c=draft.cur||draft.a; if(dist(a.x,a.y,c.x,c.y)>15) makeStrip(a,c); draft=null; hideLenBox(); draw(); return; }
@@ -4697,7 +4987,7 @@
   });
 
   // ---- Pinch/zoom ----
-  function startPinch(){ const p=[...pointers.values()]; pinch={d:Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]), scale:view.scale, cx:(p[0][0]+p[1][0])/2, cy:(p[0][1]+p[1][1])/2, ox:view.ox, oy:view.oy}; panStart=null; dragging=null; hideLenBox(); }
+  function startPinch(){ ui.cpolyHover=null; ui._ceilTap=null; if(cgest){ cgest=null; if(ui.chain) ui.chain.hover=null; if(ui.rect && !ui.rect.asking) ui.rect=null; } const p=[...pointers.values()]; pinch={d:Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]), scale:view.scale, cx:(p[0][0]+p[1][0])/2, cy:(p[0][1]+p[1][1])/2, ox:view.ox, oy:view.oy}; panStart=null; dragging=null; hideLenBox(); }
   function doPinch(){ const p=[...pointers.values()]; const d=Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]); const cx=(p[0][0]+p[1][0])/2, cy=(p[0][1]+p[1][1])/2; let ns=Math.max(0.03,Math.min(6,pinch.scale*(d/pinch.d))); const[wx,wy]=[(cx-pinch.ox)/pinch.scale,(cy-pinch.oy)/pinch.scale]; view.scale=ns; view.ox=cx-wx*ns; view.oy=cy-wy*ns; view.ox+=(cx-pinch.cx); view.oy+=(cy-pinch.cy); updateZoom(); draw(); }
 
   // ---- wheel zoom ----
@@ -4789,10 +5079,40 @@
     if(w){ const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,o.pos)); }
   }
 
+  // A column (or shaft) pulled near a wall face lands flush on it. The old drag
+  // rounded the CENTRE to the 10 cm grid, so a 59 x 73 column could never get its
+  // edge onto a face — it always stopped a few cm short or sat a few cm inside.
+  // Each axis on its own: an edge within reach of a parallel wall face (either
+  // side of the wall) or another column's edge snaps to it; otherwise no grid.
+  function columnSnap(c, x, y){
+    const r=(((c.rot||0)%180)+180)%180;
+    if(r!==0 && r!==90) return {x,y,how:''};
+    const hx=(r===0?c.w:c.h)/2, hy=(r===0?c.h:c.w)/2;
+    const thr=Math.min(16/view.scale, 40);
+    let bx=null, dxb=thr, by=null, dyb=thr;
+    const tryX=(face, lo, hi)=>{ if(y+hy<lo-1 || y-hy>hi+1) return;
+      for(const e of [-hx,hx]){ const d=Math.abs(x+e-face); if(d<dxb){ dxb=d; bx=face-e; } } };
+    const tryY=(face, lo, hi)=>{ if(x+hx<lo-1 || x-hx>hi+1) return;
+      for(const e of [-hy,hy]){ const d=Math.abs(y+e-face); if(d<dyb){ dyb=d; by=face-e; } } };
+    for(const w of state.walls){
+      if(wallLen(w)<1) continue;
+      const cl=wallCenterline(w), h=w.t/2;
+      if(Math.abs(cl.x1-cl.x2)<0.5){ const lo=Math.min(cl.y1,cl.y2)-h, hi=Math.max(cl.y1,cl.y2)+h; tryX(cl.x1-h,lo,hi); tryX(cl.x1+h,lo,hi); }
+      else if(Math.abs(cl.y1-cl.y2)<0.5){ const lo=Math.min(cl.x1,cl.x2)-h, hi=Math.max(cl.x1,cl.x2)+h; tryY(cl.y1-h,lo,hi); tryY(cl.y1+h,lo,hi); }
+    }
+    for(const o of state.columns){
+      if(o===c || o.id===c.id) continue;
+      const ro=(((o.rot||0)%180)+180)%180; if(ro!==0&&ro!==90) continue;
+      const ohx=(ro===0?o.w:o.h)/2, ohy=(ro===0?o.h:o.w)/2;
+      tryX(o.x-ohx,o.y-ohy-200,o.y+ohy+200); tryX(o.x+ohx,o.y-ohy-200,o.y+ohy+200);
+      tryY(o.y-ohy,o.x-ohx-200,o.x+ohx+200); tryY(o.y+ohy,o.x-ohx-200,o.x+ohx+200);
+    }
+    return {x: bx!=null?bx:x, y: by!=null?by:y, how:(bx!=null||by!=null)?'face':''};
+  }
   function placeColumn(wx,wy,kind){
     let x=wx,y=wy;
-    if(ui.snap){ const g=ui.gridSize; x=Math.round(x/g)*g; y=Math.round(y/g)*g; }
     const shaft = kind==='shaft';
+    { const s=columnSnap({w:shaft?ui.shaftW:ui.colW,h:shaft?ui.shaftH:ui.colH,rot:0}, x, y); x=s.x; y=s.y; }
     const c={id:uid(),x,y,w:shaft?ui.shaftW:ui.colW,h:shaft?ui.shaftH:ui.colH,rot:0,
              kind:shaft?'shaft':'col', layer:state.layer};
     state.columns.push(c); ui.selected={kind:'column',id:c.id}; refreshProp(); pushHistory(); draw(); afterPlace();
@@ -4825,8 +5145,9 @@
     const thr=12/view.scale;
     if(ui.selected.kind==='wall'){
       const w=state.walls.find(v=>v.id===ui.selected.id); if(!w) return null;
-      if(Math.hypot(wx-w.x1,wy-w.y1)<thr) return {kind:'wallEndpoint', id:w.id, which:'x1'};
-      if(Math.hypot(wx-w.x2,wy-w.y2)<thr) return {kind:'wallEndpoint', id:w.id, which:'x2'};
+      const ro=wallRefOff(w);
+      if(Math.hypot(wx-w.x1-ro.x,wy-w.y1-ro.y)<thr) return {kind:'wallEndpoint', id:w.id, which:'x1'};
+      if(Math.hypot(wx-w.x2-ro.x,wy-w.y2-ro.y)<thr) return {kind:'wallEndpoint', id:w.id, which:'x2'};
       // the two square handles on the wall's long FACES: grab either one to slide
       // the whole wall sideways, dragging its neighbours along so they stretch
       const s=wallSideHandles(w);
@@ -4852,6 +5173,23 @@
   // with the position it was at when the drag started. Generous tolerance: these
   // are corners the healer has already welded, so anything within a few
   // centimetres is the same corner, not a near miss.
+  // How far one end of v may be pulled back along v before it uncovers something
+  // that rests on v — another wall's end landing part-way along it. Shortening a
+  // wall past that point leaves whatever leaned on it standing in mid-air.
+  function endKeep(v,which,skip){
+    const ex=which===1?v.x1:v.x2, ey=which===1?v.y1:v.y2, fx=which===1?v.x2:v.x1, fy=which===1?v.y2:v.y1;
+    const L=Math.hypot(fx-ex,fy-ey)||1, ux=(fx-ex)/L, uy=(fy-ey)/L;
+    let best=Infinity;
+    for(const o of state.walls){
+      if(o.id===v.id || (skip&&skip.has(o.id)) || wallLen(o)<1) continue;
+      for(const q of [[o.x1,o.y1],[o.x2,o.y2]]){
+        if(projPointToSeg(q[0],q[1],v.x1,v.y1,v.x2,v.y2).d>(v.t||20)/2+1) continue;
+        const a=(q[0]-ex)*ux+(q[1]-ey)*uy;
+        if(a>1 && a<best) best=a;
+      }
+    }
+    return {keep:best, ux, uy};
+  }
   function captureWeld(w){
     const tol=Math.max(3, (w.t||20)*0.25);
     const ends=[{x:w.x1,y:w.y1},{x:w.x2,y:w.y2}];
@@ -4876,6 +5214,8 @@
           links.push({id:v.id, which, x:vx, y:vy, locked:!!v.locked});
       }
     }
+    const skip=new Set([w.id]);
+    for(const L of links){ const v=state.walls.find(x=>x.id===L.id); if(v) Object.assign(L, endKeep(v,L.which,skip)); }
     return links;
   }
   // Move a wall bodily by (ddx,ddy) from where the drag started. Walls joined to
@@ -4883,7 +5223,69 @@
   // line cannot — so the gap that opens between the two is closed with a short
   // return wall, which is what turns "push this half back 300" into a proper jog
   // instead of a wall floating off on its own.
+  // Walls that one of w's ENDS lands on part-way along (a T). captureWeld finds the
+  // opposite case — other walls' ends landing on w — and misses this one, so a wall
+  // teed into its neighbour used to slide straight off the neighbour's end and be
+  // left hanging in space. The neighbour is recorded here so it can be lengthened
+  // to stay under the wall that leans on it.
+  function teeHosts(w){
+    const out=[], tol=Math.max(3,(w.t||20)*0.25), wL=wallLen(w)||1;
+    for(const which of [1,2]){
+      const ex=which===1?w.x1:w.x2, ey=which===1?w.y1:w.y2;
+      for(const v of state.walls){
+        if(v.id===w.id || wallLen(v)<1) continue;
+        const vL=wallLen(v);
+        if(Math.abs(((v.x2-v.x1)*(w.x2-w.x1)+(v.y2-v.y1)*(w.y2-w.y1))/(vL*wL))>0.99) continue;   // in line with us, not a host
+        const pr=projPointToSeg(ex,ey,v.x1,v.y1,v.x2,v.y2);
+        if(pr.d<=Math.max(tol,(v.t||20)/2+1) && pr.t>0.01 && pr.t<0.99) out.push({id:v.id, which, o:{x1:v.x1,y1:v.y1,x2:v.x2,y2:v.y2}});
+      }
+    }
+    return out;
+  }
+  // make each host long enough to still reach the end that rests on it
+  function stretchHosts(hosts,w){
+    for(const h of hosts){
+      const v=state.walls.find(x=>x.id===h.id); if(!v) continue;
+      const o=h.o, L=Math.hypot(o.x2-o.x1,o.y2-o.y1)||1, ux=(o.x2-o.x1)/L, uy=(o.y2-o.y1)/L;
+      v.x1=o.x1; v.y1=o.y1; v.x2=o.x2; v.y2=o.y2;
+      const ex=h.which===1?w.x1:w.x2, ey=h.which===1?w.y1:w.y2;
+      const t=(ex-o.x1)*ux+(ey-o.y1)*uy;
+      if(t<0){ v.x1=o.x1+ux*t; v.y1=o.y1+uy*t; }
+      else if(t>L){ v.x2=o.x1+ux*t; v.y2=o.y1+uy*t; }
+    }
+  }
+  // A wall slid sideways lands with a FACE flush on something real nearby — a
+  // column's edge or another wall's face running the same way — before the grid
+  // gets a say. With the grid alone a 14 cm wall could never line up with a
+  // column edge: it jumped 10 cm at a time straight past it.
+  // `target` is the wall's stored line coordinate (x for a vertical wall, y for a
+  // horizontal one); the snapped value comes back in the same terms.
+  function wallTargetSnap(w, orig, vert, target){
+    const cl=wallCenterline(orig), off=(vert?cl.x1-orig.x1:cl.y1-orig.y1), h=(w.t||20)/2;
+    const lo=vert?Math.min(cl.y1,cl.y2):Math.min(cl.x1,cl.x2), hi=vert?Math.max(cl.y1,cl.y2):Math.max(cl.x1,cl.x2);
+    const near=(a,b)=> b>=lo-h-150 && a<=hi+h+150;          // only things within 1.5 m along the wall
+    const lines=[];
+    for(const c of state.columns){
+      const r=(((c.rot||0)%180)+180)%180; if(r!==0&&r!==90) continue;
+      const hx=(r===0?c.w:c.h)/2, hy=(r===0?c.h:c.w)/2;
+      if(vert){ if(near(c.y-hy,c.y+hy)) lines.push(c.x-hx,c.x+hx); }
+      else    { if(near(c.x-hx,c.x+hx)) lines.push(c.y-hy,c.y+hy); }
+    }
+    for(const o of state.walls){
+      if(o.id===w.id || wallLen(o)<1) continue;
+      const oc=wallCenterline(o), oh=o.t/2;
+      if(vert && Math.abs(oc.x1-oc.x2)<0.5 && near(Math.min(oc.y1,oc.y2),Math.max(oc.y1,oc.y2))) lines.push(oc.x1-oh,oc.x1+oh);
+      if(!vert && Math.abs(oc.y1-oc.y2)<0.5 && near(Math.min(oc.x1,oc.x2),Math.max(oc.x1,oc.x2))) lines.push(oc.y1-oh,oc.y1+oh);
+    }
+    const thr=Math.min(16/view.scale,40);
+    let best=null, bd=thr;
+    for(const L of lines) for(const e of [-h,h]){ const d=Math.abs(target+off+e-L); if(d<bd){ bd=d; best=L-e-off; } }
+    if(best!=null) return best;
+    if(ui.snap){ const g=ui.gridSize; return Math.round(target/g)*g; }
+    return target;
+  }
   function moveWallBody(w,orig,ddx,ddy){
+    if(!dragging.hosts) dragging.hosts=teeHosts(orig);
     // absolute positions from the captured originals every frame, so repeated
     // dragging back and forth can never accumulate drift
     w.x1=orig.x1+ddx; w.y1=orig.y1+ddy; w.x2=orig.x2+ddx; w.y2=orig.y2+ddy;
@@ -4892,23 +5294,41 @@
       const v=state.walls.find(x=>x.id===L.id);
       if(!v) continue;
       if(!L.col){
-        if(L.which===1){ v.x1=L.x+ddx; v.y1=L.y+ddy; }
-        else           { v.x2=L.x+ddx; v.y2=L.y+ddy; }
+        // follow us — but never shorten past something that rests on this wall
+        let mx=ddx, my=ddy;
+        if(L.keep!=null && isFinite(L.keep)){ const sh=mx*L.ux+my*L.uy; if(sh>L.keep){ mx-=L.ux*(sh-L.keep); my-=L.uy*(sh-L.keep); } }
+        if(L.which===1){ v.x1=L.x+mx; v.y1=L.y+my; }
+        else           { v.x2=L.x+mx; v.y2=L.y+my; }
         continue;
       }
       const end = Math.hypot(L.x-orig.x1,L.y-orig.y1) <= Math.hypot(L.x-orig.x2,L.y-orig.y2) ? 1 : 2;
-      const ex = end===1 ? w.x1 : w.x2, ey = end===1 ? w.y1 : w.y2;
+      // The step lands ON the split line. The return wall used to be centred on
+      // it, so each face turned half a thickness away from where you cut (cut at
+      // a column's edge, and the step came out 7 cm past the column). It now sits
+      // on the side of the piece that stays put: that piece's face stops exactly
+      // at the cut, and the moved piece's face starts exactly there.
+      const moved = Math.hypot(ddx,ddy)>=0.5;
+      const vo = L.which===1 ? {x:v.x2,y:v.y2} : {x:v.x1,y:v.y1};
+      const vl=Math.hypot(L.x-vo.x,L.y-vo.y)||1, sux=(L.x-vo.x)/vl, suy=(L.y-vo.y)/vl;
+      const sh = moved ? Math.min(w.t/2, vl-1) : 0;
+      const Jx=L.x-sux*sh, Jy=L.y-suy*sh;
+      if(L.which===1){ v.x1=Jx; v.y1=Jy; } else { v.x2=Jx; v.y2=Jy; }
+      const ex=Jx+ddx, ey=Jy+ddy;
+      if(end===1){ w.x1=ex; w.y1=ey; } else { w.x2=ex; w.y2=ey; }
       const key=L.id+':'+L.which;
       let j=dragging.jogs[key] && state.walls.find(x=>x.id===dragging.jogs[key]);
       if(!j){
-        if(Math.hypot(ex-L.x,ey-L.y)<0.5) continue;
-        j={id:uid(), x1:L.x,y1:L.y,x2:ex,y2:ey, t:w.t, align:w.align};
+        if(!moved) continue;
+        j={id:uid(), x1:Jx,y1:Jy,x2:ex,y2:ey, t:w.t, align:w.align};
+        if(w.kind) j.kind=w.kind;
         state.walls.push(j); dragging.jogs[key]=j.id;
       }
-      j.x1=L.x; j.y1=L.y; j.x2=ex; j.y2=ey;
+      j.x1=Jx; j.y1=Jy; j.x2=ex; j.y2=ey;
+      if(dbgOn) dbg(`  jog: wall #${v.id} stops at (${Jx.toFixed(1)},${Jy.toFixed(1)}), return #${j.id} to (${ex.toFixed(1)},${ey.toFixed(1)}), push (${ddx.toFixed(1)},${ddy.toFixed(1)})`);
       // the step is deliberate: tell the healer not to pull the two back in line
       w.meas=true; v.meas=true;
     }
+    stretchHosts(dragging.hosts,w);
   }
   function cloneForDrag(hit){
     if(/^ceil/.test(hit.kind)){ const z=ceilById(hit.id); return z?JSON.parse(JSON.stringify(z)):{}; }
@@ -4941,8 +5361,8 @@
       // to the wall and skews every neighbour welded to its ends.
       const wVert =Math.abs(orig.x1-orig.x2)<0.6;
       const wHoriz=Math.abs(orig.y1-orig.y2)<0.6;
-      if(wVert && !wHoriz) ddy=0;
-      else if(wHoriz && !wVert) ddx=0;
+      if(wVert && !wHoriz){ ddy=0; ddx=wallTargetSnap(w,orig,true,orig.x1+dx)-orig.x1; }
+      else if(wHoriz && !wVert){ ddx=0; ddy=wallTargetSnap(w,orig,false,orig.y1+dy)-orig.y1; }
       else if(angleLockOn()){
         // a diagonal wall under angle lock still moves on one axis at a time,
         // whichever the finger has travelled further along
@@ -5006,12 +5426,13 @@
       // moving the box carries its handwriting along, so a note never comes apart
       else { moveNote(n,(orig.x+dx)-n.x,(orig.y+dy)-n.y); }
     }
-    else if(hit.kind==='column'){ const c=state.columns.find(v=>v.id===hit.id); let nx=orig.x+dx,ny=orig.y+dy; if(ui.snap){nx=Math.round(nx/ui.gridSize)*ui.gridSize;ny=Math.round(ny/ui.gridSize)*ui.gridSize;} c.x=nx;c.y=ny; }
+    else if(hit.kind==='column'){ const c=state.columns.find(v=>v.id===hit.id); const sn=columnSnap(c, orig.x+dx, orig.y+dy); c.x=sn.x; c.y=sn.y; }
     else if(hit.kind==='beam'){ const b=state.beams.find(v=>v.id===hit.id); let ddx=dx,ddy=dy; if(ui.snap){const g=ui.gridSize; ddx=Math.round((orig.x1+dx)/g)*g-orig.x1; ddy=Math.round((orig.y1+dy)/g)*g-orig.y1;} b.x1=orig.x1+ddx;b.y1=orig.y1+ddy;b.x2=orig.x2+ddx;b.y2=orig.y2+ddy; }
     else if(hit.kind==='wallEndpoint'){
       const w=state.walls.find(v=>v.id===hit.id);
       const other = hit.which==='x1' ? {x:w.x2,y:w.y2} : {x:w.x1,y:w.y1};
-      const r=computeWallEnd(other, wx, wy);
+      const ro=wallRefOff(w);                    // the handle is on the drawn line
+      const r=computeWallEnd(other, wx-ro.x, wy-ro.y);
       if(hit.which==='x1'){ w.x1=r.x; w.y1=r.y; } else { w.x2=r.x; w.y2=r.y; }
       if(dbgOn) dbg(`  wallEndpoint drag: which=${hit.which} newpos=(${r.x.toFixed(0)},${r.y.toFixed(0)}) wall now=(${w.x1.toFixed(0)},${w.y1.toFixed(0)})-(${w.x2.toFixed(0)},${w.y2.toFixed(0)})`);
       // re-run room detection live so a wall pulled apart from its neighbours
@@ -5030,8 +5451,7 @@
         if(square && captureWeld(orig).some(L=>L.col) || (dragging.weld && dragging.weld.some(L=>L.col))){
           // one piece of a split wall: it moves on its own, with return walls
           const grabOff = vert ? (start[0]-orig.x1) : (start[1]-orig.y1);
-          let target = (vert?wx:wy) - grabOff;
-          if(ui.snap){ const g=ui.gridSize; target=Math.round(target/g)*g; }
+          let target = wallTargetSnap(w, orig, vert, (vert?wx:wy) - grabOff);
           const d=target-(vert?orig.x1:orig.y1);
           if(!dragging.weld){ const keep={x1:w.x1,y1:w.y1,x2:w.x2,y2:w.y2}; Object.assign(w,{x1:orig.x1,y1:orig.y1,x2:orig.x2,y2:orig.y2}); dragging.weld=captureWeld(w); Object.assign(w,keep); }
           moveWallBody(w,orig,vert?d:0,vert?0:d);
@@ -5040,8 +5460,7 @@
           const axis=vert?'x':'y';
           const cur = vert ? w.x1 : w.y1;
           const grabOff = vert ? (start[0]-orig.x1) : (start[1]-orig.y1);
-          let target = (vert?wx:wy) - grabOff;
-          if(ui.snap){ const g=ui.gridSize; target=Math.round(target/g)*g; }
+          let target = wallTargetSnap(w, orig, vert, (vert?wx:wy) - grabOff);
           const d=target-cur;
           if(Math.abs(d)>0.001){
             const lo = vert?Math.min(w.y1,w.y2):Math.min(w.x1,w.x2);
@@ -5086,6 +5505,7 @@
     });
   }
   function refreshProp(){
+    { const s0=ui.selected; const k=s0?(s0.kind==='ceil'?s0.id:s0.kind==='room'?'r'+s0.id:null):null; if(k!==ui.ceilHArmed) ui.ceilHArmed=null; }
     // Rebuilding the panel replaces the DOM, so doing it while someone is typing
     // throws away both the caret and the characters typed since the last change
     // event — which is exactly why note text "打出來沒反應 還會消失".
@@ -5110,8 +5530,21 @@
       <div class="row"><label>名稱</label><div class="field"><input type="text" class="tin" id="pRname" value="${(e.name||'').replace(/"/g,'&quot;')}" placeholder="未命名"></div></div>
       <div class="row"><label>面積</label><span style="font-size:13px;color:var(--text)">${r?fmtArea(r.area):'—'}</span></div>
       <div class="row"><label>樓高</label><div class="field"><input type="number" id="pRch" value="${Math.round(toDisp(e.ceilingH||state.ceilingH))}" step="1"><span class="unit">${U}</span></div></div>
+      ${state.layer==='ceil'&&r?`
+      <div class="ptitle" style="margin-top:12px">這間的天花板</div>
+      <div class="row"><label>整間平釘</label><div class="seg" id="pRceil"><button data-v="0"${!roomHasCeil(r)?' class="on"':''}>不做</button><button data-v="1"${roomHasCeil(r)?' class="on"':''}>平釘</button></div></div>
+      ${roomHasCeil(r)?`<div class="row"><label>平釘 CH</label><div class="field"><input type="number" id="pRceilCH" value="${Math.round(toDisp(roomBaseCH(r)))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>比樓板下降</label><span style="font-size:13px;color:var(--muted)">${fmtLenU(Math.max(0,slabH(r)-roomBaseCH(r)))}</span></div>`:''}
+      <div class="lay-note">造型（凹槽、降板、圓形）用左邊天花板工具畫在這間裡面；間照用「間接照明」點區域的邊。</div>`:''}
       <div class="row"><button class="chip" id="pRfocus" style="width:100%;text-align:center">${ui.focusRoom===s.id?'離開房間編輯':'進入房間編輯'}</button></div>
       ${rows?`<div class="ptitle" style="margin-top:12px">各邊長度</div>${rows}`:''}`;
+      if(state.layer==='ceil' && r){
+        document.querySelectorAll('#pRceil button').forEach(b=>b.onclick=()=>{
+          if(b.dataset.v==='1'){ if(!roomHasCeil(r)) e.ceilCH=slabH(r)-20; } else delete e.ceilCH;
+          pushHistory(); refreshProp(); syncCeilUI(); draw(); });
+        const ci=document.getElementById('pRceilCH');
+        if(ci) ci.onchange=ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(isFinite(v)&&v>100){ e.ceilCH=Math.min(v,slabH(r)); } pushHistory(); refreshProp(); syncCeilUI(); draw(); };
+      }
       document.getElementById('pRname').onchange=ev=>{
         e.name=ev.target.value.trim();
         if(r){ if(!state.roomNames)state.roomNames={}; state.roomNames[r.key]=e.name; }
@@ -5132,12 +5565,15 @@
     }
     else if(s.kind==='wall'){ const w=state.walls.find(v=>v.id===s.id);
       propBody.innerHTML=`
-      <div class="row"><label>牆長</label><div class="field"><input type="number" id="pWlen" value="${Math.round(toDisp(wallLen(w)))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>${w.ref?(w.refIn?'牆長（內線）':'牆長（外線）'):'牆長'}</label><div class="field"><input type="number" id="pWlen" value="${Math.round(toDisp(wallShownLen(w)))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>牆厚</label><div class="field"><input type="number" id="pWt" value="${Math.round(toDisp(w.t))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>類型</label></div>
+      <div class="chips" id="pWkind" style="margin-bottom:10px">${WALL_KINDS.map(o=>`<div class="chip${wallKind(w)===o.k?' on':''}" data-k="${o.k}">${o.name}</div>`).join('')}</div>
       <button class="btn" id="pWsplit" style="margin:4px 0 10px">拆分這道牆…</button>
       <button class="del-btn" id="pDel">刪除這道牆</button>`;
       document.getElementById('pWsplit').onclick=()=>splitStart(w.id);
-      document.getElementById('pWlen').onchange=ev=>{ setWallLength(w, fromDisp(parseFloat(ev.target.value)||0)); lockWall(w,true); pushHistory(); refreshProp(); draw(); };
+      document.querySelectorAll('#pWkind .chip').forEach(c=>c.onclick=()=>{ const k=c.dataset.k; if(k==='exist') delete w.kind; else w.kind=k; dbg(`  wall #${w.id} kind → ${KIND[k].name}`); pushHistory(); refreshProp(); draw(); });
+      document.getElementById('pWlen').onchange=ev=>{ setWallLength(w, shownToCentre(w, fromDisp(parseFloat(ev.target.value)||0))); lockWall(w,true); pushHistory(); refreshProp(); draw(); };
       document.getElementById('pWt').onchange=ev=>{ w.t=Math.max(1,fromDisp(parseFloat(ev.target.value)||1)); pushHistory(); draw(); };
       document.getElementById('pDel').onclick=deleteSelected;
     }
@@ -5424,7 +5860,7 @@
         draw:()=>draw(), recompute:()=>recomputeRooms(), toScreen:(x,y)=>toScreen(x,y),
         editDimLabel:(l,x,y)=>editDimLabel(l,x,y), pushHistory:()=>pushHistory(),
         hitLabel:(x,y)=>hitLabel(x,y), openLabelEditor:(l,x,y)=>openLabelEditor(l,x,y) }; }catch(_){ }
-  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ceil:'天花板',split:'拆分牆',ulcalib:'底圖校正'})[ui.tool]||''; }
+  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',room:'畫房間',part:'畫隔間',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ceil:'天花板',split:'拆分牆',ulcalib:'底圖校正'})[ui.tool]||''; }
   function flashHint(msg){ if(!msg) return; hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
   function showToolHint(){ flashHint(TOOL_HINT[ui.tool]); }
 
@@ -5603,7 +6039,7 @@
 
   function syncToolSections(){
     document.querySelectorAll('#panel .psec[data-tool]').forEach(sec=>{
-      sec.style.display = sec.dataset.tool===ui.tool ? '' : 'none';
+      sec.style.display = sec.dataset.tool.split(' ').includes(ui.tool) ? '' : 'none';
     });
     // the furniture library belongs to a LAYER, not a tool: pick 平面配置 and the
     // categories are simply there, with no extra 家具 button to discover first
@@ -5611,6 +6047,598 @@
       sec.style.display = sec.dataset.layer===state.layer ? '' : 'none';
     });
   }
+
+
+  // ================= 隔間 / 拆除 =================
+  // Every wall has a kind. Unset = 原有牆 (the existing structure, solid grey).
+  // New partitions and walls to be demolished are drawn so a 隔間圖 / 拆除圖 reads
+  // at a glance — each kind its own fill and hatch, spaced in real centimetres
+  // so the printed sheet looks the same as the screen.
+  const WALL_KINDS=[
+    {k:'exist', name:'原有牆'},
+    {k:'light', name:'輕隔間',   t:10, fill:'#E6EDF5', line:'#4F6F94'},
+    {k:'brick', name:'磚牆',     t:12, fill:'#F7E4DC', line:'#A8432A'},
+    {k:'wood',  name:'木作隔間', t:10, fill:'#F1E2C6', line:'#8A5A24'},
+    {k:'glass', name:'玻璃隔間', t:10, fill:'#E1F2F8', line:'#2D84A8'},
+    {k:'demo',  name:'拆除牆',            fill:'#FCEEEC', line:'#C0392B'},
+  ];
+  const KIND=Object.fromEntries(WALL_KINDS.map(o=>[o.k,o]));
+  const PART_KINDS=['light','brick','wood','glass'];
+  const wallKind=(w)=> (w && w.kind && KIND[w.kind]) ? w.kind : 'exist';
+
+  // where along the line P0 + u·s the point is inside wall o's band
+  function lineInWall(P0, ux, uy, o){
+    const c=wallCenterline(o), M=Math.hypot(c.x2-c.x1,c.y2-c.y1)||1, vx=(c.x2-c.x1)/M, vy=(c.y2-c.y1)/M, h=o.t/2;
+    const a0=(P0.x-c.x1)*vx+(P0.y-c.y1)*vy, da=ux*vx+uy*vy;
+    const b0=-(P0.x-c.x1)*vy+(P0.y-c.y1)*vx, db=-ux*vy+uy*vx;
+    let lo=-Infinity, hi=Infinity;
+    const clip=(v0,dv,mn,mx)=>{ if(Math.abs(dv)<1e-9){ if(v0<=mn||v0>=mx){ lo=1; hi=0; } return; }
+      let t1=(mn-v0)/dv, t2=(mx-v0)/dv; if(t1>t2){ const q=t1; t1=t2; t2=q; } lo=Math.max(lo,t1); hi=Math.min(hi,t2); };
+    clip(a0,da,-h,M+h); clip(b0,db,-h+0.05,h-0.05);
+    return lo<hi ? [lo,hi] : null;
+  }
+  // the stretch of a wall that belongs to it alone: an end buried in a wall of
+  // another kind stops at that wall's face; an end meeting a wall of the same
+  // kind at an angle fills the corner square
+  function kindBand(w){
+    const c=wallCenterline(w), L=Math.hypot(c.x2-c.x1,c.y2-c.y1)||1, ux=(c.x2-c.x1)/L, uy=(c.y2-c.y1)/L, h=w.t/2, k=wallKind(w);
+    const P0={x:c.x1,y:c.y1};
+    let s1=0, s2=L, free1=true, free2=true;
+    for(const o of state.walls){
+      if(o===w || wallLen(o)<1) continue;
+      const oc=wallCenterline(o), M=Math.hypot(oc.x2-oc.x1,oc.y2-oc.y1)||1;
+      const par=Math.abs(ux*(oc.y2-oc.y1)/M-uy*(oc.x2-oc.x1)/M)<0.05;
+      for(const end of [1,2]){
+        const x=end===1?c.x1:c.x2, y=end===1?c.y1:c.y2;
+        const at = Math.hypot(oc.x1-x,oc.y1-y)<2.5||Math.hypot(oc.x2-x,oc.y2-y)<2.5||projPointToSeg(x,y,oc.x1,oc.y1,oc.x2,oc.y2).d<o.t/2+0.5;
+        if(!at) continue;
+        if(end===1) free1=false; else free2=false;
+        if(wallKind(o)===k){
+          if(!par){ if(end===1) s1=Math.min(s1,-Math.min(h,o.t/2)); else s2=Math.max(s2,L+Math.min(h,o.t/2)); }
+          continue;
+        }
+        if(par) continue;
+        const sp=lineInWall(P0,ux,uy,o); if(!sp) continue;
+        if(end===2 && sp[0]<L+0.5 && sp[1]>L-0.5) s2=Math.min(s2,sp[0]);
+        if(end===1 && sp[0]<0.5 && sp[1]>-0.5) s1=Math.max(s1,sp[1]);
+      }
+    }
+    if(s2-s1<0.5) return null;
+    const nx=-uy*h, ny=ux*h, A={x:c.x1+ux*s1,y:c.y1+uy*s1}, B={x:c.x1+ux*s2,y:c.y1+uy*s2};
+    return {poly:[{x:A.x+nx,y:A.y+ny},{x:B.x+nx,y:B.y+ny},{x:B.x-nx,y:B.y-ny},{x:A.x-nx,y:A.y-ny}], ux, uy, h, free1, free2, k};
+  }
+  // fill + hatch of one kind inside a polygon given in SCREEN coordinates.
+  // u = the wall's direction (screen), sp = how many screen px one cm is.
+  function paintKind(g, k, P, ux, uy, sp, hpx){
+    const st=KIND[k]; if(!st || k==='exist') return;
+    g.save();
+    g.beginPath(); P.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.closePath();
+    g.fillStyle=st.fill; g.fill();
+    g.clip();
+    const xs=P.map(p=>p[0]), ys=P.map(p=>p[1]);
+    const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+    const cx=(x0+x1)/2, cy=(y0+y1)/2, R=Math.hypot(x1-x0,y1-y0)/2+2;
+    g.strokeStyle=st.line; g.lineWidth=Math.max(0.7, 0.9*TS); g.setLineDash([]);
+    const hatch=(dx,dy,gap)=>{                         // parallel lines along (dx,dy), gap px apart
+      const nx=-dy, ny=dx; g.beginPath();
+      for(let o=-R; o<=R; o+=gap){ g.moveTo(cx+nx*o-dx*R, cy+ny*o-dy*R); g.lineTo(cx+nx*o+dx*R, cy+ny*o+dy*R); }
+      g.stroke();
+    };
+    const vx=-uy, vy=ux;                               // across the wall
+    const gap=Math.max(3, 5*sp);                       // ≈ 5 cm
+    const d45=[(ux+vx)/Math.SQRT2,(uy+vy)/Math.SQRT2], d135=[(ux-vx)/Math.SQRT2,(uy-vy)/Math.SQRT2];
+    if(k==='brick'){ hatch(d45[0],d45[1],gap); }
+    else if(k==='light'){ hatch(d45[0],d45[1],gap*1.4); hatch(d135[0],d135[1],gap*1.4); }
+    else if(k==='wood'){ hatch(ux,uy,Math.max(2.5,hpx*0.66)); }
+    else if(k==='glass'){ g.beginPath(); g.moveTo(cx-ux*R,cy-uy*R); g.lineTo(cx+ux*R,cy+uy*R); g.stroke(); }
+    g.restore();
+  }
+  function drawWallKinds(){
+    for(const w of state.walls){
+      const k=wallKind(w); if(k==='exist' || wallLen(w)<1) continue;
+      const b=kindBand(w); if(!b) continue;
+      const P=b.poly.map(p=>toScreen(p.x,p.y));
+      paintKind(ctx, k, P, b.ux, b.uy, view.scale, b.h*view.scale);
+      ctx.save(); ctx.lineCap='butt';
+      if(k==='demo'){
+        // to be removed: a dashed outline, nothing solid
+        ctx.strokeStyle=KIND.demo.line; ctx.lineWidth=Math.max(1.2,1.4*TS); ctx.setLineDash([6*TS,4*TS]);
+        ctx.beginPath(); P.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.stroke();
+      } else {
+        // the long faces (and a free end) get the wall outline back on top of the hatch
+        ctx.strokeStyle=WALL_EDGE; ctx.lineWidth=Math.max(1,1.2*TS);
+        ctx.beginPath(); ctx.moveTo(P[0][0],P[0][1]); ctx.lineTo(P[1][0],P[1][1]); ctx.moveTo(P[3][0],P[3][1]); ctx.lineTo(P[2][0],P[2][1]);
+        if(b.free1){ ctx.moveTo(P[0][0],P[0][1]); ctx.lineTo(P[3][0],P[3][1]); }
+        if(b.free2){ ctx.moveTo(P[1][0],P[1][1]); ctx.lineTo(P[2][0],P[2][1]); }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  // the legend: one row per kind on the sheet, with how many metres of it
+  function wallKindTally(){
+    const by={};
+    for(const w of state.walls){ const k=wallKind(w); if(k==='exist'||wallLen(w)<1) continue; by[k]=(by[k]||0)+wallShownLen(w); }
+    return WALL_KINDS.filter(o=>by[o.k]).map(o=>({kind:'wk_'+o.k, name:o.name, n:(Math.round(by[o.k])/100).toFixed(1)+' m',
+      sw:(g,sp)=>{ const w2=sp*1.1, h2=sp*0.32, P=[[-w2,-h2],[w2,-h2],[w2,h2],[-w2,h2]];
+        g.save(); g.lineWidth=Math.max(1,sp*0.03); g.lineCap='butt';
+        paintKind(g,o.k,P,1,0,sp/12,h2);
+        g.strokeStyle= o.k==='demo'?KIND.demo.line:WALL_EDGE; if(o.k==='demo') g.setLineDash([sp*0.18,sp*0.12]);
+        g.beginPath(); P.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.closePath(); g.stroke(); g.restore(); }}));
+  }
+
+  // ================= 連續畫牆 / 畫房間 =================
+  // You walk the walls and tap one corner after another. The line you tap is the
+  // 定位線 — with 內線 it is the room's inner face, so a typed length is the clear
+  // size. Nothing is welded or pulled into line afterwards: every corner of the
+  // chain is shared exactly, and a point only lands on something real (a wall
+  // corner, a wall face) when you tap near it. Grid rounding is never applied to
+  // a coordinate, only to a length you have not typed.
+  ui.chain=null;           // {pts:[{x,y}], hover:{x,y,how}|null}
+  ui.rect=null;            // {x0,y0,x1,y1,asking}
+  const ALIGN_NAME={in:'內線',mid:'中線',out:'外線'};
+  const lenStep=()=> ui.snap ? ui.gridSize : 0.1;
+  const curThick=()=> ui.tool==='part' ? ui.partThick[ui.partKind] : ui.thick;
+  const roundLen=v=> Math.round(v/lenStep())*lenStep();
+
+  // ---- what a tapped point may land on ----
+  // Faces and true outline corners (where the drawn wall outline actually turns),
+  // plus — only when drawing by 中線 — the wall centre points and centre lines.
+  function chainTargets(){
+    const W=state.walls.filter(w=>wallLen(w)>=1).map(w=>{
+      const c=wallCenterline(w), L=Math.hypot(c.x2-c.x1,c.y2-c.y1)||1;
+      return {w, c, L, ux:(c.x2-c.x1)/L, uy:(c.y2-c.y1)/L, h:w.t/2};
+    });
+    const joined=(x,y,self)=>W.some(o=>{ if(o===self) return false;
+      if(Math.hypot(o.c.x1-x,o.c.y1-y)<0.6||Math.hypot(o.c.x2-x,o.c.y2-y)<0.6) return true;
+      const p=projPointToSeg(x,y,o.c.x1,o.c.y1,o.c.x2,o.c.y2); return p.d<0.6; });
+    for(const a of W){ a.e1=joined(a.c.x1,a.c.y1,a)?a.h:0; a.e2=joined(a.c.x2,a.c.y2,a)?a.h:0; }
+    // body: centre band, carried on by half a thickness at a joined end (that is
+    // how the corner square is filled when walls meet)
+    const inside=(x,y)=>W.some(a=>{ const dx=x-a.c.x1, dy=y-a.c.y1, al=dx*a.ux+dy*a.uy, of=-dx*a.uy+dy*a.ux;
+      return al>-a.e1+0.05 && al<a.L+a.e2-0.05 && Math.abs(of)<a.h-0.05; });
+    const faces=[];
+    for(const a of W) for(const s of [1,-1]){
+      const nx=-a.uy*s*a.h, ny=a.ux*s*a.h;
+      faces.push({x1:a.c.x1+nx-a.ux*a.e1, y1:a.c.y1+ny-a.uy*a.e1, x2:a.c.x2+nx+a.ux*a.e2, y2:a.c.y2+ny+a.uy*a.e2, wall:a});
+    }
+    const cand=[];
+    for(const f of faces){ cand.push({x:f.x1,y:f.y1},{x:f.x2,y:f.y2}); }
+    for(let i=0;i<faces.length;i++) for(let j=i+1;j<faces.length;j++){
+      const A=faces[i], B=faces[j]; if(A.wall===B.wall) continue;
+      const p=lineCross(A,B); if(!p) continue;
+      const ta=lineParam(p,A), tb=lineParam(p,B);
+      const la=Math.hypot(A.x2-A.x1,A.y2-A.y1)||1, lb=Math.hypot(B.x2-B.x1,B.y2-B.y1)||1;
+      if(ta.t*la<-0.6||ta.t*la>la+0.6||tb.t*lb<-0.6||tb.t*lb>lb+0.6) continue;
+      cand.push(p);
+    }
+    const pts=[], e=0.8;
+    for(const p of cand){
+      if(pts.some(q=>Math.abs(q.x-p.x)<0.3&&Math.abs(q.y-p.y)<0.3)) continue;
+      let n=0; for(const [dx,dy] of [[e,e],[e,-e],[-e,e],[-e,-e]]) if(inside(p.x+dx,p.y+dy)) n++;
+      if(n===1||n===3) pts.push({x:p.x,y:p.y});
+    }
+    const segs=faces.map(f=>[{x:f.x1,y:f.y1},{x:f.x2,y:f.y2}]);
+    if(ui.wallAlign==='mid') for(const a of W){ pts.push({x:a.c.x1,y:a.c.y1},{x:a.c.x2,y:a.c.y2}); segs.push([{x:a.c.x1,y:a.c.y1},{x:a.c.x2,y:a.c.y2}]); }
+    // the open ends of runs already drawn: a new run started (or ended) on one of
+    // these carries straight on from it, corner and all
+    const ends=[];
+    for(const a of W){
+      for(const k of [1,2]){
+        if((k===1?a.e1:a.e2)>0) continue;
+        const x=k===1?a.c.x1:a.c.x2, y=k===1?a.c.y1:a.c.y2, nx=-a.uy*a.h, ny=a.ux*a.h;
+        if(ui.wallAlign==='mid') ends.push({x,y}); else ends.push({x:x+nx,y:y+ny},{x:x-nx,y:y-ny});
+      }
+    }
+    return {pts,segs,ends};
+  }
+
+  // where the next point goes, given where the finger is
+  function chainPoint(from, wx, wy, T, start){
+    const R=snapRadius(20,40);
+    if(start && Math.hypot(start.x-wx,start.y-wy)<R) return {x:start.x,y:start.y,how:'起點'};
+    if(!from && T.ends){ let b=null, d=R*1.8; for(const p of T.ends){ const q=Math.hypot(p.x-wx,p.y-wy); if(q<d){ d=q; b=p; } } if(b) return {x:b.x,y:b.y,how:'接續牆端'}; }
+    if(from && angleLockOn()){
+      const step=angleStep(), a=Math.round(Math.atan2(wy-from.y,wx-from.x)/step)*step;
+      let ux=Math.cos(a), uy=Math.sin(a); if(Math.abs(ux)<1e-9) ux=0; if(Math.abs(uy)<1e-9) uy=0;
+      const vx=-uy, vy=ux, along=(p)=>(p.x-from.x)*ux+(p.y-from.y)*uy, off=(p)=>(p.x-from.x)*vx+(p.y-from.y)*vy;
+      const f={x:wx,y:wy}, fa=along(f);
+      let L=roundLen(fa), how='', bd=R;
+      // stop on a corner that sits on this line
+      for(const p of T.pts){ if(Math.abs(off(p))<1.5 && along(p)>1){ const d=Math.abs(along(p)-fa); if(d<bd){ bd=d; L=along(p); how='轉角'; } } }
+      // or line up with the start, so the loop closes square
+      if(!how && start){ const sa=along(start); if(Math.abs(sa-fa)<R && sa>1 && Math.abs(off(start))>0.5){ L=sa; how='對齊起點'; bd=Math.abs(sa-fa); } }
+      // or stop on a wall face crossing this line
+      if(!how) for(const [p,q] of T.segs){
+        const dx=q.x-p.x, dy=q.y-p.y, den=dx*vx+dy*vy; if(Math.abs(den)<1e-6) continue;
+        const t=-off(p)/den; if(t<-0.001||t>1.001) continue;
+        const h={x:p.x+dx*t,y:p.y+dy*t}, ha=along(h); if(ha<=1) continue;
+        const d=Math.abs(ha-fa); if(d<bd){ bd=d; L=ha; how='牆面'; }
+      }
+      // or end level with a corner somewhere else, so walls line up across the plan
+      if(!how && (ux===0||uy===0)) for(const p of T.pts){ const d=Math.abs(along(p)-fa); if(d<bd*0.6 && along(p)>1){ bd=d/0.6; L=along(p); how='對齊'; } }
+      if(!how && start && (ux===0||uy===0)){ const sa=along(start); if(Math.abs(sa-fa)<R*0.6 && sa>1){ L=sa; how='對齊起點'; } }
+      return {x:from.x+ux*L, y:from.y+uy*L, how};
+    }
+    let best=null, bd=R;
+    for(const p of T.pts){ const d=Math.hypot(p.x-wx,p.y-wy); if(d<bd){ bd=d; best=p; } }
+    if(best) return {x:best.x,y:best.y,how:'轉角'};
+    const axis=(v,k)=>{ let b=null, d=R*0.6; for(const p of T.pts){ const q=Math.abs(p[k]-v); if(q<d){ d=q; b=p[k]; } } return b; };
+    bd=R*0.7; let seg=null;
+    for(const s of T.segs){ const p=projPointToSeg(wx,wy,s[0].x,s[0].y,s[1].x,s[1].y); if(p.d<bd){ bd=p.d; best=p; seg=s; } }
+    if(best){
+      let bx=best.x, by=best.y;
+      if(Math.abs(seg[0].x-seg[1].x)<1e-6){ const a=axis(wy,'y'); if(a!=null) by=a; }
+      else if(Math.abs(seg[0].y-seg[1].y)<1e-6){ const a=axis(wx,'x'); if(a!=null) bx=a; }
+      return {x:bx,y:by,how:'牆面'};
+    }
+    if(!from){ const ax=axis(wx,'x'), ay=axis(wy,'y');
+      return {x:ax!=null?ax:Math.round(wx), y:ay!=null?ay:Math.round(wy), how:(ax!=null||ay!=null)?'對齊':''}; }
+    const L=roundLen(Math.hypot(wx-from.x,wy-from.y)), a=Math.atan2(wy-from.y,wx-from.x);
+    return {x:from.x+Math.cos(a)*L, y:from.y+Math.sin(a)*L, how:''};
+  }
+
+  // ---- 定位線 → wall centre lines (corners mitred, so every face keeps the drawn length) ----
+  function offsetLine(pts, closed, side, t){
+    const n=pts.length, m=closed?n:n-1, off=side*t/2;
+    if(!off) return pts.map(p=>({x:p.x,y:p.y}));
+    const segs=[];
+    for(let i=0;i<m;i++){
+      const a=pts[i], b=pts[(i+1)%n], L=Math.hypot(b.x-a.x,b.y-a.y)||1, ux=(b.x-a.x)/L, uy=(b.y-a.y)/L;
+      segs.push({ax:a.x+uy*off, ay:a.y-ux*off, ux, uy, L});
+    }
+    const meet=(s1,s2,fb)=>{ const cr=s1.ux*s2.uy-s1.uy*s2.ux; if(Math.abs(cr)<1e-6) return fb;
+      const k=((s2.ax-s1.ax)*s2.uy-(s2.ay-s1.ay)*s2.ux)/cr; return {x:s1.ax+s1.ux*k, y:s1.ay+s1.uy*k}; };
+    const out=[];
+    for(let i=0;i<n;i++){
+      const prev = closed ? segs[(i-1+m)%m] : segs[i-1], cur = closed ? segs[i%m] : segs[i];
+      if(prev && cur) out.push(meet(prev,cur,{x:cur.ax,y:cur.ay}));
+      else if(cur) out.push({x:cur.ax,y:cur.ay});
+      else out.push({x:prev.ax+prev.ux*prev.L, y:prev.ay+prev.uy*prev.L});
+    }
+    return out;
+  }
+  function signedArea(pts){ let a=0; for(let i=0;i<pts.length;i++){ const p=pts[i], q=pts[(i+1)%pts.length]; a+=p.x*q.y-q.x*p.y; } return a/2; }
+  // Drawn clockwise, 內線 puts the wall body outside (on the left of travel). A
+  // closed loop no longer depends on the direction it was drawn in.
+  function bodySide(pts, closed){
+    if(ui.wallAlign==='mid') return 0;
+    let s = ui.wallAlign==='in' ? 1 : -1;
+    if(closed){ if(signedArea(pts)<0) s=-s; return s; }
+    // An open run that carries on from the open end of an earlier one takes its
+    // side from that wall, so it does not matter which way round it is drawn:
+    // at a corner the two 內線 faces bound the room, so the new body goes away
+    // from the old wall (外線: towards it).
+    if(pts.length>=2){
+      const tryEnd=(P,Q)=>{
+        const L0=Math.hypot(Q.x-P.x,Q.y-P.y)||1, ux=(Q.x-P.x)/L0, uy=(Q.y-P.y)/L0;
+        for(const f of wallFreeEnds()){
+          const c=f.c, L=Math.hypot(c.x2-c.x1,c.y2-c.y1)||1, wx=(c.x2-c.x1)/L, wy=(c.y2-c.y1)/L, h=f.w.t/2;
+          const refs = [{x:f.x-wy*h,y:f.y+wx*h},{x:f.x+wy*h,y:f.y-wx*h}];
+          if(!refs.some(r=>Math.hypot(r.x-P.x,r.y-P.y)<0.5)) continue;
+          if(Math.abs(ux*wy-uy*wx)<0.05) continue;               // carries straight on: no corner to read
+          const vx=f.k===1?wx:-wx, vy=f.k===1?wy:-wy;             // along the old wall, away from its end
+          return {vx,vy};
+        }
+        return null;
+      };
+      const n=pts.length;
+      // at the start the run leaves along +u; body of side +1 lies at (uy,-ux)
+      let r=tryEnd(pts[0],pts[1]), bx, by;
+      if(r){ const u=[pts[1].x-pts[0].x, pts[1].y-pts[0].y]; bx=u[1]; by=-u[0]; }
+      else { r=tryEnd(pts[n-1],pts[n-2]); if(r){ const u=[pts[n-1].x-pts[n-2].x, pts[n-1].y-pts[n-2].y]; bx=u[1]; by=-u[0]; } }
+      if(r){ const d=bx*r.vx+by*r.vy; const plus1Away = d<0; s = (ui.wallAlign==='in') === plus1Away ? 1 : -1; }
+    }
+    return s;
+  }
+  // an open end drawn up to another wall is carried on to that wall's centre line,
+  // which is how this app joins a T
+  function reachHost(p, ux, uy){
+    let best=null, bd=Infinity;
+    for(const w of state.walls){
+      const c=wallCenterline(w), L=Math.hypot(c.x2-c.x1,c.y2-c.y1); if(L<2) continue;
+      const wx=(c.x2-c.x1)/L, wy=(c.y2-c.y1)/L, cr=ux*wy-uy*wx;
+      const pr=projPointToSeg(p.x,p.y,c.x1,c.y1,c.x2,c.y2);
+      if(pr.d>w.t/2+0.3) continue;
+      if(Math.abs(cr)<0.05){ if(pr.d<0.15 && pr.d<bd){ bd=pr.d; best={x:pr.x,y:pr.y}; } continue; }
+      const k=((c.x1-p.x)*wy-(c.y1-p.y)*wx)/cr, hx=p.x+ux*k, hy=p.y+uy*k;
+      const al=(hx-c.x1)*wx+(hy-c.y1)*wy;
+      if(al<-w.t/2-0.1 || al>L+w.t/2+0.1) continue;
+      if(Math.abs(k)<bd){ bd=Math.abs(k); best={x:hx,y:hy}; }
+    }
+    return best;
+  }
+  // wall ends that nothing is attached to yet (centre-line points)
+  function wallFreeEnds(){
+    const L=state.walls.filter(w=>wallLen(w)>=1).map(w=>({w,c:wallCenterline(w)})), out=[];
+    for(const A of L) for(const k of [1,2]){
+      const x=k===1?A.c.x1:A.c.x2, y=k===1?A.c.y1:A.c.y2;
+      const joined=L.some(B=>{ if(B===A) return false;
+        if(Math.hypot(B.c.x1-x,B.c.y1-y)<0.6||Math.hypot(B.c.x2-x,B.c.y2-y)<0.6) return true;
+        return projPointToSeg(x,y,B.c.x1,B.c.y1,B.c.x2,B.c.y2).d<0.6; });
+      if(!joined) out.push({w:A.w,c:A.c,k,x,y});
+    }
+    return out;
+  }
+  // A run that starts (or ends) where an earlier run stopped makes a CORNER with
+  // it: both centre lines are carried to the point where they cross, exactly as
+  // if the two runs had been drawn as one.
+  function cornerJoin(P, Q, used){
+    const dx=P.x-Q.x, dy=P.y-Q.y, M=Math.hypot(dx,dy)||1, ux=dx/M, uy=dy/M;
+    let best=null, bd=Infinity;
+    for(const f of wallFreeEnds()){
+      if(used && used.some(u=>u.f.w===f.w&&u.f.k===f.k)) continue;
+      const c=f.c, L=Math.hypot(c.x2-c.x1,c.y2-c.y1)||1, wx=(c.x2-c.x1)/L, wy=(c.y2-c.y1)/L;
+      if(Math.abs(ux*wy-uy*wx)<0.05) continue;
+      const X=lineCross({x1:Q.x,y1:Q.y,x2:P.x,y2:P.y},{x1:c.x1,y1:c.y1,x2:c.x2,y2:c.y2}); if(!X) continue;
+      const lim=f.w.t/2+curThick()/2+1.5, dE=Math.hypot(X.x-f.x,X.y-f.y), dP=Math.hypot(X.x-P.x,X.y-P.y);
+      if(dE>lim||dP>lim) continue;
+      const sg=f.k===2?1:-1;
+      if((X.x-f.x)*wx*sg+(X.y-f.y)*wy*sg < -0.5) continue;      // never cut back into the old wall
+      if((X.x-P.x)*ux+(X.y-P.y)*uy < -0.5) continue;              // nor into the new one
+      if(dE+dP<bd){ bd=dE+dP; best={X,f}; }
+    }
+    return best;
+  }
+  function chainCentres(pts, closed){
+    const C=offsetLine(pts, closed, bodySide(pts,closed), curThick()), n=C.length;
+    C.joins=[];
+    if(!closed && n>=2){
+      const j0=cornerJoin(C[0],C[1]);
+      if(j0){ C[0]=j0.X; C.joins.push(j0); }
+      else { const d0=Math.hypot(C[1].x-C[0].x,C[1].y-C[0].y)||1, h0=reachHost(C[0],(C[0].x-C[1].x)/d0,(C[0].y-C[1].y)/d0); if(h0) C[0]=h0; }
+      const j1=cornerJoin(C[n-1],C[n-2],C.joins);
+      if(j1){ C[n-1]=j1.X; C.joins.push(j1); }
+      else { const d1=Math.hypot(C[n-1].x-C[n-2].x,C[n-1].y-C[n-2].y)||1, h1=reachHost(C[n-1],(C[n-1].x-C[n-2].x)/d1,(C[n-1].y-C[n-2].y)/d1); if(h1) C[n-1]=h1; }
+    }
+    return C;
+  }
+  function buildChainWalls(pts, closed){
+    const C=chainCentres(pts, closed), n=C.length, made=[];
+    for(const j of C.joins){
+      const w=j.f.w, c=wallCenterline(w);
+      w.x1=c.x1; w.y1=c.y1; w.x2=c.x2; w.y2=c.y2; w.align='mid';
+      if(j.f.k===1){ w.x1=j.X.x; w.y1=j.X.y; } else { w.x2=j.X.x; w.y2=j.X.y; }
+      dbg(`  CORNER JOIN wall #${w.id} end${j.f.k} -> (${j.X.x.toFixed(1)},${j.X.y.toFixed(1)})`);
+    }
+    for(let i=0;i<(closed?n:n-1);i++){
+      const a=C[i], b=C[(i+1)%n]; if(Math.hypot(b.x-a.x,b.y-a.y)<1) continue;
+      const w={id:uid(), x1:a.x, y1:a.y, x2:b.x, y2:b.y, t:curThick(), align:'mid'};
+      if(ui.tool==='part') w.kind=ui.partKind;
+      // which face is the line you drew: centre + ref·n·t/2, n = left normal of x1→x2
+      const sd=bodySide(pts,closed); if(sd){ w.ref=sd; w.refIn=(ui.wallAlign==='in'); }
+      state.walls.push(w); made.push(w);
+    }
+    dbg(`  CHAIN BUILT ${ui.tool==='part'?KIND[ui.partKind].name:'牆'} ${closed?'closed':'open'} ${ALIGN_NAME[ui.wallAlign]} t=${curThick()} pts=${pts.map(p=>'('+p.x.toFixed(1)+','+p.y.toFixed(1)+')').join('')} -> walls ${made.map(w=>'#'+w.id).join(',')}`);
+    return made;
+  }
+
+  // ---- the chain ----
+  function chainLenPad(){
+    const c=ui.chain; if(!c || c.pts.length<2) return;
+    const a=c.pts[c.pts.length-2], b=c.pts[c.pts.length-1];
+    kpad.open({owner:'chain', side:true,
+      fields:[{key:'v', label:'這道牆長度（'+ALIGN_NAME[ui.wallAlign]+'）', unit:ui.unit}],
+      hint:'打量到的長度，不用按 ✓，直接點下一個轉角。點起點＝閉合，再點一次最後一點＝結束',
+      onInput:(o)=>{ if(o.v>0){ chainSetLen(fromDisp(o.v)); draw(); } },
+      onCommit:(o)=>{ if(o.v>0) chainSetLen(fromDisp(o.v)); kpad.close(); chainCheckClosed(); draw(); },
+      onCancel:()=>{ draw(); }});
+    kpad.set({v:Math.round(toDisp(Math.hypot(b.x-a.x,b.y-a.y))*10)/10});
+  }
+  function chainSetLen(cm){
+    const c=ui.chain; if(!c || c.pts.length<2 || !(cm>0)) return;
+    const a=c.pts[c.pts.length-2], b=c.pts[c.pts.length-1], L=Math.hypot(b.x-a.x,b.y-a.y)||1;
+    b.x=a.x+(b.x-a.x)/L*cm; b.y=a.y+(b.y-a.y)/L*cm;
+    dbg(`  CHAIN LEN ${cm.toFixed(1)}cm`);
+  }
+  // typed lengths that bring the last corner exactly back onto the start close it
+  function chainCheckClosed(){
+    const c=ui.chain; if(!c) return false;
+    const P=c.pts, s=P[0], e=P[P.length-1];
+    if(P.length>=4 && Math.hypot(e.x-s.x,e.y-s.y)<0.15){ P.pop(); chainFinish(true); return true; }
+    return false;
+  }
+  function chainAdd(p){
+    const c=ui.chain, last=c.pts[c.pts.length-1];
+    if(Math.hypot(p.x-last.x,p.y-last.y)<1) return false;
+    c.pts.push({x:p.x,y:p.y});
+    dbg(`  CHAIN ADD (${p.x.toFixed(1)},${p.y.toFixed(1)}) ${p.how||''} n=${c.pts.length}`);
+    if(chainCheckClosed()) return true;
+    chainLenPad(); updateUndo(); return true;
+  }
+  function chainBack(){
+    const c=ui.chain; if(!c) return;
+    kpad.closeIf('chain');
+    if(c.pts.length<=1){ ui.chain=null; flashHint('已取消這一串牆'); }
+    else { c.pts.pop(); if(c.pts.length>=2) chainLenPad(); flashHint('退回上一個轉角'); }
+    dbg(`  CHAIN BACK n=${ui.chain?ui.chain.pts.length:0}`);
+    updateUndo(); draw();
+  }
+  // Close on the start. If the last wall stops short of (or overshoots) the start's
+  // line, IT gives — and says so, because a loop of tape readings rarely closes.
+  function chainClose(){
+    const c=ui.chain; if(!c) return;
+    const P=c.pts, n=P.length;
+    if(n<3){ flashHint('至少要兩道牆才能圍起來'); return; }
+    const s=P[0], e=P[n-1], a=P[n-2];
+    let msg='';
+    if(Math.hypot(e.x-s.x,e.y-s.y)>0.15){
+      const dx=e.x-a.x, dy=e.y-a.y, L=Math.hypot(dx,dy)||1, ux=dx/L, uy=dy/L;
+      const horiz=Math.abs(uy)<0.001, vert=Math.abs(ux)<0.001;
+      if((horiz && Math.abs(s.y-e.y)<0.15) || (vert && Math.abs(s.x-e.x)<0.15)){
+        const want=horiz ? (s.x-a.x)*ux : (s.y-a.y)*uy;
+        if(want>1){ if(Math.abs(want-L)>0.15) msg='最後一道牆由 '+fmtLenU(L)+' 調成 '+fmtLenU(want)+' 才接得回起點'; e.x=s.x; e.y=s.y; }
+      } else {
+        // the last corner is off the start's line: one more wall closes it
+        P.push({x:s.x,y:s.y});
+      }
+    }
+    if(Math.hypot(P[P.length-1].x-s.x,P[P.length-1].y-s.y)<0.15) P.pop();
+    chainFinish(true);
+    if(msg) flashHint(msg);
+  }
+  function chainFinish(closed){
+    const c=ui.chain; if(!c) return;
+    kpad.closeIf('chain');
+    ui.chain=null; cgest=null;
+    if(c.pts.length>=2 && !(closed && c.pts.length<3)){
+      buildChainWalls(c.pts, closed); pushHistory();
+      flashHint(closed?'已圍成空間':'這一串牆畫好了');
+    }
+    updateUndo(); draw();
+  }
+
+  // ---- the room rectangle ----
+  function rectPts(r){ return [{x:r.x0,y:r.y0},{x:r.x1,y:r.y0},{x:r.x1,y:r.y1},{x:r.x0,y:r.y1}]; }
+  function rectAsk(){
+    const r=ui.rect; r.asking=true;
+    kpad.open({owner:'rect', side:true,
+      fields:[{key:'w', label:'寬（'+ALIGN_NAME[ui.wallAlign]+'）', unit:ui.unit},{key:'d', label:'深', unit:ui.unit}],
+      hint:'⇥ 切換寬／深，按 ✓ 建立。'+(ui.wallAlign==='in'?'打的是室內淨尺寸':''),
+      onInput:(o)=>{ rectApply(o); draw(); },
+      onCommit:(o)=>{ rectApply(o); rectCommit(); },
+      onCancel:()=>{ ui.rect=null; draw(); }});
+    kpad.set({w:Math.round(toDisp(Math.abs(r.x1-r.x0))*10)/10, d:Math.round(toDisp(Math.abs(r.y1-r.y0))*10)/10});
+  }
+  function rectApply(o){
+    const r=ui.rect; if(!r) return;
+    if(o.w>0) r.x1=r.x0+Math.sign(r.x1-r.x0||1)*fromDisp(o.w);
+    if(o.d>0) r.y1=r.y0+Math.sign(r.y1-r.y0||1)*fromDisp(o.d);
+  }
+  function rectCommit(){
+    const r=ui.rect; if(!r) return;
+    ui.rect=null; kpad.closeIf('rect');
+    if(Math.abs(r.x1-r.x0)<10 || Math.abs(r.y1-r.y0)<10){ flashHint('房間太小了'); draw(); return; }
+    buildChainWalls(rectPts(r), true); pushHistory();
+    flashHint('房間 '+fmtLen(Math.abs(r.x1-r.x0))+' × '+fmtLenU(Math.abs(r.y1-r.y0))+' 已建立');
+    draw();
+  }
+
+  // ---- pointer ----
+  function chainDown(e,px,py,wx,wy){
+    if(cgest && cgest.pid!==e.pointerId) return;
+    const T=chainTargets();
+    if(ui.tool==='room'){
+      if(ui.rect && ui.rect.asking) rectCommit();       // the next room starts: keep the last one as typed
+      const p=chainPoint(null,wx,wy,T,null);
+      ui.rect={x0:p.x,y0:p.y,x1:p.x,y1:p.y,asking:false};
+      cgest={kind:'rect',pid:e.pointerId,px,py,T};
+      dbg(`  RECT START (${p.x.toFixed(1)},${p.y.toFixed(1)}) ${p.how}`);
+      draw(); return;
+    }
+    const c=ui.chain;
+    if(!c){
+      // nothing is placed yet: the start is only taken when the finger lifts (or
+      // starts dragging), so a pinch beginning here leaves no trace
+      const p=chainPoint(null,wx,wy,T,null);
+      cgest={kind:'chain',pid:e.pointerId,px,py,T,fresh:true,pending:p};
+    } else {
+      cgest={kind:'chain',pid:e.pointerId,px,py,T};
+      c.hover=chainPoint(c.pts[c.pts.length-1],wx,wy,T,c.pts.length>=3?c.pts[0]:null);
+    }
+    draw();
+  }
+  function chainBegin(p){
+    ui.chain={pts:[{x:p.x,y:p.y}], hover:null, startHow:p.how||''};
+    dbg(`  CHAIN START (${p.x.toFixed(1)},${p.y.toFixed(1)}) ${p.how||'自由'} ${ALIGN_NAME[ui.wallAlign]}`);
+    updateUndo();
+  }
+  function chainMove(px,py,wx,wy){
+    const g=cgest;
+    if(g.pending){ if(Math.hypot(px-g.px,py-g.py)<8) return; chainBegin(g.pending); g.pending=null; }
+    if(g.kind==='rect'){ const r=ui.rect; if(!r) return; const p=chainPoint(null,wx,wy,g.T,null); r.x1=p.x; r.y1=p.y;
+      const [sx,sy]=toScreen(r.x1,r.y1); showLenBox(sx,sy,fmtLen(Math.abs(r.x1-r.x0))+' × '+fmtLenU(Math.abs(r.y1-r.y0))); draw(); return; }
+    const c=ui.chain; if(!c) return;
+    if(g.fresh && Math.hypot(px-g.px,py-g.py)<8){ c.hover=null; hideLenBox(); draw(); return; }
+    const last=c.pts[c.pts.length-1];
+    c.hover=chainPoint(last,wx,wy,g.T,c.pts.length>=3?c.pts[0]:null);
+    const [sx,sy]=toScreen(c.hover.x,c.hover.y);
+    showLenBox(sx,sy,fmtLenU(Math.hypot(c.hover.x-last.x,c.hover.y-last.y))+(c.hover.how?'　'+c.hover.how:''));
+    draw();
+  }
+  function chainUp(g,e){
+    hideLenBox();
+    const [px,py]=evtPos(e), [wx,wy]=toWorld(px,py);
+    if(g.kind==='rect'){
+      const r=ui.rect; if(!r) return;
+      if(Math.abs(r.x1-r.x0)<30 || Math.abs(r.y1-r.y0)<30){ ui.rect=null; flashHint('按住拖出一個矩形，再打寬和深'); draw(); return; }
+      rectAsk(); draw(); return;
+    }
+    if(g.pending){ chainBegin(g.pending); g.pending=null; }
+    const c=ui.chain; if(!c) return;
+    c.hover=null;
+    const tap=Math.hypot(px-g.px,py-g.py)<8;
+    if(g.fresh && tap){ flashHint('起點已定，點下一個轉角'); draw(); return; }
+    const last=c.pts[c.pts.length-1], s=c.pts[0], R=snapRadius(20,40);
+    // back on the start → close the loop
+    if(c.pts.length>=3 && Math.hypot(wx-s.x,wy-s.y)<R){ chainClose(); return; }
+    // tapping the last corner again ends the run
+    if(tap && Math.hypot(wx-last.x,wy-last.y)<R){ chainFinish(false); return; }
+    const p=chainPoint(last,wx,wy,g.T,c.pts.length>=3?s:null);
+    // going straight back over the wall just drawn would fold it onto itself
+    // (that is what turned into a slanted wall) — refuse it and say why
+    if(c.pts.length>=2){
+      const q=c.pts[c.pts.length-2], ux=last.x-q.x, uy=last.y-q.y, vx=p.x-last.x, vy=p.y-last.y;
+      const lu=Math.hypot(ux,uy)||1, lv=Math.hypot(vx,vy)||1;
+      if(Math.abs(ux*vy-uy*vx)/(lu*lv)<0.02 && ux*vx+uy*vy<0){
+        dbg('  CHAIN REFUSED: folds back over the last wall');
+        flashHint('不能沿著剛畫的牆往回折。要改方向請按上面「復原」退一個轉角');
+        draw(); return;
+      }
+    }
+    chainAdd(p); draw();
+  }
+
+  // ---- preview ----
+  function drawChain(){
+    let pts=null, closed=false, hov=null;
+    if(ui.chain){ pts=ui.chain.pts.slice(); hov=ui.chain.hover; if(hov) pts.push(hov); }
+    else if(ui.rect){ pts=rectPts(ui.rect); closed=true; }
+    if(!pts) return;
+    ctx.save();
+    if(pts.length>=2){
+      const C=offsetLine(pts, closed, bodySide(pts,closed), curThick());
+      ctx.strokeStyle= ui.tool==='part' ? KIND[ui.partKind].line+'66' : 'rgba(43,47,54,.38)'; ctx.lineWidth=Math.max(1,curThick()*view.scale);
+      ctx.lineJoin='miter'; ctx.miterLimit=10; ctx.lineCap='butt';
+      ctx.beginPath(); C.forEach((p,i)=>{ const [x,y]=toScreen(p.x,p.y); if(i) ctx.lineTo(x,y); else ctx.moveTo(x,y); }); if(closed) ctx.closePath(); ctx.stroke();
+      // the 定位線 itself
+      ctx.strokeStyle='#1C7ED6'; ctx.lineWidth=2; ctx.setLineDash([]); ctx.lineCap='round';
+      ctx.beginPath(); pts.forEach((p,i)=>{ const [x,y]=toScreen(p.x,p.y); if(i) ctx.lineTo(x,y); else ctx.moveTo(x,y); }); if(closed) ctx.closePath(); ctx.stroke();
+      // lengths
+      ctx.font='600 12px -apple-system,system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const m=closed?pts.length:pts.length-1;
+      for(let i=0;i<m;i++){
+        const a=pts[i], b=pts[(i+1)%pts.length], L=Math.hypot(b.x-a.x,b.y-a.y); if(L<1) continue;
+        const [x,y]=toScreen((a.x+b.x)/2,(a.y+b.y)/2), t=fmtLen(L), tw=ctx.measureText(t).width;
+        const live = hov && i===m-1;
+        ctx.fillStyle= live?'#1C7ED6':'#fff'; ctx.strokeStyle='#1C7ED6'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.rect(x-tw/2-5,y-9,tw+10,18); ctx.fill(); ctx.stroke();
+        ctx.fillStyle= live?'#fff':'#1C7ED6'; ctx.fillText(t,x,y);
+      }
+    }
+    // the start (tap it to close) and the last corner (tap it again to finish)
+    if(ui.chain){
+      const s=ui.chain.pts[0], [sx,sy]=toScreen(s.x,s.y), sh=ui.chain.startHow;
+      const stuck = sh==='接續牆端'||sh==='轉角'||sh==='牆面';
+      ctx.lineWidth=2.5;
+      if(stuck){ ctx.fillStyle='#12B76A'; ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.arc(sx,sy,7.5,0,Math.PI*2); ctx.fill(); ctx.stroke(); }
+      else { ctx.fillStyle='#fff'; ctx.strokeStyle='#8A929B'; ctx.beginPath(); ctx.arc(sx,sy,7,0,Math.PI*2); ctx.fill(); ctx.stroke(); }
+      // say in words whether the start is attached to anything
+      if(ui.chain.pts.length<=2){
+        const tag = stuck ? ('起點：'+(sh==='接續牆端'?'接在牆的端點':sh==='轉角'?'接在牆角':'接在牆面')) : '起點：沒有接到牆';
+        ctx.font='600 12px -apple-system,system-ui,sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+        const tw=ctx.measureText(tag).width;
+        ctx.fillStyle= stuck?'#12B76A':'#8A929B'; ctx.beginPath(); ctx.rect(sx+12,sy-22,tw+12,20); ctx.fill();
+        ctx.fillStyle='#fff'; ctx.fillText(tag,sx+18,sy-12);
+      }
+      const l=ui.chain.pts[ui.chain.pts.length-1];
+      if(ui.chain.pts.length>1){ const [lx,ly]=toScreen(l.x,l.y); ctx.fillStyle='#1C7ED6'; ctx.beginPath(); ctx.arc(lx,ly,5,0,Math.PI*2); ctx.fill(); }
+      if(hov && hov.how){ const [hx,hy]=toScreen(hov.x,hov.y); ctx.strokeStyle='#E8590C'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(hx,hy,9,0,Math.PI*2); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
+
+  try{ window.__planpad.chain={chainTargets,chainPoint,offsetLine,chainCentres,wallFace,wallShownLen,wallKindTally}; }catch(_){}
   // Placement tools fire once. Tapping the canvas twice while still holding the
   // 門 tool used to leave two doors stacked on each other, and you would not
   // notice until the plan looked wrong. Drawing tools (wall, beam, dimension,
@@ -5624,9 +6652,12 @@
     ui.selected=sel; refreshProp(); draw();
   }
   function setTool(t){
+    if(t==='part') setTimeout(syncPartUI,0);
+    if(ui.chain && t!==ui.tool) chainFinish(false);
+    if(ui.rect && t!=='room'){ if(ui.rect.asking) rectCommit(); else ui.rect=null; }
     ui.tool=t; draft=null; typedNum=''; hideLenBox();
     if(t!=='circuit') ui.cdraft=null;
-    if(t!=='ceil'){ ui.ceilPick=null; ui.cpoly=null; }
+    if(t!=='ceil'){ ui.ceilPick=null; ui.cpoly=null; ui.clinePending=null; }
     if(t!=='split'){ ui.splitId=null; ui.splitPrev=null; }
     syncCircBar();
     document.querySelectorAll('.tool').forEach(el=>el.classList.toggle('active',el.dataset.tool===t));
@@ -5722,6 +6753,27 @@
   function bindSwitch(id,key,after){ const el=document.getElementById(id); el.onclick=()=>{ ui[key]=!ui[key]; el.classList.toggle('on',ui[key]); if(after)after(); draw(); }; }
   bindSwitch('swGrid','grid'); bindSwitch('swSnap','snap');
   document.querySelectorAll('#angleModeSeg button').forEach(b=>b.onclick=()=>{ ui.angleMode=b.dataset.v; document.querySelectorAll('#angleModeSeg button').forEach(x=>x.classList.toggle('on',x===b)); });
+  function syncAlignUI(){
+    document.querySelectorAll('.alignSeg button').forEach(x=>x.classList.toggle('on',x.dataset.v===ui.wallAlign));
+    const txt=({in:'你畫的線是室內牆面，打的長度＝室內淨尺寸，牆厚往外長。請順時針沿著牆畫。',mid:'你畫的線是牆中心。',out:'你畫的線是外牆面，打的長度是外尺寸，牆厚往內長。請順時針畫。'})[ui.wallAlign];
+    document.querySelectorAll('.alignNote').forEach(n=>n.textContent=txt);
+  }
+  // 隔間: which kind, and each kind remembers its own thickness
+  ui.partKind='light'; ui.partThick={}; for(const k of PART_KINDS) ui.partThick[k]=KIND[k].t;
+  try{ const o=JSON.parse(localStorage.getItem('planpad.part')||'null'); if(o){ if(PART_KINDS.includes(o.kind)) ui.partKind=o.kind; for(const k of PART_KINDS) if(o.t&&o.t[k]>0) ui.partThick[k]=o.t[k]; } }catch(_){}
+  const savePart=()=>{ try{ localStorage.setItem('planpad.part',JSON.stringify({kind:ui.partKind,t:ui.partThick})); }catch(_){} };
+  function syncPartUI(){
+    const host=document.getElementById('partKindChips'); if(!host) return;
+    host.innerHTML=PART_KINDS.map(k=>`<div class="chip${k===ui.partKind?' on':''}" data-k="${k}">${KIND[k].name}</div>`).join('');
+    host.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ ui.partKind=c.dataset.k; savePart(); syncPartUI(); draw(); dbg('  隔間種類 → '+KIND[ui.partKind].name); });
+    const f=document.getElementById('partThick'); f.value=Math.round(toDisp(ui.partThick[ui.partKind]));
+    document.getElementById('partThickUnit').textContent=ui.unit;
+  }
+  document.getElementById('partThick').onchange=e=>{ const v=parseFloat(e.target.value); if(v>0){ ui.partThick[ui.partKind]=fromDisp(v); savePart(); draw(); } };
+  syncPartUI();
+  document.querySelectorAll('.alignSeg button').forEach(b=>b.onclick=()=>{ ui.wallAlign=b.dataset.v; dbg('  定位線 → '+ALIGN_NAME[ui.wallAlign]); syncAlignUI(); try{localStorage.setItem('planpad.align',ui.wallAlign);}catch(_){} draw(); });
+  try{ const a=localStorage.getItem('planpad.align'); if(a==='in'||a==='mid'||a==='out') ui.wallAlign=a; }catch(_){}
+  syncAlignUI();
   document.getElementById('gridSize').onchange=e=>{ ui.gridSize=Math.max(1,parseInt(e.target.value)||10); draw(); };
   document.getElementById('ceilingH').onchange=e=>{ const v=fromDisp(parseFloat(e.target.value)||280); state.ceilingH=Math.max(150,v); pushHistory(); };
   document.getElementById('unitSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>applyUnit(b.dataset.u));
@@ -5801,7 +6853,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b100';
+  const BUILD='b103';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -6370,7 +7422,7 @@
   // A legend the contractor can count from. It is built from the symbols actually
   // on this sheet, so the quantities can never disagree with the drawing.
   function drawLegend(g, pwMM, phMM, mMM, tb, layersOpt){
-    const items=mepTally(layersOpt).concat(ceilTally(layersOpt));
+    const items=wallKindTally().concat(mepTally(layersOpt)).concat(ceilTally(layersOpt));
     if(!items.length) return null;
     const colMM=96, rowMM=8.5, headMM=9;
     // A long legend in one column is a tall block, and a tall block steals the
@@ -8188,7 +9240,11 @@
   function ceilFillOn(){ return ceilShow() && (state.layer==='ceil' || (state.layer==='__all__' && !layerVisible('plan'))); }
   function roomEntry(r){ return (r && r.rid!=null) ? roomById(r.rid) : null; }
   function slabH(r){ const e=roomEntry(r); return (e&&e.ceilingH)||state.ceilingH; }
-  function roomBaseCH(r){ const e=roomEntry(r); return (e && e.ceilCH!=null) ? e.ceilCH : slabH(r)-20; }
+  // A room has NO ceiling until you give it one (整間平釘). It used to get a
+  // 平釘 20 cm below the slab automatically, which made every room look designed
+  // before anything was decided.
+  function roomBaseCH(r){ const e=roomEntry(r); return (e && e.ceilCH!=null) ? e.ceilCH : slabH(r); }
+  function roomHasCeil(r){ const e=roomEntry(r); return !!(e && e.ceilCH!=null && e.ceilCH < slabH(r)-0.5); }
   function ceilHText(ch, slab){
     const a='CH '+fmtLen(ch), b='降 '+fmtLen(Math.max(0,slab-ch));
     const m=state.ceilLabel||'ch';
@@ -8303,12 +9359,35 @@
     ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=3*TS; ctx.strokeText(txt,0,0);
     ctx.fillStyle=col; ctx.fillText(txt,0,0); ctx.restore();
   }
+  // On screen a height always reads both ways — CH and how far it drops from the
+  // slab — and the number is a button: tap it to type either one.
+  const ceilHBoth=(ch,slab)=>'CH '+fmtLen(ch)+'（降 '+fmtLen(Math.max(0,slab-ch))+'）';
+  function ceilHitText(txt,x,y,col,size,weight,lab){
+    ceilText(txt,x,y,col,size,0,weight);
+    if(EXPORT_MODE) return;
+    ctx.save(); ctx.font=`${weight||700} ${fpx(size||11)}px -apple-system,system-ui,sans-serif`; const w=ctx.measureText(txt).width; ctx.restore();
+    const h=fpx(size||11)+8; hitLabels.push(Object.assign({rect:[x-w/2-4,y-h/2,w+8,h]},lab));
+  }
+  function ceilHeightPad(sx,sy,ch,slab,apply){
+    kpad.open({owner:'num', fields:[{key:'ch',label:'完成面高 CH',unit:ui.unit,live:Math.round(toDisp(ch))},{key:'drop',label:'比樓板下降',unit:ui.unit,live:Math.round(toDisp(Math.max(0,slab-ch)))}],
+      hint:'打其中一個就好（⇥ 切換），按 ✓',
+      onCommit:(o)=>{ kpad.close();
+        const c0=Math.round(toDisp(ch)), d0=Math.round(toDisp(Math.max(0,slab-ch)));
+        let v=null;
+        if(o.drop!=null && o.drop!==d0) v=slab-fromDisp(o.drop);
+        else if(o.ch!=null && o.ch!==c0) v=fromDisp(o.ch);
+        if(v!=null && isFinite(v) && v>100){ apply(Math.min(v,slab)); }
+      }, onCancel:()=>{} });
+  }
   function drawCeilFill(){
     if(!ceilFillOn()) return;
     ctx.save();
+    // white sheet; only the room you are working on turns green
+    const selRoom = ui.selected && ui.selected.kind==='room' ? ui.selected.id : null;
     for(const r of roomsCache){
-      if(r.V.length<3) continue;
+      if(r.V.length<3 || r.rid==null || r.rid!==selRoom) continue;
       ctx.fillStyle='#DFF1EA'; ceilPathScreen(r.V); ctx.fill();
+      ctx.strokeStyle='#12B76A'; ctx.lineWidth=2.5; ceilPathScreen(r.V); ctx.stroke();
     }
     const zs=state.ceil.filter(z=>z.kind==='zone').sort((a,b)=>ceilArea(b)-ceilArea(a));
     for(const z of zs){
@@ -8353,10 +9432,12 @@
     // base ceiling label, one per room
     if(act) for(const r of roomsCache){
       if(r.V.length<3) continue;
+      if(!roomHasCeil(r)) continue;
       const sp=ceilFreeSpot(r); if(!sp) continue;
       const slab=slabH(r), ch=roomBaseCH(r);
       const [sx,sy]=toScreen(sp.x,sp.y);
-      ceilText((ch>=slab-0.5?'原始天花 ':'平釘 ')+ceilHText(ch,slab), sx, sy, CEIL_INK, 11);
+      if(EXPORT_MODE) ceilText('平釘 '+ceilHText(ch,slab), sx, sy, CEIL_INK, 11);
+      else ceilHitText('平釘 '+ceilHBoth(ch,slab), sx, sy, CEIL_INK, 11, 700, {kind:'ceilroomh', rid:r.rid});
     }
     const order=state.ceil.slice().sort((a,b)=>(b.kind==='zone')-(a.kind==='zone') || ceilArea(b)-ceilArea(a));
     for(const z of order){
@@ -8387,7 +9468,7 @@
           ctx.stroke(); ctx.restore();
         }
         const r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
-        const lines=[[ceilHText(z.ch,slab),CEIL_INK,12,700],[zoneTitle(z)+(z.r&&z.shape!=='ell'?' · R'+fmtLen(z.r):''),CEIL_GREY,10,600]];
+        const lines=[[EXPORT_MODE?ceilHText(z.ch,slab):ceilHBoth(z.ch,slab),CEIL_INK,12,700],[zoneTitle(z)+(z.r&&z.shape!=='ell'?' · R'+fmtLen(z.r):''),CEIL_GREY,10,600]];
         if(set) lines.push(['間照 '+fmtLenU(coveLen(z)),CEIL_COVE,10,700]);
         const lh=fpx(14);
         // the room's own name and 坪數 sit at its centre; step above them rather than print on top
@@ -8395,8 +9476,8 @@
         if(r && r.center && showOpt.rooms){ const rc=toScreen(r.center.x,r.center.y);
           if(Math.abs(rc[0]-cx)<fpx(95) && Math.abs(rc[1]-cy)<fpx(22)+lh*lines.length/2) ys=(rc[1]-cy)-(lh*lines.length/2+fpx(20)); }
         const y0=cy+ys-(lines.length-1)*lh/2;
-        if(wS>fpx(60) && hS>lh*lines.length) lines.forEach((l,i)=>ceilText(l[0],cx,y0+i*lh,l[1],l[2],0,l[3]));
-        else ceilText(lines[0][0],cx,cy+ys,CEIL_INK,10);
+        if(wS>fpx(60) && hS>lh*lines.length) lines.forEach((l,i)=>{ if(i===0) ceilHitText(l[0],cx,y0,l[1],l[2],l[3],{kind:'ceilzoneh',zid:z.id}); else ceilText(l[0],cx,y0+i*lh,l[1],l[2],0,l[3]); });
+        else ceilHitText(lines[0][0],cx,cy+ys,CEIL_INK,10,700,{kind:'ceilzoneh',zid:z.id});
       } else if(z.kind==='curtain'){
         const [x0,y0]=toScreen(z.x,z.y), w=z.w*view.scale, h=z.h*view.scale;
         ctx.save(); ctx.beginPath(); ctx.rect(x0,y0,w,h); ctx.fillStyle='#F3F4F6'; ctx.fill(); ctx.clip();
@@ -8425,19 +9506,39 @@
         if(horiz) ceilText(txt, cx, y0+h+fpx(9), CEIL_GREY, 9, 0, 600);
         else ceilText(txt, x0+w+fpx(9), cy, CEIL_GREY, 9, Math.PI/2, 600);
       }
-      if(sel && !EXPORT_MODE) drawCeilHandles(z);
+      if(!EXPORT_MODE && ui.tool==='ceil' && ui.ceilPick==='cove' && z.kind==='zone'){
+        // the edges a light trough can go on, so it is obvious where to tap
+        const V=z.shape==='ell'?null:ceilVerts(z), set=coveEdges(z);
+        ctx.save(); ctx.lineWidth=6; ctx.lineCap='round';
+        if(V) for(let i=0;i<V.length;i++){ const a=toScreen(V[i].x,V[i].y), b=toScreen(V[(i+1)%V.length].x,V[(i+1)%V.length].y);
+          ctx.strokeStyle = set&&set.has(i) ? 'rgba(176,53,127,.55)' : 'rgba(176,53,127,.18)';
+          ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+          const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2; ctx.fillStyle='#fff'; ctx.strokeStyle=CEIL_COVE; ctx.lineWidth=1.5;
+          ctx.beginPath(); ctx.arc(mx,my,8,0,Math.PI*2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle=CEIL_COVE; ctx.font='700 12px -apple-system,system-ui,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText(set&&set.has(i)?'−':'+',mx,my+0.5); ctx.lineWidth=6; }
+        ctx.restore();
+      }
+      if(sel && !EXPORT_MODE){ drawCeilHandles(z); if(z.kind==='zone'||z.kind==='curtain'||z.kind==='hatch'||z.kind==='ventS'||z.kind==='ventR') drawCeilGaps(z); }
     }
     // drafts
     if(ui.tool==='ceil' && ui.cpoly && ui.cpoly.length){
       ctx.strokeStyle=CEIL_INK; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-      ctx.beginPath(); ui.cpoly.forEach((p,i)=>{ const s=toScreen(p.x,p.y); i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]); }); ctx.stroke();
+      ctx.beginPath(); ui.cpoly.forEach((p,i)=>{ const s=toScreen(p.x,p.y); i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]); });
+      if(ui.cpolyHover){ const s=toScreen(ui.cpolyHover.x,ui.cpolyHover.y); ctx.lineTo(s[0],s[1]); } ctx.stroke();
       ctx.setLineDash([]); ui.cpoly.forEach((p,i)=>{ const s=toScreen(p.x,p.y); handle(s[0],s[1]);
         if(i===0 && ui.cpoly.length>=3){ ctx.strokeStyle='#12B76A'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(s[0],s[1],11,0,Math.PI*2); ctx.stroke(); } });
+    }
+    if(ui.tool==='ceil' && ui.ceilPick==='line' && ui.clinePending){
+      const L=ui.clinePending, s1=toScreen(L.a.x,L.a.y), s2=toScreen(L.c.x,L.c.y);
+      ctx.save(); ctx.strokeStyle=CEIL_INK; ctx.lineWidth=2.5; ctx.setLineDash([8,5]);
+      ctx.beginPath(); ctx.moveTo(s1[0],s1[1]); ctx.lineTo(s2[0],s2[1]); ctx.stroke(); ctx.restore();
     }
     if(draft && draft.kind==='cdraw'){
       const a=draft.a, c=draft.cur;
       ctx.strokeStyle=CEIL_INK; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-      if(draft.sub==='ell'){ const R=Math.hypot(c.x-a.x,c.y-a.y)*view.scale, s=toScreen(a.x,a.y); ctx.beginPath(); ctx.arc(s[0],s[1],R,0,Math.PI*2); ctx.stroke(); }
+      if(draft.sub==='line'){ const s1=toScreen(a.x,a.y), s2=toScreen(c.x,c.y); ctx.beginPath(); ctx.moveTo(s1[0],s1[1]); ctx.lineTo(s2[0],s2[1]); ctx.stroke(); }
+      else if(draft.sub==='ell'){ const R=Math.hypot(c.x-a.x,c.y-a.y)*view.scale, s=toScreen(a.x,a.y); ctx.beginPath(); ctx.arc(s[0],s[1],R,0,Math.PI*2); ctx.stroke(); }
       else { const s=toScreen(Math.min(a.x,c.x),Math.min(a.y,c.y)); ctx.strokeRect(s[0],s[1],Math.abs(c.x-a.x)*view.scale,Math.abs(c.y-a.y)*view.scale); }
       ctx.setLineDash([]);
     }
@@ -8449,7 +9550,7 @@
     for(let i=0;i<n;i++){
       const s=V[i], e=V[(i+1)%n], L=Math.hypot(e.x-s.x,e.y-s.y); if(L<20) continue;
       const nx=(e.y-s.y)/L, ny=-(e.x-s.x)/L, h=bz[i]||0;
-      out.push({i, x:(s.x+e.x)/2+nx*h, y:(s.y+e.y)/2+ny*h, nx, ny, mx:(s.x+e.x)/2, my:(s.y+e.y)/2});
+      out.push({i, x:(s.x+e.x)/2, y:(s.y+e.y)/2, nx, ny, mx:(s.x+e.x)/2, my:(s.y+e.y)/2, h});
     }
     return out;
   }
@@ -8458,7 +9559,9 @@
     if(z.shape==='ell'){
       for(const p of [[z.cx+z.rx,z.cy],[z.cx,z.cy+z.ry]]){ const s=toScreen(p[0],p[1]); handle(s[0],s[1]); }
     } else {
-      ceilVerts(z).forEach(p=>{ const s=toScreen(p.x,p.y); handle(s[0],s[1]); });
+      ceilVerts(z).forEach((p,i)=>{ const s=toScreen(p.x,p.y); handle(s[0],s[1]);
+        const R=(z.rv&&z.rv[i]!=null)?z.rv[i]:(z.r||0);
+        if(R>0){ ctx.font='700 10px -apple-system,system-ui,sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom'; ctx.fillStyle='#275C7A'; ctx.fillText('R'+fmtLen(R), s[0]+8, s[1]-6); } });
       const mids=ceilMidHandles(z);
       for(const m of mids){
         const s=toScreen(m.x,m.y);
@@ -8474,7 +9577,7 @@
     ctx.restore();
   }
   function ceilHandleHit(z,wx,wy){
-    const thr=Math.max(12,16)/view.scale;
+    const thr=24/view.scale;
     if(z.shape==='ell'){
       if(Math.hypot(wx-(z.cx+z.rx),wy-z.cy)<thr) return {kind:'ceilR', id:z.id, which:'rx'};
       if(Math.hypot(wx-z.cx,wy-(z.cy+z.ry))<thr) return {kind:'ceilR', id:z.id, which:'ry'};
@@ -8483,43 +9586,50 @@
     const V=ceilVerts(z);
     for(let i=0;i<V.length;i++) if(Math.hypot(wx-V[i].x,wy-V[i].y)<thr) return {kind:'ceilV', id:z.id, which:i};
     for(const m of ceilMidHandles(z)) if(Math.hypot(wx-m.x,wy-m.y)<thr) return {kind:'ceilB', id:z.id, which:m.i};
+    // anywhere along an edge (not only its diamond) grabs that edge too
+    if(z.kind==='zone'){ const ethr=16/view.scale; let bi=-1, bd=ethr;
+      for(let i=0;i<V.length;i++){ const a=V[i], b=V[(i+1)%V.length], pr=projPointToSeg(wx,wy,a.x,a.y,b.x,b.y); if(pr.t>0.08 && pr.t<0.92 && pr.d<bd){ bd=pr.d; bi=i; } }
+      if(bi>=0) return {kind:'ceilB', id:z.id, which:bi}; }
     return null;
   }
   const gsnap=(v)=> ui.snap ? Math.round(v/ui.gridSize)*ui.gridSize : Math.round(v);
   function ceilDrag(hit,orig,dx,dy,wx,wy){
     const z=ceilById(hit.id); if(!z) return;
     if(hit.kind==='ceil'){
+      // A ceiling zone is fixed in place: it is shaped from its edges (菱形) and
+      // corners (圓點), never slid around by grabbing its middle — that kept
+      // happening by accident while aiming for a handle.
+      if(z.kind==='zone') return;
       if(z.shape==='poly'){ const ddx=gsnap(orig.pts[0].x+dx)-orig.pts[0].x, ddy=gsnap(orig.pts[0].y+dy)-orig.pts[0].y;
         z.pts=orig.pts.map(p=>({x:p.x+ddx,y:p.y+ddy})); }
       else if(z.shape==='ell'){ z.cx=gsnap(orig.cx+dx); z.cy=gsnap(orig.cy+dy); }
       else { z.x=gsnap(orig.x+dx); z.y=gsnap(orig.y+dy); }
     } else if(hit.kind==='ceilV'){
-      const px=gsnap(wx), py=gsnap(wy), i=hit.which;
-      if(z.shape==='poly'){ z.pts=orig.pts.map((p,k)=>k===i?{x:px,y:py}:{...p}); }
-      else {
-        // a rectangle stays a rectangle: the opposite corner is the anchor
-        const V=[[orig.x,orig.y],[orig.x+orig.w,orig.y],[orig.x+orig.w,orig.y+orig.h],[orig.x,orig.y+orig.h]];
-        const o=V[(i+2)%4];
-        z.x=Math.min(o[0],px); z.y=Math.min(o[1],py);
-        z.w=Math.max(5,Math.abs(px-o[0])); z.h=Math.max(5,Math.abs(py-o[1]));
-      }
+      // the round handle sets that corner's R: drag it in toward the zone and
+      // the corner rounds off; drag it back out to the corner for a sharp one
+      // a pen tap wobbles a few pixels; that is still a tap (it opens the R keypad)
+      if(!dragging.realMove){ if(Math.hypot(dx,dy)*view.scale<8){ dragging.moved=false; return; } dragging.realMove=true; }
+      const V=ceilVerts(orig), n=V.length, i=hit.which, c=V[i], a=V[(i-1+n)%n], b=V[(i+1)%n];
+      const la=Math.hypot(a.x-c.x,a.y-c.y)||1, lb=Math.hypot(b.x-c.x,b.y-c.y)||1;
+      const ua={x:(a.x-c.x)/la,y:(a.y-c.y)/la}, ub={x:(b.x-c.x)/lb,y:(b.y-c.y)/lb};
+      const fx=wx-c.x, fy=wy-c.y;
+      let R=Math.max(0,((fx*ua.x+fy*ua.y)+(fx*ub.x+fy*ub.y))/2);
+      R=Math.min(R, Math.min(la,lb)/2);
+      R=Math.round(R/(ui.snap?5:1))*(ui.snap?5:1);
+      z.rv=(orig.rv||[]).slice(); while(z.rv.length<n) z.rv.push(orig.r||0);
+      z.rv[i]=R;
     } else if(hit.kind==='ceilR'){
       if(hit.which==='rx') z.rx=Math.max(5,gsnap(Math.abs(wx-z.cx)));
       else z.ry=Math.max(5,gsnap(Math.abs(wy-z.cy)));
       if(orig.rx===orig.ry && !orig.oval) z.rx=z.ry=(hit.which==='rx'?z.rx:z.ry);   // a circle stays a circle
     } else if(hit.kind==='ceilB'){
-      const V=ceilVerts(z), i=hit.which, s=V[i], e=V[(i+1)%V.length], L=Math.hypot(e.x-s.x,e.y-s.y)||1;
-      const nx=(e.y-s.y)/L, ny=-(e.x-s.x)/L;
-      let h=(wx-(s.x+e.x)/2)*nx+(wy-(s.y+e.y)/2)*ny;
-      h=Math.max(-L/2,Math.min(L/2,gsnap(h)));
-      if(Math.abs(h)<3) h=0;                         // near straight snaps back to straight
-      z.bz=(z.bz||[]).slice(); while(z.bz.length<V.length) z.bz.push(0); z.bz[i]=h;
+      ceilEdgeMove(z,orig,hit.which,wx,wy);
     }
   }
   // ---- making things ----
-  function newZoneCH(c){ const r=roomAt(c.x,c.y); if(!r) return state.ceilingH-10; return Math.min(roomBaseCH(r)+10, slabH(r)-5); }
+  function newZoneCH(c){ const r=roomAt(c.x,c.y); if(!r) return state.ceilingH-20; return roomHasCeil(r) ? Math.min(roomBaseCH(r)+10, slabH(r)-5) : slabH(r)-20; }
   function addCeil(z){
-    z.id=uid(); z.layer='ceil'; state.ceil.push(z);
+    z.id=uid(); z.layer='ceil'; state.ceil.push(z); ui.ceilHArmed=null;
     ui.selected={kind:'ceil',id:z.id};
     pushHistory(); refreshProp(); afterPlace();
     return z;
@@ -8527,6 +9637,12 @@
   function commitCeilDraft(){
     const dr=draft; draft=null; hideLenBox();
     const a=dr.a, c=dr.cur;
+    if(dr.sub==='line'){
+      if(Math.hypot(c.x-a.x,c.y-a.y)<20){ flashHint('從一面牆按住拉到另一面牆，畫出天花板的邊線'); draw(); return; }
+      ui.clinePending={a:{...a},c:{...c}};
+      dbg(`  CEIL LINE (${a.x.toFixed(1)},${a.y.toFixed(1)})-(${c.x.toFixed(1)},${c.y.toFixed(1)})`);
+      flashHint('線畫好了：點一下要做天花板的那一邊'); draw(); return;
+    }
     if(dr.sub==='ell'){
       const R=Math.round(Math.hypot(c.x-a.x,c.y-a.y)); if(R<8){ draw(); return; }
       addCeil({kind:'zone',shape:'ell',cx:a.x,cy:a.y,rx:R,ry:R,ch:newZoneCH(a)});
@@ -8537,8 +9653,158 @@
     if(dr.sub==='curtain') addCeil({kind:'curtain',x,y,w,h});
     else addCeil({kind:'zone',shape:'rect',x,y,w,h,r:0,ch:newZoneCH({x:x+w/2,y:y+h/2})});
   }
-  function ceilTap(wx,wy){
+  // ---- 多邊形天花: corners snap like wall corners and follow the angle lock ----
+  function cpolyPoint(wx,wy,T){ const P=ui.cpoly||[], last=P[P.length-1]||null; return chainPoint(last,wx,wy,T,P.length>=3?P[0]:null); }
+  function cpolyAdd(wx,wy,T){
+    ui.cpolyHover=null;
+    const P=ui.cpoly=ui.cpoly||[], p=cpolyPoint(wx,wy,T||chainTargets());
+    if(P.length>=3 && (p.how==='起點' || Math.hypot(p.x-P[0].x,p.y-P[0].y)<0.5)){ dbg('  CEIL POLY close'); ceilPolyFinish(); return; }
+    const l=P[P.length-1];
+    if(!l || Math.hypot(p.x-l.x,p.y-l.y)>1){ P.push({x:p.x,y:p.y}); dbg(`  CEIL POLY point (${p.x.toFixed(1)},${p.y.toFixed(1)}) ${p.how||''} n=${P.length}`); }
+    syncCircBar(); draw();
+  }
+  // ---- 整間平釘: one tap on a room, then its height ----
+  function ceilRoomTap(wx,wy,sx,sy){
+    const r=roomAt(wx,wy); if(!r||r.rid==null){ flashHint('請點在一個圍起來的空間裡面'); return; }
+    const e=roomEntry(r); if(!e) return;
+    ui.selected={kind:'room',id:r.rid}; refreshProp(); draw();
+    showNumInput(sx,sy,toDisp(roomHasCeil(r)?roomBaseCH(r):slabH(r)-20),(v)=>{
+      const ch=fromDisp(v); if(!(ch>100)) return;
+      e.ceilCH=Math.min(ch,slabH(r)); dbg(`  CEIL ROOM ${r.rid} 平釘 CH ${ch}`);
+      pushHistory(); refreshProp(); syncCeilUI(); draw();
+      flashHint('「'+(r.name||'這間')+'」整間平釘 CH '+fmtLenU(ch));
+    });
+  }
+  // ---- 間接照明: tap an edge of a zone to add / remove its trough; the middle = all round ----
+  function ceilCoveTap(wx,wy){
+    const thr=26/view.scale;
+    let best=null, bd=thr;
+    for(const z of state.ceil){ if(z.kind!=='zone') continue;
+      if(z.shape==='ell'){ const d=Math.abs(Math.hypot((wx-z.cx)/z.rx,(wy-z.cy)/z.ry)-1)*Math.min(z.rx,z.ry); if(d<bd){ bd=d; best={z,i:-1}; } continue; }
+      const V=ceilVerts(z);
+      for(let i=0;i<V.length;i++){ const a=V[i], b=V[(i+1)%V.length], pr=projPointToSeg(wx,wy,a.x,a.y,b.x,b.y); if(pr.d<bd){ bd=pr.d; best={z,i}; } }
+    }
+    if(!best){ const z=state.ceil.filter(z=>z.kind==='zone'&&ceilHit(z,wx,wy)).sort((a,b)=>ceilArea(a)-ceilArea(b))[0]; if(z) best={z,i:-1,all:true}; }
+    if(!best){ flashHint('請點在造型區域的邊上（點區域中間＝整圈）。平釘的空間要先畫一個區域才能加間照'); return; }
+    const z=best.z; z.cove=Object.assign({on:false,edges:null,w:15,lip:10,dir:'up'}, z.cove||{});
+    const n=z.shape==='ell'?1:ceilEdgeCount(z);
+    if(best.i<0){ z.cove.on=!z.cove.on; z.cove.edges=null; }
+    else {
+      let set = !z.cove.on ? new Set() : (Array.isArray(z.cove.edges) ? new Set(z.cove.edges) : new Set([...Array(n).keys()]));
+      if(set.has(best.i)) set.delete(best.i); else set.add(best.i);
+      if(!set.size){ z.cove.on=false; z.cove.edges=null; }
+      else { z.cove.on=true; z.cove.edges = set.size===n ? null : [...set].sort((a,b)=>a-b); }
+    }
+    dbg(`  CEIL COVE zone #${z.id} edge ${best.i} → ${z.cove.on?(z.cove.edges?z.cove.edges.join(','):'整圈'):'無'}`);
+    ui.selected={kind:'ceil',id:z.id}; pushHistory(); refreshProp(); draw();
+    flashHint(z.cove.on?('間照：'+(z.cove.edges?'邊 '+z.cove.edges.map(i=>i+1).join('、'):'整圈')+'，長度 '+fmtLenU(coveLen(z))):'這個區域已取消間照');
+  }
+  // ---- a corner's R, typed after tapping its round handle ----
+  function ceilCornerR(z,i,sx,sy){
+    if(!z||z.shape==='ell') return;
+    const V=ceilVerts(z), cur=(z.rv&&z.rv[i]!=null)?z.rv[i]:(z.r||0);
+    showNumInput(sx,sy,toDisp(cur),(v)=>{
+      const R=Math.max(0,fromDisp(v)); if(!isFinite(R)) return;
+      z.rv=(z.rv||[]).slice(); while(z.rv.length<V.length) z.rv.push(z.r||0);
+      z.rv[i]=R; dbg(`  CEIL corner R zone #${z.id} corner ${i+1} = ${R}`);
+      pushHistory(); refreshProp(); draw();
+    }, true);
+  }
+  // ---- an edge of a zone, dragged straight out or in (its neighbours follow) ----
+  // The edge lands flush on a wall face, a column edge or another zone's edge
+  // when it comes near one; otherwise on the grid.
+  function ceilLineSnap(axis, v, lo, hi){
+    const thr=Math.min(16/view.scale,40), lines=[];
+    for(const w of state.walls){ if(wallLen(w)<1) continue; const c=wallCenterline(w), h=w.t/2;
+      if(axis==='x' && Math.abs(c.x1-c.x2)<0.5 && Math.max(c.y1,c.y2)+h>lo-50 && Math.min(c.y1,c.y2)-h<hi+50) lines.push(c.x1-h,c.x1+h);
+      if(axis==='y' && Math.abs(c.y1-c.y2)<0.5 && Math.max(c.x1,c.x2)+h>lo-50 && Math.min(c.x1,c.x2)-h<hi+50) lines.push(c.y1-h,c.y1+h); }
+    for(const c of state.columns){ const r=(((c.rot||0)%180)+180)%180; if(r!==0&&r!==90) continue; const hx=(r===0?c.w:c.h)/2, hy=(r===0?c.h:c.w)/2;
+      if(axis==='x') lines.push(c.x-hx,c.x+hx); else lines.push(c.y-hy,c.y+hy); }
+    let best=null, bd=thr; for(const L of lines){ const d=Math.abs(v-L); if(d<bd){ bd=d; best=L; } }
+    return best!=null ? best : gsnap(v);
+  }
+  function ceilEdgeMove(z,orig,i,wx,wy){
+    if(z.shape==='rect'){
+      const x0=orig.x, y0=orig.y, x1=orig.x+orig.w, y1=orig.y+orig.h;
+      if(i===0){ const y=Math.min(ceilLineSnap('y',wy,x0,x1), y1-5); z.y=y; z.h=y1-y; z.x=x0; z.w=orig.w; }
+      else if(i===2){ const y=Math.max(ceilLineSnap('y',wy,x0,x1), y0+5); z.y=y0; z.h=y-y0; z.x=x0; z.w=orig.w; }
+      else if(i===1){ const x=Math.max(ceilLineSnap('x',wx,y0,y1), x0+5); z.x=x0; z.w=x-x0; z.y=y0; z.h=orig.h; }
+      else { const x=Math.min(ceilLineSnap('x',wx,y0,y1), x1-5); z.x=x; z.w=x1-x; z.y=y0; z.h=orig.h; }
+      return;
+    }
+    if(z.shape!=='poly') return;
+    const V=orig.pts, n=V.length, s=V[i], e=V[(i+1)%n], L=Math.hypot(e.x-s.x,e.y-s.y)||1;
+    const ux=(e.x-s.x)/L, uy=(e.y-s.y)/L, nx=-uy, ny=ux;
+    let h=(wx-s.x)*nx+(wy-s.y)*ny;
+    if(Math.abs(uy)<1e-6){ const Y=ceilLineSnap('y', s.y+ny*h, Math.min(s.x,e.x), Math.max(s.x,e.x)); h=(Y-s.y)/ny; }
+    else if(Math.abs(ux)<1e-6){ const X=ceilLineSnap('x', s.x+nx*h, Math.min(s.y,e.y), Math.max(s.y,e.y)); h=(X-s.x)/nx; }
+    const A={x:s.x+nx*h,y:s.y+ny*h}, B={x:e.x+nx*h,y:e.y+ny*h};
+    const cross=(p1,p2,q1,q2)=>lineCross({x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y},{x1:q1.x,y1:q1.y,x2:q2.x,y2:q2.y});
+    const pa=cross(V[(i-1+n)%n],s,A,B)||A, pb=cross(e,V[(i+2)%n],A,B)||B;
+    z.pts=V.map((p,k)=>k===i?{x:pa.x,y:pa.y}:k===(i+1)%n?{x:pb.x,y:pb.y}:{x:p.x,y:p.y});
+  }
+  // ---- the clear distances to the walls, on the drawing, for the selected zone ----
+  // On the drawing, a selected zone shows ITS OWN size — the depth and width of
+  // the ceiling — and you tap those to type them. A distance to a wall is shown
+  // only on an axis where the zone touches neither wall (it floats, so the gap is
+  // what places it); where it sits against a wall, its size already says it all.
+  function drawCeilGaps(z){
+    const b=ceilBBox(z), G=ceilGaps(z), gap=(d)=>{ const g=G.find(v=>v.dir===d); return g?g.gap:null; };
+    const flush=(d)=>{ const v=gap(d); return v!=null && v<0.6; };
+    const put=(txt,wx,wy,ang,lab)=>{ const [sx,sy]=toScreen(wx,wy), tw=boxedLabel(txt,sx,sy,ang,12), rect=labelRect(sx,sy,tw,ang); hitLabels.push(Object.assign({rect},lab)); placedLabels.push(rect); };
+    if(z.kind==='zone' && z.shape==='rect' || z.kind!=='zone'){
+      const W=b.x1-b.x0, H=b.y1-b.y0;
+      if(H*view.scale>26) put(fmtLen(H), b.x0+W*0.25, (b.y0+b.y1)/2, -Math.PI/2, {kind:'ceildim', zid:z.id, axis:'h'});
+      if(W*view.scale>40) put(fmtLen(W), (b.x0+b.x1)/2, b.y1-Math.min(H*0.25, 30/view.scale), 0, {kind:'ceildim', zid:z.id, axis:'w'});
+    }
+    const floatsX=!flush('left')&&!flush('right'), floatsY=!flush('up')&&!flush('down');
+    for(const g of G){
+      if((g.dir==='left'||g.dir==='right') ? !floatsX : !floatsY) continue;
+      let px,py,ang=0;
+      if(g.dir==='left'){ px=(g.face+b.x0)/2; py=(b.y0+b.y1)/2; }
+      else if(g.dir==='right'){ px=(g.face+b.x1)/2; py=(b.y0+b.y1)/2; }
+      else if(g.dir==='up'){ px=(b.x0+b.x1)/2; py=(g.face+b.y0)/2; ang=-Math.PI/2; }
+      else { px=(b.x0+b.x1)/2; py=(g.face+b.y1)/2; ang=-Math.PI/2; }
+      put(fmtLen(g.gap), px, py, ang, {kind:'ceilgap', zid:z.id, dir:g.dir});
+    }
+  }
+  // typing a zone's size: the side against a wall stays put, the free side moves
+  function setCeilSize(z, axis, v){
+    if(!(v>5) || !(z.shape==='rect' || z.kind!=='zone')) return;
+    const G=ceilGaps(z), flush=(d)=>{ const g=G.find(x=>x.dir===d); return g && g.gap<0.6; };
+    if(axis==='h'){ if(flush('down') && !flush('up')){ const y1=z.y+z.h; z.h=v; z.y=y1-v; } else z.h=v; }
+    else { if(flush('right') && !flush('left')){ const x1=z.x+z.w; z.w=v; z.x=x1-v; } else z.w=v; }
+  }
+
+  // ---- 天花線: a line across the room; the side you tap gets the ceiling ----
+  function ceilLineSide(wx,wy){
+    const L=ui.clinePending; if(!L) return;
+    const r=roomAt(wx,wy); if(!r){ flashHint('請點在空間裡面，線的其中一邊'); return; }
+    const ux=L.c.x-L.a.x, uy=L.c.y-L.a.y, side=Math.sign(ux*(wy-L.a.y)-uy*(wx-L.a.x))||1;
+    const f=(p)=>side*(ux*(p.y-L.a.y)-uy*(p.x-L.a.x));
+    const V=r.V, out=[];
+    for(let i=0;i<V.length;i++){
+      const P=V[i], Q=V[(i+1)%V.length], fp=f(P), fq=f(Q);
+      if(fp>=-0.01) out.push({x:P.x,y:P.y});
+      if((fp>0.01&&fq<-0.01)||(fp<-0.01&&fq>0.01)){ const t=fp/(fp-fq); out.push({x:P.x+(Q.x-P.x)*t, y:P.y+(Q.y-P.y)*t}); }
+    }
+    const Q=out.filter((p,i)=>{ const n=out[(i+1)%out.length]; return Math.hypot(p.x-n.x,p.y-n.y)>0.5; });
+    if(Q.length<3 || Math.abs(polyArea(Q))<100){ flashHint('這條線沒有切到這個空間，請重畫'); ui.clinePending=null; draw(); return; }
+    ui.clinePending=null;
+    const ch = roomHasCeil(r) ? Math.max(100, roomBaseCH(r)-10) : slabH(r)-20;
+    const box=Q.length===4 && Q.every((p,i)=>{ const q=Q[(i+1)%4]; return Math.abs(p.x-q.x)<0.5||Math.abs(p.y-q.y)<0.5; });
+    let z;
+    if(box){ const xs=Q.map(p=>p.x), ys=Q.map(p=>p.y);
+      z=addCeil({kind:'zone',shape:'rect',x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys),r:0,ch}); }
+    else z=addCeil({kind:'zone',shape:'poly',pts:Q,r:0,ch});
+    dbg(`  CEIL LINE side → zone #${z.id} ${Q.length} corners CH ${ch}`);
+    flashHint('這一邊做天花板 CH '+fmtLenU(ch)+'：右邊可改高度；線那一邊要間照就用「間接照明」點它');
+  }
+  function ceilTap(wx,wy,sx,sy){
     const pk=ui.ceilPick;
+    if(pk==='line'){ if(ui.clinePending) ceilLineSide(wx,wy); else flashHint('從一面牆按住拉到另一面牆，畫出天花板的邊線'); return; }
+    if(pk==='room'){ const s2=toScreen(wx,wy); ceilRoomTap(wx,wy,sx!=null?sx:s2[0],sy!=null?sy:s2[1]); return; }
+    if(pk==='cove'){ ceilCoveTap(wx,wy); return; }
     if(pk==='hatch'){ const s=60; addCeil({kind:'hatch',x:gsnap(wx-s/2),y:gsnap(wy-s/2),w:s,h:s}); return; }
     if(pk==='ventS'||pk==='ventR'){ addCeil({kind:pk,x:gsnap(wx-50),y:gsnap(wy-7.5),w:100,h:15}); return; }
     if(pk==='poly'){
@@ -8673,7 +9939,7 @@
     return out;
   }
   // ---- panel ----
-  const CEIL_TOOLS=[['rect','矩形區域','拖曳畫出'],['poly','多邊形區域','逐點點出'],['ell','圓形區域','從圓心拖出'],
+  const CEIL_TOOLS=[['room','整間平釘','點一下空間'],['line','天花線','畫線切出一邊'],['cove','間接照明','點區域的邊'],['rect','矩形區域','拖曳畫出'],['poly','多邊形區域','逐點點出'],['ell','圓形區域','從圓心拖出'],
     ['offset','內縮一圈','點空間或區域'],['curtain','窗簾盒','拖曳畫出'],['hatch','維修孔','點一下放置'],
     ['ventS','出風口','點一下放置'],['ventR','回風口','點一下放置']];
   function syncCeilUI(){
@@ -8686,7 +9952,8 @@
       const hh=document.createElement('span'); hh.textContent=how;
       b.appendChild(nm); b.appendChild(hh);
       b.onclick=()=>{ ui.ceilPick=k; ui.cpoly=null; setTool('ceil');
-        flashHint(k==='poly'?'多邊形：一點一點點出外框，點回第一點或按「完成」':k==='offset'?'點一個空間或造型區域，往內縮 '+fmtLenU(+ui.ceilOff||40)+' 做出一圈':'已選「'+name+'」：'+how); };
+        if(k!=='line') ui.clinePending=null;
+        flashHint(k==='line'?'天花線：從一面牆拉一條線到另一面牆，再點一下要做天花板的那一邊':k==='room'?'整間平釘：點一個空間，再打平釘高度':k==='cove'?(state.ceil.some(z=>z.kind==='zone')?'間接照明：點造型區域邊上的「＋」加上間照，再點一次取消；點區域中間＝整圈':'間接照明要加在造型區域的邊上：先用「內縮一圈」或「矩形區域」畫出區域，再回來點它的邊'):k==='poly'?'多邊形：一點一點點出外框，點回第一點或按「完成」。角度跟著右邊的「角度鎖定」':k==='offset'?'點一個空間或造型區域，往內縮 '+fmtLenU(+ui.ceilOff||40)+' 做出一圈':'已選「'+name+'」：'+how); };
       box.appendChild(b);
     }
     const off=document.getElementById('ceilOff'); if(off && document.activeElement!==off) off.value=Math.round(toDisp(+ui.ceilOff||40));
@@ -8699,11 +9966,13 @@
       if(!rs.length) rl.innerHTML='<div class="lay-note">還沒有圍起來的空間。</div>';
       for(const r of rs){
         const row=document.createElement('div'); row.className='row';
-        row.innerHTML=`<label>${(r.name||'未命名').replace(/</g,'&lt;')}</label><div class="field"><input type="number" step="1" value="${Math.round(toDisp(roomBaseCH(r)))}"><span class="unit">${ui.unit}</span></div>`;
+        row.innerHTML=`<label>${(r.name||'未命名').replace(/</g,'&lt;')}</label><div class="field"><input type="number" step="1" placeholder="無" value="${roomHasCeil(r)?Math.round(toDisp(roomBaseCH(r))):''}"><span class="unit">${ui.unit}</span></div>`;
         row.querySelector('input').onchange=(ev)=>{
-          const e=roomEntry(r), v=fromDisp(parseFloat(ev.target.value));
-          if(e && isFinite(v) && v>100){ e.ceilCH=Math.min(v,slabH(r)); pushHistory(); draw(); }
-          ev.target.value=Math.round(toDisp(roomBaseCH(r)));
+          const e=roomEntry(r), raw=String(ev.target.value).trim(), v=fromDisp(parseFloat(raw));
+          if(!e) return;
+          if(raw===''){ delete e.ceilCH; }
+          else if(isFinite(v) && v>100){ e.ceilCH=Math.min(v,slabH(r)); }
+          pushHistory(); syncCeilUI(); draw();
         };
         rl.appendChild(row);
       }
@@ -8767,7 +10036,7 @@
       ${z.shape==='ell'?`<div class="row"><label>寬（橫）</label>${num('pZrx',Math.round(toDisp(z.rx*2)))}</div><div class="row"><label>深（直）</label>${num('pZry',Math.round(toDisp(z.ry*2)))}</div>`:''}
       ${z.shape!=='ell'?`<div class="row"><label>圓角 R（全部）</label>${num('pZr',Math.round(toDisp(z.r||0)),5,'min="0"')}</div>`:''}
       ${z.shape==='rect'?`<div class="row"><label>個別圓角</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;width:150px">${['左上','右上','右下','左下'].map((t,i)=>`<input type="number" class="pZrv" data-i="${i}" placeholder="${t}" min="0" value="${z.rv&&z.rv[i]!=null?Math.round(toDisp(z.rv[i])):''}" style="width:100%;min-height:36px;text-align:center;border:1px solid var(--line-strong);border-radius:8px;font-size:13px">`).join('')}</div></div>`:''}
-      ${z.shape!=='ell'?`<div class="row"><label style="font-size:11px;color:var(--muted)">弧邊：拖曳邊中點的菱形握把</label>${hasBz?'<button class="btn" id="pZflat" style="width:auto;min-height:34px;padding:0 10px">全部拉直</button>':''}</div>`:''}
+      ${z.shape!=='ell'?`<div class="row"><label style="font-size:11px;color:var(--muted)">圖上：菱形＝拖動那條邊；圓點＝點一下設圓角 R</label>${hasBz?'<button class="btn" id="pZflat" style="width:auto;min-height:34px;padding:0 10px">全部拉直</button>':''}</div>`:''}
       ${gaps}
       <div class="row"><label>間照</label><div class="seg" id="pZcove"><button data-v="1"${cv.on?' class="on"':''}>有</button><button data-v="0"${!cv.on?' class="on"':''}>無</button></div></div>
       ${cv.on?`
