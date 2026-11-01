@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b103</title>
+<title>PlanPad · 平面圖工具 b104</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -69,7 +69,22 @@
   .rail-sep{width:28px; height:1px; background:var(--line); margin:4px 0;}
 
   /* ---- Canvas ---- */
-  #stage{position:relative; flex:1; min-width:0; overflow:hidden; touch-action:none; background:var(--canvas-bg);}
+  #stageCol{flex:1; min-width:0; display:flex; flex-direction:column;}
+  #stage{position:relative; flex:1; min-width:0; min-height:0; overflow:hidden; touch-action:none; background:var(--canvas-bg);}
+  /* the library dock: the layer's categories and items, always in view under the drawing */
+  #libDock{flex:0 0 auto; display:none; background:var(--panel); border-top:1px solid var(--line); padding:8px 12px 10px; z-index:14;}
+  #libDock.on{display:block;}
+  .dock-group{display:none;}
+  .dock-group.on{display:block;}
+  .dock-head{display:flex; align-items:center; gap:10px; margin-bottom:8px; min-width:0;}
+  .dock-title{flex:0 0 auto; font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.04em;}
+  #libDock .furn-cats{flex-wrap:nowrap; overflow-x:auto; margin:0; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+  #libDock .furn-cats button{flex:0 0 auto; padding:7px 14px; font-size:13px;}
+  #libDock .furn-list{flex-direction:row; max-height:none; overflow-x:auto; overflow-y:hidden; gap:8px; padding-bottom:2px; -webkit-overflow-scrolling:touch;}
+  #libDock .furn-item{flex:0 0 auto; flex-direction:column; justify-content:center; gap:3px; min-width:92px; max-width:170px; min-height:64px; padding:8px 12px; text-align:center;}
+  #libDock .furn-item b{flex:0 0 auto; white-space:nowrap; margin-left:0 !important;}
+  #libDock .furn-item span{white-space:nowrap;}
+  #libDock .furn-item svg{flex:0 0 auto;}
   #c{position:absolute; inset:0; width:100%; height:100%; display:block;}
   #hint{position:absolute; left:50%; top:12px; transform:translateX(-50%); background:rgba(36,40,46,.9); color:#fff; font-size:12px; padding:6px 12px; border-radius:20px; pointer-events:none; opacity:0; transition:opacity .2s; z-index:5; white-space:nowrap;}
   #hint.show{opacity:1;}
@@ -268,7 +283,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b103</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b104</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -327,6 +342,7 @@
     </div>
 
     <!-- STAGE -->
+    <div id="stageCol">
     <div id="stage">
       <canvas id="c"></canvas>
       <div id="hint"></div>
@@ -361,6 +377,9 @@
         </div>
         <div class="khint" id="kpadHint"></div>
       </div>
+    </div>
+    <!-- the symbol / furniture library of the layer you are on, along the bottom -->
+    <div id="libDock"></div>
     </div>
 
     <!-- RIGHT PANEL -->
@@ -6037,7 +6056,33 @@
     }
   }
 
+  // The library of the layer you are on — categories and items — lives in a dock
+  // along the bottom of the drawing, always in view. In the side panel it sat
+  // below the layer list, and every placed item meant scrolling down to it again.
+  // The elements are moved, not copied, so everything that fills them still works.
+  let dockBuilt=false, dockKey=null;
+  function buildDock(){
+    if(dockBuilt) return; dockBuilt=true;
+    const dock=document.getElementById('libDock'); if(!dock) return;
+    const spec={plan:['家具庫',['furnCats','furnList']], elec:['水電圖示庫',['mepCats','mepList']],
+                light:['燈具圖示庫',['lightCats','lightList']], circuit:['開關',['swList']], ceil:['天花板工具',['ceilTools']]};
+    for(const lay of Object.keys(spec)){
+      const [title,ids]=spec[lay], g=document.createElement('div'); g.className='dock-group'; g.dataset.layer=lay;
+      const head=document.createElement('div'); head.className='dock-head';
+      const t=document.createElement('div'); t.className='dock-title'; t.textContent=title; head.appendChild(t); g.appendChild(head);
+      for(const id of ids){
+        const el=document.getElementById(id); if(!el) continue;
+        const sec=el.closest('.psec');
+        // the title just above it in the panel goes too
+        const prev=el.previousElementSibling; if(prev && prev.classList.contains('ptitle')) prev.remove();
+        if(el.classList.contains('furn-cats')) head.appendChild(el); else g.appendChild(el);
+        if(sec && ![...sec.children].some(c=>!c.classList.contains('ptitle'))) sec.remove();
+      }
+      dock.appendChild(g);
+    }
+  }
   function syncToolSections(){
+    buildDock();
     document.querySelectorAll('#panel .psec[data-tool]').forEach(sec=>{
       sec.style.display = sec.dataset.tool.split(' ').includes(ui.tool) ? '' : 'none';
     });
@@ -6046,6 +6091,14 @@
     document.querySelectorAll('#panel .psec[data-layer]').forEach(sec=>{
       sec.style.display = sec.dataset.layer===state.layer ? '' : 'none';
     });
+    const dock=document.getElementById('libDock');
+    if(dock){
+      let any=false;
+      dock.querySelectorAll('.dock-group').forEach(g=>{ const on=g.dataset.layer===state.layer; g.classList.toggle('on',on); if(on) any=true; });
+      dock.classList.toggle('on',any);
+      const key=any?state.layer:'';
+      if(key!==dockKey){ dockKey=key; setTimeout(()=>{ try{ resize(); }catch(_){} },0); }   // the drawing gives up / takes back the room
+    }
   }
 
 
@@ -6853,7 +6906,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b103';
+  const BUILD='b104';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
