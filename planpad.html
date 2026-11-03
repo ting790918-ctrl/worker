@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b106</title>
+<title>PlanPad · 平面圖工具 b107</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -230,6 +230,39 @@
   .modal-body{flex:1 1 auto; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y;
               margin:0 -20px; padding:0 20px;}
   .modal-mask{padding:16px;}
+  #hint{max-width:calc(100% - 150px); white-space:normal; text-align:center; border-radius:14px; width:max-content;}
+  #selBar{position:absolute; z-index:7; display:none; gap:4px; padding:4px; background:#fff; border:1px solid var(--line-strong,#C9CFD5); border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.16); white-space:nowrap; touch-action:manipulation;}
+  #selBar.on{display:flex;}
+  #selBar button{border:0; background:#F1F4F6; color:#24282E; font-size:14px; font-weight:600; padding:9px 13px; border-radius:9px; font-family:inherit; min-height:40px;}
+  #selBar button.del{background:#FDECEC; color:#C0362C;}
+  #selBar button:active{filter:brightness(.92);}
+  .help-btn{position:absolute; top:12px; right:12px; z-index:8; width:40px; height:40px; border-radius:50%; border:1px solid var(--line-strong,#C9CFD5); background:#fff; color:#275C7A; font-size:20px; font-weight:800; box-shadow:0 2px 8px rgba(0,0,0,.12); font-family:inherit; touch-action:manipulation;}
+  .help-btn.new::after{content:''; position:absolute; top:2px; right:2px; width:10px; height:10px; border-radius:50%; background:#E5484D; border:2px solid #fff;}
+  .help-btn:active{background:#E8F0F4;}
+  #helpCard{position:absolute; top:60px; right:12px; z-index:9; width:340px; max-width:calc(100% - 24px); max-height:calc(100% - 72px); display:none; flex-direction:column; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 32px rgba(0,0,0,.18); overflow:hidden; touch-action:pan-y;}
+  #helpCard.open{display:flex;}
+  .hc-head{display:flex; align-items:flex-start; gap:10px; padding:14px 14px 10px 16px; border-bottom:1px solid var(--line);}
+  .hc-head>div{flex:1;}
+  .hc-k{font-size:11px; color:var(--muted); font-weight:700; letter-spacing:.05em;}
+  .hc-t{font-size:17px; font-weight:800; color:var(--ink,#24282E); margin-top:2px;}
+  .hc-x{width:34px; height:34px; border-radius:50%; border:0; background:#F1F3F5; font-size:15px; color:#4B5158; font-family:inherit;}
+  .hc-body{padding:10px 16px 16px; overflow-y:auto; overscroll-behavior:contain; font-size:14px; line-height:1.6; color:#33383E;}
+  .hc-d{margin:2px 0 6px; font-weight:600;}
+  .hc-h{font-size:12px; font-weight:800; color:#275C7A; margin:12px 0 4px;}
+  .hc-body ol,.hc-body ul{margin:0; padding-left:20px;} .hc-body li{margin:3px 0;}
+  .hc-q{background:#F6F8FA; border-radius:10px; padding:8px 10px; margin:6px 0; display:flex; flex-direction:column; gap:2px;}
+  .hc-q b{font-size:13px;} .hc-q span{font-size:13px; color:#4B5158;}
+  .hc-tour{margin-top:14px; width:100%; text-align:center;}
+  .modal.tour{width:520px; padding:24px 24px 18px;}
+  .tour-step{font-size:12px; color:var(--muted); font-weight:700;}
+  .tour-t{font-size:22px; font-weight:800; color:var(--ink,#24282E); margin:6px 0 12px;}
+  #tourBody p{margin:0 0 10px; font-size:15px; line-height:1.7; color:#33383E;}
+  .tour-dots{display:flex; gap:6px; justify-content:center; margin:14px 0 4px;}
+  .tour-dots i{width:8px; height:8px; border-radius:50%; background:#D5DADF;} .tour-dots i.on{background:#275C7A; width:20px; border-radius:4px;}
+  .tour-btns{display:flex; gap:8px; align-items:center; margin-top:14px;}
+  .tour-btns .chip{padding:10px 16px; font-size:14px;}
+  .tour-next{background:#275C7A !important; color:#fff !important; border-color:#275C7A !important;}
+
   .mrow{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;}
   .mrow>span{font-size:13px; color:var(--text); flex:0 0 auto;}
   .mrow .seg{flex-wrap:wrap;}
@@ -296,7 +329,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b106</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b107</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -314,7 +347,9 @@
         <div class="menu-label">專案</div>
         <div class="menu-item" data-act="newproj">新增專案<span class="k">換一個案場</span></div>
         <div class="menu-item" data-act="saveproj">儲存專案<span class="k">存到這台裝置</span></div>
+        <div class="menu-item" data-act="tour">使用教學<span class="k">整體操作技巧</span></div>
         <div class="menu-item" data-act="openproj">開啟專案<span class="k" id="projCount"></span></div>
+        <div class="menu-item" data-act="copytest">匯入測試版畫的專案<span class="k">把以前在測試版存的圖搬過來</span></div>
         <div class="menu-sep"></div>
         <div class="menu-label">底圖描繪</div>
         <label class="menu-item filepick" id="ulImportMenu">匯入圖紙<span class="k">PDF / 圖片</span>
@@ -359,6 +394,9 @@
     <div id="stage">
       <canvas id="c"></canvas>
       <div id="hint"></div>
+      <button id="helpBtn" class="help-btn" aria-label="使用說明">?</button>
+      <div id="selBar"></div>
+      <div id="helpCard"></div>
       <div id="circBar" style="display:none;position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;align-items:center;gap:10px;background:#fff;border:1px solid var(--line-strong);border-radius:14px;padding:8px 10px 8px 14px;box-shadow:0 4px 16px rgba(0,0,0,.14);white-space:nowrap;">
         <span id="circBarTxt" style="font-size:13px;font-weight:600;color:#24282E"></span>
         <button id="circNo" style="min-height:40px;padding:0 14px;border:1px solid var(--line-strong);border-radius:10px;background:#fff;font-size:14px">取消</button>
@@ -573,6 +611,12 @@
 
 
 
+<div id="tourModal" class="modal-mask">
+  <div class="modal tour">
+    <div class="modal-body" id="tourBody"></div>
+    <div class="tour-btns"><button class="chip" id="tourSkip">略過教學</button><span style="flex:1"></span><button class="chip" id="tourPrev">上一步</button><button class="chip tour-next" id="tourNext">下一步</button></div>
+  </div>
+</div>
 <div id="metaModal" class="modal-mask">
   <div class="modal" style="width:380px">
     <div class="modal-title">專案資訊</div>
@@ -666,7 +710,7 @@
     floor: [],      // floor zones (a finish over part of a room), see 地板施工
     ceilLabel: 'ch',
     meta: {},       // {firm,designer,client,sheet} — printed on the title block
-    layer: 'plan',  // which layer new annotations land on
+    layer: 'base',  // which layer you draw on; the app always opens on 結構
     layerVis: {},   // {layerId:false} to hide
     baseLock: false,// structure can't be deleted, but it can be frozen so a
                     // stray finger stops dragging walls while you lay out furniture
@@ -1212,6 +1256,7 @@
     }
     try{
       restore(JSON.stringify(saved.data));
+      openOnBase();
       if(saved.data.unit) applyUnit(saved.data.unit);
       if(saved.name) document.getElementById('fname').value=saved.name;
       history.length=0; history.push(snapshot()); hi=0; updateUndo();
@@ -1222,6 +1267,10 @@
   // Every list gets a fallback. A project saved by an older build — or one simply
   // missing a key — used to leave the array undefined, and the next `for...of`
   // over it took down whichever feature touched it first (exports, in practice).
+  // Opening a drawing (a saved project, last session's work) always starts on 結構:
+  // the structure is what you check first, and a sheet left on 平面配置 last time
+  // made the walls look locked and faded.
+  function openOnBase(){ state.layer='base'; setTimeout(()=>{ try{ syncLayerUI(); syncToolSections(); refreshProp(); draw(); }catch(_){ } },0); }
   function restore(js){
     const o=JSON.parse(js)||{};
     const arr=(v)=>Array.isArray(v)?v:[];
@@ -1520,6 +1569,21 @@
     if(state.rooms.length>4)
       state.rooms=state.rooms.filter(e=>claimed.has(e.id) || (e.name&&e.name.trim()) || e.note || e.ceilingH);
   }
+  // Sutherland–Hodgman: the part of polygon S inside the convex polygon C
+  function clipPolyConvex(S,C){
+    let out=S.slice(); const sC=(polyAreaRaw(C)>0)?1:-1;
+    for(let i=0;i<C.length && out.length;i++){
+      const A=C[i], B=C[(i+1)%C.length], inp=out; out=[];
+      const side=(p)=>sC*((B.x-A.x)*(p.y-A.y)-(B.y-A.y)*(p.x-A.x));
+      for(let j=0;j<inp.length;j++){
+        const P=inp[j], Q=inp[(j+1)%inp.length], sp=side(P), sq=side(Q);
+        if(sp>=0) out.push(P);
+        if((sp>=0)!==(sq>=0)){ const t=sp/(sp-sq); out.push({x:P.x+(Q.x-P.x)*t, y:P.y+(Q.y-P.y)*t}); }
+      }
+    }
+    return out;
+  }
+  function polyAreaRaw(P){ let a=0; for(let i=0;i<P.length;i++){ const p=P[i], q=P[(i+1)%P.length]; a+=p.x*q.y-q.x*p.y; } return a/2; }
   function recomputeRooms(){
     try{
       roomsCache=detectRooms(state.walls).map(r=>{ const g=roomGeometry(r.edges); g.key=roomKey(r.edges); g.name=(state.roomNames&&state.roomNames[g.key])||''; return g; });
@@ -1548,6 +1612,21 @@
     try{
       function pip(pt,poly){ let c=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const a=poly[i],b=poly[j]; if(((a.y>pt.y)!=(b.y>pt.y)) && (pt.x<(b.x-a.x)*(pt.y-a.y)/(b.y-a.y)+a.x)) c=!c; } return c; }
       for(const A of roomsCache){ for(const B of roomsCache){ if(A===B) continue; if(B.area<A.area && pip(B.center, A.V)){ A.area-=B.area; A.hole=A.hole||[]; A.hole.push(B.Vout); } } }
+    }catch(e){}
+    // a column or shaft is structure, not room: its footprint comes off the 坪數
+    // (and so off the floor and ceiling quantities, which read r.area)
+    try{ for(const r of roomsCache){ r.areaGross=r.area; r.colArea=0; }
+      for(const c of state.columns){
+        const an=(c.rot||0)*Math.PI/180, ca=Math.cos(an), sa=Math.sin(an);
+        const P=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]].map(d=>({x:c.x+d[0]*ca-d[1]*sa, y:c.y+d[0]*sa+d[1]*ca}));
+        for(const r of roomsCache){
+          if(r.V.length<3) continue;
+          // inside a closet nested in this room → it belongs to the closet
+          if((r.hole||[]).length && roomsCache.some(B=>B!==r && B.area<r.areaGross && polyContains({x:c.x,y:c.y},B.V) && polyContains(B.center,r.V))) continue;
+          const a=Math.abs(polyArea(clipPolyConvex(r.V,P)));
+          if(a>0.5){ r.area-=a; r.colArea+=a; }
+        }
+      }
     }catch(e){}
     try{ syncRoomIdentity(); }catch(e){}
     if(ui.focusRoom && !roomCacheById(ui.focusRoom)){
@@ -2196,7 +2275,7 @@
     if(!lab) return false;
     // 結構 locked means locked: no wall, room, door/window, column or beam number
     // can be retyped (the lock used to stop only selecting, not the numbers)
-    if(structureLocked() && ['dim','walllen','openleft','openright','beamdist','coldist','stubgap'].includes(lab.kind)){
+    if(structureLocked() && ['dim','walllen','openleft','openright','beamdist','coldist','stubgap','colspan'].includes(lab.kind)){
       dbg(`  label ${lab.kind} refused: structure locked`);
       flashHint('結構已鎖定，尺寸不能修改。要改請先到右邊「圖層」把結構解鎖'); draw(); return false;
     }
@@ -2216,6 +2295,7 @@
       flashHint('這個尺寸的牆體已變更，請重新點一次'); draw(); return false;
     }
     if(lab.kind==='stubgap'){ editStubGap(lab,px,py); return true; }
+    if(lab.kind==='colspan') return editColSpan(lab,px,py);
     if(lab.kind==='flroom'||lab.kind==='flzone'||lab.kind==='fldir') return flLabelTap(lab);
     if(lab.kind==='ceilzoneh'){ const z=ceilById(lab.zid); if(!z) return false; const r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
       // The height sits in the middle of the zone — exactly where you tap to pick
@@ -2955,11 +3035,27 @@
       if(Math.max(t1,t2) < L*0.25 || Math.min(t1,t2) > L*0.75) continue;   // barely overlaps
       if(dist<bd){ bd=dist; best={w,d}; }
     }
-    if(!best) return {a,c};
+    if(!best){
+      // no wall alongside: a column it runs past or over → the beam's edge sits on
+      // the column's face instead of half-covering it
+      let bo=null, bdo=Infinity;
+      for(const col of state.columns){
+        const an=(col.rot||0)*Math.PI/180, ca=Math.cos(an), sa=Math.sin(an);
+        const P=[[-col.w/2,-col.h/2],[col.w/2,-col.h/2],[col.w/2,col.h/2],[-col.w/2,col.h/2]].map(d=>{ const x=col.x+d[0]*ca-d[1]*sa, y=col.y+d[0]*sa+d[1]*ca; return {t:(x-a.x)*ux+(y-a.y)*uy, d:(x-a.x)*nx+(y-a.y)*ny}; });
+        const t0=Math.min(...P.map(q=>q.t)), t1=Math.max(...P.map(q=>q.t)), d0=Math.min(...P.map(q=>q.d)), d1=Math.max(...P.map(q=>q.d));
+        if(t1<-bw || t0>L+bw) continue;                         // not along this beam
+        if(d0>bw/2+25 || d1<-bw/2-25) continue;                  // too far to the side
+        if(d0<0 && d1>0) continue;                               // the beam runs INTO the column: leave it
+        const off = (d0+d1)/2>0 ? d0-bw/2 : d1+bw/2;
+        if(Math.abs(off)<bdo){ bdo=Math.abs(off); bo=off; }
+      }
+      if(bo==null || Math.abs(bo)<0.01) return {a,c};
+      return {a:{x:a.x+nx*bo, y:a.y+ny*bo}, c:{x:c.x+nx*bo, y:c.y+ny*bo}, aligned:true};
+    }
     const cs=(clickX-a.x)*nx+(clickY-a.y)*ny;
     const side=(cs-best.d)>=0 ? 1 : -1;                          // which side of the wall you're on
     const off=best.d + side*(best.w.t/2 + bw/2);                 // flush against that face
-    return {a:{x:a.x+nx*off, y:a.y+ny*off}, c:{x:c.x+nx*off, y:c.y+ny*off}};
+    return {a:{x:a.x+nx*off, y:a.y+ny*off}, c:{x:c.x+nx*off, y:c.y+ny*off}, aligned:true};
   }
   function alignGuides(x,y,horiz,vert){
     const gthr=9/view.scale; const guides=[];
@@ -3066,7 +3162,7 @@
     }
     const thr=10/view.scale;
     // texts
-    for(let i=state.texts.length-1;i>=0;i--){ const t=state.texts[i]; if(!itemLive(t)) continue; const w=(t.text.length*t.size*0.6); if(wx>t.x-4 && wx<t.x+w+4 && wy>t.y-t.size && wy<t.y+4) return {kind:'text',id:t.id}; }
+    for(let i=state.texts.length-1;i>=0;i--){ const t=state.texts[i]; if(!itemLive(t)) continue; const b=textBox(t), pd=8/view.scale; if(wx>b.x0-pd && wx<b.x1+pd && wy>b.y0-pd && wy<b.y1+pd) return {kind:'text',id:t.id}; }
     // structure is frozen while the lock is on
     if(structureLocked()) return null;
     // columns (rotated rect)
@@ -3085,7 +3181,12 @@
     // could not be moved or deleted at all — they could, you just could not grab one.
     for(let i=state.dims.length-1;i>=0;i--){ const d=state.dims[i]; if(!itemLive(d)) continue; const off=dimOffsetPoints(d); const pr=projPointToSeg(wx,wy,off.ax,off.ay,off.bx,off.by); if(pr.d<thr*1.8) return {kind:'dim',id:d.id}; }
     // walls
-    for(let i=state.walls.length-1;i>=0;i--){ const w=state.walls[i]; const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); if(pr.d<Math.max(w.t/2,thr)) return {kind:'wall',id:w.id}; }
+    // a pen landing on the edge of a wall, or just beside it, still means that wall:
+    // nearest wall within its half thickness plus a finger's margin
+    { let best=null, bd=Infinity;
+      for(let i=state.walls.length-1;i>=0;i--){ const w=state.walls[i]; const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2);
+        const lim=w.t/2+Math.max(thr,14/view.scale); if(pr.d<lim && pr.d-w.t/2<bd){ bd=pr.d-w.t/2; best=w; } }
+      if(best) return {kind:'wall',id:best.id}; }
     return null;
   }
   // Generous on purpose: a dimension is a hairline plus a small number, and it is
@@ -3491,6 +3592,15 @@
     ctx.stroke();
   }
 
+  // A text's footprint in world cm, measured with the font it is drawn in. The
+  // grab box used to assume a height of t.size while the text is drawn three
+  // times that tall, so the text could only be caught by its bottom sliver.
+  const textH=(t)=>t.size*3;
+  function textBox(t){
+    const H=textH(t); let w=H*0.6*String(t.text||'').length;
+    try{ ctx.save(); ctx.font=`500 100px -apple-system,system-ui,sans-serif`; w=ctx.measureText(t.text||'').width/100*H; ctx.restore(); }catch(_){}
+    return {x0:t.x, x1:t.x+Math.max(w,H*0.5), y0:t.y-H*0.85, y1:t.y+H*0.2};
+  }
   function drawTexts(){
     if(!showOpt.notes) return;
     for(const t of state.texts){
@@ -3520,7 +3630,8 @@
       if(!roomWallIds.has(w.id)) wallLenLabel(w,true); } }
     else if(kind==='opening'){ const o=state.openings.find(v=>v.id===id); const w=state.walls.find(v=>v.id===o.wallId); if(w){ const[cx,cy]=wallPointAt(w,o.pos); const[sx,sy]=toScreen(cx,cy); ctx.setLineDash([]); handle(sx,sy); drawOpeningGaps(o,w); } }
     else if(kind==='dim'){ const d=state.dims.find(v=>v.id===id); if(d){ const o=dimOffsetPoints(d); const[ax,ay]=toScreen(o.ax,o.ay),[bx,by]=toScreen(o.bx,o.by); ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke(); } }
-    else if(kind==='text'){ const t=state.texts.find(v=>v.id===id); if(t){ const[sx,sy]=toScreen(t.x,t.y); ctx.setLineDash([]); handle(sx,sy-t.size); } }
+    else if(kind==='text'){ const t=state.texts.find(v=>v.id===id); if(t){ const b=textBox(t), a=toScreen(b.x0,b.y0), c=toScreen(b.x1,b.y1);
+      ctx.save(); ctx.setLineDash([5,4]); ctx.strokeStyle='#275C7A'; ctx.lineWidth=1.5; ctx.strokeRect(a[0]-4,a[1]-4,c[0]-a[0]+8,c[1]-a[1]+8); ctx.restore(); } }
     else if(kind==='column'){ const c=state.columns.find(v=>v.id===id); if(c){ drawColumnSelection(c); } }
     else if(kind==='beam'){ const bm=state.beams.find(v=>v.id===id); if(bm){ drawBeamSelection(bm); } }
     ctx.setLineDash([]);
@@ -3537,15 +3648,23 @@
       ? {x0:lo.x-w.t/2, x1:hi.x+w.t/2, y0:lo.y, y1:hi.y}
       : {x0:lo.x, x1:hi.x, y0:lo.y-w.t/2, y1:hi.y+w.t/2};
   }
+  function structColBoxes(exceptId){
+    const out=[];
+    for(const c of state.columns){ if(c.id===exceptId) continue;
+      const a=(c.rot||0)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+      const p=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]].map(d=>({x:c.x+d[0]*ca-d[1]*sa, y:c.y+d[0]*sa+d[1]*ca}));
+      out.push({x0:Math.min(...p.map(q=>q.x)),x1:Math.max(...p.map(q=>q.x)),y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)),what:isShaft(c)?'管道間':'柱'}); }
+    return out;
+  }
   function columnGaps(c){
     if(Math.abs(((c.rot||0)%180))>0.5) return [];      // only meaningful for a square-on column
     const cx0=c.x-c.w/2, cx1=c.x+c.w/2, cy0=c.y-c.h/2, cy1=c.y+c.h/2;
     const out=[];
+    // walls, and the other columns and shafts: a column next to a column measures to it
+    const RS=state.walls.filter(w=>wallLen(w)>=1).map(wallRect).concat(structColBoxes(c.id));
     const scan=(dir)=>{
       let best=Infinity, face=null;
-      for(const w of state.walls){
-        if(wallLen(w)<1) continue;
-        const R=wallRect(w);
+      for(const R of RS){
         if(dir==='left'||dir==='right'){
           if(R.y1<=cy0+1 || R.y0>=cy1-1) continue;      // wall doesn't span the column's height
           const g = dir==='left' ? cx0-R.x1 : R.x0-cx1;
@@ -3798,9 +3917,11 @@
       ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<4;i++)ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); ctx.fill();
     } else if(draft.kind==='beam'){
       // preview matches the finished thing: a dashed overhead outline, no fill
-      const bw={x1:draft.a.x,y1:draft.a.y,x2:draft.cur.x,y2:draft.cur.y,t:ui.beamW,align:ui.wallAlign};
-      const c=wallCorners(bw);
-      const p=[toScreen(c.L1.x,c.L1.y),toScreen(c.L2.x,c.L2.y),toScreen(c.R2.x,c.R2.y),toScreen(c.R1.x,c.R1.y)];
+      // the same outline the finished beam gets (beamCorners). The preview used the
+      // WALL outline, which follows the 內線／外線 setting, so while drawing it sat
+      // shifted onto the wall and only jumped to the real place on release.
+      const c=beamCorners({x1:draft.a.x,y1:draft.a.y,x2:draft.cur.x,y2:draft.cur.y,w:ui.beamW});
+      const p=c.map(q=>toScreen(q.x,q.y));
       ctx.save();
       ctx.strokeStyle='rgba(122,130,140,.85)'; ctx.lineWidth=1.4; ctx.setLineDash([7,5]);
       ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<4;i++)ctx.lineTo(p[i][0],p[i][1]);
@@ -3866,6 +3987,7 @@
     drawDraft();
     drawChain();
     drawSelection();
+    try{ syncSelBar(); }catch(_){}
   }
   // A beam is ABOVE the cut plane — you are looking up at it, not through it. The
   // drawing convention for anything overhead is a hidden line: dashed, and quiet
@@ -4023,6 +4145,42 @@
     const hw=textW/2+3*TS, hh=6.5*TS;
     return [cx-hw,cy-hh,hw*2,hh*2];
   }
+  const ang0Of=(ux,uy)=>{ let a=Math.atan2(uy,ux); if(a>Math.PI/2||a<-Math.PI/2) a+=Math.PI; return a; };
+  // Columns and shafts touching the inner face a→b (n = into the room): the spans
+  // they cover along it, and the free spans left between them, each end tagged
+  // with the column that bounds it (null = the room's corner).
+  function edgeColSpans(a,b,nx,ny){
+    const L=Math.hypot(b.x-a.x,b.y-a.y); if(L<1 || !state.columns.length) return null;
+    const ux=(b.x-a.x)/L, uy=(b.y-a.y)/L, blk=[];
+    for(const c of state.columns){
+      const an=(c.rot||0)*Math.PI/180, ca=Math.cos(an), sa=Math.sin(an);
+      const P=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]].map(d=>{ const x=c.x+d[0]*ca-d[1]*sa, y=c.y+d[0]*sa+d[1]*ca; return {t:(x-a.x)*ux+(y-a.y)*uy, d:(x-a.x)*nx+(y-a.y)*ny}; });
+      const d0=Math.min(...P.map(q=>q.d)), d1=Math.max(...P.map(q=>q.d));
+      if(d0>1.5 || d1<1) continue;                 // must sit against the face, on the room side
+      const t0=Math.max(0,Math.min(...P.map(q=>q.t))), t1=Math.min(L,Math.max(...P.map(q=>q.t)));
+      if(t1-t0<1) continue;
+      blk.push({a:t0,b:t1,id:c.id});
+    }
+    if(!blk.length) return null;
+    blk.sort((p,q)=>p.a-q.a);
+    const free=[]; let cur=0, curC=null;
+    for(const k of blk){ if(k.a>cur+0.5) free.push({a:cur,b:k.a,ca:curC,cb:k.id}); if(k.b>cur){ cur=k.b; curC=k.id; } }
+    if(L>cur+0.5) free.push({a:cur,b:L,ca:curC,cb:null});
+    return {free, blk};
+  }
+  // typing a clear span moves the column that bounds it (the one you are measuring to)
+  function editColSpan(lab,px,py){
+    const cid = lab.cb!=null ? lab.cb : lab.ca; const c=state.columns.find(v=>v.id===cid);
+    if(!c){ flashHint('這一段兩端都是牆角，要改請改牆的長度'); return false; }
+    showNumInput(px,py,toDisp(lab.len),(v)=>{
+      const want=fromDisp(v); if(!isFinite(want)||want<0) return;
+      const d = (lab.cb!=null ? (want-lab.len) : -(want-lab.len));
+      c.x+=lab.ux*d; c.y+=lab.uy*d;
+      dbg(`  COLSPAN column #${c.id} span ${lab.len.toFixed(1)} → ${want}`);
+      pushHistory(); refreshProp(); draw();
+    }, true);
+    return true;
+  }
   function labelFree(r){
     for(const p of placedLabels){
       if(r[0] < p[0]+p[2] && r[0]+r[2] > p[0] && r[1] < p[1]+p[3] && r[1]+r[3] > p[1]) return false;
@@ -4132,6 +4290,28 @@
         // never let a dimension sit on top of another one: try further along the
         // wall, then further in from it. Only the LAST resort overlaps — a number
         // that silently disappears is worse than one slightly out of place.
+        // a column standing against this edge is structure, not room: the edge then
+        // reads as the clear spans between corner and column faces, not its full length
+        const ang=ang0Of(ux,uy), active=wallIsActive(r.edges[i].wid);
+        const csp=edgeColSpans(a,b,nx,ny);
+        if(csp){
+          for(const sg of csp.free){
+            const sl=sg.b-sg.a; if(sl<1) continue;
+            const dm=(sg.a+sg.b)/2, txt=fmtLen(sl);
+            ctx.save(); ctx.font=`700 ${fpx(12)}px -apple-system,system-ui,sans-serif`; const tw1=ctx.measureText(txt).width; ctx.restore();
+            // same rule as the full-length labels: never on top of another number
+            let tx, ty, ok=false;
+            outerS: for(const push of [16,32,50]) for(const f of [0,0.2,-0.2,0.35,-0.35]){
+              const q=toScreen(a.x+ux*(dm+sl*f)+nx*(push/view.scale), a.y+uy*(dm+sl*f)+ny*(push/view.scale));
+              if(labelFree(labelRect(q[0],q[1],tw1,ang))){ tx=q[0]; ty=q[1]; ok=true; break outerS; } }
+            if(!ok){ const q=toScreen(a.x+ux*dm+nx*(16/view.scale), a.y+uy*dm+ny*(16/view.scale)); tx=q[0]; ty=q[1]; }
+            const active=wallIsActive(r.edges[i].wid);
+            const tw=active ? boxedLabel(txt,tx,ty,ang0Of(ux,uy),12) : plainLabel(txt,tx,ty,ang0Of(ux,uy),'#22262B',12);
+            const lr=labelRect(tx,ty,tw,ang0Of(ux,uy));
+            hitLabels.push({kind:'colspan', rect:lr, ax:a.x, ay:a.y, ux, uy, sa:sg.a, sb:sg.b, ca:sg.ca, cb:sg.cb, len:sl});
+            placedLabels.push(lr);
+          }
+        } else {
         let mx=0,my=0,placed=false;
         const txt0=fmtLen(r.lens[i]);
         let ang0=Math.atan2(uy,ux); if(ang0>Math.PI/2||ang0<-Math.PI/2)ang0+=Math.PI;
@@ -4154,6 +4334,7 @@
         hitLabels.push({kind:'dim', rect:lr, wid:r.edges[i].wid, room:r, edgeIndex:i, len:r.lens[i]});
         placedLabels.push(lr);
         if(edgeLocked(r.edges[i])) lockGlyph(mx+Math.cos(ang)*(tw/2+7*TS), my+Math.sin(ang)*(tw/2+7*TS), 10*TS);
+        }
         // second label, sitting just OUTSIDE the wall (opposite of the inner
         // direction we just computed) showing this wall segment's true OUTER
         // face-to-face length (using Vout, the already-computed outer boundary
@@ -4306,8 +4487,8 @@
     const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
     const bd=openingBand(w); const off=bd.coff + (o.type==='door'? 0 : 0);
     const sideoff = (w.t/2 + 22/view.scale); // put labels just outside the wall
-    // measure from the wall FACES either side, not from the centerline endpoints
-    const R=wallOpenRange(w,o.width);
+    // measure to the nearest thing either side: a meeting wall's face, a column, another opening
+    const R=(openingGaps(o)||{}).R || wallOpenRange(w,o.width);
     const startD=R.s, leftEdgeD=o.pos*L - o.width/2, rightEdgeD=o.pos*L + o.width/2, endD=R.e;
     const mkLabel=(d0,d1,kind)=>{
       const dm=(d0+d1)/2; const px=w.x1+ux*dm + nx*(off+sideoff), py=w.y1+uy*dm + ny*(off+sideoff);
@@ -4388,7 +4569,7 @@
   // ---- inline text input ----
   let txtCommit=null;
   function showTextInput(sx,sy,val,cb){
-    txtCommit=cb; txtIn.value=val||'';
+    txtCommit=cb; txtIn.value=val||''; txtIn._openT=Date.now();
     txtIn.style.display='block'; txtIn.style.left=(sx)+'px'; txtIn.style.top=(sy)+'px';
     try{ txtIn.focus(); txtIn.select(); }catch(e){}
     requestAnimationFrame(()=>{ try{ txtIn.focus(); txtIn.select(); }catch(e){} });
@@ -4400,7 +4581,10 @@
     if(commit && cb) cb(v);
   }
   txtIn.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); hideTextInput(true); } else if(e.key==='Escape'){ hideTextInput(false); } });
-  txtIn.addEventListener('blur',()=>hideTextInput(true));
+  // a mouse press moves focus AFTER the tap opened the box, which used to close it
+  // at once with nothing typed (the text vanished on a computer); a blur in the
+  // first moments just takes the focus back
+  txtIn.addEventListener('blur',()=>{ if(Date.now()-(txtIn._openT||0)<450){ setTimeout(()=>{ try{ txtIn.focus(); }catch(_){} },0); return; } hideTextInput(true); });
 
   function drawGuides(){
     if(!draft) return;
@@ -4842,6 +5026,9 @@
         // from the wall again
         const al=alignBeamAlongWall(from, sp, wx, wy, ui.beamW);
         draft.a=al.a; sp=al.c;
+        // once the beam sits against a face, the wall-centre guide and marker only
+        // mislead (they made the beam look as if it was going onto the wall)
+        if(al.aligned){ draft.guides=[]; draft.snap=null; }
       }
       draft.cur=sp;
       const len=dist(from.x,from.y,sp.x,sp.y);
@@ -5067,14 +5254,74 @@
     if(e-s < width){ const c=(s+e)/2; s=Math.max(0,c-width/2); e=Math.min(L,c+width/2); }
     return {L, s, e, posMin:(s+width/2)/L, posMax:(e-width/2)/L};
   }
+  // Everything along a wall that a door or window may not overlap, as [a,b] spans
+  // in cm along the wall: its two ends, every wall that meets it in the middle
+  // (a T-junction from a partition), columns and shafts standing against it, and
+  // the other doors and windows on it. The gaps beside an opening are measured to
+  // the nearest of these — the room's own wall or the column, not the far end of
+  // a long outside wall.
+  function wallBlocks(w, exceptId){
+    const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux, ins=wallEndInset(w);
+    const B=[{a:-1e9,b:ins.s,what:'牆'},{a:L-ins.e,b:1e9,what:'牆'}];
+    const loc=(x,y)=>({t:(x-w.x1)*ux+(y-w.y1)*uy, d:(x-w.x1)*nx+(y-w.y1)*ny});
+    for(const o of state.walls){
+      if(o.id===w.id || wallLen(o)<1) continue;
+      const oL=wallLen(o), cosang=Math.abs(ux*(o.x2-o.x1)/oL+uy*(o.y2-o.y1)/oL);
+      if(cosang>0.95) continue;
+      const sin=Math.sqrt(Math.max(0.05,1-cosang*cosang)), h=(o.t/2)/sin;
+      for(const [px,py] of [[o.x1,o.y1],[o.x2,o.y2]]){
+        const q=loc(px,py);
+        if(q.t<=1 || q.t>=L-1 || Math.abs(q.d)>w.t/2+3) continue;
+        B.push({a:q.t-h, b:q.t+h, what:'牆'});
+      }
+      // a wall running straight through this one
+      const a1=loc(o.x1,o.y1), a2=loc(o.x2,o.y2);
+      if(Math.sign(a1.d)!==Math.sign(a2.d) && Math.abs(a1.d)>w.t/2+3 && Math.abs(a2.d)>w.t/2+3){
+        const tt=a1.t+(a2.t-a1.t)*(a1.d/(a1.d-a2.d)); if(tt>1 && tt<L-1) B.push({a:tt-h, b:tt+h, what:'牆'});
+      }
+    }
+    for(const c of state.columns){
+      const an=(c.rot||0)*Math.PI/180, ca=Math.cos(an), sa=Math.sin(an);
+      const P=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]].map(d=>loc(c.x+d[0]*ca-d[1]*sa, c.y+d[0]*sa+d[1]*ca));
+      const d0=Math.min(...P.map(q=>q.d)), d1=Math.max(...P.map(q=>q.d));
+      if(d1 < -w.t/2-1.5 || d0 > w.t/2+1.5) continue;            // not touching this wall
+      B.push({a:Math.min(...P.map(q=>q.t)), b:Math.max(...P.map(q=>q.t)), what:isShaft(c)?'管道間':'柱'});
+    }
+    for(const op of state.openings){
+      if(op.wallId!==w.id || op.id===exceptId) continue;
+      const cc=op.pos*L; B.push({a:cc-op.width/2, b:cc+op.width/2, what:openLabel(op)});
+    }
+    return B;
+  }
+  // the free run of wall around point t (cm along the wall); null if t is blocked
+  function wallFreeSpan(w, t, exceptId){
+    const B=wallBlocks(w, exceptId); let lo=-1e9, hi=1e9, lw='牆', hw='牆';
+    for(const k of B){
+      if(k.a<t-0.01 && k.b>t+0.01) return null;
+      if(k.b<=t+0.01 && k.b>lo){ lo=k.b; lw=k.what; }
+      if(k.a>=t-0.01 && k.a<hi){ hi=k.a; hw=k.what; }
+    }
+    return {lo, hi, lw, hw};
+  }
+  // where an opening of this width can sit if you aim at t, or null
+  function openingFit(w, t, width, exceptId){
+    const L=wallLen(w)||1, sp=wallFreeSpan(w, t, exceptId);
+    if(!sp || sp.hi-sp.lo < width-0.01) return null;
+    const c=Math.max(sp.lo+width/2, Math.min(sp.hi-width/2, t));
+    return {pos:c/L, sp};
+  }
   function openingGaps(o){
     const w=state.walls.find(v=>v.id===o.wallId); if(!w) return null;
-    const R=wallOpenRange(w,o.width), L=R.L;
-    return {w, R, left:Math.max(0, o.pos*L - o.width/2 - R.s), right:Math.max(0, R.e - (o.pos*L + o.width/2))};
+    const L=wallLen(w)||1, c=o.pos*L;
+    const sp=wallFreeSpan(w, c, o.id);
+    if(!sp){ const R=wallOpenRange(w,o.width);
+      return {w, R, left:Math.max(0, c - o.width/2 - R.s), right:Math.max(0, R.e - (c + o.width/2))}; }
+    const R={L, s:sp.lo, e:sp.hi, posMin:(sp.lo+o.width/2)/L, posMax:(sp.hi-o.width/2)/L, lw:sp.lw, hw:sp.hw};
+    return {w, R, left:Math.max(0, c - o.width/2 - sp.lo), right:Math.max(0, sp.hi - (c + o.width/2))};
   }
   function setOpeningGap(o,side,gapCm){
-    const w=state.walls.find(v=>v.id===o.wallId); if(!w) return false;
-    const R=wallOpenRange(w,o.width), L=R.L;
+    const g0=openingGaps(o); if(!g0) return false;
+    const R=g0.R, L=R.L;
     const g=Math.max(0,gapCm||0);
     let pos = side==='left' ? (R.s+g+o.width/2)/L : (R.e-g-o.width/2)/L;
     o.pos=Math.max(R.posMin, Math.min(R.posMax, pos));
@@ -5099,7 +5346,9 @@
     const sub = type==='door' ? ui.doorSub : ui.winSub;
     const K=OPEN_KINDS[sub];
     const w=near.w;
-    const R=wallOpenRange(w,K.w); let pos=Math.max(R.posMin,Math.min(R.posMax,near.pr.t));
+    const fit=openingFit(w, near.pr.t*wallLen(w), K.w, null);
+    if(!fit){ flashHint('這裡放不下'+K.label+'：會壓到柱子、交接的牆或其他門窗，請換個位置'); dbg(`  OPENING refused on wall #${w.id} at ${(near.pr.t*wallLen(w)).toFixed(0)}`); return; }
+    let pos=fit.pos;
     const o={id:uid(),type,sub,wallId:w.id,pos,width:K.w,flipH:false,flipV:false,
              height:K.h, sill:K.sill};
     if(K.proj) o.proj=K.proj;
@@ -5390,6 +5639,10 @@
   }
   function doDrag(wx,wy){
     const {hit,start,orig}=dragging; const dx=wx-start[0], dy=wy-start[1];
+    // A Pencil tap wobbles a few pixels. That used to count as a drag: the wall
+    // snapped to the grid (moved 4 cm on a tap) and the action buttons blinked
+    // off and on. Nothing moves until the pen has really travelled.
+    if(!dragging.live){ if(Math.hypot(dx,dy)*view.scale<8) return; dragging.live=true; }
     if(Math.hypot(dx,dy)>2/view.scale) dragging.moved=true;
     if(/^ceil/.test(hit.kind)){ ceilDrag(hit,orig,dx,dy,wx,wy); refreshProp(); draw(); return; }
     // NOTE: grid-snap the MOVEMENT, not each endpoint separately. Rounding both
@@ -5422,7 +5675,9 @@
       moveWallBody(w,orig,ddx,ddy);
       recomputeRooms();
     }
-    else if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); const w=state.walls.find(v=>v.id===o.wallId); const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,pr.t)); }
+    else if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); const w=state.walls.find(v=>v.id===o.wallId); const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2);
+      // it slides only along free wall: over a column or a meeting wall it stays at the last place it fitted
+      const fit=openingFit(w, pr.t*wallLen(w), o.width, o.id); if(fit) o.pos=fit.pos; }
     else if(hit.kind==='dim'){
       // Dragging a dimension moves the LINE, not the measurement. Translating the
       // whole thing dragged its two reference points off the very features they
@@ -5460,7 +5715,7 @@
     else if(hit.kind==='furn'){
       const f=state.furniture.find(v=>v.id===hit.id);
       if(hit.which==='resize'){ f.w=Math.max(5,orig.w+dx*2); f.h=Math.max(5,orig.h+dy*2); }
-      else { f.x=orig.x+dx; f.y=orig.y+dy; }
+      else { const sn=furnSnap(f, orig.x+dx, orig.y+dy); f.x=sn.x; f.y=sn.y; }
     }
     else if(hit.kind==='note'){
       const n=state.notes.find(v=>v.id===hit.id);
@@ -5626,15 +5881,18 @@
     else if(s.kind==='opening'){ const o=state.openings.find(v=>v.id===s.id);
       const w=state.walls.find(v=>v.id===o.wallId); const L=w?wallLen(w):0;
       const _g=openingGaps(o)||{left:0,right:0};
-      const leftGap=_g.left, rightGap=_g.right;
+      // name the two sides as they look on screen (左／右, 上／下), whichever way the wall was drawn
+      const _ux=w&&L?(w.x2-w.x1)/L:1, _uy=w&&L?(w.y2-w.y1)/L:0, _hz=Math.abs(_ux)>=Math.abs(_uy), _rev=_hz?_ux<0:_uy<0;
+      const leftGap=_rev?_g.right:_g.left, rightGap=_rev?_g.left:_g.right;
+      const _n1=_hz?'距左邊':'距上方', _n2=_hz?'距右邊':'距下方';
       const K=openKind(o), subs=(o.type==='door'?DOOR_SUBS:WIN_SUBS);
       const cur=o.sub||(o.type==='door'?'swing':'fixed');
       const subSeg=subs.map(k=>`<button data-k="${k}"${k===cur?' class="on"':''}>${OPEN_KINDS[k].label}</button>`).join('');
       propBody.innerHTML=`
       <div class="row"><label>類型</label><div class="seg" id="pOsub">${subSeg}</div></div>
       <div class="row"><label>寬度</label><div class="field"><input type="number" id="pOw" value="${Math.round(toDisp(o.width))}" step="1"><span class="unit">${U}</span></div></div>
-      <div class="row"><label>距左牆</label><div class="field"><input type="number" id="pOl" value="${Math.round(toDisp(leftGap))}" step="1"><span class="unit">${U}</span></div></div>
-      <div class="row"><label>距右牆</label><div class="field"><input type="number" id="pOr" value="${Math.round(toDisp(rightGap))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>${_n1}</label><div class="field"><input type="number" id="pOl" value="${Math.round(toDisp(leftGap))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>${_n2}</label><div class="field"><input type="number" id="pOr" value="${Math.round(toDisp(rightGap))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>高度</label><div class="field"><input type="number" id="pOh" value="${Math.round(toDisp(o.height||0))}" step="1"><span class="unit">${U}</span></div></div>
       ${K.sillFixed
         ? `<div class="row"><label>離地高度</label><span style="font-size:12px;color:var(--muted)">0（${K.label}落地）</span></div>`
@@ -5647,9 +5905,11 @@
       <button class="del-btn" id="pDel">刪除${K.label}</button>`;
       document.querySelectorAll('#pOsub button').forEach(b=>b.onclick=()=>{
         setOpeningSub(o,b.dataset.k); pushHistory(); refreshProp(); draw(); });
-      const reposFromLeft=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,'left',gapCm); pushHistory(); refreshProp(); draw(); };
-      const reposFromRight=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,'right',gapCm); pushHistory(); refreshProp(); draw(); };
-      document.getElementById('pOw').onchange=ev=>{ o.width=Math.max(10,fromDisp(parseFloat(ev.target.value)||10)); const R2=wallOpenRange(w,o.width); o.pos=Math.max(R2.posMin,Math.min(R2.posMax,o.pos)); pushHistory(); refreshProp(); draw(); };
+      const reposFromLeft=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,_rev?'right':'left',gapCm); pushHistory(); refreshProp(); draw(); };
+      const reposFromRight=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,_rev?'left':'right',gapCm); pushHistory(); refreshProp(); draw(); };
+      document.getElementById('pOw').onchange=ev=>{ const nw=Math.max(10,fromDisp(parseFloat(ev.target.value)||10)); const fit=openingFit(w, o.pos*wallLen(w), nw, o.id);
+        if(!fit){ flashHint('這個位置放不下 '+fmtLenU(nw)+' 寬：兩側會壓到柱子或牆'); refreshProp(); return; }
+        o.width=nw; o.pos=fit.pos; pushHistory(); refreshProp(); draw(); };
       document.getElementById('pOl').onchange=ev=>reposFromLeft(fromDisp(parseFloat(ev.target.value)||0));
       document.getElementById('pOr').onchange=ev=>reposFromRight(fromDisp(parseFloat(ev.target.value)||0));
       document.getElementById('pOh').onchange=ev=>{ o.height=Math.max(1,fromDisp(parseFloat(ev.target.value)||0)); pushHistory(); };
@@ -5830,13 +6090,16 @@
       propBody.innerHTML=`
       <div class="row"><label>內容</label></div>
       <input type="text" class="tin" id="pTx" value="${(t.text||'').replace(/"/g,'&quot;')}" style="width:100%;text-align:left">
-      <div class="row" style="margin-top:10px"><label>字級</label><div class="field"><input type="number" id="pTs" value="${t.size}" step="1"><span class="unit">cm</span></div></div>
+      <div class="row" style="margin-top:10px"><label>字體大小</label><div class="seg" id="pTsz">${[['小',8],['中',16],['大',28],['特大',44]].map(([n,v])=>`<button data-v="${v}"${t.size===v?' class="on"':''}>${n}</button>`).join('')}</div></div>
+      <div class="row"><label>自訂大小</label><div class="field"><input type="number" id="pTs" value="${t.size}" step="1"></div></div>
+      <div class="lay-note">拖動文字可以移動位置；點兩下可以改內容。</div>
       ${layerPickerHTML('pTlayer', t.layer||'plan')}
       <button class="del-btn" id="pDel">刪除文字</button>`;
       bindLayerPicker('pTlayer', t);
       document.getElementById('pTx').oninput=ev=>{ t.text=ev.target.value; draw(); };
       document.getElementById('pTx').onchange=()=>pushHistory();
-      document.getElementById('pTs').onchange=ev=>{ t.size=Math.max(4,parseFloat(ev.target.value)||16); pushHistory(); draw(); };
+      document.getElementById('pTs').onchange=ev=>{ t.size=Math.max(4,parseFloat(ev.target.value)||16); pushHistory(); refreshProp(); draw(); };
+      document.querySelectorAll('#pTsz button').forEach(b=>b.onclick=()=>{ t.size=+b.dataset.v; pushHistory(); refreshProp(); draw(); });
       document.getElementById('pDel').onclick=deleteSelected;
     }
     else if(s.kind==='column'){ const c=state.columns.find(v=>v.id===s.id);
@@ -5883,6 +6146,66 @@
       document.getElementById('pDel').onclick=deleteSelected;
     }
   }
+  // ---- the actions for what is selected, floating right next to it ----
+  // 刪除／拆分 used to live at the bottom of a long side panel; next to the thing
+  // you just tapped is where the eye already is.
+  let selBarKey='';
+  function selBarActions(s){
+    const A=[];
+    if(s.kind==='wall'){ A.push(['拆分',()=>splitStart(s.id)]); A.push(['刪除',deleteSelected,'del']); }
+    else if(s.kind==='opening'){ const o=state.openings.find(v=>v.id===s.id); if(!o) return A;
+      const sub=openKind(o)===OPEN_KINDS.slide?'slide':(o.sub||'');
+      if(o.type==='door' && sub!=='cased') A.push([sub==='slide'?'換邊':'內外翻轉',()=>{ o.flipV=!o.flipV; pushHistory(); refreshProp(); draw(); }]);
+      if(o.sub==='swing'||(!o.sub&&o.type==='door')) A.push(['左右翻轉',()=>{ o.flipH=!o.flipH; pushHistory(); refreshProp(); draw(); }]);
+      A.push(['刪除',deleteSelected,'del']); }
+    else if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(!f) return A;
+      A.push(['旋轉 90°',()=>{ f.rot=((f.rot||0)+90)%360; pushHistory(); refreshProp(); draw(); }]); A.push(['刪除',deleteSelected,'del']); }
+    else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(!t) return A;
+      A.push(['改文字',()=>{ const [sx,sy]=toScreen(t.x,t.y); showTextInput(sx,sy-14,t.text,(val)=>{ if(val.trim()===''){ state.texts=state.texts.filter(x=>x.id!==t.id); ui.selected=null; } else t.text=val; refreshProp(); pushHistory(); draw(); }); }]);
+      A.push(['刪除',deleteSelected,'del']); }
+    else if(['column','mep','beam','dim','note','ceil'].includes(s.kind)) A.push(['刪除',deleteSelected,'del']);
+    return A;
+  }
+  // the selected thing's footprint on screen — the bar goes outside it, never over it
+  function selBarBox(s){
+    const pts=[], add=(x,y)=>pts.push(toScreen(x,y));
+    if(s.kind==='wall'){ const w=state.walls.find(v=>v.id===s.id); if(!w) return null; const c=wallCorners(w); for(const k of ['L1','L2','R1','R2']) add(c[k].x,c[k].y); }
+    else if(s.kind==='opening'){ const o=state.openings.find(v=>v.id===s.id); const w=o&&state.walls.find(v=>v.id===o.wallId); if(!w) return null;
+      const [cx,cy]=wallPointAt(w,o.pos), r=o.width/2+(o.type==='door'?o.width*0.6:0)+w.t/2+(o.proj||0); add(cx-r,cy-r); add(cx+r,cy+r); }
+    else if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(!f) return null; for(const q of furnCorners(f)) add(q.x,q.y); }
+    else if(s.kind==='column'){ const c=state.columns.find(v=>v.id===s.id); if(!c) return null; const r=Math.max(c.w,c.h)/2*1.42; add(c.x-r,c.y-r); add(c.x+r,c.y+r); }
+    else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(!t) return null; const b=textBox(t); add(b.x0,b.y0); add(b.x1,b.y1); }
+    else if(s.kind==='mep'){ const m=state.mep.find(v=>v.id===s.id); if(!m) return null; const b=mepBox(m); add(b.x0,b.y0); add(b.x1,b.y1); }
+    else if(s.kind==='beam'){ const b=state.beams.find(v=>v.id===s.id); if(!b) return null; for(const q of beamCorners(b)) add(q.x,q.y); }
+    else if(s.kind==='ceil'){ const z=ceilById(s.id); if(!z) return null; const b=ceilBBox(z); add(b.x0,b.y0); add(b.x1,b.y1); }
+    else { const c=objCenter(s.kind,s.id); if(!c) return null; add(c.x,c.y); }
+    const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+    return {x0:Math.min(...xs), x1:Math.max(...xs), y0:Math.min(...ys), y1:Math.max(...ys)};
+  }
+  function syncSelBar(){
+    const bar=document.getElementById('selBar'); if(!bar) return;
+    const s=ui.selected;
+    const show = s && ui.tool==='select' && !(dragging&&dragging.moved) && !EXPORT_MODE && !(state.baseLock && ['wall','opening','column','beam'].includes(s.kind));
+    const acts = show ? selBarActions(s) : [];
+    const bx = acts.length ? selBarBox(s) : null;
+    if(!acts.length || !bx){ bar.classList.remove('on'); selBarKey=''; return; }
+    const key=s.kind+':'+s.id+':'+acts.map(a=>a[0]).join(',');
+    if(key!==selBarKey){ selBarKey=key; bar.innerHTML='';
+      for(const [label,fn,cls] of acts){ const b=document.createElement('button'); b.textContent=label; if(cls) b.className=cls;
+        b.onclick=(e)=>{ e.stopPropagation(); fn(); syncSelBar(); }; bar.appendChild(b); } }
+    bar.classList.add('on');
+    const bw=bar.offsetWidth, bh=bar.offsetHeight, W0=stage.clientWidth, H0=stage.clientHeight, gap=18;
+    // above it if there is room, else below, else beside; a long wall gets the bar
+    // near its end rather than over its length number in the middle
+    let cx=(bx.x0+bx.x1)/2;
+    if(s.kind==='wall' && (bx.x1-bx.x0)>(bx.y1-bx.y0)) cx=bx.x0+(bx.x1-bx.x0)*0.78;
+    let x=cx-bw/2, y=bx.y0-gap-bh;
+    if(s.kind==='wall' && (bx.y1-bx.y0)>(bx.x1-bx.x0)){ x=bx.x1+gap; y=bx.y0+(bx.y1-bx.y0)*0.78-bh/2; if(x+bw>W0-8) x=bx.x0-gap-bw; }
+    else if(y<8){ y=bx.y1+gap; if(y+bh>H0-8){ y=(bx.y0+bx.y1)/2-bh/2; x=bx.x1+gap; if(x+bw>W0-8) x=bx.x0-gap-bw; } }
+    x=Math.max(8, Math.min(W0-bw-8, x)); y=Math.max(8, Math.min(H0-bh-8, y));
+    bar.style.left=x+'px'; bar.style.top=y+'px';
+  }
+  (function wireSelBar(){ const bar=document.getElementById('selBar'); if(bar) for(const ev of ['pointerdown','pointerup','touchstart','mousedown']) bar.addEventListener(ev,e=>e.stopPropagation()); })();
   function deleteSelected(){
     const s=ui.selected; if(!s) return;
     if(s.kind==='room'){ flashHint('空間是由牆圍出來的：要刪除請選取並刪掉它的牆'); return; }
@@ -6136,6 +6459,7 @@
   }
   function syncToolSections(){
     buildDock();
+    try{ syncHelpBtn(); const hc=document.getElementById('helpCard'); if(hc&&hc.classList.contains('open')) openHelp(); }catch(_){}
     try{ if(state.layer==='floor') syncFloorUI(); }catch(_){}
     document.querySelectorAll('#panel .psec[data-tool]').forEach(sec=>{
       sec.style.display = sec.dataset.tool.split(' ').includes(ui.tool) ? '' : 'none';
@@ -6960,7 +7284,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b106';
+  const BUILD='b107';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -7103,7 +7427,22 @@
     if(act==='png'||act==='pdf'||act==='dxf'){ runExport('開啟匯出設定', ()=>openExportModal(act)); }
     else if(act==='newproj'){ newProject(); }
     else if(act==='saveproj'){ openProjModal('save'); }
+    else if(act==='tour'){ openTour(); }
     else if(act==='openproj'){ openProjModal('open'); }
+    else if(act==='copytest'){
+      // the test build is retired: bring over what was saved there (projects, and
+      // the last unsaved drawing), each marked so nothing here is overwritten
+      let tp={}; try{ tp=JSON.parse(localStorage.getItem('planpad.test.projects.v1')||'{}')||{}; }catch(_){ tp={}; }
+      const all=projRead(); let n=0;
+      for(const k of Object.keys(tp)){ const e=tp[k]; if(!e||!e.name) continue;
+        const nm=e.name.replace(/（正式版複本）$/,'')+'（測試版）'; if(Object.values(all).some(v=>v&&v.name===nm)) continue;
+        all['t'+k]={name:nm, t:e.t, data:e.data}; n++; }
+      try{ const a=JSON.parse(localStorage.getItem('planpad.test.autosave.v1')||'null');
+        if(a && a.data && (a.data.walls||[]).length){ const nm=(a.name||'測試版最後一張圖')+'（測試版自動存檔）';
+          if(!Object.values(all).some(v=>v&&v.name===nm)){ all['ta'+(a.t||Date.now())]={name:nm, t:a.t||Date.now(), data:a.data}; n++; } } }catch(_){}
+      if(n && projWrite(all)){ projCountRefresh(); uiAlert('已匯入 '+n+' 份測試版的圖，到「開啟專案」就看得到（名字後面有「（測試版）」）。'); }
+      else if(!n) uiAlert('沒有找到測試版的圖可以匯入（或已經匯入過了）。');
+    }
     // Importing a drawing is a file action, so it belongs in the file menu. It was
     // only reachable from the bottom of a long scrolling panel, which meant hunting
     // for it every time.
@@ -8532,6 +8871,7 @@
   const MEP_SY = mepSymbols();
   const MEP_CATS=[...new Set(MEP_LIST.map(x=>x[0]))];
   const MEP_SIZE=30;          // symbol size in world cm
+  const MEP_R=MEP_SIZE*0.36;  // the symbol's drawn circle: its edge is what touches a wall
   const MEP_MIN_PX=22;        // never smaller than this on screen
   const MEP_DEF_H={outlet:30, sw:120, low:30, equip:230, panel:180, water:100, drain:0};
   function mepDefH(kind){
@@ -8730,32 +9070,31 @@
   }
   // A symbol is dimensioned off its surroundings the same way a piece of
   // furniture is — four directions, each to whatever is actually nearest.
-  function mepBox(m){ const r=MEP_SIZE/2;
+  function mepBox(m){ const r=(lightSpec(m)&&lightSpec(m).sz) ? devSz(m)/2 : MEP_R;
     return {x0:m.x-r, y0:m.y-r, x1:m.x+r, y1:m.y+r}; }
+  // To a wall, a column or a shaft: from the symbol's EDGE (0 = its circle touching
+  // the face, so it is plain which room it belongs to). To another symbol: centre
+  // to centre, the way sockets are set out against each other.
   function mepGaps(m){
     if(isLight(m) && !isWallDevice(m)) return lightGaps(m);
     const b=mepBox(m), out=[];
     const L=m.layer||'elec';
-    const boxes=neighbourBoxes(null).concat(
-      state.mep.filter(o=>o.id!==m.id && (o.layer||'elec')===L && layerVisible(L))
-               .map(o=>({...mepBox(o), what:mepName(o.kind)})));
+    const walls=neighbourBoxes(null,{structOnly:true});
+    const syms=state.mep.filter(o=>o.id!==m.id && (o.layer||'elec')===L && layerVisible(L))
+               .map(o=>({...mepBox(o), cx:o.x, cy:o.y, what:mepName(o.kind)}));
     const scan=(dir)=>{
-      let best=Infinity, face=null, what=null;
-      for(const R of boxes){
-        if(dir==='left'||dir==='right'){
-          if(R.y1<=b.y0+1 || R.y0>=b.y1-1) continue;
-          const g = dir==='left' ? b.x0-R.x1 : R.x0-b.x1;
-          if(g>-1 && g<best){ best=g; face=(dir==='left'?R.x1:R.x0); what=R.what; }
-        } else {
-          if(R.x1<=b.x0+1 || R.x0>=b.x1-1) continue;
-          const g = dir==='up' ? b.y0-R.y1 : R.y0-b.y1;
-          if(g>-1 && g<best){ best=g; face=(dir==='up'?R.y1:R.y0); what=R.what; }
-        }
-      }
-      // the gap is quoted to the symbol's CENTRE, which is where an electrician
-      // measures a socket to
-      if(best<Infinity && best<2000) out.push({dir, gap:Math.max(0,best+MEP_SIZE/2), face, what,
-        selfEdge:(dir==='left'||dir==='right')?m.x:m.y});
+      const horiz=(dir==='left'||dir==='right'), sg=(dir==='left'||dir==='up')?-1:1;
+      const c=horiz?m.x:m.y, edge=dir==='left'?b.x0 : dir==='right'?b.x1 : dir==='up'?b.y0 : b.y1;
+      let best=null;          // ranked by how far the target is from the centre
+      const band=(R)=> horiz ? !(R.y1<=b.y0+1 || R.y0>=b.y1-1) : !(R.x1<=b.x0+1 || R.x0>=b.x1-1);
+      for(const R of walls){ if(!band(R)) continue;
+        const face = horiz ? (sg<0?R.x1:R.x0) : (sg<0?R.y1:R.y0);
+        const g=(face-edge)*sg; if(g<=-1) continue;
+        const rank=(face-c)*sg; if(!best || rank<best.rank) best={rank, gap:Math.max(0,g), face, what:R.what, selfEdge:edge}; }
+      for(const R of syms){ if(!band(R)) continue;
+        const oc=horiz?R.cx:R.cy, g=(oc-c)*sg; if(g<=0.5) continue;
+        if(!best || g<best.rank) best={rank:g, gap:g, face:oc, what:R.what, selfEdge:c}; }
+      if(best && best.gap<2000) out.push({dir, gap:best.gap, face:best.face, what:best.what, selfEdge:best.selfEdge});
     };
     scan('up'); scan('down'); scan('left'); scan('right');
     return out;
@@ -8935,7 +9274,7 @@
       if(wallLen(w)<1) continue;
       const cl=wallCenterline(w);
       const pr=projPointToSeg(m.x,m.y,cl.x1,cl.y1,cl.x2,cl.y2);
-      if(pr.d<=w.t/2+1 && pr.t>0.0001 && pr.t<0.9999 && pr.d<bd){ bd=pr.d; best={w,pr}; }
+      if(pr.d<=w.t/2+MEP_R+2 && pr.t>0.0001 && pr.t<0.9999 && pr.d<bd){ bd=pr.d; best={w,pr}; }
     }
     return best;
   }
@@ -9258,8 +9597,12 @@
       const cl=wallCenterline(w);
       const pr=projPointToSeg(wx,wy,cl.x1,cl.y1,cl.x2,cl.y2);
       // reach: the wall's own band plus a finger's width of slack on screen
-      const reach=w.t/2 + Math.max(14, 20/view.scale);
-      if(pr.d<=reach && pr.d<bd){ bd=pr.d; best={x:pr.x, y:pr.y}; }
+      const reach=w.t/2 + MEP_R + Math.max(8, 16/view.scale);
+      if(pr.d<=reach && pr.d<bd){
+        // sit against the face on the side you tapped, the circle's edge touching it
+        const L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1, nx=-(cl.y2-cl.y1)/L, ny=(cl.x2-cl.x1)/L;
+        const side=((wx-pr.x)*nx+(wy-pr.y)*ny)>=0?1:-1, off=w.t/2+MEP_R;
+        bd=pr.d; best={x:pr.x+nx*side*off, y:pr.y+ny*side*off}; }
     }
     if(best) return best;
     if(ui.snap){ const g=ui.gridSize; return {x:Math.round(wx/g)*g, y:Math.round(wy/g)*g}; }
@@ -9994,6 +10337,7 @@
   function ceilGaps(z){
     const b=ceilBBox(z), out=[], T=[];
     for(const w of state.walls){ if(wallLen(w)>=1) T.push(wallRect(w)); }
+    for(const R of structColBoxes(null)) T.push(R);       // columns are not ceiling or floor space
     const scan=(dir)=>{
       let best=Infinity, face=null;
       for(const R of T){
@@ -10034,7 +10378,7 @@
     const line=(col)=>(g,sp)=>{ g.strokeStyle=col; g.lineWidth=Math.max(1.4,sp*0.1); g.setLineDash([sp*0.26,sp*0.16]); g.beginPath(); g.moveTo(-sp*0.6,0); g.lineTo(sp*0.6,0); g.stroke(); g.setLineDash([]); };
     for(const r of roomsCache){
       if(r.V.length<3) continue;
-      let a=Math.abs(polyArea(r.V));
+      let a=r.area;
       for(const z of state.ceil){ if((z.kind==='zone'||z.kind==='curtain') && ceilRoom(z)===r) a-=ceilArea(z); }
       const ch=roomBaseCH(r), slab=slabH(r);
       if(ch<slab-0.5 && a>100) add('b'+Math.round(ch),'平釘 CH '+fmtLen(ch),a,fill('#DFF1EA'));
@@ -10383,6 +10727,147 @@
     return `<div class="row"><label>面積</label><span style="font-size:13px">${(a/FL_PING).toFixed(2)} 坪（${(a/10000).toFixed(2)} m²）</span></div>`
       + (sz?`<div class="row"><label>約需片數</label><span style="font-size:13px">${Math.ceil(a/((sz[0]/10)*(sz[1]/10)))} 片（未含損耗）</span></div>`:''); }
 
+  // ================= 使用說明 =================
+  // Every tool and every layer has a card: what it does, the steps, and the usual
+  // "why did nothing happen". The 「?」 on the drawing opens the card for what is
+  // in your hand right now; a dot on it means you have not read that one yet.
+  const HELP={
+    select:{t:'選取',d:'點東西選取它，再拖動、改尺寸或刪除。',
+      s:['點一下牆、門窗、家具、符號，選取後右邊會出現它的設定','拖動選到的東西可以移動；牆的圓形握把＝拉伸端點，方形握把＝整面牆平行推移','畫面上的數字（長度、離牆距離、高度）點一下就能直接輸入','空白處點一下＝取消選取；點空間裡面＝選這個空間'],
+      q:[['為什麼牆拖不動？','結構可能鎖住了：到右邊「圖層」把「結構」旁的鎖打開。'],['怎麼刪除？','選取後，東西旁邊會浮出「刪除」按鈕；牆還有「拆分」。'],['紅色空心圈是什麼？','那一端沒接到別的牆，所以圍不成空間。把端點拖到另一道牆上就會接起來。']]},
+    wall:{t:'牆',d:'一個轉角一個轉角點出牆，圍起來就成為空間。',
+      s:['點起點，沿著牆順時針一個轉角一個轉角點下去','每一段都可以直接打長度（室內淨尺寸），按 ✓','點回起點＝圍成一個空間；在最後一點再點一次＝結束這條','右邊可以先選「內線／外線」：你畫的線是牆的哪一面'],
+      q:[['畫歪了？','右邊「角度鎖定」選「正交」只會畫水平垂直。'],['畫錯一段？','按上面「復原」，一次退一個轉角。'],['數字是內線還是外線？','空間的尺寸一律是室內淨尺寸（內線）。']]},
+    part:{t:'隔間',d:'畫輕隔間、磚牆、木作、玻璃這些新做的牆，或要拆除的牆。',
+      s:['先在右邊選種類：輕隔間／磚牆／木作／玻璃／拆除','畫法跟「牆」一樣：點起點、一個轉角一個轉角點下去','每種會有自己的填充圖樣，出圖時圖例自動列出長度'],
+      q:[['厚度怎麼改？','選取那道隔間，右邊可以改厚度。']]},
+    room:{t:'房間',d:'直接拖出一個矩形房間，打寬和深就完成。',
+      s:['按住拖出一個矩形','打寬度和深度（室內淨尺寸），按 ✓ 建立','建立後一樣可以點各邊的數字修改'],
+      q:[['形狀不是矩形？','用「牆」工具一個轉角一個轉角畫。']]},
+    door:{t:'門',d:'點在牆上放一扇門。',
+      s:['右邊「畫門設定」先選：門／推拉門／門洞','在牆上點一下放置','選取門之後可以改寬度、開門方向；兩側的數字是到最近的牆或柱子的距離，點一下可以直接打'],
+      q:[['點了沒有門？','一定要點在牆上，而且不能壓到柱子、交接的牆或其他門窗；結構鎖住時也不能放。']]},
+    window:{t:'窗',d:'點在牆上放一扇窗。',
+      s:['右邊「畫窗設定」先選：窗／落地窗／外凸窗','在牆上點一下放置','選取後可改寬度、離地高度，點兩側數字打離牆角距離'],
+      q:[['落地窗的離地高度？','固定是 0。']]},
+    column:{t:'柱',d:'點一下放一根柱子，會自動貼齊牆面。',
+      s:['在要放的位置點一下','選取後右邊可改長寬、旋轉','點四邊的離牆距離數字直接輸入，打 0 就貼牆'],q:[['為什麼牆的尺寸變了？','柱子是結構，不算空間：貼著柱子的那面牆會顯示扣掉柱子的淨尺寸，空間坪數也會扣掉柱子。點那段淨尺寸可以直接打，會移動柱子。']]},
+    shaft:{t:'管道間',d:'點一下放置管道間（斜線區塊）。',
+      s:['在要放的位置點一下','選取後可改長寬與旋轉','點四邊的離牆距離數字直接輸入'],q:[]},
+    beam:{t:'樑',d:'畫出樑的位置，天花板圖會用到樑下高度。',
+      s:['沿著牆畫：會自動貼齊牆內面，整根樑落在室內','跨房間畫：兩端會停在牆內面','選取後右邊可以設樑深、寬度，或設成「包樑」'],q:[]},
+    split:{t:'拆分牆',d:'把一道牆切成兩段。',s:['在牆上點一下要切開的位置'],q:[]},
+    dim:{t:'尺寸',d:'自己加一條尺寸標註。',
+      s:['從綠色小點（圖示中心、角點）或牆面按住','拖到另一個定位點放開','點到牆面會自動量垂直距離'],
+      q:[['為什麼沒有建立？','起點和終點都要對準綠色定位點或牆面。']]},
+    ink:{t:'手寫',d:'在圖上直接手寫、畫記號。',
+      s:['用 Apple Pencil 直接寫','右邊可以換顏色、粗細','切到「橡皮擦」按住擦掉，擦一半也可以'],
+      q:[['手掌會畫到嗎？','用過筆之後，手指只負責移動和縮放畫布，不會畫到。']]},
+    photo:{t:'現場照片',d:'在圖上的位置釘一張現場照片。',
+      s:['點在要記錄的位置，相機會直接打開','拍完就是一張釘在那裡的小圖，點它可以放大看','可以拖動，也可以補文字'],q:[]},
+    note:{t:'註記',d:'拉一條引線指到某個位置，旁邊加說明。',
+      s:['點在要指的位置，會拉出引線和註記框','框裡可以手寫、打字、或加現場照片','拖框可以移動，右下角可以調大小'],q:[]},
+    text:{t:'文字',d:'在圖上放一段文字。',s:['在要放的位置點一下，輸入文字','用選取工具按住文字可以拖動','選取後右邊可以改字體大小（小／中／大／特大）'],q:[]},
+    base:{t:'結構（底圖）',d:'牆、門窗、柱、樑都畫在這一層，所有施工圖都以它為底圖。',
+      s:['用左邊的工具畫牆、房間、門窗、柱、樑','空間圍起來後會自動算坪數，點空間名稱可以改名','結構畫好後，按「結構」旁邊的鎖，之後畫施工圖就不會誤拖到牆'],
+      q:[['鎖住後還能改嗎？','再按一次鎖就解開。']]},
+    plan:{t:'平面配置',d:'放家具。',
+      s:['在下方家具庫選分類（客廳、臥室…），再點一個家具','點畫面放下，可以連續放好幾件','換一件就在下面點別的；按左邊「選取」結束放置','選取家具後可以改尺寸、旋轉，點四邊的數字打離牆距離'],
+      q:[['找不到要的家具？','「其他」裡的自訂矩形／圓形可以自己命名，當任何東西用。']]},
+    elec:{t:'水電插座',d:'放插座、開關、弱電、設備、給排水符號。',
+      s:['在下方選分類，再點一個符號','點畫面放下，靠近牆會自動貼牆','選取後可以改離地高度、離牆距離、角度'],
+      q:[['出圖的數量哪裡看？','匯出 PDF 時，圖例會自動列出每種符號的數量。']]},
+    light:{t:'燈具配置',d:'放燈具：嵌燈、吸頂燈、吊燈、間接燈帶等。',
+      s:['在下方選分類，再點一種燈具','點畫面放下；間接燈帶用拖的','選取後可以改尺寸、離牆距離'],q:[]},
+    circuit:{t:'燈具迴路',d:'把開關和燈連成迴路。',
+      s:['先到「燈具配置」放好燈、到這層下方放好開關','右邊按「新增迴路」','先點開關，再依序點要接的燈，按畫面下方「完成」'],
+      q:[['按新增迴路沒反應？','要先有至少一顆開關和一盞燈。']]},
+    ceil:{t:'天花板施工',d:'設定每個空間的平釘高度，再畫造型、間照、窗簾盒、維修孔。',
+      s:['「整間平釘」點一個空間 → 打平釘高度','造型區域：用「矩形／多邊形／圓形」畫出，或「天花線」切出一邊','區域畫好後：拉菱形移動那一邊、拉圓點導圓角；點畫面上的 CH 數字改高度','「間接照明」點造型區域的邊加上燈槽'],
+      q:[['為什麼空間沒有天花板？','預設不做天花，要先用「整間平釘」點那個空間。'],['區域拖不動？','區域本身不能整塊移動，只能拉邊和角改形狀。']]},
+    'ceil.room':{t:'整間平釘',d:'一整間做平釘天花。',s:['點一個空間（變綠色）','打平釘完成面高度 CH，按 ✓','可以連續點下一間'],q:[]},
+    'ceil.line':{t:'天花線',d:'畫一條線把空間切開，只在一邊做天花板。',s:['從一面牆按住拉到另一面牆','放開後，點一下要做天花板的那一邊'],q:[]},
+    'ceil.cove':{t:'間接照明',d:'在造型區域的邊加上間照燈槽。',s:['先有一個造型區域（矩形、多邊形、內縮一圈都可以）','點區域邊上的「＋」加間照，再點一次取消','點區域中間＝整圈都加'],q:[['點了沒反應？','平釘的空間要先畫一個區域，間照是加在區域的邊上。']]},
+    'ceil.rect':{t:'矩形區域',d:'拖出一個矩形的天花造型。',s:['按住拖曳畫出範圍','放開後點畫面上的 CH 數字改高度','拉菱形移動一邊、拉圓點導圓角'],q:[]},
+    'ceil.poly':{t:'多邊形區域',d:'一點一點點出不規則的天花造型。',s:['一點一點點出外框，角點會吸附牆角','點回第一點，或按下方「完成」','開正交時只會畫水平垂直；關掉就能畫斜邊'],q:[]},
+    'ceil.ell':{t:'圓形區域',d:'畫圓形天花造型。',s:['從圓心按住往外拖','放開後可以拉圓點改半徑'],q:[]},
+    'ceil.offset':{t:'內縮一圈',d:'沿著空間或區域往內縮一圈，做出邊框。',s:['右邊設定內縮距離','點一個空間或造型區域'],q:[]},
+    'ceil.curtain':{t:'窗簾盒',d:'拖出窗簾盒的位置。',s:['按住沿著窗邊拖出','出圖時會統計窗簾盒長度'],q:[]},
+    'ceil.hatch':{t:'維修孔',d:'點一下放維修孔。',s:['在要放的位置點一下','選取後可以改尺寸'],q:[]},
+    'ceil.ventS':{t:'出風口',d:'點一下放出風口。',s:['在要放的位置點一下','選取後可以改長寬'],q:[]},
+    'ceil.ventR':{t:'回風口',d:'點一下放回風口。',s:['在要放的位置點一下','選取後可以改長寬'],q:[]},
+    floor:{t:'地板施工',d:'每個空間選地板材料，自動算叫料坪數和片數。',
+      s:['下方先選材料大項（超耐磨、SPC、磁磚…）','再依序選 ① 尺寸 → ② 厚度 → ③ 施工方式，木地板可選方向、磁磚可選起鋪','選鋪法：「整間鋪設」點空間；「切一邊」拉線再點一邊；「矩形／多邊形」畫局部','點畫面上的「方向」可以轉 90°；用選取點空間，右邊可以改材料'],
+      q:[['數量怎麼算？','實際面積＋1 坪損耗＝叫料坪數；片數＝叫料坪數 ÷ 單片面積，無條件進位。右邊面板和匯出的圖例都會寫出來。'],['局部換材料？','用「矩形區域」或「多邊形區域」畫在空間裡，那一塊會蓋過整間的材料。']]},
+  };
+  function helpKey(){
+    const t=ui.tool;
+    if(t==='ceil') return state.layer==='floor' ? 'floor' : (HELP['ceil.'+ui.ceilPick] ? 'ceil.'+ui.ceilPick : 'ceil');
+    if(t==='furn') return 'plan';
+    if(t==='mep') return state.layer==='light' ? 'light' : 'elec';
+    if(t==='circuit') return 'circuit';
+    if(t && t!=='select' && HELP[t]) return t;
+    if(t==='select' && state.layer==='base') return 'select';
+    return HELP[state.layer] ? state.layer : 'select';
+  }
+  const helpStore={ get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(_){ return d; } },
+                    set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){ } } };
+  let helpSeen=helpStore.get('planpad.helpSeen.v1',{});
+  const esc=(x)=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  function syncHelpBtn(){
+    const b=document.getElementById('helpBtn'); if(!b) return;
+    const k=helpKey(); b.classList.toggle('new', !helpSeen[k]);
+    b.title='使用說明：'+((HELP[k]||{}).t||'');
+  }
+  function openHelp(k){
+    k=k||helpKey(); const h=HELP[k]; if(!h) return;
+    helpSeen[k]=1; helpStore.set('planpad.helpSeen.v1',helpSeen);
+    const box=document.getElementById('helpCard');
+    box.innerHTML=`<div class="hc-head"><div><div class="hc-k">使用說明</div><div class="hc-t">${esc(h.t)}</div></div><button class="hc-x" id="hcX" aria-label="關閉">✕</button></div>
+      <div class="hc-body"><p class="hc-d">${esc(h.d)}</p>
+      <div class="hc-h">怎麼用</div><ol>${h.s.map(x=>'<li>'+esc(x)+'</li>').join('')}</ol>
+      <div class="hc-h">手勢</div><ul><li>Apple Pencil：畫圖、點選</li><li>一根手指：移動畫布；兩根手指：縮放</li><li>按上面「全圖」：整張圖回到畫面中間</li></ul>
+      ${h.q&&h.q.length?'<div class="hc-h">常見問題</div>'+h.q.map(([a,b])=>'<div class="hc-q"><b>'+esc(a)+'</b><span>'+esc(b)+'</span></div>').join(''):''}
+      <button class="chip hc-tour" id="hcTour">看整體教學</button></div>`;
+    box.classList.add('open');
+    document.getElementById('hcX').onclick=()=>{ box.classList.remove('open'); };
+    document.getElementById('hcTour').onclick=()=>{ box.classList.remove('open'); openTour(); };
+    syncHelpBtn();
+  }
+  // ---- 整體教學: the first time the app opens, skippable ----
+  const TOUR=[
+    ['歡迎使用 PlanPad','這是給平板用的平面圖與施工圖工具。先畫「結構」（牆、門窗、柱、樑），再切換圖層，一層一層畫出平面配置、水電、燈具、天花板、地板施工圖。'],
+    ['畫面怎麼看','左邊工具列：畫結構的工具。\n右邊面板：圖層、目前選到的東西的設定。\n畫布下方：這個圖層可以放的東西（家具、插座、燈具、天花板、地板），點了就能放。\n上方：復原／重做、縮放、全圖、檔案。'],
+    ['Apple Pencil 和手指','Pencil 用來畫和點選。\n一根手指拖動畫布，兩根手指縮放。\n用過 Pencil 之後，手指就不會畫到東西，手掌可以放心靠在螢幕上。\n圖跑出畫面時，按上面「全圖」。'],
+    ['數字都可以直接點來改','畫面上的數字——牆長、離牆距離、天花板高度——點一下就能輸入，按 ✓ 完成。\n空間的尺寸一律是室內淨尺寸（內線）。'],
+    ['圖層＝一張一張施工圖','右邊「圖層」：在哪一層就畫在哪一層，其他層會變淡、不會被選到。\n「結構」是所有施工圖的底圖；畫好後按旁邊的鎖，就不會誤拖到牆。'],
+    ['存檔與出圖','畫的東西會自動存在這台平板。\n「檔案」可以儲存、開啟不同專案，也能匯出 PDF（含圖框和數量圖例）、PNG、DXF。\n不會用的時候，按畫面右上角的「?」看這個功能的說明。'],
+  ];
+  let tourI=0;
+  function openTour(){ tourI=0; renderTour(); document.getElementById('tourModal').classList.add('open'); }
+  function closeTour(){ document.getElementById('tourModal').classList.remove('open'); helpStore.set('planpad.tour.v1',1); }
+  function renderTour(){
+    const [t,body]=TOUR[tourI], last=tourI===TOUR.length-1;
+    document.getElementById('tourBody').innerHTML=`<div class="tour-step">${tourI+1} / ${TOUR.length}</div><div class="tour-t">${esc(t)}</div>`
+      + body.split('\n').map(x=>'<p>'+esc(x)+'</p>').join('')
+      + `<div class="tour-dots">${TOUR.map((_,i)=>'<i'+(i===tourI?' class="on"':'')+'></i>').join('')}</div>`;
+    document.getElementById('tourPrev').style.visibility=tourI?'visible':'hidden';
+    document.getElementById('tourNext').textContent=last?'開始畫圖':'下一步';
+    document.getElementById('tourSkip').style.visibility=last?'hidden':'visible';
+  }
+  (function wireHelp(){
+    const b=document.getElementById('helpBtn');
+    if(b){ for(const ev of ['pointerdown','pointerup','touchstart']) b.addEventListener(ev,e=>e.stopPropagation());
+      b.onclick=(e)=>{ e.stopPropagation(); const c=document.getElementById('helpCard'); if(c.classList.contains('open')) c.classList.remove('open'); else openHelp(); }; }
+    const c=document.getElementById('helpCard');
+    if(c) for(const ev of ['pointerdown','pointerup','pointermove','touchstart','wheel']) c.addEventListener(ev,e=>e.stopPropagation());
+    document.getElementById('tourPrev').onclick=()=>{ if(tourI>0){ tourI--; renderTour(); } };
+    document.getElementById('tourNext').onclick=()=>{ if(tourI<TOUR.length-1){ tourI++; renderTour(); } else closeTour(); };
+    document.getElementById('tourSkip').onclick=closeTour;
+    if(!helpStore.get('planpad.tour.v1',0)) setTimeout(openTour,400);
+    syncHelpBtn();
+  })();
+
   // ---- panel ----
   const CEIL_TOOLS=[['room','整間平釘','點一下空間'],['line','天花線','畫線切出一邊'],['cove','間接照明','點區域的邊'],['rect','矩形區域','拖曳畫出'],['poly','多邊形區域','逐點點出'],['ell','圓形區域','從圓心拖出'],
     ['offset','內縮一圈','點空間或區域'],['curtain','窗簾盒','拖曳畫出'],['hatch','維修孔','點一下放置'],
@@ -10660,16 +11145,18 @@
     return {S,L,links};
   }
   const circTrim=(m)=> isLinear(m) ? fpx(4) : devPx(m)*(isSwitch(m)?0.42:0.34);
+  // Where two circuit lines cross without connecting, the later one jumps over the
+  // earlier with a small half-circle (跨線) — the drafting convention, so a crossing
+  // is never read as a joint.
   function drawCircLines(){
     try{ cleanCircuits(); }catch(_){}
     if(!layerVisible('circuit') || !state.circuits.length) return;
     ctx.save();
     ctx.globalAlpha=(state.layer==='circuit'||state.layer==='__all__')?1:0.42;
+    const runs=[];
     for(const c of state.circuits){
       const ch=circChain(c); if(!ch) continue;
       const sel=ui.selected && ui.selected.kind==='circuit' && ui.selected.id===c.id;
-      ctx.strokeStyle=c.color; ctx.lineWidth=Math.max(1.4,1.4*TS)*(sel?1.9:1);
-      ctx.setLineDash([6*TS,4*TS]); ctx.lineCap='round';
       for(const [a,b] of ch.links){
         const [x1,y1]=toScreen(a.x,a.y), [x2,y2]=toScreen(b.x,b.y);
         const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy); if(len<2) continue;
@@ -10677,13 +11164,50 @@
         const bend=Math.min(len*0.16, fpx(46));
         const cx=(x1+x2)/2 - dy/len*bend, cy=(y1+y2)/2 + dx/len*bend;
         const t0=Math.min(0.4, circTrim(a)/len), t1=1-Math.min(0.4, circTrim(b)/len);
-        ctx.beginPath();
-        for(let i=0;i<=18;i++){
-          const t=t0+(t1-t0)*i/18, u=1-t;
-          const px=u*u*x1+2*u*t*cx+t*t*x2, py=u*u*y1+2*u*t*cy+t*t*y2;
-          i?ctx.lineTo(px,py):ctx.moveTo(px,py);
-        }
-        ctx.stroke();
+        const pts=[];
+        for(let i=0;i<=24;i++){ const t=t0+(t1-t0)*i/24, u=1-t; pts.push([u*u*x1+2*u*t*cx+t*t*x2, u*u*y1+2*u*t*cy+t*t*y2]); }
+        const cum=[0]; for(let i=1;i<pts.length;i++) cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
+        runs.push({pts, cum, color:c.color, sel, hops:[]});
+      }
+    }
+    const R=fpx(9);
+    const segX=(p,q,r,s2)=>{ const d=(q[0]-p[0])*(s2[1]-r[1])-(q[1]-p[1])*(s2[0]-r[0]); if(Math.abs(d)<1e-9) return null;
+      const t=((r[0]-p[0])*(s2[1]-r[1])-(r[1]-p[1])*(s2[0]-r[0]))/d, u=((r[0]-p[0])*(q[1]-p[1])-(r[1]-p[1])*(q[0]-p[0]))/d;
+      return (t>=0&&t<=1&&u>=0&&u<=1)?t:null; };
+    for(let k=1;k<runs.length;k++) for(let j=0;j<k;j++){
+      const A=runs[k], B=runs[j];
+      for(let i=0;i+1<A.pts.length;i++) for(let m=0;m+1<B.pts.length;m++){
+        const t=segX(A.pts[i],A.pts[i+1],B.pts[m],B.pts[m+1]); if(t==null) continue;
+        const sA=A.cum[i]+(A.cum[i+1]-A.cum[i])*t, total=A.cum[A.cum.length-1];
+        if(sA<R*1.6 || sA>total-R*1.6) continue;                 // at a device: that is a joint, not a crossing
+        if(!A.hops.some(h=>Math.abs(h-sA)<R*2.2)) A.hops.push(sA);
+      }
+    }
+    const at=(run,sv)=>{ const c=run.cum; let i=1; while(i<c.length-1 && c[i]<sv) i++;
+      const f=(sv-c[i-1])/Math.max(1e-6,c[i]-c[i-1]); const p=run.pts[i-1], q=run.pts[i];
+      const L=Math.hypot(q[0]-p[0],q[1]-p[1])||1; return {x:p[0]+(q[0]-p[0])*f, y:p[1]+(q[1]-p[1])*f, ux:(q[0]-p[0])/L, uy:(q[1]-p[1])/L}; };
+    for(const run of runs){
+      ctx.strokeStyle=run.color; ctx.lineWidth=Math.max(1.4,1.4*TS)*(run.sel?1.9:1);
+      ctx.setLineDash([6*TS,4*TS]); ctx.lineCap='round';
+      const hops=run.hops.slice().sort((a,b)=>a-b);
+      ctx.beginPath(); ctx.moveTo(run.pts[0][0],run.pts[0][1]);
+      let i=1; const arcs=[];
+      for(const h of hops){
+        while(i<run.pts.length && run.cum[i]<h-R){ ctx.lineTo(run.pts[i][0],run.pts[i][1]); i++; }
+        const P=at(run,h-R), C=at(run,h), Q=at(run,h+R);
+        ctx.lineTo(P.x,P.y); ctx.moveTo(Q.x,Q.y);           // a gap in the dashes…
+        arcs.push(C);
+        while(i<run.pts.length && run.cum[i]<=h+R) i++;
+      }
+      for(;i<run.pts.length;i++) ctx.lineTo(run.pts[i][0],run.pts[i][1]);
+      ctx.stroke();
+      // …bridged by a solid half-circle, bowing upward on the sheet
+      ctx.setLineDash([]);
+      for(const C of arcs){
+        const a0=Math.atan2(-C.uy,-C.ux), a1=Math.atan2(C.uy,C.ux);
+        // the side of the line facing up the screen: normal (−uy,ux) or its opposite
+        const ccw = C.ux<=0;     // clockwise from the back tangent passes the side at a0+90°, which is up when ux>0
+        ctx.beginPath(); ctx.arc(C.x,C.y,R,a0,a1,ccw); ctx.stroke();
       }
     }
     ctx.restore();
@@ -10969,7 +11493,7 @@
   // not a wall. Measuring past the sofa to the far wall is the wrong number, so
   // every neighbour counts — walls, columns, shafts, beams and other furniture —
   // and the label says which one it is.
-  function neighbourBoxes(exceptId){
+  function neighbourBoxes(exceptId, opts){
     const out=[];
     for(const w of state.walls){
       if(wallLen(w)<1) continue;
@@ -10984,12 +11508,8 @@
                 y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)),
                 what:c.kind==='shaft'?'管道間':'柱'});
     }
-    for(const bm of state.beams){
-      if(wallLen(bm)<1) continue;
-      const p=beamCorners(bm);
-      out.push({x0:Math.min(...p.map(q=>q.x)),x1:Math.max(...p.map(q=>q.x)),
-                y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)),what:'樑'});
-    }
+    // (beams are overhead: a sofa or a socket is never measured to one)
+    if(opts && opts.structOnly) return out;
     for(const g of state.furniture){
       if(g.id===exceptId) continue;
       if(!layerVisible(g.layer||'plan')) continue;
@@ -11385,12 +11905,27 @@
     return n;
   }
   // which photo thumbnail inside a box note is under this screen point
+  // Furniture pulled near a wall face, a column or another piece lands flush on
+  // it — no need to type 0, and a slight nudge does not leave it 2 cm off.
+  // Each axis on its own; only square-on pieces (0/90/180/270°).
+  function furnSnap(f, x, y){
+    const r=(((f.rot||0)%180)+180)%180; if(r!==0 && r!==90) return {x,y};
+    const hx=(r===0?f.w:f.h)/2, hy=(r===0?f.h:f.w)/2, thr=Math.min(16/view.scale, 40);
+    const R=neighbourBoxes(f.id,{structOnly:true}).concat(state.furniture.filter(g=>g.id!==f.id && layerVisible(g.layer||'plan')).map(furnBox));
+    let bx=null, dx=thr, by=null, dy=thr;
+    for(const b of R){
+      if(!(y+hy<b.y0-1 || y-hy>b.y1+1)) for(const face of [b.x0,b.x1]) for(const e of [-hx,hx]){ const d=Math.abs(x+e-face); if(d<dx){ dx=d; bx=face-e; } }
+      if(!(x+hx<b.x0-1 || x-hx>b.x1+1)) for(const face of [b.y0,b.y1]) for(const e of [-hy,hy]){ const d=Math.abs(y+e-face); if(d<dy){ dy=d; by=face-e; } }
+    }
+    return {x:bx!=null?bx:x, y:by!=null?by:y, sx:bx!=null, sy:by!=null};
+  }
   function placeFurniture(wx,wy){
     if(!ui.furnPick){ flashHint('先在右邊的家具庫點一件家具'); return; }
     const [cat,name,w,h,shape]=ui.furnPick;
     let x=wx,y=wy;
     if(ui.snap){ const g=ui.gridSize; x=Math.round(x/g)*g; y=Math.round(y/g)*g; }
     const f={id:uid(),cat,name,shape,x,y,w,h,rot:0,layer:'plan'};
+    { const sn=furnSnap(f, wx, wy); if(sn.sx) f.x=sn.x; if(sn.sy) f.y=sn.y; }
     state.furniture.push(f);
     ui.selected={kind:'furn',id:f.id};
     refreshProp(); pushHistory(); draw(); afterPlace();
@@ -11903,6 +12438,7 @@
     } else if(state.walls.length && !await uiConfirm('要開啟「'+p.name+'」嗎？',{okText:'開啟'})) return;
     try{
       restore(JSON.stringify(p.data));
+      openOnBase();
       if(p.data.unit) applyUnit(p.data.unit);
       document.getElementById('fname').value=p.name;
       history.length=0; history.push(snapshot()); hi=0; updateUndo();
@@ -11965,7 +12501,7 @@
   function blankPlan(){
     state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
     state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[]; state.circuits=[]; state.ceil=[]; state.floor=[]; state.ceilLabel='ch';
-    state.layer='plan'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.underlay=null; underlayImg=null;
+    state.layer='base'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.underlay=null; underlayImg=null;
     // the studio name survives a new project; the client and sheet number do not
     state.meta={firm:(state.meta&&state.meta.firm)||'', designer:(state.meta&&state.meta.designer)||''};
     syncMetaUI();
