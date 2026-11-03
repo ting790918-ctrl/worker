@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b110</title>
+<title>PlanPad · 平面圖工具 b111</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -331,7 +331,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b110</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b111</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -402,6 +402,7 @@
       <div id="circBar" style="display:none;position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;align-items:center;gap:10px;background:#fff;border:1px solid var(--line-strong);border-radius:14px;padding:8px 10px 8px 14px;box-shadow:0 4px 16px rgba(0,0,0,.14);white-space:nowrap;">
         <span id="circBarTxt" style="font-size:13px;font-weight:600;color:#24282E"></span>
         <button id="circNo" style="min-height:40px;padding:0 14px;border:1px solid var(--line-strong);border-radius:10px;background:#fff;font-size:14px">取消</button>
+        <button id="circNext" style="display:none;min-height:40px;padding:0 14px;border:1px solid #275C7A;border-radius:10px;background:#E8F0F4;color:#275C7A;font-size:14px;font-weight:700">存好，做下一個</button>
         <button id="circOk" style="min-height:40px;padding:0 18px;border:0;border-radius:10px;background:#275C7A;color:#fff;font-size:14px;font-weight:600">完成</button>
       </div>
       <div id="calibBar"><span id="calibStep"></span><button id="calibCancel">取消</button></div>
@@ -7315,7 +7316,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b110';
+  const BUILD='b111';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -10811,7 +10812,7 @@
     light:{t:'燈具配置',d:'放燈具：嵌燈、吸頂燈、吊燈、間接燈帶等。',
       s:['在下方選分類，再點一種燈具','點畫面放下；間接燈帶用拖的','選取後可以改尺寸、離牆距離'],q:[]},
     circuit:{t:'燈具迴路',d:'把開關和燈連成迴路。',
-      s:['先到「燈具配置」放好燈、到這層下方放好開關','按下方或右邊的「＋ 建立迴路」','先點開關，再依序點要接的燈，按畫面下方「完成」','開關上沒用到的按鍵會顯示灰色小點'],
+      s:['先到「燈具配置」放好燈、到這層下方放好開關','按下方或右邊的「＋ 建立迴路」','先點開關，再依序點要接的燈','還要做下一個迴路就按「存好，做下一個」，全部做完按「完成」','開關上沒用到的按鍵會顯示灰色小點'],
       q:[['按建立迴路沒反應？','要先有至少一顆開關和一盞燈。'],['兩個開關不能接同一組燈？','一般開關只能在一個地方控制。要兩個地方都能開關（樓梯上下、走道兩頭、門口和床頭），兩處都要用「雙切開關」，而且要成對。'],['為什麼不能再接？','開關有幾個按鍵就只能接幾條迴路，例如「兩個開關」最多接 2 條。']]},
     ceil:{t:'天花板施工',d:'設定每個空間的平釘高度，再畫造型、間照、窗簾盒、維修孔。',
       s:['「整間平釘」點一個空間 → 打平釘高度','造型區域：用「矩形／多邊形／圓形」畫出，或「天花線」切出一邊','區域畫好後：拉菱形移動那一邊、拉圓點導圓角；點畫面上的 CH 數字改高度','「間接照明」點造型區域的邊加上燈槽'],
@@ -11132,9 +11133,13 @@
     }
     syncCircBar(); draw();
   }
-  function circFinish(){
+  // 「存好，做下一個」 saves this circuit and starts the next one at once; 「完成」
+  // saves (if anything is picked) and leaves. Several circuits in one go.
+  function circFinish(next){
     const d=ui.cdraft; if(!d) return;
-    if(!d.sw.length && !d.lights.length){ flashHint('還沒選開關和燈具'); return; }
+    if(!d.sw.length && !d.lights.length){
+      if(d.made && !next){ setTool('select'); refreshProp(); syncCircUI(); draw(); flashHint('已建立 '+d.made+' 個迴路'); return; }
+      flashHint('還沒選開關和燈具'); return; }
     if(!d.sw.length){ flashHint('還缺開關：有開關和燈具才能形成迴路'); return; }
     if(!d.lights.length){ flashHint('還缺燈具：有開關和燈具才能形成迴路'); return; }
     { const S=d.sw.map(mepById).filter(Boolean);
@@ -11149,10 +11154,17 @@
       state.circuits.push(c);
     }
     cleanCircuits();
+    if(next){
+      const made=(d.made||0)+1;
+      ui.cdraft={sw:[], lights:[], editId:null, made};
+      pushHistory(); syncCircUI(); syncCircBar(); draw();
+      flashHint('迴路 '+c.name+' 存好了（'+c.sw.length+' 顆開關、'+c.lights.length+' 盞燈）。接著點下一個迴路的開關');
+      return;
+    }
     setTool('select');
     ui.selected={kind:'circuit',id:c.id};
     pushHistory(); refreshProp(); syncCircUI(); draw();
-    flashHint('迴路 '+c.name+'：'+c.sw.length+' 顆開關、'+c.lights.length+' 盞燈');
+    flashHint('迴路 '+c.name+'：'+c.sw.length+' 顆開關、'+c.lights.length+' 盞燈'+(d.made?('（這次共建立 '+(d.made+1)+' 個迴路）'):''));
   }
   function circCancel(){ setTool('select'); draw(); }
   function syncCircBar(){
@@ -11160,12 +11172,15 @@
     const poly = ui.tool==='ceil' && ui.ceilPick==='poly';
     const on = (ui.tool==='circuit' && !!ui.cdraft) || poly;
     bar.style.display = on ? 'flex' : 'none';
+    { const nx=document.getElementById('circNext'); if(nx) nx.style.display='none'; }
     if(!on) return;
     if(poly){ document.getElementById('circBarTxt').textContent='多邊形區域：已點 '+((ui.cpoly||[]).length)+' 點'; return; }
     const d=ui.cdraft;
     document.getElementById('circBarTxt').textContent =
-      (d.editId!=null?'編輯迴路':'建立迴路')+'：開關 '+d.sw.length+'、燈具 '+d.lights.length
+      (d.made?'已建立 '+d.made+' 個・':'')+(d.editId!=null?'編輯迴路':'建立迴路')+'：開關 '+d.sw.length+'、燈具 '+d.lights.length
       + (!d.sw.length ? '（先點開關）' : !d.lights.length ? '（再點要接的燈）' : '');
+    const nx=document.getElementById('circNext');
+    if(nx) nx.style.display = (d.editId==null && d.sw.length && d.lights.length) ? '' : 'none';
   }
   // order the lights into a chain starting from the first switch, nearest first
   function circChain(c){
@@ -11356,7 +11371,8 @@
     const bar=document.getElementById('circBar');
     if(bar){
       for(const ev of ['pointerdown','pointerup','mousedown','touchstart']) bar.addEventListener(ev,e=>e.stopPropagation());
-      document.getElementById('circOk').onclick=()=>{ if(ui.tool==='ceil') ceilPolyFinish(); else circFinish(); };
+      document.getElementById('circOk').onclick=()=>{ if(ui.tool==='ceil') ceilPolyFinish(); else circFinish(false); };
+      document.getElementById('circNext').onclick=()=>{ if(ui.tool==='circuit') circFinish(true); };
       document.getElementById('circNo').onclick=()=>{ if(ui.tool==='ceil'){ setTool('select'); draw(); } else circCancel(); };
     }
   })();
