@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b107</title>
+<title>PlanPad · 平面圖工具 b108</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -329,7 +329,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b107</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b108</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -6150,6 +6150,27 @@
   // 刪除／拆分 used to live at the bottom of a long side panel; next to the thing
   // you just tapped is where the eye already is.
   let selBarKey='';
+  // 複製: a copy lands right beside the original (touching it, or a step along the
+  // wall for a wall device) and is selected, ready to drag where it goes
+  function duplicateSelected(){
+    const s=ui.selected; if(!s) return;
+    const clone=(o)=>JSON.parse(JSON.stringify(o));
+    let n=null, kind=s.kind;
+    if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(!f) return; n=clone(f); n.id=uid();
+      const b=furnBox(f); n.x=f.x+(b.x1-b.x0); state.furniture.push(n); }
+    else if(s.kind==='mep'){ const m=state.mep.find(v=>v.id===s.id); if(!m) return; n=clone(m); n.id=uid();
+      const host=isWallDevice(m)?mepHostWall(m):null;
+      if(host){ const w=host.w, L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, step=Math.max(30, MEP_SIZE*1.2); n.x=m.x+ux*step; n.y=m.y+uy*step; }
+      else if(isLinear(m)){ const a=(m.rot||0)*Math.PI/180; n.x=m.x-Math.sin(a)*40; n.y=m.y+Math.cos(a)*40; }
+      else { n.x=m.x+Math.max(60, (lightSpec(m).sz?devSz(m):MEP_SIZE)*1.5); }
+      state.mep.push(n); }
+    else if(s.kind==='column'){ const c=state.columns.find(v=>v.id===s.id); if(!c) return; n=clone(c); n.id=uid(); n.x=c.x+c.w; state.columns.push(n); }
+    else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(!t) return; n=clone(t); n.id=uid(); n.y=t.y+textH(t)*1.3; state.texts.push(n); }
+    if(!n) return;
+    dbg(`  DUPLICATE ${kind} #${s.id} → #${n.id}`);
+    ui.selected={kind, id:n.id}; pushHistory(); refreshProp(); draw();
+    flashHint('已複製一個在旁邊，拖到要的位置；可以再按「複製」繼續');
+  }
   function selBarActions(s){
     const A=[];
     if(s.kind==='wall'){ A.push(['拆分',()=>splitStart(s.id)]); A.push(['刪除',deleteSelected,'del']); }
@@ -6159,11 +6180,12 @@
       if(o.sub==='swing'||(!o.sub&&o.type==='door')) A.push(['左右翻轉',()=>{ o.flipH=!o.flipH; pushHistory(); refreshProp(); draw(); }]);
       A.push(['刪除',deleteSelected,'del']); }
     else if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(!f) return A;
-      A.push(['旋轉 90°',()=>{ f.rot=((f.rot||0)+90)%360; pushHistory(); refreshProp(); draw(); }]); A.push(['刪除',deleteSelected,'del']); }
+      A.push(['複製',duplicateSelected]); A.push(['旋轉 90°',()=>{ f.rot=((f.rot||0)+90)%360; pushHistory(); refreshProp(); draw(); }]); A.push(['刪除',deleteSelected,'del']); }
     else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(!t) return A;
       A.push(['改文字',()=>{ const [sx,sy]=toScreen(t.x,t.y); showTextInput(sx,sy-14,t.text,(val)=>{ if(val.trim()===''){ state.texts=state.texts.filter(x=>x.id!==t.id); ui.selected=null; } else t.text=val; refreshProp(); pushHistory(); draw(); }); }]);
-      A.push(['刪除',deleteSelected,'del']); }
-    else if(['column','mep','beam','dim','note','ceil'].includes(s.kind)) A.push(['刪除',deleteSelected,'del']);
+      A.push(['複製',duplicateSelected]); A.push(['刪除',deleteSelected,'del']); }
+    else if(s.kind==='mep'||s.kind==='column'){ A.push(['複製',duplicateSelected]); A.push(['刪除',deleteSelected,'del']); }
+    else if(['beam','dim','note','ceil'].includes(s.kind)) A.push(['刪除',deleteSelected,'del']);
     return A;
   }
   // the selected thing's footprint on screen — the bar goes outside it, never over it
@@ -7284,7 +7306,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b107';
+  const BUILD='b108';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
