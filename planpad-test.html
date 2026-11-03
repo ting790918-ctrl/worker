@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t23</title>
+<title>PlanPad · 測試版 t24</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -329,7 +329,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t23</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t24</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -3035,11 +3035,27 @@
       if(Math.max(t1,t2) < L*0.25 || Math.min(t1,t2) > L*0.75) continue;   // barely overlaps
       if(dist<bd){ bd=dist; best={w,d}; }
     }
-    if(!best) return {a,c};
+    if(!best){
+      // no wall alongside: a column it runs past or over → the beam's edge sits on
+      // the column's face instead of half-covering it
+      let bo=null, bdo=Infinity;
+      for(const col of state.columns){
+        const an=(col.rot||0)*Math.PI/180, ca=Math.cos(an), sa=Math.sin(an);
+        const P=[[-col.w/2,-col.h/2],[col.w/2,-col.h/2],[col.w/2,col.h/2],[-col.w/2,col.h/2]].map(d=>{ const x=col.x+d[0]*ca-d[1]*sa, y=col.y+d[0]*sa+d[1]*ca; return {t:(x-a.x)*ux+(y-a.y)*uy, d:(x-a.x)*nx+(y-a.y)*ny}; });
+        const t0=Math.min(...P.map(q=>q.t)), t1=Math.max(...P.map(q=>q.t)), d0=Math.min(...P.map(q=>q.d)), d1=Math.max(...P.map(q=>q.d));
+        if(t1<-bw || t0>L+bw) continue;                         // not along this beam
+        if(d0>bw/2+25 || d1<-bw/2-25) continue;                  // too far to the side
+        if(d0<0 && d1>0) continue;                               // the beam runs INTO the column: leave it
+        const off = (d0+d1)/2>0 ? d0-bw/2 : d1+bw/2;
+        if(Math.abs(off)<bdo){ bdo=Math.abs(off); bo=off; }
+      }
+      if(bo==null || Math.abs(bo)<0.01) return {a,c};
+      return {a:{x:a.x+nx*bo, y:a.y+ny*bo}, c:{x:c.x+nx*bo, y:c.y+ny*bo}, aligned:true};
+    }
     const cs=(clickX-a.x)*nx+(clickY-a.y)*ny;
     const side=(cs-best.d)>=0 ? 1 : -1;                          // which side of the wall you're on
     const off=best.d + side*(best.w.t/2 + bw/2);                 // flush against that face
-    return {a:{x:a.x+nx*off, y:a.y+ny*off}, c:{x:c.x+nx*off, y:c.y+ny*off}};
+    return {a:{x:a.x+nx*off, y:a.y+ny*off}, c:{x:c.x+nx*off, y:c.y+ny*off}, aligned:true};
   }
   function alignGuides(x,y,horiz,vert){
     const gthr=9/view.scale; const guides=[];
@@ -5010,6 +5026,9 @@
         // from the wall again
         const al=alignBeamAlongWall(from, sp, wx, wy, ui.beamW);
         draft.a=al.a; sp=al.c;
+        // once the beam sits against a face, the wall-centre guide and marker only
+        // mislead (they made the beam look as if it was going onto the wall)
+        if(al.aligned){ draft.guides=[]; draft.snap=null; }
       }
       draft.cur=sp;
       const len=dist(from.x,from.y,sp.x,sp.y);
@@ -5696,7 +5715,7 @@
     else if(hit.kind==='furn'){
       const f=state.furniture.find(v=>v.id===hit.id);
       if(hit.which==='resize'){ f.w=Math.max(5,orig.w+dx*2); f.h=Math.max(5,orig.h+dy*2); }
-      else { f.x=orig.x+dx; f.y=orig.y+dy; }
+      else { const sn=furnSnap(f, orig.x+dx, orig.y+dy); f.x=sn.x; f.y=sn.y; }
     }
     else if(hit.kind==='note'){
       const n=state.notes.find(v=>v.id===hit.id);
@@ -7265,7 +7284,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t23（測試版，由 b106 改：說明卡＋門窗/柱/文字修正）';
+  const BUILD='t24（測試版，由 b106 改：說明卡＋門窗/柱/文字＋樑與家具吸附）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -11838,12 +11857,27 @@
     return n;
   }
   // which photo thumbnail inside a box note is under this screen point
+  // Furniture pulled near a wall face, a column or another piece lands flush on
+  // it — no need to type 0, and a slight nudge does not leave it 2 cm off.
+  // Each axis on its own; only square-on pieces (0/90/180/270°).
+  function furnSnap(f, x, y){
+    const r=(((f.rot||0)%180)+180)%180; if(r!==0 && r!==90) return {x,y};
+    const hx=(r===0?f.w:f.h)/2, hy=(r===0?f.h:f.w)/2, thr=Math.min(16/view.scale, 40);
+    const R=neighbourBoxes(f.id,{structOnly:true}).concat(state.furniture.filter(g=>g.id!==f.id && layerVisible(g.layer||'plan')).map(furnBox));
+    let bx=null, dx=thr, by=null, dy=thr;
+    for(const b of R){
+      if(!(y+hy<b.y0-1 || y-hy>b.y1+1)) for(const face of [b.x0,b.x1]) for(const e of [-hx,hx]){ const d=Math.abs(x+e-face); if(d<dx){ dx=d; bx=face-e; } }
+      if(!(x+hx<b.x0-1 || x-hx>b.x1+1)) for(const face of [b.y0,b.y1]) for(const e of [-hy,hy]){ const d=Math.abs(y+e-face); if(d<dy){ dy=d; by=face-e; } }
+    }
+    return {x:bx!=null?bx:x, y:by!=null?by:y, sx:bx!=null, sy:by!=null};
+  }
   function placeFurniture(wx,wy){
     if(!ui.furnPick){ flashHint('先在右邊的家具庫點一件家具'); return; }
     const [cat,name,w,h,shape]=ui.furnPick;
     let x=wx,y=wy;
     if(ui.snap){ const g=ui.gridSize; x=Math.round(x/g)*g; y=Math.round(y/g)*g; }
     const f={id:uid(),cat,name,shape,x,y,w,h,rot:0,layer:'plan'};
+    { const sn=furnSnap(f, wx, wy); if(sn.sx) f.x=sn.x; if(sn.sy) f.y=sn.y; }
     state.furniture.push(f);
     ui.selected={kind:'furn',id:f.id};
     refreshProp(); pushHistory(); draw(); afterPlace();
