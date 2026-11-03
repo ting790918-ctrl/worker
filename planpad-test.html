@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t22</title>
+<title>PlanPad · 測試版 t23</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -230,6 +230,12 @@
   .modal-body{flex:1 1 auto; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y;
               margin:0 -20px; padding:0 20px;}
   .modal-mask{padding:16px;}
+  #hint{max-width:calc(100% - 150px); white-space:normal; text-align:center; border-radius:14px; width:max-content;}
+  #selBar{position:absolute; z-index:7; display:none; gap:4px; padding:4px; background:#fff; border:1px solid var(--line-strong,#C9CFD5); border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.16); white-space:nowrap; touch-action:manipulation;}
+  #selBar.on{display:flex;}
+  #selBar button{border:0; background:#F1F4F6; color:#24282E; font-size:14px; font-weight:600; padding:9px 13px; border-radius:9px; font-family:inherit; min-height:40px;}
+  #selBar button.del{background:#FDECEC; color:#C0362C;}
+  #selBar button:active{filter:brightness(.92);}
   .help-btn{position:absolute; top:12px; right:12px; z-index:8; width:40px; height:40px; border-radius:50%; border:1px solid var(--line-strong,#C9CFD5); background:#fff; color:#275C7A; font-size:20px; font-weight:800; box-shadow:0 2px 8px rgba(0,0,0,.12); font-family:inherit; touch-action:manipulation;}
   .help-btn.new::after{content:''; position:absolute; top:2px; right:2px; width:10px; height:10px; border-radius:50%; background:#E5484D; border:2px solid #fff;}
   .help-btn:active{background:#E8F0F4;}
@@ -323,7 +329,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t22</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t23</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -389,6 +395,7 @@
       <canvas id="c"></canvas>
       <div id="hint"></div>
       <button id="helpBtn" class="help-btn" aria-label="使用說明">?</button>
+      <div id="selBar"></div>
       <div id="helpCard"></div>
       <div id="circBar" style="display:none;position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;align-items:center;gap:10px;background:#fff;border:1px solid var(--line-strong);border-radius:14px;padding:8px 10px 8px 14px;box-shadow:0 4px 16px rgba(0,0,0,.14);white-space:nowrap;">
         <span id="circBarTxt" style="font-size:13px;font-weight:600;color:#24282E"></span>
@@ -703,7 +710,7 @@
     floor: [],      // floor zones (a finish over part of a room), see 地板施工
     ceilLabel: 'ch',
     meta: {},       // {firm,designer,client,sheet} — printed on the title block
-    layer: 'plan',  // which layer new annotations land on
+    layer: 'base',  // which layer you draw on; the app always opens on 結構
     layerVis: {},   // {layerId:false} to hide
     baseLock: false,// structure can't be deleted, but it can be frozen so a
                     // stray finger stops dragging walls while you lay out furniture
@@ -1249,6 +1256,7 @@
     }
     try{
       restore(JSON.stringify(saved.data));
+      openOnBase();
       if(saved.data.unit) applyUnit(saved.data.unit);
       if(saved.name) document.getElementById('fname').value=saved.name;
       history.length=0; history.push(snapshot()); hi=0; updateUndo();
@@ -1259,6 +1267,10 @@
   // Every list gets a fallback. A project saved by an older build — or one simply
   // missing a key — used to leave the array undefined, and the next `for...of`
   // over it took down whichever feature touched it first (exports, in practice).
+  // Opening a drawing (a saved project, last session's work) always starts on 結構:
+  // the structure is what you check first, and a sheet left on 平面配置 last time
+  // made the walls look locked and faded.
+  function openOnBase(){ state.layer='base'; setTimeout(()=>{ try{ syncLayerUI(); syncToolSections(); refreshProp(); draw(); }catch(_){ } },0); }
   function restore(js){
     const o=JSON.parse(js)||{};
     const arr=(v)=>Array.isArray(v)?v:[];
@@ -1557,6 +1569,21 @@
     if(state.rooms.length>4)
       state.rooms=state.rooms.filter(e=>claimed.has(e.id) || (e.name&&e.name.trim()) || e.note || e.ceilingH);
   }
+  // Sutherland–Hodgman: the part of polygon S inside the convex polygon C
+  function clipPolyConvex(S,C){
+    let out=S.slice(); const sC=(polyAreaRaw(C)>0)?1:-1;
+    for(let i=0;i<C.length && out.length;i++){
+      const A=C[i], B=C[(i+1)%C.length], inp=out; out=[];
+      const side=(p)=>sC*((B.x-A.x)*(p.y-A.y)-(B.y-A.y)*(p.x-A.x));
+      for(let j=0;j<inp.length;j++){
+        const P=inp[j], Q=inp[(j+1)%inp.length], sp=side(P), sq=side(Q);
+        if(sp>=0) out.push(P);
+        if((sp>=0)!==(sq>=0)){ const t=sp/(sp-sq); out.push({x:P.x+(Q.x-P.x)*t, y:P.y+(Q.y-P.y)*t}); }
+      }
+    }
+    return out;
+  }
+  function polyAreaRaw(P){ let a=0; for(let i=0;i<P.length;i++){ const p=P[i], q=P[(i+1)%P.length]; a+=p.x*q.y-q.x*p.y; } return a/2; }
   function recomputeRooms(){
     try{
       roomsCache=detectRooms(state.walls).map(r=>{ const g=roomGeometry(r.edges); g.key=roomKey(r.edges); g.name=(state.roomNames&&state.roomNames[g.key])||''; return g; });
@@ -1585,6 +1612,21 @@
     try{
       function pip(pt,poly){ let c=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const a=poly[i],b=poly[j]; if(((a.y>pt.y)!=(b.y>pt.y)) && (pt.x<(b.x-a.x)*(pt.y-a.y)/(b.y-a.y)+a.x)) c=!c; } return c; }
       for(const A of roomsCache){ for(const B of roomsCache){ if(A===B) continue; if(B.area<A.area && pip(B.center, A.V)){ A.area-=B.area; A.hole=A.hole||[]; A.hole.push(B.Vout); } } }
+    }catch(e){}
+    // a column or shaft is structure, not room: its footprint comes off the 坪數
+    // (and so off the floor and ceiling quantities, which read r.area)
+    try{ for(const r of roomsCache){ r.areaGross=r.area; r.colArea=0; }
+      for(const c of state.columns){
+        const an=(c.rot||0)*Math.PI/180, ca=Math.cos(an), sa=Math.sin(an);
+        const P=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]].map(d=>({x:c.x+d[0]*ca-d[1]*sa, y:c.y+d[0]*sa+d[1]*ca}));
+        for(const r of roomsCache){
+          if(r.V.length<3) continue;
+          // inside a closet nested in this room → it belongs to the closet
+          if((r.hole||[]).length && roomsCache.some(B=>B!==r && B.area<r.areaGross && polyContains({x:c.x,y:c.y},B.V) && polyContains(B.center,r.V))) continue;
+          const a=Math.abs(polyArea(clipPolyConvex(r.V,P)));
+          if(a>0.5){ r.area-=a; r.colArea+=a; }
+        }
+      }
     }catch(e){}
     try{ syncRoomIdentity(); }catch(e){}
     if(ui.focusRoom && !roomCacheById(ui.focusRoom)){
@@ -2233,7 +2275,7 @@
     if(!lab) return false;
     // 結構 locked means locked: no wall, room, door/window, column or beam number
     // can be retyped (the lock used to stop only selecting, not the numbers)
-    if(structureLocked() && ['dim','walllen','openleft','openright','beamdist','coldist','stubgap'].includes(lab.kind)){
+    if(structureLocked() && ['dim','walllen','openleft','openright','beamdist','coldist','stubgap','colspan'].includes(lab.kind)){
       dbg(`  label ${lab.kind} refused: structure locked`);
       flashHint('結構已鎖定，尺寸不能修改。要改請先到右邊「圖層」把結構解鎖'); draw(); return false;
     }
@@ -2253,6 +2295,7 @@
       flashHint('這個尺寸的牆體已變更，請重新點一次'); draw(); return false;
     }
     if(lab.kind==='stubgap'){ editStubGap(lab,px,py); return true; }
+    if(lab.kind==='colspan') return editColSpan(lab,px,py);
     if(lab.kind==='flroom'||lab.kind==='flzone'||lab.kind==='fldir') return flLabelTap(lab);
     if(lab.kind==='ceilzoneh'){ const z=ceilById(lab.zid); if(!z) return false; const r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
       // The height sits in the middle of the zone — exactly where you tap to pick
@@ -3103,7 +3146,7 @@
     }
     const thr=10/view.scale;
     // texts
-    for(let i=state.texts.length-1;i>=0;i--){ const t=state.texts[i]; if(!itemLive(t)) continue; const w=(t.text.length*t.size*0.6); if(wx>t.x-4 && wx<t.x+w+4 && wy>t.y-t.size && wy<t.y+4) return {kind:'text',id:t.id}; }
+    for(let i=state.texts.length-1;i>=0;i--){ const t=state.texts[i]; if(!itemLive(t)) continue; const b=textBox(t), pd=8/view.scale; if(wx>b.x0-pd && wx<b.x1+pd && wy>b.y0-pd && wy<b.y1+pd) return {kind:'text',id:t.id}; }
     // structure is frozen while the lock is on
     if(structureLocked()) return null;
     // columns (rotated rect)
@@ -3528,6 +3571,15 @@
     ctx.stroke();
   }
 
+  // A text's footprint in world cm, measured with the font it is drawn in. The
+  // grab box used to assume a height of t.size while the text is drawn three
+  // times that tall, so the text could only be caught by its bottom sliver.
+  const textH=(t)=>t.size*3;
+  function textBox(t){
+    const H=textH(t); let w=H*0.6*String(t.text||'').length;
+    try{ ctx.save(); ctx.font=`500 100px -apple-system,system-ui,sans-serif`; w=ctx.measureText(t.text||'').width/100*H; ctx.restore(); }catch(_){}
+    return {x0:t.x, x1:t.x+Math.max(w,H*0.5), y0:t.y-H*0.85, y1:t.y+H*0.2};
+  }
   function drawTexts(){
     if(!showOpt.notes) return;
     for(const t of state.texts){
@@ -3557,7 +3609,8 @@
       if(!roomWallIds.has(w.id)) wallLenLabel(w,true); } }
     else if(kind==='opening'){ const o=state.openings.find(v=>v.id===id); const w=state.walls.find(v=>v.id===o.wallId); if(w){ const[cx,cy]=wallPointAt(w,o.pos); const[sx,sy]=toScreen(cx,cy); ctx.setLineDash([]); handle(sx,sy); drawOpeningGaps(o,w); } }
     else if(kind==='dim'){ const d=state.dims.find(v=>v.id===id); if(d){ const o=dimOffsetPoints(d); const[ax,ay]=toScreen(o.ax,o.ay),[bx,by]=toScreen(o.bx,o.by); ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke(); } }
-    else if(kind==='text'){ const t=state.texts.find(v=>v.id===id); if(t){ const[sx,sy]=toScreen(t.x,t.y); ctx.setLineDash([]); handle(sx,sy-t.size); } }
+    else if(kind==='text'){ const t=state.texts.find(v=>v.id===id); if(t){ const b=textBox(t), a=toScreen(b.x0,b.y0), c=toScreen(b.x1,b.y1);
+      ctx.save(); ctx.setLineDash([5,4]); ctx.strokeStyle='#275C7A'; ctx.lineWidth=1.5; ctx.strokeRect(a[0]-4,a[1]-4,c[0]-a[0]+8,c[1]-a[1]+8); ctx.restore(); } }
     else if(kind==='column'){ const c=state.columns.find(v=>v.id===id); if(c){ drawColumnSelection(c); } }
     else if(kind==='beam'){ const bm=state.beams.find(v=>v.id===id); if(bm){ drawBeamSelection(bm); } }
     ctx.setLineDash([]);
@@ -3574,15 +3627,23 @@
       ? {x0:lo.x-w.t/2, x1:hi.x+w.t/2, y0:lo.y, y1:hi.y}
       : {x0:lo.x, x1:hi.x, y0:lo.y-w.t/2, y1:hi.y+w.t/2};
   }
+  function structColBoxes(exceptId){
+    const out=[];
+    for(const c of state.columns){ if(c.id===exceptId) continue;
+      const a=(c.rot||0)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+      const p=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]].map(d=>({x:c.x+d[0]*ca-d[1]*sa, y:c.y+d[0]*sa+d[1]*ca}));
+      out.push({x0:Math.min(...p.map(q=>q.x)),x1:Math.max(...p.map(q=>q.x)),y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)),what:isShaft(c)?'管道間':'柱'}); }
+    return out;
+  }
   function columnGaps(c){
     if(Math.abs(((c.rot||0)%180))>0.5) return [];      // only meaningful for a square-on column
     const cx0=c.x-c.w/2, cx1=c.x+c.w/2, cy0=c.y-c.h/2, cy1=c.y+c.h/2;
     const out=[];
+    // walls, and the other columns and shafts: a column next to a column measures to it
+    const RS=state.walls.filter(w=>wallLen(w)>=1).map(wallRect).concat(structColBoxes(c.id));
     const scan=(dir)=>{
       let best=Infinity, face=null;
-      for(const w of state.walls){
-        if(wallLen(w)<1) continue;
-        const R=wallRect(w);
+      for(const R of RS){
         if(dir==='left'||dir==='right'){
           if(R.y1<=cy0+1 || R.y0>=cy1-1) continue;      // wall doesn't span the column's height
           const g = dir==='left' ? cx0-R.x1 : R.x0-cx1;
@@ -3835,9 +3896,11 @@
       ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<4;i++)ctx.lineTo(p[i][0],p[i][1]); ctx.closePath(); ctx.fill();
     } else if(draft.kind==='beam'){
       // preview matches the finished thing: a dashed overhead outline, no fill
-      const bw={x1:draft.a.x,y1:draft.a.y,x2:draft.cur.x,y2:draft.cur.y,t:ui.beamW,align:ui.wallAlign};
-      const c=wallCorners(bw);
-      const p=[toScreen(c.L1.x,c.L1.y),toScreen(c.L2.x,c.L2.y),toScreen(c.R2.x,c.R2.y),toScreen(c.R1.x,c.R1.y)];
+      // the same outline the finished beam gets (beamCorners). The preview used the
+      // WALL outline, which follows the 內線／外線 setting, so while drawing it sat
+      // shifted onto the wall and only jumped to the real place on release.
+      const c=beamCorners({x1:draft.a.x,y1:draft.a.y,x2:draft.cur.x,y2:draft.cur.y,w:ui.beamW});
+      const p=c.map(q=>toScreen(q.x,q.y));
       ctx.save();
       ctx.strokeStyle='rgba(122,130,140,.85)'; ctx.lineWidth=1.4; ctx.setLineDash([7,5]);
       ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<4;i++)ctx.lineTo(p[i][0],p[i][1]);
@@ -3903,6 +3966,7 @@
     drawDraft();
     drawChain();
     drawSelection();
+    try{ syncSelBar(); }catch(_){}
   }
   // A beam is ABOVE the cut plane — you are looking up at it, not through it. The
   // drawing convention for anything overhead is a hidden line: dashed, and quiet
@@ -4060,6 +4124,42 @@
     const hw=textW/2+3*TS, hh=6.5*TS;
     return [cx-hw,cy-hh,hw*2,hh*2];
   }
+  const ang0Of=(ux,uy)=>{ let a=Math.atan2(uy,ux); if(a>Math.PI/2||a<-Math.PI/2) a+=Math.PI; return a; };
+  // Columns and shafts touching the inner face a→b (n = into the room): the spans
+  // they cover along it, and the free spans left between them, each end tagged
+  // with the column that bounds it (null = the room's corner).
+  function edgeColSpans(a,b,nx,ny){
+    const L=Math.hypot(b.x-a.x,b.y-a.y); if(L<1 || !state.columns.length) return null;
+    const ux=(b.x-a.x)/L, uy=(b.y-a.y)/L, blk=[];
+    for(const c of state.columns){
+      const an=(c.rot||0)*Math.PI/180, ca=Math.cos(an), sa=Math.sin(an);
+      const P=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]].map(d=>{ const x=c.x+d[0]*ca-d[1]*sa, y=c.y+d[0]*sa+d[1]*ca; return {t:(x-a.x)*ux+(y-a.y)*uy, d:(x-a.x)*nx+(y-a.y)*ny}; });
+      const d0=Math.min(...P.map(q=>q.d)), d1=Math.max(...P.map(q=>q.d));
+      if(d0>1.5 || d1<1) continue;                 // must sit against the face, on the room side
+      const t0=Math.max(0,Math.min(...P.map(q=>q.t))), t1=Math.min(L,Math.max(...P.map(q=>q.t)));
+      if(t1-t0<1) continue;
+      blk.push({a:t0,b:t1,id:c.id});
+    }
+    if(!blk.length) return null;
+    blk.sort((p,q)=>p.a-q.a);
+    const free=[]; let cur=0, curC=null;
+    for(const k of blk){ if(k.a>cur+0.5) free.push({a:cur,b:k.a,ca:curC,cb:k.id}); if(k.b>cur){ cur=k.b; curC=k.id; } }
+    if(L>cur+0.5) free.push({a:cur,b:L,ca:curC,cb:null});
+    return {free, blk};
+  }
+  // typing a clear span moves the column that bounds it (the one you are measuring to)
+  function editColSpan(lab,px,py){
+    const cid = lab.cb!=null ? lab.cb : lab.ca; const c=state.columns.find(v=>v.id===cid);
+    if(!c){ flashHint('這一段兩端都是牆角，要改請改牆的長度'); return false; }
+    showNumInput(px,py,toDisp(lab.len),(v)=>{
+      const want=fromDisp(v); if(!isFinite(want)||want<0) return;
+      const d = (lab.cb!=null ? (want-lab.len) : -(want-lab.len));
+      c.x+=lab.ux*d; c.y+=lab.uy*d;
+      dbg(`  COLSPAN column #${c.id} span ${lab.len.toFixed(1)} → ${want}`);
+      pushHistory(); refreshProp(); draw();
+    }, true);
+    return true;
+  }
   function labelFree(r){
     for(const p of placedLabels){
       if(r[0] < p[0]+p[2] && r[0]+r[2] > p[0] && r[1] < p[1]+p[3] && r[1]+r[3] > p[1]) return false;
@@ -4169,6 +4269,28 @@
         // never let a dimension sit on top of another one: try further along the
         // wall, then further in from it. Only the LAST resort overlaps — a number
         // that silently disappears is worse than one slightly out of place.
+        // a column standing against this edge is structure, not room: the edge then
+        // reads as the clear spans between corner and column faces, not its full length
+        const ang=ang0Of(ux,uy), active=wallIsActive(r.edges[i].wid);
+        const csp=edgeColSpans(a,b,nx,ny);
+        if(csp){
+          for(const sg of csp.free){
+            const sl=sg.b-sg.a; if(sl<1) continue;
+            const dm=(sg.a+sg.b)/2, txt=fmtLen(sl);
+            ctx.save(); ctx.font=`700 ${fpx(12)}px -apple-system,system-ui,sans-serif`; const tw1=ctx.measureText(txt).width; ctx.restore();
+            // same rule as the full-length labels: never on top of another number
+            let tx, ty, ok=false;
+            outerS: for(const push of [16,32,50]) for(const f of [0,0.2,-0.2,0.35,-0.35]){
+              const q=toScreen(a.x+ux*(dm+sl*f)+nx*(push/view.scale), a.y+uy*(dm+sl*f)+ny*(push/view.scale));
+              if(labelFree(labelRect(q[0],q[1],tw1,ang))){ tx=q[0]; ty=q[1]; ok=true; break outerS; } }
+            if(!ok){ const q=toScreen(a.x+ux*dm+nx*(16/view.scale), a.y+uy*dm+ny*(16/view.scale)); tx=q[0]; ty=q[1]; }
+            const active=wallIsActive(r.edges[i].wid);
+            const tw=active ? boxedLabel(txt,tx,ty,ang0Of(ux,uy),12) : plainLabel(txt,tx,ty,ang0Of(ux,uy),'#22262B',12);
+            const lr=labelRect(tx,ty,tw,ang0Of(ux,uy));
+            hitLabels.push({kind:'colspan', rect:lr, ax:a.x, ay:a.y, ux, uy, sa:sg.a, sb:sg.b, ca:sg.ca, cb:sg.cb, len:sl});
+            placedLabels.push(lr);
+          }
+        } else {
         let mx=0,my=0,placed=false;
         const txt0=fmtLen(r.lens[i]);
         let ang0=Math.atan2(uy,ux); if(ang0>Math.PI/2||ang0<-Math.PI/2)ang0+=Math.PI;
@@ -4191,6 +4313,7 @@
         hitLabels.push({kind:'dim', rect:lr, wid:r.edges[i].wid, room:r, edgeIndex:i, len:r.lens[i]});
         placedLabels.push(lr);
         if(edgeLocked(r.edges[i])) lockGlyph(mx+Math.cos(ang)*(tw/2+7*TS), my+Math.sin(ang)*(tw/2+7*TS), 10*TS);
+        }
         // second label, sitting just OUTSIDE the wall (opposite of the inner
         // direction we just computed) showing this wall segment's true OUTER
         // face-to-face length (using Vout, the already-computed outer boundary
@@ -4343,8 +4466,8 @@
     const ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
     const bd=openingBand(w); const off=bd.coff + (o.type==='door'? 0 : 0);
     const sideoff = (w.t/2 + 22/view.scale); // put labels just outside the wall
-    // measure from the wall FACES either side, not from the centerline endpoints
-    const R=wallOpenRange(w,o.width);
+    // measure to the nearest thing either side: a meeting wall's face, a column, another opening
+    const R=(openingGaps(o)||{}).R || wallOpenRange(w,o.width);
     const startD=R.s, leftEdgeD=o.pos*L - o.width/2, rightEdgeD=o.pos*L + o.width/2, endD=R.e;
     const mkLabel=(d0,d1,kind)=>{
       const dm=(d0+d1)/2; const px=w.x1+ux*dm + nx*(off+sideoff), py=w.y1+uy*dm + ny*(off+sideoff);
@@ -4425,7 +4548,7 @@
   // ---- inline text input ----
   let txtCommit=null;
   function showTextInput(sx,sy,val,cb){
-    txtCommit=cb; txtIn.value=val||'';
+    txtCommit=cb; txtIn.value=val||''; txtIn._openT=Date.now();
     txtIn.style.display='block'; txtIn.style.left=(sx)+'px'; txtIn.style.top=(sy)+'px';
     try{ txtIn.focus(); txtIn.select(); }catch(e){}
     requestAnimationFrame(()=>{ try{ txtIn.focus(); txtIn.select(); }catch(e){} });
@@ -4437,7 +4560,10 @@
     if(commit && cb) cb(v);
   }
   txtIn.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); hideTextInput(true); } else if(e.key==='Escape'){ hideTextInput(false); } });
-  txtIn.addEventListener('blur',()=>hideTextInput(true));
+  // a mouse press moves focus AFTER the tap opened the box, which used to close it
+  // at once with nothing typed (the text vanished on a computer); a blur in the
+  // first moments just takes the focus back
+  txtIn.addEventListener('blur',()=>{ if(Date.now()-(txtIn._openT||0)<450){ setTimeout(()=>{ try{ txtIn.focus(); }catch(_){} },0); return; } hideTextInput(true); });
 
   function drawGuides(){
     if(!draft) return;
@@ -5104,14 +5230,74 @@
     if(e-s < width){ const c=(s+e)/2; s=Math.max(0,c-width/2); e=Math.min(L,c+width/2); }
     return {L, s, e, posMin:(s+width/2)/L, posMax:(e-width/2)/L};
   }
+  // Everything along a wall that a door or window may not overlap, as [a,b] spans
+  // in cm along the wall: its two ends, every wall that meets it in the middle
+  // (a T-junction from a partition), columns and shafts standing against it, and
+  // the other doors and windows on it. The gaps beside an opening are measured to
+  // the nearest of these — the room's own wall or the column, not the far end of
+  // a long outside wall.
+  function wallBlocks(w, exceptId){
+    const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux, ins=wallEndInset(w);
+    const B=[{a:-1e9,b:ins.s,what:'牆'},{a:L-ins.e,b:1e9,what:'牆'}];
+    const loc=(x,y)=>({t:(x-w.x1)*ux+(y-w.y1)*uy, d:(x-w.x1)*nx+(y-w.y1)*ny});
+    for(const o of state.walls){
+      if(o.id===w.id || wallLen(o)<1) continue;
+      const oL=wallLen(o), cosang=Math.abs(ux*(o.x2-o.x1)/oL+uy*(o.y2-o.y1)/oL);
+      if(cosang>0.95) continue;
+      const sin=Math.sqrt(Math.max(0.05,1-cosang*cosang)), h=(o.t/2)/sin;
+      for(const [px,py] of [[o.x1,o.y1],[o.x2,o.y2]]){
+        const q=loc(px,py);
+        if(q.t<=1 || q.t>=L-1 || Math.abs(q.d)>w.t/2+3) continue;
+        B.push({a:q.t-h, b:q.t+h, what:'牆'});
+      }
+      // a wall running straight through this one
+      const a1=loc(o.x1,o.y1), a2=loc(o.x2,o.y2);
+      if(Math.sign(a1.d)!==Math.sign(a2.d) && Math.abs(a1.d)>w.t/2+3 && Math.abs(a2.d)>w.t/2+3){
+        const tt=a1.t+(a2.t-a1.t)*(a1.d/(a1.d-a2.d)); if(tt>1 && tt<L-1) B.push({a:tt-h, b:tt+h, what:'牆'});
+      }
+    }
+    for(const c of state.columns){
+      const an=(c.rot||0)*Math.PI/180, ca=Math.cos(an), sa=Math.sin(an);
+      const P=[[-c.w/2,-c.h/2],[c.w/2,-c.h/2],[c.w/2,c.h/2],[-c.w/2,c.h/2]].map(d=>loc(c.x+d[0]*ca-d[1]*sa, c.y+d[0]*sa+d[1]*ca));
+      const d0=Math.min(...P.map(q=>q.d)), d1=Math.max(...P.map(q=>q.d));
+      if(d1 < -w.t/2-1.5 || d0 > w.t/2+1.5) continue;            // not touching this wall
+      B.push({a:Math.min(...P.map(q=>q.t)), b:Math.max(...P.map(q=>q.t)), what:isShaft(c)?'管道間':'柱'});
+    }
+    for(const op of state.openings){
+      if(op.wallId!==w.id || op.id===exceptId) continue;
+      const cc=op.pos*L; B.push({a:cc-op.width/2, b:cc+op.width/2, what:openLabel(op)});
+    }
+    return B;
+  }
+  // the free run of wall around point t (cm along the wall); null if t is blocked
+  function wallFreeSpan(w, t, exceptId){
+    const B=wallBlocks(w, exceptId); let lo=-1e9, hi=1e9, lw='牆', hw='牆';
+    for(const k of B){
+      if(k.a<t-0.01 && k.b>t+0.01) return null;
+      if(k.b<=t+0.01 && k.b>lo){ lo=k.b; lw=k.what; }
+      if(k.a>=t-0.01 && k.a<hi){ hi=k.a; hw=k.what; }
+    }
+    return {lo, hi, lw, hw};
+  }
+  // where an opening of this width can sit if you aim at t, or null
+  function openingFit(w, t, width, exceptId){
+    const L=wallLen(w)||1, sp=wallFreeSpan(w, t, exceptId);
+    if(!sp || sp.hi-sp.lo < width-0.01) return null;
+    const c=Math.max(sp.lo+width/2, Math.min(sp.hi-width/2, t));
+    return {pos:c/L, sp};
+  }
   function openingGaps(o){
     const w=state.walls.find(v=>v.id===o.wallId); if(!w) return null;
-    const R=wallOpenRange(w,o.width), L=R.L;
-    return {w, R, left:Math.max(0, o.pos*L - o.width/2 - R.s), right:Math.max(0, R.e - (o.pos*L + o.width/2))};
+    const L=wallLen(w)||1, c=o.pos*L;
+    const sp=wallFreeSpan(w, c, o.id);
+    if(!sp){ const R=wallOpenRange(w,o.width);
+      return {w, R, left:Math.max(0, c - o.width/2 - R.s), right:Math.max(0, R.e - (c + o.width/2))}; }
+    const R={L, s:sp.lo, e:sp.hi, posMin:(sp.lo+o.width/2)/L, posMax:(sp.hi-o.width/2)/L, lw:sp.lw, hw:sp.hw};
+    return {w, R, left:Math.max(0, c - o.width/2 - sp.lo), right:Math.max(0, sp.hi - (c + o.width/2))};
   }
   function setOpeningGap(o,side,gapCm){
-    const w=state.walls.find(v=>v.id===o.wallId); if(!w) return false;
-    const R=wallOpenRange(w,o.width), L=R.L;
+    const g0=openingGaps(o); if(!g0) return false;
+    const R=g0.R, L=R.L;
     const g=Math.max(0,gapCm||0);
     let pos = side==='left' ? (R.s+g+o.width/2)/L : (R.e-g-o.width/2)/L;
     o.pos=Math.max(R.posMin, Math.min(R.posMax, pos));
@@ -5136,7 +5322,9 @@
     const sub = type==='door' ? ui.doorSub : ui.winSub;
     const K=OPEN_KINDS[sub];
     const w=near.w;
-    const R=wallOpenRange(w,K.w); let pos=Math.max(R.posMin,Math.min(R.posMax,near.pr.t));
+    const fit=openingFit(w, near.pr.t*wallLen(w), K.w, null);
+    if(!fit){ flashHint('這裡放不下'+K.label+'：會壓到柱子、交接的牆或其他門窗，請換個位置'); dbg(`  OPENING refused on wall #${w.id} at ${(near.pr.t*wallLen(w)).toFixed(0)}`); return; }
+    let pos=fit.pos;
     const o={id:uid(),type,sub,wallId:w.id,pos,width:K.w,flipH:false,flipV:false,
              height:K.h, sill:K.sill};
     if(K.proj) o.proj=K.proj;
@@ -5459,7 +5647,9 @@
       moveWallBody(w,orig,ddx,ddy);
       recomputeRooms();
     }
-    else if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); const w=state.walls.find(v=>v.id===o.wallId); const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); const R=wallOpenRange(w,o.width); o.pos=Math.max(R.posMin,Math.min(R.posMax,pr.t)); }
+    else if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); const w=state.walls.find(v=>v.id===o.wallId); const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2);
+      // it slides only along free wall: over a column or a meeting wall it stays at the last place it fitted
+      const fit=openingFit(w, pr.t*wallLen(w), o.width, o.id); if(fit) o.pos=fit.pos; }
     else if(hit.kind==='dim'){
       // Dragging a dimension moves the LINE, not the measurement. Translating the
       // whole thing dragged its two reference points off the very features they
@@ -5686,7 +5876,9 @@
         setOpeningSub(o,b.dataset.k); pushHistory(); refreshProp(); draw(); });
       const reposFromLeft=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,'left',gapCm); pushHistory(); refreshProp(); draw(); };
       const reposFromRight=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,'right',gapCm); pushHistory(); refreshProp(); draw(); };
-      document.getElementById('pOw').onchange=ev=>{ o.width=Math.max(10,fromDisp(parseFloat(ev.target.value)||10)); const R2=wallOpenRange(w,o.width); o.pos=Math.max(R2.posMin,Math.min(R2.posMax,o.pos)); pushHistory(); refreshProp(); draw(); };
+      document.getElementById('pOw').onchange=ev=>{ const nw=Math.max(10,fromDisp(parseFloat(ev.target.value)||10)); const fit=openingFit(w, o.pos*wallLen(w), nw, o.id);
+        if(!fit){ flashHint('這個位置放不下 '+fmtLenU(nw)+' 寬：兩側會壓到柱子或牆'); refreshProp(); return; }
+        o.width=nw; o.pos=fit.pos; pushHistory(); refreshProp(); draw(); };
       document.getElementById('pOl').onchange=ev=>reposFromLeft(fromDisp(parseFloat(ev.target.value)||0));
       document.getElementById('pOr').onchange=ev=>reposFromRight(fromDisp(parseFloat(ev.target.value)||0));
       document.getElementById('pOh').onchange=ev=>{ o.height=Math.max(1,fromDisp(parseFloat(ev.target.value)||0)); pushHistory(); };
@@ -5867,13 +6059,16 @@
       propBody.innerHTML=`
       <div class="row"><label>內容</label></div>
       <input type="text" class="tin" id="pTx" value="${(t.text||'').replace(/"/g,'&quot;')}" style="width:100%;text-align:left">
-      <div class="row" style="margin-top:10px"><label>字級</label><div class="field"><input type="number" id="pTs" value="${t.size}" step="1"><span class="unit">cm</span></div></div>
+      <div class="row" style="margin-top:10px"><label>字體大小</label><div class="seg" id="pTsz">${[['小',8],['中',16],['大',28],['特大',44]].map(([n,v])=>`<button data-v="${v}"${t.size===v?' class="on"':''}>${n}</button>`).join('')}</div></div>
+      <div class="row"><label>自訂大小</label><div class="field"><input type="number" id="pTs" value="${t.size}" step="1"></div></div>
+      <div class="lay-note">拖動文字可以移動位置；點兩下可以改內容。</div>
       ${layerPickerHTML('pTlayer', t.layer||'plan')}
       <button class="del-btn" id="pDel">刪除文字</button>`;
       bindLayerPicker('pTlayer', t);
       document.getElementById('pTx').oninput=ev=>{ t.text=ev.target.value; draw(); };
       document.getElementById('pTx').onchange=()=>pushHistory();
-      document.getElementById('pTs').onchange=ev=>{ t.size=Math.max(4,parseFloat(ev.target.value)||16); pushHistory(); draw(); };
+      document.getElementById('pTs').onchange=ev=>{ t.size=Math.max(4,parseFloat(ev.target.value)||16); pushHistory(); refreshProp(); draw(); };
+      document.querySelectorAll('#pTsz button').forEach(b=>b.onclick=()=>{ t.size=+b.dataset.v; pushHistory(); refreshProp(); draw(); });
       document.getElementById('pDel').onclick=deleteSelected;
     }
     else if(s.kind==='column'){ const c=state.columns.find(v=>v.id===s.id);
@@ -5920,6 +6115,60 @@
       document.getElementById('pDel').onclick=deleteSelected;
     }
   }
+  // ---- the actions for what is selected, floating right next to it ----
+  // 刪除／拆分 used to live at the bottom of a long side panel; next to the thing
+  // you just tapped is where the eye already is.
+  let selBarKey='';
+  function selBarActions(s){
+    const A=[];
+    if(s.kind==='wall'){ A.push(['拆分',()=>splitStart(s.id)]); A.push(['刪除',deleteSelected,'del']); }
+    else if(s.kind==='opening'){ const o=state.openings.find(v=>v.id===s.id); if(!o) return A;
+      const sub=openKind(o)===OPEN_KINDS.slide?'slide':(o.sub||'');
+      if(o.type==='door' && sub!=='cased') A.push([sub==='slide'?'換邊':'內外翻轉',()=>{ o.flipV=!o.flipV; pushHistory(); refreshProp(); draw(); }]);
+      if(o.sub==='swing'||(!o.sub&&o.type==='door')) A.push(['左右翻轉',()=>{ o.flipH=!o.flipH; pushHistory(); refreshProp(); draw(); }]);
+      A.push(['刪除',deleteSelected,'del']); }
+    else if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(!f) return A;
+      A.push(['旋轉 90°',()=>{ f.rot=((f.rot||0)+90)%360; pushHistory(); refreshProp(); draw(); }]); A.push(['刪除',deleteSelected,'del']); }
+    else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(!t) return A;
+      A.push(['改文字',()=>{ const [sx,sy]=toScreen(t.x,t.y); showTextInput(sx,sy-14,t.text,(val)=>{ if(val.trim()===''){ state.texts=state.texts.filter(x=>x.id!==t.id); ui.selected=null; } else t.text=val; refreshProp(); pushHistory(); draw(); }); }]);
+      A.push(['刪除',deleteSelected,'del']); }
+    else if(['column','mep','beam','dim','note','ceil'].includes(s.kind)) A.push(['刪除',deleteSelected,'del']);
+    return A;
+  }
+  function selBarAnchor(s){
+    const [W0,H0]=[stage.clientWidth, stage.clientHeight];
+    if(s.kind==='wall'){ const w=state.walls.find(v=>v.id===s.id); if(!w) return null;
+      const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
+      // three quarters along (the length label sits in the middle), just off the wall
+      const px=w.x1+ux*L*0.75, py=w.y1+uy*L*0.75, off=w.t/2+34/view.scale;
+      const A=toScreen(px+nx*off,py+ny*off), B=toScreen(px-nx*off,py-ny*off);
+      const inside=(p)=>p[0]>60&&p[0]<W0-60&&p[1]>50&&p[1]<H0-30;
+      return (A[1]<B[1] && inside(A)) || !inside(B) ? A : B; }
+    let c=objCenter(s.kind,s.id); if(!c) return null;
+    if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(t){ const bx=textBox(t); c={x:(bx.x0+bx.x1)/2, y:t.y}; } }
+    const p=toScreen(c.x,c.y); let up=44;
+    if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(f) up=Math.max(f.w,f.h)/2*view.scale+30; }
+    if(s.kind==='column'){ const cc=state.columns.find(v=>v.id===s.id); if(cc) up=Math.max(cc.w,cc.h)/2*view.scale+34; }
+    if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(t) up=textH(t)*view.scale+24; }
+    return [p[0], p[1]-up];
+  }
+  function syncSelBar(){
+    const bar=document.getElementById('selBar'); if(!bar) return;
+    const s=ui.selected;
+    const show = s && ui.tool==='select' && !(dragging&&dragging.moved) && !EXPORT_MODE && !(state.baseLock && ['wall','opening','column','beam'].includes(s.kind));
+    const acts = show ? selBarActions(s) : [];
+    const anc = acts.length ? selBarAnchor(s) : null;
+    if(!acts.length || !anc){ bar.classList.remove('on'); selBarKey=''; return; }
+    const key=s.kind+':'+s.id+':'+acts.map(a=>a[0]).join(',');
+    if(key!==selBarKey){ selBarKey=key; bar.innerHTML='';
+      for(const [label,fn,cls] of acts){ const b=document.createElement('button'); b.textContent=label; if(cls) b.className=cls;
+        b.onclick=(e)=>{ e.stopPropagation(); fn(); syncSelBar(); }; bar.appendChild(b); } }
+    bar.classList.add('on');
+    const bw=bar.offsetWidth, bh=bar.offsetHeight, W0=stage.clientWidth, H0=stage.clientHeight;
+    const x=Math.max(8, Math.min(W0-bw-8, anc[0]-bw/2)), y=Math.max(8, Math.min(H0-bh-8, anc[1]-bh/2));
+    bar.style.left=x+'px'; bar.style.top=y+'px';
+  }
+  (function wireSelBar(){ const bar=document.getElementById('selBar'); if(bar) for(const ev of ['pointerdown','pointerup','touchstart','mousedown']) bar.addEventListener(ev,e=>e.stopPropagation()); })();
   function deleteSelected(){
     const s=ui.selected; if(!s) return;
     if(s.kind==='room'){ flashHint('空間是由牆圍出來的：要刪除請選取並刪掉它的牆'); return; }
@@ -6998,7 +7247,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t22（測試版，由 b106 改：使用說明）';
+  const BUILD='t23（測試版，由 b106 改：說明卡＋門窗/柱/文字修正）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -8784,7 +9033,7 @@
     if(isLight(m) && !isWallDevice(m)) return lightGaps(m);
     const b=mepBox(m), out=[];
     const L=m.layer||'elec';
-    const boxes=neighbourBoxes(null).concat(
+    const boxes=neighbourBoxes(null,{structOnly:true}).concat(
       state.mep.filter(o=>o.id!==m.id && (o.layer||'elec')===L && layerVisible(L))
                .map(o=>({...mepBox(o), what:mepName(o.kind)})));
     const scan=(dir)=>{
@@ -10042,6 +10291,7 @@
   function ceilGaps(z){
     const b=ceilBBox(z), out=[], T=[];
     for(const w of state.walls){ if(wallLen(w)>=1) T.push(wallRect(w)); }
+    for(const R of structColBoxes(null)) T.push(R);       // columns are not ceiling or floor space
     const scan=(dir)=>{
       let best=Infinity, face=null;
       for(const R of T){
@@ -10082,7 +10332,7 @@
     const line=(col)=>(g,sp)=>{ g.strokeStyle=col; g.lineWidth=Math.max(1.4,sp*0.1); g.setLineDash([sp*0.26,sp*0.16]); g.beginPath(); g.moveTo(-sp*0.6,0); g.lineTo(sp*0.6,0); g.stroke(); g.setLineDash([]); };
     for(const r of roomsCache){
       if(r.V.length<3) continue;
-      let a=Math.abs(polyArea(r.V));
+      let a=r.area;
       for(const z of state.ceil){ if((z.kind==='zone'||z.kind==='curtain') && ceilRoom(z)===r) a-=ceilArea(z); }
       const ch=roomBaseCH(r), slab=slabH(r);
       if(ch<slab-0.5 && a>100) add('b'+Math.round(ch),'平釘 CH '+fmtLen(ch),a,fill('#DFF1EA'));
@@ -10438,7 +10688,7 @@
   const HELP={
     select:{t:'選取',d:'點東西選取它，再拖動、改尺寸或刪除。',
       s:['點一下牆、門窗、家具、符號，選取後右邊會出現它的設定','拖動選到的東西可以移動；牆的圓形握把＝拉伸端點，方形握把＝整面牆平行推移','畫面上的數字（長度、離牆距離、高度）點一下就能直接輸入','空白處點一下＝取消選取；點空間裡面＝選這個空間'],
-      q:[['為什麼牆拖不動？','結構可能鎖住了：到右邊「圖層」把「結構」旁的鎖打開。'],['怎麼刪除？','選取後按右邊面板的「刪除」。'],['紅色空心圈是什麼？','那一端沒接到別的牆，所以圍不成空間。把端點拖到另一道牆上就會接起來。']]},
+      q:[['為什麼牆拖不動？','結構可能鎖住了：到右邊「圖層」把「結構」旁的鎖打開。'],['怎麼刪除？','選取後，東西旁邊會浮出「刪除」按鈕；牆還有「拆分」。'],['紅色空心圈是什麼？','那一端沒接到別的牆，所以圍不成空間。把端點拖到另一道牆上就會接起來。']]},
     wall:{t:'牆',d:'一個轉角一個轉角點出牆，圍起來就成為空間。',
       s:['點起點，沿著牆順時針一個轉角一個轉角點下去','每一段都可以直接打長度（室內淨尺寸），按 ✓','點回起點＝圍成一個空間；在最後一點再點一次＝結束這條','右邊可以先選「內線／外線」：你畫的線是牆的哪一面'],
       q:[['畫歪了？','右邊「角度鎖定」選「正交」只會畫水平垂直。'],['畫錯一段？','按上面「復原」，一次退一個轉角。'],['數字是內線還是外線？','空間的尺寸一律是室內淨尺寸（內線）。']]},
@@ -10449,13 +10699,13 @@
       s:['按住拖出一個矩形','打寬度和深度（室內淨尺寸），按 ✓ 建立','建立後一樣可以點各邊的數字修改'],
       q:[['形狀不是矩形？','用「牆」工具一個轉角一個轉角畫。']]},
     door:{t:'門',d:'點在牆上放一扇門。',
-      s:['右邊「畫門設定」先選：門／推拉門／門洞','在牆上點一下放置','選取門之後可以改寬度、開門方向，點兩側的數字可以打離牆角的距離'],
-      q:[['點了沒有門？','一定要點在牆上；結構鎖住時也不能放。']]},
+      s:['右邊「畫門設定」先選：門／推拉門／門洞','在牆上點一下放置','選取門之後可以改寬度、開門方向；兩側的數字是到最近的牆或柱子的距離，點一下可以直接打'],
+      q:[['點了沒有門？','一定要點在牆上，而且不能壓到柱子、交接的牆或其他門窗；結構鎖住時也不能放。']]},
     window:{t:'窗',d:'點在牆上放一扇窗。',
       s:['右邊「畫窗設定」先選：窗／落地窗／外凸窗','在牆上點一下放置','選取後可改寬度、離地高度，點兩側數字打離牆角距離'],
       q:[['落地窗的離地高度？','固定是 0。']]},
     column:{t:'柱',d:'點一下放一根柱子，會自動貼齊牆面。',
-      s:['在要放的位置點一下','選取後右邊可改長寬、旋轉','點四邊的離牆距離數字直接輸入，打 0 就貼牆'],q:[]},
+      s:['在要放的位置點一下','選取後右邊可改長寬、旋轉','點四邊的離牆距離數字直接輸入，打 0 就貼牆'],q:[['為什麼牆的尺寸變了？','柱子是結構，不算空間：貼著柱子的那面牆會顯示扣掉柱子的淨尺寸，空間坪數也會扣掉柱子。點那段淨尺寸可以直接打，會移動柱子。']]},
     shaft:{t:'管道間',d:'點一下放置管道間（斜線區塊）。',
       s:['在要放的位置點一下','選取後可改長寬與旋轉','點四邊的離牆距離數字直接輸入'],q:[]},
     beam:{t:'樑',d:'畫出樑的位置，天花板圖會用到樑下高度。',
@@ -10471,7 +10721,7 @@
       s:['點在要記錄的位置，相機會直接打開','拍完就是一張釘在那裡的小圖，點它可以放大看','可以拖動，也可以補文字'],q:[]},
     note:{t:'註記',d:'拉一條引線指到某個位置，旁邊加說明。',
       s:['點在要指的位置，會拉出引線和註記框','框裡可以手寫、打字、或加現場照片','拖框可以移動，右下角可以調大小'],q:[]},
-    text:{t:'文字',d:'在圖上放一段文字。',s:['在要放的位置點一下','輸入文字；選取後可以拖動或修改'],q:[]},
+    text:{t:'文字',d:'在圖上放一段文字。',s:['在要放的位置點一下，輸入文字','用選取工具按住文字可以拖動','選取後右邊可以改字體大小（小／中／大／特大）'],q:[]},
     base:{t:'結構（底圖）',d:'牆、門窗、柱、樑都畫在這一層，所有施工圖都以它為底圖。',
       s:['用左邊的工具畫牆、房間、門窗、柱、樑','空間圍起來後會自動算坪數，點空間名稱可以改名','結構畫好後，按「結構」旁邊的鎖，之後畫施工圖就不會誤拖到牆'],
       q:[['鎖住後還能改嗎？','再按一次鎖就解開。']]},
@@ -11158,7 +11408,7 @@
   // not a wall. Measuring past the sofa to the far wall is the wrong number, so
   // every neighbour counts — walls, columns, shafts, beams and other furniture —
   // and the label says which one it is.
-  function neighbourBoxes(exceptId){
+  function neighbourBoxes(exceptId, opts){
     const out=[];
     for(const w of state.walls){
       if(wallLen(w)<1) continue;
@@ -11173,12 +11423,8 @@
                 y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)),
                 what:c.kind==='shaft'?'管道間':'柱'});
     }
-    for(const bm of state.beams){
-      if(wallLen(bm)<1) continue;
-      const p=beamCorners(bm);
-      out.push({x0:Math.min(...p.map(q=>q.x)),x1:Math.max(...p.map(q=>q.x)),
-                y0:Math.min(...p.map(q=>q.y)),y1:Math.max(...p.map(q=>q.y)),what:'樑'});
-    }
+    // (beams are overhead: a sofa or a socket is never measured to one)
+    if(opts && opts.structOnly) return out;
     for(const g of state.furniture){
       if(g.id===exceptId) continue;
       if(!layerVisible(g.layer||'plan')) continue;
@@ -12092,6 +12338,7 @@
     } else if(state.walls.length && !await uiConfirm('要開啟「'+p.name+'」嗎？',{okText:'開啟'})) return;
     try{
       restore(JSON.stringify(p.data));
+      openOnBase();
       if(p.data.unit) applyUnit(p.data.unit);
       document.getElementById('fname').value=p.name;
       history.length=0; history.push(snapshot()); hi=0; updateUndo();
@@ -12154,7 +12401,7 @@
   function blankPlan(){
     state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
     state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[]; state.circuits=[]; state.ceil=[]; state.floor=[]; state.ceilLabel='ch';
-    state.layer='plan'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.underlay=null; underlayImg=null;
+    state.layer='base'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.underlay=null; underlayImg=null;
     // the studio name survives a new project; the client and sheet number do not
     state.meta={firm:(state.meta&&state.meta.firm)||'', designer:(state.meta&&state.meta.designer)||''};
     syncMetaUI();
