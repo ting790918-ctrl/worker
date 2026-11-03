@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 測試版 t18</title>
+<title>PlanPad · 測試版 t22</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -69,7 +69,35 @@
   .rail-sep{width:28px; height:1px; background:var(--line); margin:4px 0;}
 
   /* ---- Canvas ---- */
-  #stage{position:relative; flex:1; min-width:0; overflow:hidden; touch-action:none; background:var(--canvas-bg);}
+  #stageCol{flex:1; min-width:0; display:flex; flex-direction:column;}
+  #stage{position:relative; flex:1; min-width:0; min-height:0; overflow:hidden; touch-action:none; background:var(--canvas-bg);}
+  /* the library dock: the layer's categories and items, always in view under the drawing */
+  #libDock{flex:0 0 auto; display:none; background:var(--panel); border-top:1px solid var(--line); padding:8px 12px 10px; z-index:14;}
+  #libDock.on{display:block;}
+  .dock-group{display:none;}
+  .dock-group.on{display:block;}
+  .dock-head{display:flex; align-items:center; gap:10px; margin-bottom:8px; min-width:0;}
+  .dock-title{flex:0 0 auto; font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.04em;}
+  #libDock .furn-cats{flex-wrap:nowrap; overflow-x:auto; margin:0; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+  #libDock .furn-cats button{flex:0 0 auto; padding:7px 14px; font-size:13px;}
+  #libDock .furn-list{flex-direction:row; max-height:none; overflow-x:auto; overflow-y:hidden; gap:8px; padding-bottom:2px; -webkit-overflow-scrolling:touch;}
+  #libDock .furn-item{flex:0 0 auto; flex-direction:column; justify-content:center; gap:3px; min-width:92px; max-width:170px; min-height:64px; padding:8px 12px; text-align:center;}
+  #libDock .furn-item b{flex:0 0 auto; white-space:nowrap; margin-left:0 !important;}
+  #libDock .furn-item span{white-space:nowrap;}
+  #libDock .furn-item svg{flex:0 0 auto;}
+  .fl-grp{flex:0 0 auto; display:flex; flex-direction:column; gap:4px; padding:0 4px 0 10px; border-left:1px solid var(--line);}
+  .fl-gt{font-size:11px; font-weight:700; color:var(--muted);}
+  .fl-gr{display:flex; gap:6px;}
+  .fl-chip{flex:0 0 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-width:64px; min-height:48px; padding:5px 10px; border:1px solid var(--line); border-radius:10px; background:#fff; font-size:13px; color:var(--text); white-space:nowrap;}
+  .fl-chip.on{border-color:var(--accent,#275C7A); background:#E8F0F4; color:#275C7A; font-weight:700; box-shadow:inset 0 0 0 1px var(--accent,#275C7A);}
+  .fl-cthumb{display:block; width:64px; height:34px; pointer-events:none;}
+  #panel .fl-grp{border-left:0; padding:4px 0;} #panel .fl-gr{flex-wrap:wrap;}
+  .furn-item.fl-back b{color:var(--muted);}
+  .flq{border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:8px;}
+  .flq-t{font-weight:700; font-size:13px; margin-bottom:4px;}
+  .flq .row{margin:2px 0;} .flq .row span{font-size:12.5px;}
+  .furn-thumb{display:block; width:88px; height:48px; flex:0 0 auto; pointer-events:none;}
+  #panel .furn-thumb{width:44px; height:24px;}
   #c{position:absolute; inset:0; width:100%; height:100%; display:block;}
   #hint{position:absolute; left:50%; top:12px; transform:translateX(-50%); background:rgba(36,40,46,.9); color:#fff; font-size:12px; padding:6px 12px; border-radius:20px; pointer-events:none; opacity:0; transition:opacity .2s; z-index:5; white-space:nowrap;}
   #hint.show{opacity:1;}
@@ -202,6 +230,33 @@
   .modal-body{flex:1 1 auto; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y;
               margin:0 -20px; padding:0 20px;}
   .modal-mask{padding:16px;}
+  .help-btn{position:absolute; top:12px; right:12px; z-index:8; width:40px; height:40px; border-radius:50%; border:1px solid var(--line-strong,#C9CFD5); background:#fff; color:#275C7A; font-size:20px; font-weight:800; box-shadow:0 2px 8px rgba(0,0,0,.12); font-family:inherit; touch-action:manipulation;}
+  .help-btn.new::after{content:''; position:absolute; top:2px; right:2px; width:10px; height:10px; border-radius:50%; background:#E5484D; border:2px solid #fff;}
+  .help-btn:active{background:#E8F0F4;}
+  #helpCard{position:absolute; top:60px; right:12px; z-index:9; width:340px; max-width:calc(100% - 24px); max-height:calc(100% - 72px); display:none; flex-direction:column; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 32px rgba(0,0,0,.18); overflow:hidden; touch-action:pan-y;}
+  #helpCard.open{display:flex;}
+  .hc-head{display:flex; align-items:flex-start; gap:10px; padding:14px 14px 10px 16px; border-bottom:1px solid var(--line);}
+  .hc-head>div{flex:1;}
+  .hc-k{font-size:11px; color:var(--muted); font-weight:700; letter-spacing:.05em;}
+  .hc-t{font-size:17px; font-weight:800; color:var(--ink,#24282E); margin-top:2px;}
+  .hc-x{width:34px; height:34px; border-radius:50%; border:0; background:#F1F3F5; font-size:15px; color:#4B5158; font-family:inherit;}
+  .hc-body{padding:10px 16px 16px; overflow-y:auto; overscroll-behavior:contain; font-size:14px; line-height:1.6; color:#33383E;}
+  .hc-d{margin:2px 0 6px; font-weight:600;}
+  .hc-h{font-size:12px; font-weight:800; color:#275C7A; margin:12px 0 4px;}
+  .hc-body ol,.hc-body ul{margin:0; padding-left:20px;} .hc-body li{margin:3px 0;}
+  .hc-q{background:#F6F8FA; border-radius:10px; padding:8px 10px; margin:6px 0; display:flex; flex-direction:column; gap:2px;}
+  .hc-q b{font-size:13px;} .hc-q span{font-size:13px; color:#4B5158;}
+  .hc-tour{margin-top:14px; width:100%; text-align:center;}
+  .modal.tour{width:520px; padding:24px 24px 18px;}
+  .tour-step{font-size:12px; color:var(--muted); font-weight:700;}
+  .tour-t{font-size:22px; font-weight:800; color:var(--ink,#24282E); margin:6px 0 12px;}
+  #tourBody p{margin:0 0 10px; font-size:15px; line-height:1.7; color:#33383E;}
+  .tour-dots{display:flex; gap:6px; justify-content:center; margin:14px 0 4px;}
+  .tour-dots i{width:8px; height:8px; border-radius:50%; background:#D5DADF;} .tour-dots i.on{background:#275C7A; width:20px; border-radius:4px;}
+  .tour-btns{display:flex; gap:8px; align-items:center; margin-top:14px;}
+  .tour-btns .chip{padding:10px 16px; font-size:14px;}
+  .tour-next{background:#275C7A !important; color:#fff !important; border-color:#275C7A !important;}
+
   .mrow{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;}
   .mrow>span{font-size:13px; color:var(--text); flex:0 0 auto;}
   .mrow .seg{flex-wrap:wrap;}
@@ -268,7 +323,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t18</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">測試版 t22</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -286,6 +341,7 @@
         <div class="menu-label">專案</div>
         <div class="menu-item" data-act="newproj">新增專案<span class="k">換一個案場</span></div>
         <div class="menu-item" data-act="saveproj">儲存專案<span class="k">存到這台裝置</span></div>
+        <div class="menu-item" data-act="tour">使用教學<span class="k">整體操作技巧</span></div>
         <div class="menu-item" data-act="openproj">開啟專案<span class="k" id="projCount"></span></div>
         <div class="menu-item" data-act="copymain">複製正式版的專案進來<span class="k">只複製，不會改到正式版</span></div>
         <div class="menu-sep"></div>
@@ -328,9 +384,12 @@
     </div>
 
     <!-- STAGE -->
+    <div id="stageCol">
     <div id="stage">
       <canvas id="c"></canvas>
       <div id="hint"></div>
+      <button id="helpBtn" class="help-btn" aria-label="使用說明">?</button>
+      <div id="helpCard"></div>
       <div id="circBar" style="display:none;position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;align-items:center;gap:10px;background:#fff;border:1px solid var(--line-strong);border-radius:14px;padding:8px 10px 8px 14px;box-shadow:0 4px 16px rgba(0,0,0,.14);white-space:nowrap;">
         <span id="circBarTxt" style="font-size:13px;font-weight:600;color:#24282E"></span>
         <button id="circNo" style="min-height:40px;padding:0 14px;border:1px solid var(--line-strong);border-radius:10px;background:#fff;font-size:14px">取消</button>
@@ -362,6 +421,9 @@
         </div>
         <div class="khint" id="kpadHint"></div>
       </div>
+    </div>
+    <!-- the symbol / furniture library of the layer you are on, along the bottom -->
+    <div id="libDock"></div>
     </div>
 
     <!-- RIGHT PANEL -->
@@ -486,6 +548,13 @@
           <div class="lay-note" id="ulHint">校正後就可以直接用牆工具描圖。</div>
         </div>
       </div>
+      <div class="psec" data-layer="floor">
+        <div class="ptitle">地板</div>
+        <div class="furn-cats" id="floorModes"></div>
+        <div class="furn-list" id="floorList"></div>
+        <div class="ptitle" style="margin-top:6px">叫料數量</div>
+        <div id="floorQty"></div>
+      </div>
       <div class="psec" data-layer="ceil">
         <div class="ptitle">天花板</div>
         <div class="furn-list" id="ceilTools"></div>
@@ -535,6 +604,12 @@
 
 
 
+<div id="tourModal" class="modal-mask">
+  <div class="modal tour">
+    <div class="modal-body" id="tourBody"></div>
+    <div class="tour-btns"><button class="chip" id="tourSkip">略過教學</button><span style="flex:1"></span><button class="chip" id="tourPrev">上一步</button><button class="chip tour-next" id="tourNext">下一步</button></div>
+  </div>
+</div>
 <div id="metaModal" class="modal-mask">
   <div class="modal" style="width:380px">
     <div class="modal-title">專案資訊</div>
@@ -625,6 +700,7 @@
     mep: [],        // {id,kind,x,y,rot,h,showDim,layer:'elec'}
     circuits: [],   // {id,name,color,sw:[mepId],lights:[mepId]}
     ceil: [],       // ceiling zones and fittings, see 天花板施工
+    floor: [],      // floor zones (a finish over part of a room), see 地板施工
     ceilLabel: 'ch',
     meta: {},       // {firm,designer,client,sheet} — printed on the title block
     layer: 'plan',  // which layer new annotations land on
@@ -897,7 +973,7 @@
 
   // ================= History =================
   const history=[]; let hi=-1;
-  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,circuits:state.circuits,ceil:state.ceil,ceilLabel:state.ceilLabel,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,rooms:state.rooms,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,underlay:state.underlay,ceilingH:state.ceilingH,_seq:state._seq}); }
+  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,circuits:state.circuits,ceil:state.ceil,floor:state.floor,ceilLabel:state.ceilLabel,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,rooms:state.rooms,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,underlay:state.underlay,ceilingH:state.ceilingH,_seq:state._seq}); }
   // A length typed on a free-standing wall is what the tape read between two
   // FACES — the clear size of the room. But a lone wall has no faces to measure
   // between yet, so the number can only be applied to its centreline; then the
@@ -1073,7 +1149,7 @@
     }catch(_){}
     history.splice(hi+1);
     history.push(snapshot());
-    try{ if(state.layer==='ceil') syncCeilUI(); }catch(_){}
+    try{ if(state.layer==='ceil') syncCeilUI(); if(state.layer==='floor') syncFloorUI(); }catch(_){}
     if(history.length>80) history.shift();
     hi=history.length-1;
     recomputeRooms();
@@ -1193,7 +1269,7 @@
     state.ink=arr(o.ink); state.notes=arr(o.notes); state.furniture=arr(o.furniture);
     state.mep=arr(o.mep);
     state.circuits=arr(o.circuits);
-    state.ceil=arr(o.ceil); state.ceilLabel=o.ceilLabel||'ch';
+    state.ceil=arr(o.ceil); state.floor=arr(o.floor); state.ceilLabel=o.ceilLabel||'ch';
     state.layer=o.layer||'plan';
     state.layerVis=(o.layerVis&&typeof o.layerVis==='object')?o.layerVis:{};
     state.baseLock=!!o.baseLock;
@@ -2177,10 +2253,15 @@
       flashHint('這個尺寸的牆體已變更，請重新點一次'); draw(); return false;
     }
     if(lab.kind==='stubgap'){ editStubGap(lab,px,py); return true; }
+    if(lab.kind==='flroom'||lab.kind==='flzone'||lab.kind==='fldir') return flLabelTap(lab);
     if(lab.kind==='ceilzoneh'){ const z=ceilById(lab.zid); if(!z) return false; const r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
+      // The height sits in the middle of the zone — exactly where you tap to pick
+      // the zone. So the first tap only selects it; tapping the height AGAIN edits it.
+      if(ui.ceilHArmed!==z.id){ ui.ceilHArmed=z.id; ui.selected={kind:'ceil',id:z.id}; refreshProp(); draw(); flashHint('要改高度，再點一下高度數字'); return true; }
       ui.selected={kind:'ceil',id:z.id}; refreshProp(); draw();
       ceilHeightPad(px,py,z.ch,slab,(v)=>{ z.ch=v; dbg(`  CEIL zone #${z.id} CH → ${v}`); pushHistory(); refreshProp(); draw(); }); return true; }
     if(lab.kind==='ceilroomh'){ const e=roomById(lab.rid), r=roomCacheById(lab.rid); if(!e||!r) return false; const slab=slabH(r);
+      if(ui.ceilHArmed!=='r'+lab.rid){ ui.ceilHArmed='r'+lab.rid; ui.selected={kind:'room',id:lab.rid}; refreshProp(); draw(); flashHint('要改平釘高度，再點一下高度數字'); return true; }
       ui.selected={kind:'room',id:lab.rid}; refreshProp(); draw();
       ceilHeightPad(px,py,roomBaseCH(r),slab,(v)=>{ e.ceilCH=v; dbg(`  CEIL room ${lab.rid} 平釘 CH → ${v}`); pushHistory(); refreshProp(); syncCeilUI(); draw(); }); return true; }
     if(lab.kind==='ceildim'){ const z=ceilById(lab.zid); if(!z) return false; const b=ceilBBox(z), cur=lab.axis==='h'?b.y1-b.y0:b.x1-b.x0;
@@ -2451,6 +2532,7 @@
           splitAt:(id,d)=>splitAt(id,d), splitStart:(id)=>splitStart(id),
           circStart:(id)=>circStart(id), circFinish:()=>circFinish(),
           mepGaps:(m)=>mepGaps(m), dimGeom:(d)=>dimGeom(d), mepTally:(o)=>mepTally(o), setTool:(t)=>setTool(t), gapsToDims:(m)=>gapsToDims(m),
+          composeSheet:(o,pg,a,b,w,h)=>composeSheet(o,pg,a,b,w,h), floorTally:(v)=>floorTally(v),
           get LAYERS(){ return LAYERS; }, get pdfOpt(){ return pdfOpt; } }
   };
   function roomAt(wx,wy){
@@ -3793,6 +3875,7 @@
     drawGrid();
     drawUnderlay();          // below everything you draw, above the grid
     drawRoomsFill();
+    drawFloor();
     drawCeilFill();
     drawWalls(false);
     drawBeams(false);
@@ -4655,7 +4738,7 @@
         if(ui.focusRoom) ui.selected={kind:'room', id:ui.focusRoom};
         else ui.selected=null;
         refreshProp(); panStart={px,py,ox:view.ox,oy:view.oy};
-        if(state.layer==='ceil') ui._ceilTap={px,py,wx,wy};
+        if(state.layer==='ceil'||state.layer==='floor') ui._ceilTap={px,py,wx,wy};
       }
       draw();
     }
@@ -5151,7 +5234,7 @@
       if(s){ for(const p of [s.a,s.b]){ if(Math.hypot(wx-p.x,wy-p.y)<thr) return {kind:'wallSide', id:w.id}; } }
     } else if(ui.selected.kind==='ceil'){
       const z=ceilById(ui.selected.id);
-      if(z && state.layer==='ceil'){ const h=ceilHandleHit(z,wx,wy); if(h) return h; }
+      if(z && (state.layer==='ceil'||state.layer==='floor')){ const h=ceilHandleHit(z,wx,wy); if(h) return h; }
     } else if(ui.selected.kind==='mep'){
       const m=state.mep.find(v=>v.id===ui.selected.id);
       if(m && isLinear(m) && devLive(m)){
@@ -5502,6 +5585,7 @@
     });
   }
   function refreshProp(){
+    { const s0=ui.selected; const k=s0?(s0.kind==='ceil'?s0.id:s0.kind==='room'?'r'+s0.id:null):null; if(k!==ui.ceilHArmed) ui.ceilHArmed=null; }
     // Rebuilding the panel replaces the DOM, so doing it while someone is typing
     // throws away both the caret and the characters typed since the last change
     // event — which is exactly why note text "打出來沒反應 還會消失".
@@ -5532,8 +5616,11 @@
       ${roomHasCeil(r)?`<div class="row"><label>平釘 CH</label><div class="field"><input type="number" id="pRceilCH" value="${Math.round(toDisp(roomBaseCH(r)))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>比樓板下降</label><span style="font-size:13px;color:var(--muted)">${fmtLenU(Math.max(0,slabH(r)-roomBaseCH(r)))}</span></div>`:''}
       <div class="lay-note">造型（凹槽、降板、圓形）用左邊天花板工具畫在這間裡面；間照用「間接照明」點區域的邊。</div>`:''}
+      ${state.layer==='floor'&&r?`<div class="ptitle" style="margin-top:12px">這間的地板</div>${flFormHTML(flNorm(e.floor),true)}
+      <div class="lay-note">也可以用下面的「整間鋪設」選好材料後點這間。</div>`:''}
       <div class="row"><button class="chip" id="pRfocus" style="width:100%;text-align:center">${ui.focusRoom===s.id?'離開房間編輯':'進入房間編輯'}</button></div>
       ${rows?`<div class="ptitle" style="margin-top:12px">各邊長度</div>${rows}`:''}`;
+      if(state.layer==='floor' && r) flFormBind(()=>flNorm(e.floor), (v)=>{ if(v) e.floor=v; else delete e.floor; });
       if(state.layer==='ceil' && r){
         document.querySelectorAll('#pRceil button').forEach(b=>b.onclick=()=>{
           if(b.dataset.v==='1'){ if(!roomHasCeil(r)) e.ceilCH=slabH(r)-20; } else delete e.ceilCH;
@@ -5613,6 +5700,12 @@
     }
     else if(s.kind==='ceil'){ const z=ceilById(s.id);
       if(!z){ propBody.innerHTML='<div class="empty">這個區域已經不存在了。</div>'; return; }
+      if(z.layer==='floor'){
+        propBody.innerHTML='<div class="ptitle">地板區域</div>'+flFormHTML(flNorm(z.fl),false)+flZoneQty(z)
+          +'<div class="lay-note">拉菱形移動一邊、拉圓點導圓角；在圖上點尺寸數字可以直接改。</div><div class="row"><button class="chip" id="pDel" style="width:100%;text-align:center">刪除這個區域</button></div>';
+        flFormBind(()=>flNorm(z.fl), (v)=>{ if(v) z.fl=v; });
+        document.getElementById('pDel').onclick=deleteSelected; return;
+      }
       propBody.innerHTML=ceilPropHTML(z,U); ceilPropBind(z);
     }
     else if(s.kind==='circuit'){ const c=state.circuits.find(v=>v.id===s.id);
@@ -5833,7 +5926,7 @@
     if(s.kind==='wall'){ state.walls=state.walls.filter(w=>w.id!==s.id); state.openings=state.openings.filter(o=>o.wallId!==s.id); }
     else if(s.kind==='mep'){ state.mep=state.mep.filter(v=>v.id!==s.id); cleanCircuits(); }
     else if(s.kind==='circuit'){ state.circuits=state.circuits.filter(v=>v.id!==s.id); }
-    else if(s.kind==='ceil'){ state.ceil=state.ceil.filter(v=>v.id!==s.id); }
+    else if(s.kind==='ceil'){ state.ceil=state.ceil.filter(v=>v.id!==s.id); state.floor=state.floor.filter(v=>v.id!==s.id); }
     else if(s.kind==='furn'){ state.furniture=state.furniture.filter(v=>v.id!==s.id); }
     else if(s.kind==='note'){
       const n=state.notes.find(v=>v.id===s.id);
@@ -6010,6 +6103,25 @@
       list.appendChild(b);
     }
   }
+  // A small picture of each piece, drawn with the very same symbol the plan uses,
+  // so the library shows what will land on the drawing, not only its name.
+  const furnThumbCache={};
+  function furnThumb(item){
+    const key=item[4]+'|'+item[2]+'|'+item[3];
+    if(key in furnThumbCache) return furnThumbCache[key];
+    let url='';
+    try{
+      const BW=88, BH=48, pad=4, R=2, c=document.createElement('canvas');
+      c.width=BW*R; c.height=BH*R;
+      const g=c.getContext('2d'), w=item[2], h=item[3];
+      const k=Math.min((BW-pad*2)/w,(BH-pad*2)/h)*R;
+      g.translate(BW*R/2,BH*R/2); g.scale(k,k);
+      g.lineWidth=1.6*R/k; g.strokeStyle=FURN_LINE; g.fillStyle=FURN_FILL; g.lineJoin='round';
+      (SYMBOL[item[4]]||SYMBOL.rect)(w,h,g,R/k);
+      url=c.toDataURL();
+    }catch(_){ url=''; }
+    return furnThumbCache[key]=url;
+  }
   function syncFurnUI(){
     const cats=document.getElementById('furnCats'), list=document.getElementById('furnList');
     if(!cats||!list) return;
@@ -6024,7 +6136,8 @@
     for(const item of furnList(ui.furnCat)){
       const b=document.createElement('button');
       b.className='furn-item'+(ui.furnPick&&ui.furnPick[1]===item[1]?' on':'');
-      b.innerHTML='<b>'+item[1]+'</b><span>'+Math.round(toDisp(item[2]))+'×'+Math.round(toDisp(item[3]))+'</span>';
+      const th=furnThumb(item);
+      b.innerHTML=(th?'<img class="furn-thumb" alt="" src="'+th+'">':'')+'<b>'+item[1]+'</b><span>'+Math.round(toDisp(item[2]))+'×'+Math.round(toDisp(item[3]))+'</span>';
       b.onclick=()=>{
         ui.furnPick=item; setTool('furn'); syncFurnUI();
         flashHint('已選「'+item[1]+'」，點畫面放下。要停止放置就按左邊的「選取」');
@@ -6033,7 +6146,35 @@
     }
   }
 
+  // The library of the layer you are on — categories and items — lives in a dock
+  // along the bottom of the drawing, always in view. In the side panel it sat
+  // below the layer list, and every placed item meant scrolling down to it again.
+  // The elements are moved, not copied, so everything that fills them still works.
+  let dockBuilt=false, dockKey=null;
+  function buildDock(){
+    if(dockBuilt) return; dockBuilt=true;
+    const dock=document.getElementById('libDock'); if(!dock) return;
+    const spec={plan:['家具庫',['furnCats','furnList']], elec:['水電圖示庫',['mepCats','mepList']],
+                light:['燈具圖示庫',['lightCats','lightList']], circuit:['開關',['swList']], ceil:['天花板工具',['ceilTools']], floor:['地板施工',['floorModes','floorList']]};
+    for(const lay of Object.keys(spec)){
+      const [title,ids]=spec[lay], g=document.createElement('div'); g.className='dock-group'; g.dataset.layer=lay;
+      const head=document.createElement('div'); head.className='dock-head';
+      const t=document.createElement('div'); t.className='dock-title'; t.textContent=title; head.appendChild(t); g.appendChild(head);
+      for(const id of ids){
+        const el=document.getElementById(id); if(!el) continue;
+        const sec=el.closest('.psec');
+        // the title just above it in the panel goes too
+        const prev=el.previousElementSibling; if(prev && prev.classList.contains('ptitle')) prev.remove();
+        if(el.classList.contains('furn-cats')) head.appendChild(el); else g.appendChild(el);
+        if(sec && ![...sec.children].some(c=>!c.classList.contains('ptitle'))) sec.remove();
+      }
+      dock.appendChild(g);
+    }
+  }
   function syncToolSections(){
+    buildDock();
+    try{ syncHelpBtn(); const hc=document.getElementById('helpCard'); if(hc&&hc.classList.contains('open')) openHelp(); }catch(_){}
+    try{ if(state.layer==='floor') syncFloorUI(); }catch(_){}
     document.querySelectorAll('#panel .psec[data-tool]').forEach(sec=>{
       sec.style.display = sec.dataset.tool.split(' ').includes(ui.tool) ? '' : 'none';
     });
@@ -6042,6 +6183,14 @@
     document.querySelectorAll('#panel .psec[data-layer]').forEach(sec=>{
       sec.style.display = sec.dataset.layer===state.layer ? '' : 'none';
     });
+    const dock=document.getElementById('libDock');
+    if(dock){
+      let any=false;
+      dock.querySelectorAll('.dock-group').forEach(g=>{ const on=g.dataset.layer===state.layer; g.classList.toggle('on',on); if(on) any=true; });
+      dock.classList.toggle('on',any);
+      const key=any?state.layer:'';
+      if(key!==dockKey){ dockKey=key; setTimeout(()=>{ try{ resize(); }catch(_){} },0); }   // the drawing gives up / takes back the room
+    }
   }
 
 
@@ -6681,7 +6830,7 @@
     if(!state.walls.length&&!state.dims.length&&!state.texts.length&&!state.ink.length&&!state.notes.length&&!state.furniture.length&&!state.mep.length) return null; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; const acc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}; for(const w of state.walls){acc(w.x1,w.y1);acc(w.x2,w.y2);} for(const d of state.dims){acc(d.x1,d.y1);acc(d.x2,d.y2);} for(const t of state.texts){acc(t.x,t.y);}
     for(const s2 of state.ink){ const b=strokeBBox(s2); acc(b.x0,b.y0); acc(b.x1,b.y1); }
     for(const f of state.furniture) for(const c of furnCorners(f)) acc(c.x,c.y);
-    for(const z of (state.ceil||[])){ const b2=ceilBBox(z); acc(b2.x0,b2.y0); acc(b2.x1,b2.y1); }
+    for(const z of (state.ceil||[]).concat(state.floor||[])){ const b2=ceilBBox(z); acc(b2.x0,b2.y0); acc(b2.x1,b2.y1); }
     for(const m of state.mep){ const r=isLinear(m)?devLen(m)/2+5:(lightSpec(m).sz?devSz(m)/2+5:MEP_SIZE*(isLight(m)?lightScale(m):1)); acc(m.x-r,m.y-r); acc(m.x+r,m.y+r); }
     for(const n of state.notes){
       if(isPin(n) ? !inclPhotos : !inclNotes) continue;
@@ -6849,7 +6998,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='t18（測試版，由 b102 改）';
+  const BUILD='t22（測試版，由 b106 改：使用說明）';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -6992,6 +7141,7 @@
     if(act==='png'||act==='pdf'||act==='dxf'){ runExport('開啟匯出設定', ()=>openExportModal(act)); }
     else if(act==='newproj'){ newProject(); }
     else if(act==='saveproj'){ openProjModal('save'); }
+    else if(act==='tour'){ openTour(); }
     else if(act==='openproj'){ openProjModal('open'); }
     else if(act==='copymain'){
       let main={}; try{ main=JSON.parse(localStorage.getItem('planpad.projects.v1')||'{}')||{}; }catch(_){ main={}; }
@@ -7427,7 +7577,7 @@
   // A legend the contractor can count from. It is built from the symbols actually
   // on this sheet, so the quantities can never disagree with the drawing.
   function drawLegend(g, pwMM, phMM, mMM, tb, layersOpt){
-    const items=wallKindTally().concat(mepTally(layersOpt)).concat(ceilTally(layersOpt));
+    const items=wallKindTally().concat(mepTally(layersOpt)).concat(ceilTally(layersOpt)).concat(floorLegend(layersOpt));
     if(!items.length) return null;
     const colMM=96, rowMM=8.5, headMM=9;
     // A long legend in one column is a tall block, and a tall block steals the
@@ -7523,6 +7673,7 @@
     try{ resolveDims(); }catch(_){}
     ctx=g; view.scale=scale; view.ox=pad.l-b.x0*scale; view.oy=pad.t-b.y0*scale; W=cw; H=ch; ui.grid=false;
     try{
+    drawFloor();
     drawCeilFill();
     drawWalls(true); drawBeams(true); drawColumns();
     // these two were missing entirely, which is why an exported PNG came out with
@@ -9237,7 +9388,7 @@
   //   curtain / hatch / ventS / ventR   plain rectangles {x,y,w,h}
   const CEIL_INK='#0F6E56', CEIL_COVE='#B0357F', CEIL_GREY='#5B646E';
   const CEIL_NAME={zone:'造型區域',curtain:'窗簾盒',hatch:'維修孔',ventS:'出風口',ventR:'回風口'};
-  const ceilById=(id)=>(state.ceil||[]).find(v=>v.id===id);
+  const ceilById=(id)=>(state.ceil||[]).find(v=>v.id===id) || (state.floor||[]).find(v=>v.id===id);
   function ceilShow(){ return layerVisible('ceil'); }
   function ceilActive(){ return state.layer==='ceil' || state.layer==='__all__'; }
   // the tinted fills belong to the ceiling sheet only; over a furniture plan they
@@ -9343,6 +9494,11 @@
     return wx>=z.x-pad && wx<=z.x+z.w+pad && wy>=z.y-pad && wy<=z.y+z.h+pad;
   }
   function ceilHitTest(wx,wy){
+    if(state.layer==='floor'){
+      if(!floorOn()) return null;
+      const F=state.floor.filter(z=>ceilHit(z,wx,wy)).sort((a,b)=>ceilArea(a)-ceilArea(b));
+      return F.length ? {kind:'ceil', id:F[0].id} : null;
+    }
     if(state.layer!=='ceil' || !ceilShow()) return null;
     const L=state.ceil.filter(z=>ceilHit(z,wx,wy));
     if(!L.length) return null;
@@ -9526,9 +9682,14 @@
       }
       if(sel && !EXPORT_MODE){ drawCeilHandles(z); if(z.kind==='zone'||z.kind==='curtain'||z.kind==='hatch'||z.kind==='ventS'||z.kind==='ventR') drawCeilGaps(z); }
     }
-    // drafts
+    if(state.layer!=='floor') drawZoneDrafts(CEIL_INK);
+    ctx.restore();
+  }
+  // the shape being drawn right now (ceiling or floor zone)
+  function drawZoneDrafts(INK){
+    ctx.save(); ctx.globalAlpha=1;
     if(ui.tool==='ceil' && ui.cpoly && ui.cpoly.length){
-      ctx.strokeStyle=CEIL_INK; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+      ctx.strokeStyle=INK; ctx.lineWidth=2; ctx.setLineDash([6,4]);
       ctx.beginPath(); ui.cpoly.forEach((p,i)=>{ const s=toScreen(p.x,p.y); i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]); });
       if(ui.cpolyHover){ const s=toScreen(ui.cpolyHover.x,ui.cpolyHover.y); ctx.lineTo(s[0],s[1]); } ctx.stroke();
       ctx.setLineDash([]); ui.cpoly.forEach((p,i)=>{ const s=toScreen(p.x,p.y); handle(s[0],s[1]);
@@ -9536,12 +9697,12 @@
     }
     if(ui.tool==='ceil' && ui.ceilPick==='line' && ui.clinePending){
       const L=ui.clinePending, s1=toScreen(L.a.x,L.a.y), s2=toScreen(L.c.x,L.c.y);
-      ctx.save(); ctx.strokeStyle=CEIL_INK; ctx.lineWidth=2.5; ctx.setLineDash([8,5]);
+      ctx.save(); ctx.strokeStyle=INK; ctx.lineWidth=2.5; ctx.setLineDash([8,5]);
       ctx.beginPath(); ctx.moveTo(s1[0],s1[1]); ctx.lineTo(s2[0],s2[1]); ctx.stroke(); ctx.restore();
     }
     if(draft && draft.kind==='cdraw'){
       const a=draft.a, c=draft.cur;
-      ctx.strokeStyle=CEIL_INK; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+      ctx.strokeStyle=INK; ctx.lineWidth=2; ctx.setLineDash([6,4]);
       if(draft.sub==='line'){ const s1=toScreen(a.x,a.y), s2=toScreen(c.x,c.y); ctx.beginPath(); ctx.moveTo(s1[0],s1[1]); ctx.lineTo(s2[0],s2[1]); ctx.stroke(); }
       else if(draft.sub==='ell'){ const R=Math.hypot(c.x-a.x,c.y-a.y)*view.scale, s=toScreen(a.x,a.y); ctx.beginPath(); ctx.arc(s[0],s[1],R,0,Math.PI*2); ctx.stroke(); }
       else { const s=toScreen(Math.min(a.x,c.x),Math.min(a.y,c.y)); ctx.strokeRect(s[0],s[1],Math.abs(c.x-a.x)*view.scale,Math.abs(c.y-a.y)*view.scale); }
@@ -9634,7 +9795,11 @@
   // ---- making things ----
   function newZoneCH(c){ const r=roomAt(c.x,c.y); if(!r) return state.ceilingH-20; return roomHasCeil(r) ? Math.min(roomBaseCH(r)+10, slabH(r)-5) : slabH(r)-20; }
   function addCeil(z){
-    z.id=uid(); z.layer='ceil'; state.ceil.push(z);
+    z.id=uid();
+    if(state.layer==='floor'){ z.layer='floor'; delete z.ch; z.fl=Object.assign({}, ui.flSpec||flNorm({mat:'keep'})); state.floor.push(z);
+      dbg(`  FLOOR ZONE #${z.id} ${z.shape} → ${flTitle(flNorm(z.fl))}`); }
+    else { z.layer='ceil'; state.ceil.push(z); }
+    ui.ceilHArmed=null;
     ui.selected={kind:'ceil',id:z.id};
     pushHistory(); refreshProp(); afterPlace();
     return z;
@@ -9643,10 +9808,10 @@
     const dr=draft; draft=null; hideLenBox();
     const a=dr.a, c=dr.cur;
     if(dr.sub==='line'){
-      if(Math.hypot(c.x-a.x,c.y-a.y)<20){ flashHint('從一面牆按住拉到另一面牆，畫出天花板的邊線'); draw(); return; }
+      if(Math.hypot(c.x-a.x,c.y-a.y)<20){ flashHint('從一面牆按住拉到另一面牆，畫出'+(state.layer==='floor'?'材料的分界線':'天花板的邊線')); draw(); return; }
       ui.clinePending={a:{...a},c:{...c}};
       dbg(`  CEIL LINE (${a.x.toFixed(1)},${a.y.toFixed(1)})-(${c.x.toFixed(1)},${c.y.toFixed(1)})`);
-      flashHint('線畫好了：點一下要做天花板的那一邊'); draw(); return;
+      flashHint(state.layer==='floor'?'線畫好了：點一下要鋪這個材料的那一邊':'線畫好了：點一下要做天花板的那一邊'); draw(); return;
     }
     if(dr.sub==='ell'){
       const R=Math.round(Math.hypot(c.x-a.x,c.y-a.y)); if(R<8){ draw(); return; }
@@ -9803,11 +9968,13 @@
       z=addCeil({kind:'zone',shape:'rect',x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys),r:0,ch}); }
     else z=addCeil({kind:'zone',shape:'poly',pts:Q,r:0,ch});
     dbg(`  CEIL LINE side → zone #${z.id} ${Q.length} corners CH ${ch}`);
-    flashHint('這一邊做天花板 CH '+fmtLenU(ch)+'：右邊可改高度；線那一邊要間照就用「間接照明」點它');
+    if(state.layer==='floor') flashHint('這一邊鋪 '+flTitle(flNorm(z.fl))+'：右邊可改材料');
+    else flashHint('這一邊做天花板 CH '+fmtLenU(ch)+'：右邊可改高度；線那一邊要間照就用「間接照明」點它');
   }
   function ceilTap(wx,wy,sx,sy){
     const pk=ui.ceilPick;
     if(pk==='line'){ if(ui.clinePending) ceilLineSide(wx,wy); else flashHint('從一面牆按住拉到另一面牆，畫出天花板的邊線'); return; }
+    if(pk==='room' && state.layer==='floor'){ floorRoomTap(wx,wy); return; }
     if(pk==='room'){ const s2=toScreen(wx,wy); ceilRoomTap(wx,wy,sx!=null?sx:s2[0],sy!=null?sy:s2[1]); return; }
     if(pk==='cove'){ ceilCoveTap(wx,wy); return; }
     if(pk==='hatch'){ const s=60; addCeil({kind:'hatch',x:gsnap(wx-s/2),y:gsnap(wy-s/2),w:s,h:s}); return; }
@@ -9943,6 +10110,468 @@
     for(const k of Object.keys(cnt)) out.push({name:k, n:cnt[k].n, sw:fill('#FFFFFF',CEIL_GREY,cnt[k].kind==='hatch')});
     return out;
   }
+  // ================= 地板施工 =================
+  // A floor is one finish per room (整間鋪設), plus drawn zones that override it
+  // (a 落塵區 of tile inside a wooden living room). The zones reuse the ceiling
+  // zone shapes — same corners, edges, snapping and on-drawing sizes — but live in
+  // state.floor and carry a material spec instead of a height:
+  //   spec {mat, s (size index), th, how, dir 0|90, start 'wall'|'center'}
+  // Sizes are in mm, as the trade quotes them. Quantities: real area + 1 坪 of
+  // waste per spec, and the pieces that buys.
+  const FL_PING=33057.85;        // cm² in one 坪
+  const FLOOR_MATS=[
+    {id:'lam',   name:'超耐磨木地板',     short:'超耐磨',   kind:'plank', col:'#F2E4CA', ink:'#9A7140',
+      sizes:[[1218,198],[1215,165],[600,100,'hb']], th:['8mm','12mm'], how:['直鋪','平鋪','架高']},
+    {id:'eng',   name:'海島型木地板',     short:'海島型',   kind:'plank', col:'#ECD5B2', ink:'#8B5E2E',
+      sizes:[[1210,150],[1520,190],[1900,220]], th:['12mm','15mm'], how:['平鋪','架高']},
+    {id:'solid', name:'實木地板',         short:'實木',     kind:'plank', col:'#E4C59C', ink:'#7A4E22',
+      sizes:[[900,90],[1200,120],[1500,150]], th:['15mm','18mm'], how:['平鋪','架高']},
+    {id:'spc',   name:'SPC 石塑地板',     short:'SPC',      kind:'plank', col:'#E9E1D3', ink:'#857256',
+      sizes:[[1220,180],[1220,228],[600,120,'hb']], th:['4mm','5mm','6mm'], how:['卡扣直鋪']},
+    {id:'vp',    name:'塑膠地板（長條）', short:'塑膠長條', kind:'plank', col:'#EDE6DB', ink:'#8F8068',
+      sizes:[[914,152],[1219,178]], th:['2mm','2.5mm','3mm'], how:['背膠','塗膠','免膠']},
+    {id:'vt',    name:'塑膠地板（方塊）', short:'塑膠方塊', kind:'tile',  col:'#EAE7E1', ink:'#8A8478',
+      sizes:[[457,457],[300,300]], th:['2mm','3mm'], how:['背膠','塗膠']},
+    {id:'tile',  name:'磁磚',             short:'磁磚',     kind:'tile',  col:'#E3EDF4', ink:'#5D7F99',
+      sizes:[[300,600],[600,600],[600,1200],[800,800],[750,1500],[900,1800]], th:[], how:['軟底','硬底','半硬底']},
+    {id:'stone', name:'大理石／石材',     short:'石材',     kind:'tile',  col:'#EFEDE8', ink:'#7D776C',
+      sizes:[[600,600],[800,800],[600,1200]], th:['18mm','20mm'], how:['軟底','硬底']},
+    {id:'seam',  name:'磐多魔／環氧樹脂', short:'無縫地坪', kind:'seam',  col:'#E4E7EA', ink:'#6B737B',
+      sizes:[], th:[], how:['磐多魔','環氧樹脂']},
+    {id:'keep',  name:'保留原地坪',       short:'保留原地坪', kind:'keep', col:'#F5F5F5', ink:'#9AA0A6',
+      sizes:[], th:[], how:[]},
+  ];
+  const flMat=(id)=>FLOOR_MATS.find(m=>m.id===id)||null;
+  function flNorm(sp){
+    const m=sp&&flMat(sp.mat); if(!m) return null;
+    const o=Object.assign({s:0, th:m.th[0]||'', how:m.how[0]||'', dir:0, start:m.kind==='tile'?'center':'wall'}, sp);
+    if(!(o.s>=0 && o.s<m.sizes.length)) o.s=0;
+    if(m.th.length && !m.th.includes(o.th)) o.th=m.th[0]; if(!m.th.length) o.th='';
+    if(m.how.length && !m.how.includes(o.how)) o.how=m.how[0]; if(!m.how.length) o.how='';
+    return o;
+  }
+  const flSize=(sp)=>{ const m=flMat(sp.mat); return (m&&m.sizes[sp.s])||null; };
+  const flSizeTxt=(sz)=> sz ? (sz[2]==='hb'?'人字拼 ':'')+sz[0]+'×'+sz[1] : '';
+  function flTitle(sp){ const m=flMat(sp.mat); return [m.short, flSizeTxt(flSize(sp)), sp.th, sp.how].filter(Boolean).join(' '); }
+  const flKey=(sp)=>[sp.mat,sp.s,sp.th,sp.how].join('|');
+  const flHasDir=(sp)=>{ const m=flMat(sp.mat), sz=flSize(sp); return !!(m && sz && (m.kind==='plank' || sz[0]!==sz[1])); };
+  // which way the long side runs: planks along their length, tiles along their long edge
+  function flDirTxt(sp){ const m=flMat(sp.mat), sz=flSize(sp); if(!sz) return '';
+    const longAlongU = sz[0]>=sz[1], horiz = longAlongU === !sp.dir;
+    return (m.kind==='plank'?'方向 ':'長邊 ')+(horiz?'↔':'↕'); }
+  const flHasStart=(sp)=>{ const m=flMat(sp.mat); return !!(m && flSize(sp) && m.kind==='tile'); };
+  function floorOn(){ return layerVisible('floor') && (state.layer==='floor' || (state.layer==='__all__' && !layerVisible('plan') && !layerVisible('ceil'))); }
+  const roomFloor=(r)=>{ const e=roomEntry(r); return e ? flNorm(e.floor) : null; };
+
+  // ---- the pattern: real plank widths, staggered joints, tile joints, 人字拼 ----
+  // P = outline in world cm, S(x,y) → [sx,sy] on g, k = px per cm
+  function flPaint(g, sp, P, S, k, lw){
+    const m=flMat(sp.mat); if(!m||P.length<3) return;
+    g.save();
+    g.beginPath(); P.forEach((p,i)=>{ const s=S(p.x,p.y); i?g.lineTo(s[0],s[1]):g.moveTo(s[0],s[1]); }); g.closePath();
+    g.fillStyle=m.col; g.fill(); g.clip();
+    const xs=P.map(p=>p.x), ys=P.map(p=>p.y);
+    const box={x0:Math.min(...xs), x1:Math.max(...xs), y0:Math.min(...ys), y1:Math.max(...ys)};
+    g.strokeStyle=m.ink; g.lineWidth=lw; g.setLineDash([]); g.globalAlpha*=0.6;
+    const seg=(a,b)=>{ const s=S(a.x,a.y), e=S(b.x,b.y); g.moveTo(s[0],s[1]); g.lineTo(e[0],e[1]); };
+    if(m.kind==='keep'){
+      const a=S(box.x0,box.y0), b=S(box.x1,box.y1), st=Math.max(6, 14*lw);
+      g.beginPath(); for(let d=-(b[1]-a[1]); d<(b[0]-a[0]); d+=st){ g.moveTo(a[0]+d,b[1]); g.lineTo(a[0]+d+(b[1]-a[1]),a[1]); } g.stroke();
+      g.restore(); return;
+    }
+    const sz=flSize(sp);
+    if(!sz){ g.restore(); return; }                  // seamless: the tint is the drawing
+    const L=sz[0]/10, Wd=sz[1]/10, hb=sz[2]==='hb';
+    if(Math.min(L,Wd)*k<2.5){ g.restore(); return; } // too small on screen to mean anything
+    const cen = sp.start==='center';
+    const ox = cen ? (box.x0+box.x1)/2 : box.x0, oy = cen ? (box.y0+box.y1)/2 : box.y0;
+    const ang = ((hb?45:0) + (sp.dir||0)) * Math.PI/180, ca=Math.cos(ang), sa=Math.sin(ang);
+    const W2=(u,v)=>({x:ox+u*ca-v*sa, y:oy+u*sa+v*ca});
+    // the box in the local (u along the plank, v across) frame
+    const C=[[box.x0,box.y0],[box.x1,box.y0],[box.x1,box.y1],[box.x0,box.y1]].map(([x,y])=>({u:(x-ox)*ca+(y-oy)*sa, v:-(x-ox)*sa+(y-oy)*ca}));
+    const u0=Math.min(...C.map(c=>c.u)), u1=Math.max(...C.map(c=>c.u)), v0=Math.min(...C.map(c=>c.v)), v1=Math.max(...C.map(c=>c.v));
+    g.beginPath();
+    if(hb){
+      // two staircases of planks, one lying, one standing, lattice (W,W) and (L,−L)
+      const iMin=Math.floor((u0+v0)/(2*Wd))-2, iMax=Math.ceil((u1+v1)/(2*Wd))+2;
+      const jMin=Math.floor((u0-v1)/(2*L))-2, jMax=Math.ceil((u1-v0)/(2*L))+2;
+      let n=0;
+      for(let i=iMin;i<=iMax && n<6000;i++) for(let j=jMin;j<=jMax && n<6000;j++){
+        const pu=i*Wd+j*L, pv=i*Wd-j*L;
+        if(pu>u1+L || pu<u0-2*L || pv>v1+L || pv<v0-2*L) continue;
+        for(const [a,b,w,h] of [[pu,pv,L,Wd],[pu,pv+Wd,Wd,L]]){
+          const A=W2(a,b), B=W2(a+w,b), Cc=W2(a+w,b+h), D=W2(a,b+h);
+          seg(A,B); seg(B,Cc); seg(Cc,D); seg(D,A); n++;
+        }
+      }
+    } else if(m.kind==='plank'){
+      // rows across, joints staggered by a third of a plank row to row (交丁)
+      const r0=Math.floor(v0/Wd), r1=Math.ceil(v1/Wd);
+      for(let r=r0;r<=r1;r++){
+        const v=r*Wd; seg(W2(u0,v),W2(u1,v));
+        const off=(((r%3)+3)%3)*L/3;
+        for(let u=Math.floor((u0-off)/L)*L+off; u<=u1; u+=L) seg(W2(u,v),W2(u,v+Wd));
+      }
+    } else {
+      for(let u=Math.floor(u0/L)*L; u<=u1; u+=L) seg(W2(u,v0),W2(u,v1));
+      for(let v=Math.floor(v0/Wd)*Wd; v<=v1; v+=Wd) seg(W2(u0,v),W2(u1,v));
+    }
+    g.stroke();
+    g.restore();
+  }
+  // a small picture of a spec, for the library and the size choices
+  const flThumbCache={};
+  function flThumb(sp, BW, BH){
+    BW=BW||88; BH=BH||48;
+    const key=flKey(sp)+'|'+sp.dir+'|'+BW+'x'+BH;
+    if(key in flThumbCache) return flThumbCache[key];
+    let url='';
+    try{
+      const R=2, c=document.createElement('canvas'); c.width=BW*R; c.height=BH*R;
+      const g=c.getContext('2d'), m=flMat(sp.mat), sz=flSize(sp);
+      const Bw = !sz ? 200 : m.kind==='tile' ? Math.max(sz[0],sz[1])/10*2.4 : sz[2]==='hb' ? sz[0]/10*2.2 : Math.max(sz[0]/10*1.25, sz[1]/10*7);
+      const k=BW*R/Bw, Bh=Bw*BH/BW;
+      const P=[{x:0,y:0},{x:Bw,y:0},{x:Bw,y:Bh},{x:0,y:Bh}];
+      flPaint(g, Object.assign({},sp,{start:'wall'}), P, (x,y)=>[x*k,y*k], k, 1.2*R);
+      g.strokeStyle=m.ink; g.lineWidth=1.5*R; g.strokeRect(R*0.75,R*0.75,BW*R-1.5*R,BH*R-1.5*R);
+      url=c.toDataURL();
+    }catch(_){ url=''; }
+    return flThumbCache[key]=url;
+  }
+
+  // ---- on the drawing ----
+  function flLabel(sp, sx, sy, lab){
+    const m=flMat(sp.mat);
+    ceilHitText(flTitle(sp), sx, sy, m.ink, 11, 700, lab.main);
+    const sub=[flHasDir(sp)?flDirTxt(sp):'', flHasStart(sp)?'起鋪'+(sp.start==='center'?'置中':'靠牆'):''].filter(Boolean).join(' · ');
+    if(sub){ if(EXPORT_MODE) ceilText(sub, sx, sy+fpx(14), CEIL_GREY, 10, 0, 600);
+             else ceilHitText(sub, sx, sy+fpx(14), CEIL_GREY, 10, 600, lab.sub); }
+  }
+  function drawFloor(){
+    if(!floorOn()) return;
+    ctx.save();
+    const S=(x,y)=>toScreen(x,y), k=view.scale, lw=Math.max(0.7, 0.7*TS);
+    for(const r of roomsCache){
+      if(r.V.length<3) continue;
+      const sp=roomFloor(r); if(sp) flPaint(ctx, sp, r.V, S, k, lw);
+    }
+    const zs=state.floor.slice().sort((a,b)=>ceilArea(b)-ceilArea(a));
+    for(const z of zs){ const sp=flNorm(z.fl); if(!sp) continue;
+      const P=ceilOutline(z).P; flPaint(ctx, sp, P, S, k, lw);
+      const sel=ui.selected && ui.selected.kind==='ceil' && ui.selected.id===z.id;
+      ctx.strokeStyle=sel?'#275C7A':flMat(sp.mat).ink; ctx.lineWidth=Math.max(1.4,1.5*TS)*(sel?1.5:1); ctx.setLineDash([]);
+      ceilPathScreen(P); ctx.stroke();
+    }
+    // the room you are working on is outlined green
+    const selRoom = !EXPORT_MODE && ui.selected && ui.selected.kind==='room' ? ui.selected.id : null;
+    for(const r of roomsCache){ if(r.V.length<3 || r.rid==null || r.rid!==selRoom) continue;
+      ctx.strokeStyle='#12B76A'; ctx.lineWidth=3; ceilPathScreen(r.V); ctx.stroke(); }
+    // labels: under the room's name, and in the middle of each zone
+    for(const r of roomsCache){
+      if(r.V.length<3) continue;
+      const sp=roomFloor(r); if(!sp) continue;
+      const [cx,cy]=roomLabelPos(r);
+      flLabel(sp, cx, cy+(showOpt.rooms?18*TS+fpx(10):0), {main:{kind:'flroom',rid:r.rid}, sub:{kind:'fldir',rid:r.rid}});
+    }
+    for(const z of zs){ const sp=flNorm(z.fl); if(!sp) continue;
+      const c=ceilCentre(z), [cx,cy]=toScreen(c.x,c.y);
+      flLabel(sp, cx, cy, {main:{kind:'flzone',zid:z.id}, sub:{kind:'fldir',zid:z.id}});
+      const sel=ui.selected && ui.selected.kind==='ceil' && ui.selected.id===z.id;
+      if(sel && !EXPORT_MODE){ drawCeilHandles(z); drawCeilGaps(z); }
+    }
+    if(state.layer==='floor') drawZoneDrafts(flMat((ui.flSpec||{}).mat||'tile').ink);
+    ctx.restore();
+  }
+  function flSpecAt(lab){
+    if(lab.zid!=null){ const z=(state.floor||[]).find(v=>v.id===lab.zid); return z ? {get:()=>flNorm(z.fl), set:(v)=>{ z.fl=v; }} : null; }
+    const e=roomById(lab.rid); return e ? {get:()=>flNorm(e.floor), set:(v)=>{ if(v) e.floor=v; else delete e.floor; }} : null;
+  }
+  function flLabelTap(lab){
+    if(lab.kind==='flroom'){ ui.selected={kind:'room',id:lab.rid}; refreshProp(); draw(); flashHint('已選這間的地板：右邊可改材料、尺寸、厚度、施工方式'); return true; }
+    if(lab.kind==='flzone'){ ui.selected={kind:'ceil',id:lab.zid}; refreshProp(); draw(); return true; }
+    if(lab.kind==='fldir'){ const h=flSpecAt(lab); if(!h) return false; const sp=h.get(); if(!sp) return false;
+      if(flHasDir(sp)) sp.dir=sp.dir?0:90; else if(flHasStart(sp)) sp.start=sp.start==='center'?'wall':'center';
+      h.set(sp); pushHistory(); refreshProp(); draw();
+      flashHint(flHasDir(sp)?(flDirTxt(sp)):('起鋪改成'+(sp.start==='center'?'從空間中心':'從牆邊'))); return true; }
+    return false;
+  }
+  // ---- 整間鋪設: one tap on a room ----
+  function floorRoomTap(wx,wy){
+    const r=roomAt(wx,wy); if(!r||r.rid==null){ flashHint('請點在一個圍起來的空間裡面'); return; }
+    const e=roomEntry(r); if(!e) return;
+    if(!ui.flSpec){ flashHint('先在下面選一種地板材料'); return; }
+    e.floor=Object.assign({}, ui.flSpec);
+    dbg(`  FLOOR ROOM ${r.rid} → ${flTitle(ui.flSpec)}`);
+    ui.selected={kind:'room',id:r.rid};
+    pushHistory(); refreshProp(); syncFloorUI(); draw();
+    flashHint('「'+(r.name||'這間')+'」鋪上 '+flTitle(ui.flSpec)+'；可以繼續點下一間');
+  }
+  // ---- quantities: real area + 1 坪 of waste, and the pieces that covers ----
+  function floorTally(vis){
+    const on = vis ? vis.floor!==false : layerVisible('floor');
+    if(!on) return [];
+    const rows=new Map();
+    const add=(sp,a)=>{ if(!(a>100)) return; const k=flKey(sp); let r=rows.get(k); if(!r){ r={sp,a:0}; rows.set(k,r); } r.a+=a; };
+    for(const r of roomsCache){
+      if(r.V.length<3) continue;
+      const sp=roomFloor(r); if(!sp) continue;
+      let a=r.area; for(const z of state.floor) if(ceilRoom(z)===r) a-=ceilArea(z);
+      add(sp,a);
+    }
+    for(const z of state.floor){ const sp=flNorm(z.fl); if(sp) add(sp,ceilArea(z)); }
+    const ord=(sp)=>FLOOR_MATS.findIndex(m=>m.id===sp.mat)*100+sp.s;
+    return [...rows.values()].sort((a,b)=>ord(a.sp)-ord(b.sp)).map(r=>{
+      const m=flMat(r.sp.mat), sz=flSize(r.sp), ping=r.a/FL_PING, keep=m.kind==='keep';
+      const buy=keep?ping:ping+1;
+      const pcs=sz ? Math.ceil(buy*FL_PING/((sz[0]/10)*(sz[1]/10)) - 1e-9) : null;
+      return {sp:r.sp, m, sz, area:r.a, ping, buy, pcs, keep};
+    });
+  }
+  function floorLegend(vis){
+    // the legend only counts the floor when the sheet draws it (see floorOn)
+    if(vis && (vis.floor===false || vis.plan!==false || vis.ceil!==false)) return [];
+    const t=floorTally(vis); if(!t.length) return [];
+    const sw=(sp)=>(g,s)=>{ const m=flMat(sp.mat), w=s*1.1, h=s*0.72;
+      const P=[{x:-w/2,y:-h/2},{x:w/2,y:-h/2},{x:w/2,y:h/2},{x:-w/2,y:h/2}], sz=flSize(sp);
+      const k = sz ? (m.kind==='tile' ? w/(Math.max(sz[0],sz[1])/10*2.2) : sz[2]==='hb' ? w/(sz[0]/10*2.2) : w/Math.max(sz[0]/10*1.2,sz[1]/10*5)) : 1;
+      flPaint(g, Object.assign({},sp,{start:'wall'}), P.map(p=>({x:p.x/k,y:p.y/k})), (x,y)=>[x*k,y*k], 99, Math.max(0.6,s*0.04));
+      g.strokeStyle=m.ink; g.lineWidth=Math.max(1,s*0.06); g.strokeRect(-w/2,-h/2,w,h); };
+    const out=t.map(r=>({name:flTitle(r.sp), sw:sw(r.sp),
+      n: r.keep ? r.ping.toFixed(2)+' 坪' : r.buy.toFixed(2)+' 坪'+(r.pcs!=null?' · '+r.pcs+' 片':'')}));
+    out.push({name:'※ 地板坪數已含損耗 +1 坪', n:'', sw:()=>{}});
+    return out;
+  }
+
+  // ---- the dock: modes, then material → size → thickness → method ----
+  const FLOOR_MODES=[['room','整間鋪設'],['line','切一邊'],['rect','矩形區域'],['poly','多邊形區域']];
+  function flStartTool(){
+    if(!ui.flSpec) return;
+    ui.ceilPick=ui.flMode||'room'; ui.cpoly=null; if(ui.ceilPick!=='line') ui.clinePending=null;
+    setTool('ceil'); ui.ceilPick=ui.flMode||'room';
+    const k=ui.ceilPick, t=flTitle(ui.flSpec);
+    flashHint(k==='room'?'點一個空間，整間鋪上 '+t:k==='line'?'從一面牆拉一條線到另一面牆，再點要鋪 '+t+' 的那一邊':k==='rect'?'拖曳畫出要鋪 '+t+' 的範圍':'一點一點點出範圍，點回第一點或按「完成」');
+  }
+  function syncFloorUI(){
+    const modes=document.getElementById('floorModes'), list=document.getElementById('floorList');
+    if(modes){
+      modes.innerHTML='';
+      for(const [k,name] of FLOOR_MODES){
+        const b=document.createElement('button'); b.textContent=name;
+        if((ui.flMode||'room')===k) b.className='on';
+        b.onclick=()=>{ ui.flMode=k; if(ui.flSpec) flStartTool(); else flashHint('先在下面選一種地板材料'); syncFloorUI(); };
+        modes.appendChild(b);
+      }
+    }
+    if(list){
+      list.innerHTML='';
+      const card=(img,title,sub,on,click,cls)=>{ const b=document.createElement('button'); b.className='furn-item'+(cls?' '+cls:'')+(on?' on':'');
+        b.innerHTML=(img?'<img class="furn-thumb" alt="" src="'+img+'">':'')+'<b>'+title+'</b>'+(sub?'<span>'+sub+'</span>':''); b.onclick=click; list.appendChild(b); return b; };
+      const sp=ui.flSpec;
+      if(!sp || ui.flStep==='mat'){
+        for(const m of FLOOR_MATS){
+          const d=flNorm({mat:m.id});
+          card(flThumb(d), m.name, m.sizes.length ? m.sizes.length+' 種尺寸' : (m.how.join('、')||'不計料'), sp&&sp.mat===m.id, ()=>{
+            ui.flSpec = (sp&&sp.mat===m.id) ? sp : d; ui.flStep='opt'; flStartTool(); syncFloorUI(); });
+        }
+        return;
+      }
+      const m=flMat(sp.mat);
+      card(flThumb(sp), '← '+m.name, '換材料', false, ()=>{ ui.flStep='mat'; syncFloorUI(); }, 'fl-back');
+      const group=(title, opts)=>{ if(!opts.length) return;
+        const gr=document.createElement('div'); gr.className='fl-grp';
+        const t=document.createElement('div'); t.className='fl-gt'; t.textContent=title; gr.appendChild(t);
+        const row=document.createElement('div'); row.className='fl-gr';
+        for(const o of opts){ const b=document.createElement('button'); b.className='fl-chip'+(o.on?' on':'');
+          b.innerHTML=(o.img?'<img class="fl-cthumb" alt="" src="'+o.img+'">':'')+'<span>'+o.label+'</span>';
+          b.onclick=()=>{ o.pick(); ui.flSpec=flNorm(ui.flSpec); if(!(ui.tool==='ceil'&&state.layer==='floor')) flStartTool(); syncFloorUI(); flashHint('現在：'+flTitle(ui.flSpec)); };
+          row.appendChild(b); }
+        gr.appendChild(row); list.appendChild(gr); };
+      group('① 尺寸 mm', m.sizes.map((sz,i)=>({label:flSizeTxt(sz), img:flThumb(Object.assign({},sp,{s:i}),64,34), on:sp.s===i, pick:()=>{ ui.flSpec.s=i; }})));
+      group('② 厚度', m.th.map(v=>({label:v, on:sp.th===v, pick:()=>{ ui.flSpec.th=v; }})));
+      group((m.th.length?'③':'②')+' 施工方式', m.how.map(v=>({label:v, on:sp.how===v, pick:()=>{ ui.flSpec.how=v; }})));
+      if(flHasDir(sp)){ const a=flDirTxt(Object.assign({},sp,{dir:0})), b2=flDirTxt(Object.assign({},sp,{dir:90}));
+        group(m.kind==='plank'?'鋪設方向':'長邊方向', [{label:a.includes('↔')?'橫向 ↔':'直向 ↕',on:!sp.dir,pick:()=>{ ui.flSpec.dir=0; }},{label:b2.includes('↔')?'橫向 ↔':'直向 ↕',on:!!sp.dir,pick:()=>{ ui.flSpec.dir=90; }}]); }
+      if(flHasStart(sp)) group('起鋪', [{label:'置中',on:sp.start==='center',pick:()=>{ ui.flSpec.start='center'; }},{label:'靠牆',on:sp.start!=='center',pick:()=>{ ui.flSpec.start='wall'; }}]);
+    }
+    const q=document.getElementById('floorQty');
+    if(q){
+      const t=floorTally(null);
+      q.innerHTML = !t.length ? '<div class="lay-note">鋪了地板之後，這裡會列出每種材料要叫的坪數和片數。</div>'
+        : t.map(r=>`<div class="flq"><div class="flq-t">${flTitle(r.sp)}</div>
+            <div class="row"><label>實際面積</label><span>${r.ping.toFixed(2)} 坪（${(r.area/10000).toFixed(2)} m²）</span></div>
+            ${r.keep?'':`<div class="row"><label>叫料坪數</label><span><b>${r.buy.toFixed(2)} 坪</b>（含損耗 +1 坪）</span></div>`}
+            ${r.pcs!=null?`<div class="row"><label>片數</label><span><b>${r.pcs} 片</b>（每片 ${r.sz[0]}×${r.sz[1]}mm）</span></div>`:''}</div>`).join('')
+          + '<div class="lay-note">每種規格各加 1 坪損耗（保留原地坪不加）；片數＝叫料坪數 ÷ 單片面積，無條件進位。</div>';
+    }
+  }
+  // the side panel form for one floor (a room's or a zone's)
+  function flFormHTML(sp, allowNone){
+    const m=sp&&flMat(sp.mat);
+    const opt=(v,l,on)=>`<option value="${v}"${on?' selected':''}>${l}</option>`;
+    let h=`<div class="row"><label>材料</label><select id="pFlMat" class="tin">${allowNone?opt('','未鋪設',!sp):''}${FLOOR_MATS.map(x=>opt(x.id,x.name,sp&&sp.mat===x.id)).join('')}</select></div>`;
+    if(!sp) return h;
+    if(m.sizes.length) h+=`<div class="row"><label>尺寸 mm</label><select id="pFlS" class="tin">${m.sizes.map((s,i)=>opt(i,flSizeTxt(s),sp.s===i)).join('')}</select></div>`;
+    if(m.th.length) h+=`<div class="row"><label>厚度</label><select id="pFlTh" class="tin">${m.th.map(v=>opt(v,v,sp.th===v)).join('')}</select></div>`;
+    if(m.how.length) h+=`<div class="row"><label>施工方式</label><select id="pFlHow" class="tin">${m.how.map(v=>opt(v,v,sp.how===v)).join('')}</select></div>`;
+    if(flHasDir(sp)){ const hz=(d)=>flDirTxt(Object.assign({},sp,{dir:d})).includes('↔')?'橫向 ↔':'直向 ↕';
+      h+=`<div class="row"><label>${m.kind==='plank'?'鋪設方向':'長邊方向'}</label><div class="seg" id="pFlDir"><button data-v="0"${!sp.dir?' class="on"':''}>${hz(0)}</button><button data-v="90"${sp.dir?' class="on"':''}>${hz(90)}</button></div></div>`; }
+    if(flHasStart(sp)) h+=`<div class="row"><label>起鋪</label><div class="seg" id="pFlStart"><button data-v="center"${sp.start==='center'?' class="on"':''}>置中</button><button data-v="wall"${sp.start!=='center'?' class="on"':''}>靠牆</button></div></div>`;
+    return h;
+  }
+  function flFormBind(get, set){
+    const done=()=>{ pushHistory(); refreshProp(); syncFloorUI(); draw(); };
+    const cur=()=>get()||null;
+    const mt=document.getElementById('pFlMat'); if(mt) mt.onchange=()=>{ set(mt.value ? flNorm(Object.assign({}, (cur()&&cur().mat===mt.value)?cur():{}, {mat:mt.value})) : null); done(); };
+    const bindSel=(id,f)=>{ const el=document.getElementById(id); if(el) el.onchange=()=>{ const sp=cur(); if(!sp) return; f(sp,el.value); set(flNorm(sp)); done(); }; };
+    bindSel('pFlS',(sp,v)=>{ sp.s=+v; }); bindSel('pFlTh',(sp,v)=>{ sp.th=v; }); bindSel('pFlHow',(sp,v)=>{ sp.how=v; });
+    document.querySelectorAll('#pFlDir button').forEach(b=>b.onclick=()=>{ const sp=cur(); if(!sp) return; sp.dir=+b.dataset.v; set(sp); done(); });
+    document.querySelectorAll('#pFlStart button').forEach(b=>b.onclick=()=>{ const sp=cur(); if(!sp) return; sp.start=b.dataset.v; set(sp); done(); });
+  }
+  function flZoneQty(z){ const sp=flNorm(z.fl), sz=sp&&flSize(sp), a=ceilArea(z);
+    return `<div class="row"><label>面積</label><span style="font-size:13px">${(a/FL_PING).toFixed(2)} 坪（${(a/10000).toFixed(2)} m²）</span></div>`
+      + (sz?`<div class="row"><label>約需片數</label><span style="font-size:13px">${Math.ceil(a/((sz[0]/10)*(sz[1]/10)))} 片（未含損耗）</span></div>`:''); }
+
+  // ================= 使用說明 =================
+  // Every tool and every layer has a card: what it does, the steps, and the usual
+  // "why did nothing happen". The 「?」 on the drawing opens the card for what is
+  // in your hand right now; a dot on it means you have not read that one yet.
+  const HELP={
+    select:{t:'選取',d:'點東西選取它，再拖動、改尺寸或刪除。',
+      s:['點一下牆、門窗、家具、符號，選取後右邊會出現它的設定','拖動選到的東西可以移動；牆的圓形握把＝拉伸端點，方形握把＝整面牆平行推移','畫面上的數字（長度、離牆距離、高度）點一下就能直接輸入','空白處點一下＝取消選取；點空間裡面＝選這個空間'],
+      q:[['為什麼牆拖不動？','結構可能鎖住了：到右邊「圖層」把「結構」旁的鎖打開。'],['怎麼刪除？','選取後按右邊面板的「刪除」。'],['紅色空心圈是什麼？','那一端沒接到別的牆，所以圍不成空間。把端點拖到另一道牆上就會接起來。']]},
+    wall:{t:'牆',d:'一個轉角一個轉角點出牆，圍起來就成為空間。',
+      s:['點起點，沿著牆順時針一個轉角一個轉角點下去','每一段都可以直接打長度（室內淨尺寸），按 ✓','點回起點＝圍成一個空間；在最後一點再點一次＝結束這條','右邊可以先選「內線／外線」：你畫的線是牆的哪一面'],
+      q:[['畫歪了？','右邊「角度鎖定」選「正交」只會畫水平垂直。'],['畫錯一段？','按上面「復原」，一次退一個轉角。'],['數字是內線還是外線？','空間的尺寸一律是室內淨尺寸（內線）。']]},
+    part:{t:'隔間',d:'畫輕隔間、磚牆、木作、玻璃這些新做的牆，或要拆除的牆。',
+      s:['先在右邊選種類：輕隔間／磚牆／木作／玻璃／拆除','畫法跟「牆」一樣：點起點、一個轉角一個轉角點下去','每種會有自己的填充圖樣，出圖時圖例自動列出長度'],
+      q:[['厚度怎麼改？','選取那道隔間，右邊可以改厚度。']]},
+    room:{t:'房間',d:'直接拖出一個矩形房間，打寬和深就完成。',
+      s:['按住拖出一個矩形','打寬度和深度（室內淨尺寸），按 ✓ 建立','建立後一樣可以點各邊的數字修改'],
+      q:[['形狀不是矩形？','用「牆」工具一個轉角一個轉角畫。']]},
+    door:{t:'門',d:'點在牆上放一扇門。',
+      s:['右邊「畫門設定」先選：門／推拉門／門洞','在牆上點一下放置','選取門之後可以改寬度、開門方向，點兩側的數字可以打離牆角的距離'],
+      q:[['點了沒有門？','一定要點在牆上；結構鎖住時也不能放。']]},
+    window:{t:'窗',d:'點在牆上放一扇窗。',
+      s:['右邊「畫窗設定」先選：窗／落地窗／外凸窗','在牆上點一下放置','選取後可改寬度、離地高度，點兩側數字打離牆角距離'],
+      q:[['落地窗的離地高度？','固定是 0。']]},
+    column:{t:'柱',d:'點一下放一根柱子，會自動貼齊牆面。',
+      s:['在要放的位置點一下','選取後右邊可改長寬、旋轉','點四邊的離牆距離數字直接輸入，打 0 就貼牆'],q:[]},
+    shaft:{t:'管道間',d:'點一下放置管道間（斜線區塊）。',
+      s:['在要放的位置點一下','選取後可改長寬與旋轉','點四邊的離牆距離數字直接輸入'],q:[]},
+    beam:{t:'樑',d:'畫出樑的位置，天花板圖會用到樑下高度。',
+      s:['沿著牆畫：會自動貼齊牆內面，整根樑落在室內','跨房間畫：兩端會停在牆內面','選取後右邊可以設樑深、寬度，或設成「包樑」'],q:[]},
+    split:{t:'拆分牆',d:'把一道牆切成兩段。',s:['在牆上點一下要切開的位置'],q:[]},
+    dim:{t:'尺寸',d:'自己加一條尺寸標註。',
+      s:['從綠色小點（圖示中心、角點）或牆面按住','拖到另一個定位點放開','點到牆面會自動量垂直距離'],
+      q:[['為什麼沒有建立？','起點和終點都要對準綠色定位點或牆面。']]},
+    ink:{t:'手寫',d:'在圖上直接手寫、畫記號。',
+      s:['用 Apple Pencil 直接寫','右邊可以換顏色、粗細','切到「橡皮擦」按住擦掉，擦一半也可以'],
+      q:[['手掌會畫到嗎？','用過筆之後，手指只負責移動和縮放畫布，不會畫到。']]},
+    photo:{t:'現場照片',d:'在圖上的位置釘一張現場照片。',
+      s:['點在要記錄的位置，相機會直接打開','拍完就是一張釘在那裡的小圖，點它可以放大看','可以拖動，也可以補文字'],q:[]},
+    note:{t:'註記',d:'拉一條引線指到某個位置，旁邊加說明。',
+      s:['點在要指的位置，會拉出引線和註記框','框裡可以手寫、打字、或加現場照片','拖框可以移動，右下角可以調大小'],q:[]},
+    text:{t:'文字',d:'在圖上放一段文字。',s:['在要放的位置點一下','輸入文字；選取後可以拖動或修改'],q:[]},
+    base:{t:'結構（底圖）',d:'牆、門窗、柱、樑都畫在這一層，所有施工圖都以它為底圖。',
+      s:['用左邊的工具畫牆、房間、門窗、柱、樑','空間圍起來後會自動算坪數，點空間名稱可以改名','結構畫好後，按「結構」旁邊的鎖，之後畫施工圖就不會誤拖到牆'],
+      q:[['鎖住後還能改嗎？','再按一次鎖就解開。']]},
+    plan:{t:'平面配置',d:'放家具。',
+      s:['在下方家具庫選分類（客廳、臥室…），再點一個家具','點畫面放下，可以連續放好幾件','換一件就在下面點別的；按左邊「選取」結束放置','選取家具後可以改尺寸、旋轉，點四邊的數字打離牆距離'],
+      q:[['找不到要的家具？','「其他」裡的自訂矩形／圓形可以自己命名，當任何東西用。']]},
+    elec:{t:'水電插座',d:'放插座、開關、弱電、設備、給排水符號。',
+      s:['在下方選分類，再點一個符號','點畫面放下，靠近牆會自動貼牆','選取後可以改離地高度、離牆距離、角度'],
+      q:[['出圖的數量哪裡看？','匯出 PDF 時，圖例會自動列出每種符號的數量。']]},
+    light:{t:'燈具配置',d:'放燈具：嵌燈、吸頂燈、吊燈、間接燈帶等。',
+      s:['在下方選分類，再點一種燈具','點畫面放下；間接燈帶用拖的','選取後可以改尺寸、離牆距離'],q:[]},
+    circuit:{t:'燈具迴路',d:'把開關和燈連成迴路。',
+      s:['先到「燈具配置」放好燈、到這層下方放好開關','右邊按「新增迴路」','先點開關，再依序點要接的燈，按畫面下方「完成」'],
+      q:[['按新增迴路沒反應？','要先有至少一顆開關和一盞燈。']]},
+    ceil:{t:'天花板施工',d:'設定每個空間的平釘高度，再畫造型、間照、窗簾盒、維修孔。',
+      s:['「整間平釘」點一個空間 → 打平釘高度','造型區域：用「矩形／多邊形／圓形」畫出，或「天花線」切出一邊','區域畫好後：拉菱形移動那一邊、拉圓點導圓角；點畫面上的 CH 數字改高度','「間接照明」點造型區域的邊加上燈槽'],
+      q:[['為什麼空間沒有天花板？','預設不做天花，要先用「整間平釘」點那個空間。'],['區域拖不動？','區域本身不能整塊移動，只能拉邊和角改形狀。']]},
+    'ceil.room':{t:'整間平釘',d:'一整間做平釘天花。',s:['點一個空間（變綠色）','打平釘完成面高度 CH，按 ✓','可以連續點下一間'],q:[]},
+    'ceil.line':{t:'天花線',d:'畫一條線把空間切開，只在一邊做天花板。',s:['從一面牆按住拉到另一面牆','放開後，點一下要做天花板的那一邊'],q:[]},
+    'ceil.cove':{t:'間接照明',d:'在造型區域的邊加上間照燈槽。',s:['先有一個造型區域（矩形、多邊形、內縮一圈都可以）','點區域邊上的「＋」加間照，再點一次取消','點區域中間＝整圈都加'],q:[['點了沒反應？','平釘的空間要先畫一個區域，間照是加在區域的邊上。']]},
+    'ceil.rect':{t:'矩形區域',d:'拖出一個矩形的天花造型。',s:['按住拖曳畫出範圍','放開後點畫面上的 CH 數字改高度','拉菱形移動一邊、拉圓點導圓角'],q:[]},
+    'ceil.poly':{t:'多邊形區域',d:'一點一點點出不規則的天花造型。',s:['一點一點點出外框，角點會吸附牆角','點回第一點，或按下方「完成」','開正交時只會畫水平垂直；關掉就能畫斜邊'],q:[]},
+    'ceil.ell':{t:'圓形區域',d:'畫圓形天花造型。',s:['從圓心按住往外拖','放開後可以拉圓點改半徑'],q:[]},
+    'ceil.offset':{t:'內縮一圈',d:'沿著空間或區域往內縮一圈，做出邊框。',s:['右邊設定內縮距離','點一個空間或造型區域'],q:[]},
+    'ceil.curtain':{t:'窗簾盒',d:'拖出窗簾盒的位置。',s:['按住沿著窗邊拖出','出圖時會統計窗簾盒長度'],q:[]},
+    'ceil.hatch':{t:'維修孔',d:'點一下放維修孔。',s:['在要放的位置點一下','選取後可以改尺寸'],q:[]},
+    'ceil.ventS':{t:'出風口',d:'點一下放出風口。',s:['在要放的位置點一下','選取後可以改長寬'],q:[]},
+    'ceil.ventR':{t:'回風口',d:'點一下放回風口。',s:['在要放的位置點一下','選取後可以改長寬'],q:[]},
+    floor:{t:'地板施工',d:'每個空間選地板材料，自動算叫料坪數和片數。',
+      s:['下方先選材料大項（超耐磨、SPC、磁磚…）','再依序選 ① 尺寸 → ② 厚度 → ③ 施工方式，木地板可選方向、磁磚可選起鋪','選鋪法：「整間鋪設」點空間；「切一邊」拉線再點一邊；「矩形／多邊形」畫局部','點畫面上的「方向」可以轉 90°；用選取點空間，右邊可以改材料'],
+      q:[['數量怎麼算？','實際面積＋1 坪損耗＝叫料坪數；片數＝叫料坪數 ÷ 單片面積，無條件進位。右邊面板和匯出的圖例都會寫出來。'],['局部換材料？','用「矩形區域」或「多邊形區域」畫在空間裡，那一塊會蓋過整間的材料。']]},
+  };
+  function helpKey(){
+    const t=ui.tool;
+    if(t==='ceil') return state.layer==='floor' ? 'floor' : (HELP['ceil.'+ui.ceilPick] ? 'ceil.'+ui.ceilPick : 'ceil');
+    if(t==='furn') return 'plan';
+    if(t==='mep') return state.layer==='light' ? 'light' : 'elec';
+    if(t==='circuit') return 'circuit';
+    if(t && t!=='select' && HELP[t]) return t;
+    if(t==='select' && state.layer==='base') return 'select';
+    return HELP[state.layer] ? state.layer : 'select';
+  }
+  const helpStore={ get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(_){ return d; } },
+                    set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){ } } };
+  let helpSeen=helpStore.get('planpad.helpSeen.v1',{});
+  const esc=(x)=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  function syncHelpBtn(){
+    const b=document.getElementById('helpBtn'); if(!b) return;
+    const k=helpKey(); b.classList.toggle('new', !helpSeen[k]);
+    b.title='使用說明：'+((HELP[k]||{}).t||'');
+  }
+  function openHelp(k){
+    k=k||helpKey(); const h=HELP[k]; if(!h) return;
+    helpSeen[k]=1; helpStore.set('planpad.helpSeen.v1',helpSeen);
+    const box=document.getElementById('helpCard');
+    box.innerHTML=`<div class="hc-head"><div><div class="hc-k">使用說明</div><div class="hc-t">${esc(h.t)}</div></div><button class="hc-x" id="hcX" aria-label="關閉">✕</button></div>
+      <div class="hc-body"><p class="hc-d">${esc(h.d)}</p>
+      <div class="hc-h">怎麼用</div><ol>${h.s.map(x=>'<li>'+esc(x)+'</li>').join('')}</ol>
+      <div class="hc-h">手勢</div><ul><li>Apple Pencil：畫圖、點選</li><li>一根手指：移動畫布；兩根手指：縮放</li><li>按上面「全圖」：整張圖回到畫面中間</li></ul>
+      ${h.q&&h.q.length?'<div class="hc-h">常見問題</div>'+h.q.map(([a,b])=>'<div class="hc-q"><b>'+esc(a)+'</b><span>'+esc(b)+'</span></div>').join(''):''}
+      <button class="chip hc-tour" id="hcTour">看整體教學</button></div>`;
+    box.classList.add('open');
+    document.getElementById('hcX').onclick=()=>{ box.classList.remove('open'); };
+    document.getElementById('hcTour').onclick=()=>{ box.classList.remove('open'); openTour(); };
+    syncHelpBtn();
+  }
+  // ---- 整體教學: the first time the app opens, skippable ----
+  const TOUR=[
+    ['歡迎使用 PlanPad','這是給平板用的平面圖與施工圖工具。先畫「結構」（牆、門窗、柱、樑），再切換圖層，一層一層畫出平面配置、水電、燈具、天花板、地板施工圖。'],
+    ['畫面怎麼看','左邊工具列：畫結構的工具。\n右邊面板：圖層、目前選到的東西的設定。\n畫布下方：這個圖層可以放的東西（家具、插座、燈具、天花板、地板），點了就能放。\n上方：復原／重做、縮放、全圖、檔案。'],
+    ['Apple Pencil 和手指','Pencil 用來畫和點選。\n一根手指拖動畫布，兩根手指縮放。\n用過 Pencil 之後，手指就不會畫到東西，手掌可以放心靠在螢幕上。\n圖跑出畫面時，按上面「全圖」。'],
+    ['數字都可以直接點來改','畫面上的數字——牆長、離牆距離、天花板高度——點一下就能輸入，按 ✓ 完成。\n空間的尺寸一律是室內淨尺寸（內線）。'],
+    ['圖層＝一張一張施工圖','右邊「圖層」：在哪一層就畫在哪一層，其他層會變淡、不會被選到。\n「結構」是所有施工圖的底圖；畫好後按旁邊的鎖，就不會誤拖到牆。'],
+    ['存檔與出圖','畫的東西會自動存在這台平板。\n「檔案」可以儲存、開啟不同專案，也能匯出 PDF（含圖框和數量圖例）、PNG、DXF。\n不會用的時候，按畫面右上角的「?」看這個功能的說明。'],
+  ];
+  let tourI=0;
+  function openTour(){ tourI=0; renderTour(); document.getElementById('tourModal').classList.add('open'); }
+  function closeTour(){ document.getElementById('tourModal').classList.remove('open'); helpStore.set('planpad.tour.v1',1); }
+  function renderTour(){
+    const [t,body]=TOUR[tourI], last=tourI===TOUR.length-1;
+    document.getElementById('tourBody').innerHTML=`<div class="tour-step">${tourI+1} / ${TOUR.length}</div><div class="tour-t">${esc(t)}</div>`
+      + body.split('\n').map(x=>'<p>'+esc(x)+'</p>').join('')
+      + `<div class="tour-dots">${TOUR.map((_,i)=>'<i'+(i===tourI?' class="on"':'')+'></i>').join('')}</div>`;
+    document.getElementById('tourPrev').style.visibility=tourI?'visible':'hidden';
+    document.getElementById('tourNext').textContent=last?'開始畫圖':'下一步';
+    document.getElementById('tourSkip').style.visibility=last?'hidden':'visible';
+  }
+  (function wireHelp(){
+    const b=document.getElementById('helpBtn');
+    if(b){ for(const ev of ['pointerdown','pointerup','touchstart']) b.addEventListener(ev,e=>e.stopPropagation());
+      b.onclick=(e)=>{ e.stopPropagation(); const c=document.getElementById('helpCard'); if(c.classList.contains('open')) c.classList.remove('open'); else openHelp(); }; }
+    const c=document.getElementById('helpCard');
+    if(c) for(const ev of ['pointerdown','pointerup','pointermove','touchstart','wheel']) c.addEventListener(ev,e=>e.stopPropagation());
+    document.getElementById('tourPrev').onclick=()=>{ if(tourI>0){ tourI--; renderTour(); } };
+    document.getElementById('tourNext').onclick=()=>{ if(tourI<TOUR.length-1){ tourI++; renderTour(); } else closeTour(); };
+    document.getElementById('tourSkip').onclick=closeTour;
+    if(!helpStore.get('planpad.tour.v1',0)) setTimeout(openTour,400);
+    syncHelpBtn();
+  })();
+
   // ---- panel ----
   const CEIL_TOOLS=[['room','整間平釘','點一下空間'],['line','天花線','畫線切出一邊'],['cove','間接照明','點區域的邊'],['rect','矩形區域','拖曳畫出'],['poly','多邊形區域','逐點點出'],['ell','圓形區域','從圓心拖出'],
     ['offset','內縮一圈','點空間或區域'],['curtain','窗簾盒','拖曳畫出'],['hatch','維修孔','點一下放置'],
@@ -11403,7 +12032,7 @@
     // reading a number wrong by a factor of ten
     return {walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,
             columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,
-            furniture:state.furniture, mep:state.mep, circuits:state.circuits, ceil:state.ceil, ceilLabel:state.ceilLabel, layer:state.layer, layerVis:state.layerVis, baseLock:state.baseLock,
+            furniture:state.furniture, mep:state.mep, circuits:state.circuits, ceil:state.ceil, floor:state.floor, ceilLabel:state.ceilLabel, layer:state.layer, layerVis:state.layerVis, baseLock:state.baseLock,
             meta:state.meta,
             rooms:state.rooms, roomNames:state.roomNames, ceilingH:state.ceilingH,_seq:state._seq, unit:ui.unit};
   }
@@ -11524,7 +12153,7 @@
   }
   function blankPlan(){
     state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
-    state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[]; state.circuits=[]; state.ceil=[]; state.ceilLabel='ch';
+    state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[]; state.circuits=[]; state.ceil=[]; state.floor=[]; state.ceilLabel='ch';
     state.layer='plan'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.underlay=null; underlayImg=null;
     // the studio name survives a new project; the client and sheet number do not
     state.meta={firm:(state.meta&&state.meta.firm)||'', designer:(state.meta&&state.meta.designer)||''};
