@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b108</title>
+<title>PlanPad · 平面圖工具 b110</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -77,6 +77,8 @@
   .dock-group{display:none;}
   .dock-group.on{display:block;}
   .dock-head{display:flex; align-items:center; gap:10px; margin-bottom:8px; min-width:0;}
+  .dock-act{flex:0 0 auto; border:0; background:#275C7A; color:#fff; font-size:14px; font-weight:700; padding:8px 16px; border-radius:10px; font-family:inherit; touch-action:manipulation;}
+  .dock-act:active{filter:brightness(.9);}
   .dock-title{flex:0 0 auto; font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.04em;}
   #libDock .furn-cats{flex-wrap:nowrap; overflow-x:auto; margin:0; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
   #libDock .furn-cats button{flex:0 0 auto; padding:7px 14px; font-size:13px;}
@@ -329,7 +331,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b108</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b110</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -578,7 +580,7 @@
         <div class="furn-list" id="swList"></div>
         <div class="ptitle" style="margin-top:16px">迴路</div>
         <button class="btn primary" id="circNew">＋ 建立迴路</button>
-        <div class="lay-note">先點開關，再依序點要接的燈，最後按「完成」。雙控就把兩顆開關都點進來。</div>
+        <div class="lay-note">先點開關，再依序點要接的燈，最後按「完成」。兩個地方都要能開關的燈，兩處都用「雙切開關」，兩顆都點進來。</div>
         <div class="furn-list" id="circList" style="margin-top:8px"></div>
       </div>
       <div class="psec" data-layer="light">
@@ -6476,6 +6478,13 @@
         if(el.classList.contains('furn-cats')) head.appendChild(el); else g.appendChild(el);
         if(sec && ![...sec.children].some(c=>!c.classList.contains('ptitle'))) sec.remove();
       }
+      // 燈具迴路: the 建立迴路 button sits right in the dock too, beside the switches,
+      // so it is found where the eye already is (the side panel keeps its own)
+      if(lay==='circuit'){
+        const nb=document.createElement('button'); nb.className='dock-act'; nb.id='circNewDock'; nb.textContent='＋ 建立迴路';
+        nb.onclick=()=>{ const pb=document.getElementById('circNew'); if(pb) pb.click(); };
+        head.appendChild(nb);
+      }
       dock.appendChild(g);
     }
   }
@@ -7306,7 +7315,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b108';
+  const BUILD='b110';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -8862,14 +8871,14 @@
    ['插座','outlet220D','220V 專用迴路'],
    ['插座','outletUSB','USB 插座'],
    ['插座','outletFloor','地板插座 FL'],
-   ['開關','sw1','單切開關'],
-   ['開關','sw2','雙切開關'],
-   ['開關','sw3','三切開關'],
-   ['開關','sw4','四切開關'],
-   ['開關','swW1','雙控單切'],
-   ['開關','swW2','雙控雙切'],
-   ['開關','swW3','雙控三切'],
-   ['開關','swW4','雙控四切'],
+   ['開關','sw1','一個開關'],
+   ['開關','sw2','兩個開關'],
+   ['開關','sw3','三個開關'],
+   ['開關','sw4','四個開關'],
+   ['開關','swW1','一個雙切開關'],
+   ['開關','swW2','兩個雙切開關'],
+   ['開關','swW3','三個雙切開關'],
+   ['開關','swW4','四個雙切開關'],
    ['開關','swDim','調光開關'],
    ['開關','swSns','感應開關'],
    ['開關','swT','定時 / 延遲開關'],
@@ -10802,8 +10811,8 @@
     light:{t:'燈具配置',d:'放燈具：嵌燈、吸頂燈、吊燈、間接燈帶等。',
       s:['在下方選分類，再點一種燈具','點畫面放下；間接燈帶用拖的','選取後可以改尺寸、離牆距離'],q:[]},
     circuit:{t:'燈具迴路',d:'把開關和燈連成迴路。',
-      s:['先到「燈具配置」放好燈、到這層下方放好開關','右邊按「新增迴路」','先點開關，再依序點要接的燈，按畫面下方「完成」'],
-      q:[['按新增迴路沒反應？','要先有至少一顆開關和一盞燈。']]},
+      s:['先到「燈具配置」放好燈、到這層下方放好開關','按下方或右邊的「＋ 建立迴路」','先點開關，再依序點要接的燈，按畫面下方「完成」','開關上沒用到的按鍵會顯示灰色小點'],
+      q:[['按建立迴路沒反應？','要先有至少一顆開關和一盞燈。'],['兩個開關不能接同一組燈？','一般開關只能在一個地方控制。要兩個地方都能開關（樓梯上下、走道兩頭、門口和床頭），兩處都要用「雙切開關」，而且要成對。'],['為什麼不能再接？','開關有幾個按鍵就只能接幾條迴路，例如「兩個開關」最多接 2 條。']]},
     ceil:{t:'天花板施工',d:'設定每個空間的平釘高度，再畫造型、間照、窗簾盒、維修孔。',
       s:['「整間平釘」點一個空間 → 打平釘高度','造型區域：用「矩形／多邊形／圓形」畫出，或「天花線」切出一邊','區域畫好後：拉菱形移動那一邊、拉圓點導圓角；點畫面上的 CH 數字改高度','「間接照明」點造型區域的邊加上燈槽'],
       q:[['為什麼空間沒有天花板？','預設不做天花，要先用「整間平釘」點那個空間。'],['區域拖不動？','區域本身不能整塊移動，只能拉邊和角改形狀。']]},
@@ -11045,6 +11054,9 @@
   const isCircItem=(m)=>isLight(m)||isSwitch(m);
   const SW_GANG={sw1:1,sw2:2,sw3:3,sw4:4,swW1:1,swW2:2,swW3:3,swW4:4,swDim:1,swSns:1,swT:1,swM:8,swK:1};
   const swGang=(m)=>SW_GANG[m.kind]||1;
+  // 雙切開關 (three-way): the same lights switched from two places. Only these can
+  // share a circuit with another switch, and they only work as a pair.
+  const isTwoWay=(m)=>!!m && /^swW/.test(m.kind);
   const CIRC_PAL=['#E8590C','#1C7ED6','#2F9E44','#9C36B5','#D6336C','#0C8599','#A17A00','#5F3DC4'];
   const CIRC_IDLE='#9AA1A8';
   function circMode(){ return layerVisible('circuit') && (state.layer==='circuit'||state.layer==='__all__'); }
@@ -11104,7 +11116,14 @@
       if(i>=0) d.sw.splice(i,1);
       else {
         const usedBy=circuitsOfSwitch(m).filter(c=>c.id!==d.editId).length;
-        if(usedBy>=swGang(m)){ flashHint('這顆「'+mepName(m.kind)+'」已經接滿 '+swGang(m)+' 個迴路'); return; }
+        if(usedBy>=swGang(m)){ flashHint('這顆「'+mepName(m.kind)+'」只有 '+swGang(m)+' 個按鍵，已經都接了迴路'); return; }
+        // two places switching the same lights is only possible with 雙切開關 at both
+        if(d.sw.length){
+          const others=d.sw.map(mepById).filter(Boolean);
+          if(!isTwoWay(m) || others.some(o=>!isTwoWay(o))){
+            flashHint('一般開關只能在一個地方控制這組燈。要兩個地方都能開關，兩顆都要換成「雙切開關」'); dbg(`  CIRC refused: ${m.kind} with ${others.map(o=>o.kind).join(',')}`); return; }
+          if(others.length>=2){ flashHint('雙切開關是兩處配對：一組燈最多接兩顆。三個地方以上控制要加中途開關'); return; }
+        }
         d.sw.push(m.id);
       }
     } else {
@@ -11118,6 +11137,8 @@
     if(!d.sw.length && !d.lights.length){ flashHint('還沒選開關和燈具'); return; }
     if(!d.sw.length){ flashHint('還缺開關：有開關和燈具才能形成迴路'); return; }
     if(!d.lights.length){ flashHint('還缺燈具：有開關和燈具才能形成迴路'); return; }
+    { const S=d.sw.map(mepById).filter(Boolean);
+      if(S.some(isTwoWay) && S.length<2){ flashHint('雙切開關要兩處配對：再點另一個地方的雙切開關，才能完成這個迴路'); return; } }
     let c = d.editId!=null ? state.circuits.find(v=>v.id===d.editId) : null;
     // a light can only be on one circuit, so it leaves whichever one it was on
     for(const o of state.circuits){ if(o!==c) o.lights=o.lights.filter(id=>!d.lights.includes(id)); }
@@ -11261,8 +11282,11 @@
       if(!isSwitch(m)) continue;
       const cs=circuitsOfSwitch(m); if(!cs.length) continue;
       const [sx,sy]=toScreen(m.x,m.y), p=devPx(m);
-      const step=fpx(9); let x=sx-(cs.length-1)*step/2;
+      // a key with no circuit on it yet shows as a grey dot, so a spare key is visible
+      const g=swGang(m), spare=(g<=4 && active && !EXPORT_MODE) ? Math.max(0,g-cs.length) : 0;
+      const step=fpx(9); let x=sx-(cs.length+spare-1)*step/2;
       for(const c of cs){ put(c.name, x, sy+p*0.62, c.color); x+=step; }
+      for(let i=0;i<spare;i++){ put('•', x, sy+p*0.62, '#9AA1A8'); x+=step; }
     }
     // while a circuit is being built, show what has been picked so far
     const d=ui.cdraft;
