@@ -3165,7 +3165,12 @@
     // could not be moved or deleted at all — they could, you just could not grab one.
     for(let i=state.dims.length-1;i>=0;i--){ const d=state.dims[i]; if(!itemLive(d)) continue; const off=dimOffsetPoints(d); const pr=projPointToSeg(wx,wy,off.ax,off.ay,off.bx,off.by); if(pr.d<thr*1.8) return {kind:'dim',id:d.id}; }
     // walls
-    for(let i=state.walls.length-1;i>=0;i--){ const w=state.walls[i]; const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2); if(pr.d<Math.max(w.t/2,thr)) return {kind:'wall',id:w.id}; }
+    // a pen landing on the edge of a wall, or just beside it, still means that wall:
+    // nearest wall within its half thickness plus a finger's margin
+    { let best=null, bd=Infinity;
+      for(let i=state.walls.length-1;i>=0;i--){ const w=state.walls[i]; const pr=projPointToSeg(wx,wy,w.x1,w.y1,w.x2,w.y2);
+        const lim=w.t/2+Math.max(thr,14/view.scale); if(pr.d<lim && pr.d-w.t/2<bd){ bd=pr.d-w.t/2; best=w; } }
+      if(best) return {kind:'wall',id:best.id}; }
     return null;
   }
   // Generous on purpose: a dimension is a hairline plus a small number, and it is
@@ -5615,6 +5620,10 @@
   }
   function doDrag(wx,wy){
     const {hit,start,orig}=dragging; const dx=wx-start[0], dy=wy-start[1];
+    // A Pencil tap wobbles a few pixels. That used to count as a drag: the wall
+    // snapped to the grid (moved 4 cm on a tap) and the action buttons blinked
+    // off and on. Nothing moves until the pen has really travelled.
+    if(!dragging.live){ if(Math.hypot(dx,dy)*view.scale<8) return; dragging.live=true; }
     if(Math.hypot(dx,dy)>2/view.scale) dragging.moved=true;
     if(/^ceil/.test(hit.kind)){ ceilDrag(hit,orig,dx,dy,wx,wy); refreshProp(); draw(); return; }
     // NOTE: grid-snap the MOVEMENT, not each endpoint separately. Rounding both
@@ -5853,15 +5862,18 @@
     else if(s.kind==='opening'){ const o=state.openings.find(v=>v.id===s.id);
       const w=state.walls.find(v=>v.id===o.wallId); const L=w?wallLen(w):0;
       const _g=openingGaps(o)||{left:0,right:0};
-      const leftGap=_g.left, rightGap=_g.right;
+      // name the two sides as they look on screen (左／右, 上／下), whichever way the wall was drawn
+      const _ux=w&&L?(w.x2-w.x1)/L:1, _uy=w&&L?(w.y2-w.y1)/L:0, _hz=Math.abs(_ux)>=Math.abs(_uy), _rev=_hz?_ux<0:_uy<0;
+      const leftGap=_rev?_g.right:_g.left, rightGap=_rev?_g.left:_g.right;
+      const _n1=_hz?'距左邊':'距上方', _n2=_hz?'距右邊':'距下方';
       const K=openKind(o), subs=(o.type==='door'?DOOR_SUBS:WIN_SUBS);
       const cur=o.sub||(o.type==='door'?'swing':'fixed');
       const subSeg=subs.map(k=>`<button data-k="${k}"${k===cur?' class="on"':''}>${OPEN_KINDS[k].label}</button>`).join('');
       propBody.innerHTML=`
       <div class="row"><label>類型</label><div class="seg" id="pOsub">${subSeg}</div></div>
       <div class="row"><label>寬度</label><div class="field"><input type="number" id="pOw" value="${Math.round(toDisp(o.width))}" step="1"><span class="unit">${U}</span></div></div>
-      <div class="row"><label>距左牆</label><div class="field"><input type="number" id="pOl" value="${Math.round(toDisp(leftGap))}" step="1"><span class="unit">${U}</span></div></div>
-      <div class="row"><label>距右牆</label><div class="field"><input type="number" id="pOr" value="${Math.round(toDisp(rightGap))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>${_n1}</label><div class="field"><input type="number" id="pOl" value="${Math.round(toDisp(leftGap))}" step="1"><span class="unit">${U}</span></div></div>
+      <div class="row"><label>${_n2}</label><div class="field"><input type="number" id="pOr" value="${Math.round(toDisp(rightGap))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>高度</label><div class="field"><input type="number" id="pOh" value="${Math.round(toDisp(o.height||0))}" step="1"><span class="unit">${U}</span></div></div>
       ${K.sillFixed
         ? `<div class="row"><label>離地高度</label><span style="font-size:12px;color:var(--muted)">0（${K.label}落地）</span></div>`
@@ -5874,8 +5886,8 @@
       <button class="del-btn" id="pDel">刪除${K.label}</button>`;
       document.querySelectorAll('#pOsub button').forEach(b=>b.onclick=()=>{
         setOpeningSub(o,b.dataset.k); pushHistory(); refreshProp(); draw(); });
-      const reposFromLeft=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,'left',gapCm); pushHistory(); refreshProp(); draw(); };
-      const reposFromRight=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,'right',gapCm); pushHistory(); refreshProp(); draw(); };
+      const reposFromLeft=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,_rev?'right':'left',gapCm); pushHistory(); refreshProp(); draw(); };
+      const reposFromRight=(gapCm)=>{ if(!w||L<1)return; setOpeningGap(o,_rev?'left':'right',gapCm); pushHistory(); refreshProp(); draw(); };
       document.getElementById('pOw').onchange=ev=>{ const nw=Math.max(10,fromDisp(parseFloat(ev.target.value)||10)); const fit=openingFit(w, o.pos*wallLen(w), nw, o.id);
         if(!fit){ flashHint('這個位置放不下 '+fmtLenU(nw)+' 寬：兩側會壓到柱子或牆'); refreshProp(); return; }
         o.width=nw; o.pos=fit.pos; pushHistory(); refreshProp(); draw(); };
@@ -6135,37 +6147,43 @@
     else if(['column','mep','beam','dim','note','ceil'].includes(s.kind)) A.push(['刪除',deleteSelected,'del']);
     return A;
   }
-  function selBarAnchor(s){
-    const [W0,H0]=[stage.clientWidth, stage.clientHeight];
-    if(s.kind==='wall'){ const w=state.walls.find(v=>v.id===s.id); if(!w) return null;
-      const L=wallLen(w)||1, ux=(w.x2-w.x1)/L, uy=(w.y2-w.y1)/L, nx=-uy, ny=ux;
-      // three quarters along (the length label sits in the middle), just off the wall
-      const px=w.x1+ux*L*0.75, py=w.y1+uy*L*0.75, off=w.t/2+34/view.scale;
-      const A=toScreen(px+nx*off,py+ny*off), B=toScreen(px-nx*off,py-ny*off);
-      const inside=(p)=>p[0]>60&&p[0]<W0-60&&p[1]>50&&p[1]<H0-30;
-      return (A[1]<B[1] && inside(A)) || !inside(B) ? A : B; }
-    let c=objCenter(s.kind,s.id); if(!c) return null;
-    if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(t){ const bx=textBox(t); c={x:(bx.x0+bx.x1)/2, y:t.y}; } }
-    const p=toScreen(c.x,c.y); let up=44;
-    if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(f) up=Math.max(f.w,f.h)/2*view.scale+30; }
-    if(s.kind==='column'){ const cc=state.columns.find(v=>v.id===s.id); if(cc) up=Math.max(cc.w,cc.h)/2*view.scale+34; }
-    if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(t) up=textH(t)*view.scale+24; }
-    return [p[0], p[1]-up];
+  // the selected thing's footprint on screen — the bar goes outside it, never over it
+  function selBarBox(s){
+    const pts=[], add=(x,y)=>pts.push(toScreen(x,y));
+    if(s.kind==='wall'){ const w=state.walls.find(v=>v.id===s.id); if(!w) return null; const c=wallCorners(w); for(const k of ['L1','L2','R1','R2']) add(c[k].x,c[k].y); }
+    else if(s.kind==='opening'){ const o=state.openings.find(v=>v.id===s.id); const w=o&&state.walls.find(v=>v.id===o.wallId); if(!w) return null;
+      const [cx,cy]=wallPointAt(w,o.pos), r=o.width/2+(o.type==='door'?o.width*0.6:0)+w.t/2+(o.proj||0); add(cx-r,cy-r); add(cx+r,cy+r); }
+    else if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(!f) return null; for(const q of furnCorners(f)) add(q.x,q.y); }
+    else if(s.kind==='column'){ const c=state.columns.find(v=>v.id===s.id); if(!c) return null; const r=Math.max(c.w,c.h)/2*1.42; add(c.x-r,c.y-r); add(c.x+r,c.y+r); }
+    else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(!t) return null; const b=textBox(t); add(b.x0,b.y0); add(b.x1,b.y1); }
+    else if(s.kind==='mep'){ const m=state.mep.find(v=>v.id===s.id); if(!m) return null; const b=mepBox(m); add(b.x0,b.y0); add(b.x1,b.y1); }
+    else if(s.kind==='beam'){ const b=state.beams.find(v=>v.id===s.id); if(!b) return null; for(const q of beamCorners(b)) add(q.x,q.y); }
+    else if(s.kind==='ceil'){ const z=ceilById(s.id); if(!z) return null; const b=ceilBBox(z); add(b.x0,b.y0); add(b.x1,b.y1); }
+    else { const c=objCenter(s.kind,s.id); if(!c) return null; add(c.x,c.y); }
+    const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+    return {x0:Math.min(...xs), x1:Math.max(...xs), y0:Math.min(...ys), y1:Math.max(...ys)};
   }
   function syncSelBar(){
     const bar=document.getElementById('selBar'); if(!bar) return;
     const s=ui.selected;
     const show = s && ui.tool==='select' && !(dragging&&dragging.moved) && !EXPORT_MODE && !(state.baseLock && ['wall','opening','column','beam'].includes(s.kind));
     const acts = show ? selBarActions(s) : [];
-    const anc = acts.length ? selBarAnchor(s) : null;
-    if(!acts.length || !anc){ bar.classList.remove('on'); selBarKey=''; return; }
+    const bx = acts.length ? selBarBox(s) : null;
+    if(!acts.length || !bx){ bar.classList.remove('on'); selBarKey=''; return; }
     const key=s.kind+':'+s.id+':'+acts.map(a=>a[0]).join(',');
     if(key!==selBarKey){ selBarKey=key; bar.innerHTML='';
       for(const [label,fn,cls] of acts){ const b=document.createElement('button'); b.textContent=label; if(cls) b.className=cls;
         b.onclick=(e)=>{ e.stopPropagation(); fn(); syncSelBar(); }; bar.appendChild(b); } }
     bar.classList.add('on');
-    const bw=bar.offsetWidth, bh=bar.offsetHeight, W0=stage.clientWidth, H0=stage.clientHeight;
-    const x=Math.max(8, Math.min(W0-bw-8, anc[0]-bw/2)), y=Math.max(8, Math.min(H0-bh-8, anc[1]-bh/2));
+    const bw=bar.offsetWidth, bh=bar.offsetHeight, W0=stage.clientWidth, H0=stage.clientHeight, gap=18;
+    // above it if there is room, else below, else beside; a long wall gets the bar
+    // near its end rather than over its length number in the middle
+    let cx=(bx.x0+bx.x1)/2;
+    if(s.kind==='wall' && (bx.x1-bx.x0)>(bx.y1-bx.y0)) cx=bx.x0+(bx.x1-bx.x0)*0.78;
+    let x=cx-bw/2, y=bx.y0-gap-bh;
+    if(s.kind==='wall' && (bx.y1-bx.y0)>(bx.x1-bx.x0)){ x=bx.x1+gap; y=bx.y0+(bx.y1-bx.y0)*0.78-bh/2; if(x+bw>W0-8) x=bx.x0-gap-bw; }
+    else if(y<8){ y=bx.y1+gap; if(y+bh>H0-8){ y=(bx.y0+bx.y1)/2-bh/2; x=bx.x1+gap; if(x+bw>W0-8) x=bx.x0-gap-bw; } }
+    x=Math.max(8, Math.min(W0-bw-8, x)); y=Math.max(8, Math.min(H0-bh-8, y));
     bar.style.left=x+'px'; bar.style.top=y+'px';
   }
   (function wireSelBar(){ const bar=document.getElementById('selBar'); if(bar) for(const ev of ['pointerdown','pointerup','touchstart','mousedown']) bar.addEventListener(ev,e=>e.stopPropagation()); })();
