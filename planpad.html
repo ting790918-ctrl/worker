@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b111</title>
+<title>PlanPad · 平面圖工具 b112</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -331,7 +331,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b111</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b112</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -669,7 +669,7 @@
     </div>
     <input type="file" id="frameInput" accept="image/*,.svg" style="display:none">
 <input type="file" id="photoInput" accept="image/*" style="display:none">
-    <div class="mrow pdfonly"><span>比例</span><div class="seg" id="mScale"><button data-v="fit" class="on">適應</button><button data-v="50">1:50</button><button data-v="100">1:100</button><button data-v="150">1:150</button><button data-v="200">1:200</button></div></div>
+    <div class="mrow pdfonly"><span>比例</span><div class="seg" id="mScale"><button data-v="fit" class="on">適應</button><button data-v="30">1:30</button><button data-v="50">1:50</button><button data-v="60">1:60</button><button data-v="100">1:100</button><button data-v="150">1:150</button></div></div>
     <div class="mrow"><span>尺寸標註</span><div class="seg" id="mDims"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow"><span>空間名稱 / 坪數</span><div class="seg" id="mRooms"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
     <div class="mrow" style="align-items:flex-start"><span>圖層</span>
@@ -686,9 +686,15 @@
     <div class="mrow dxfonly" style="display:none"><span style="font-size:11px;color:var(--muted);line-height:1.5">DXF 為 CAD 通用交換格式，AutoCAD／BricsCAD／SketchUp 皆可直接開啟，開啟後另存即為 .dwg。牆、柱、樑、門窗、標註各自分層。</span></div>
     <div class="mrow" style="align-items:flex-start" id="mPreviewRow"><span>預覽</span>
       <div style="flex:1 1 auto;min-width:0">
-        <div id="mPreviewWrap" style="border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden;min-height:70px;max-height:34vh;display:flex;align-items:center;justify-content:center">
-          <img id="mPreviewImg" alt="匯出預覽" style="max-width:100%;max-height:34vh;object-fit:contain;display:block">
+        <div id="mPreviewWrap" style="border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden;min-height:70px;max-height:46vh;display:flex;align-items:center;justify-content:center">
+          <img id="mPreviewImg" alt="匯出預覽" style="max-width:100%;max-height:46vh;object-fit:contain;display:block">
           <span id="mPreviewMsg" style="font-size:11px;color:var(--muted);padding:14px">產生中…</span>
+        </div>
+        <div id="mViewCtl" style="display:none;margin-top:8px;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="tbtn" id="mZoomOut" style="min-width:44px">－</button>
+          <button class="tbtn" id="mZoomIn" style="min-width:44px">＋</button>
+          <button class="tbtn" id="mViewReset">自動置中</button>
+          <span id="mViewInfo" style="font-size:11px;color:var(--muted)"></span>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:6px" id="mPreviewNote">這就是實際輸出，含標註避讓結果</div>
       </div></div>
@@ -3608,11 +3614,13 @@
     if(!showOpt.notes) return;
     for(const t of state.texts){
       const TL=t.layer||'plan';
-      if(!layerVisible(TL)) continue;
+      if(!EXPORT_MODE && !layerVisible(TL)) continue;
       ctx.globalAlpha=layerAlpha(TL);
       const [sx,sy]=toScreen(t.x,t.y);
       ctx.fillStyle='#24282E';
-      ctx.font=`500 ${fpx(t.size*view.scale*3)}px -apple-system,system-ui,sans-serif`;
+      // world-sized text (its height is real cm on the floor): it scales with the
+      // drawing only — not again with the sheet's label size, which made it huge on paper
+      ctx.font=`500 ${Math.max(1,t.size*view.scale*3)}px -apple-system,system-ui,sans-serif`;
       ctx.textAlign='left'; ctx.textBaseline='alphabetic';
       ctx.fillText(t.text,sx,sy);
     }
@@ -5960,6 +5968,10 @@
       ${lsp.linear?`<div class="row"><label>長度</label>${num('pMlen',Math.round(toDisp(devLen(m))),1)}</div>
         <div class="row"><label style="font-size:11px;color:var(--muted)">也可以拖兩端的圓點調長度</label></div>`:''}
       ${lsp.sz?`<div class="row"><label>尺寸</label>${num('pMsz',Math.round(toDisp(devSz(m))),1)}</div>`:''}
+      ${lsp.dsz?`<div class="row"><label>直徑 Ø</label>${num('pMdsz',Math.round(toDisp(devDsz(m))),5)}</div>`:''}
+      ${lsp.wsz?`<div class="row"><label>寬度</label>${num('pMwsz',Math.round(toDisp(devWsz(m))),5)}</div>`:''}
+      ${lsp.linear&&!lsp.strip?`<div class="row"><label>寬度</label>${num('pMthick',Math.round(toDisp(devThick(m))),1)}</div>`:''}
+      ${lsp.heads?`<div class="row"><label>燈頭數量</label><div class="field"><input type="number" id="pMheads" value="${devHeads(m)}" step="1" min="1" max="12"><span class="unit">顆</span></div></div>`:''}
       ${wallDev?`<div class="row"><label>離地高</label>${num('pMh',Math.round(toDisp(m.h||0)),5)}</div>`:''}
       ${(()=>{const D={up:'上',down:'下',left:'左',right:'右'};
         const gs=mepGaps(m);
@@ -5981,6 +5993,10 @@
       on('pMdia',ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(v>0){ m.dia=v; pushHistory(); draw(); } else refreshProp(); });
       on('pMlen',ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(v>=5){ m.len=v; pushHistory(); refreshProp(); draw(); } else refreshProp(); });
       on('pMsz',ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(v>0){ m.sz=v; pushHistory(); draw(); } else refreshProp(); });
+      on('pMdsz',ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(v>0){ m.dsz=v; pushHistory(); refreshProp(); draw(); } else refreshProp(); });
+      on('pMwsz',ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(v>0){ m.wsz=v; pushHistory(); refreshProp(); draw(); } else refreshProp(); });
+      on('pMthick',ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(v>0){ m.thick=v; pushHistory(); refreshProp(); draw(); } else refreshProp(); });
+      on('pMheads',ev=>{ const v=Math.round(parseFloat(ev.target.value)); if(v>=1&&v<=12){ m.heads=v; pushHistory(); refreshProp(); draw(); } else refreshProp(); });
       on('pMrot',ev=>{ m.rot=((parseFloat(ev.target.value)||0)%360+360)%360; pushHistory(); refreshProp(); draw(); });
       document.querySelectorAll('.pMgap').forEach(inp=>{ inp.onchange=ev=>{
         const want=fromDisp(parseFloat(ev.target.value));
@@ -6596,7 +6612,9 @@
     else if(k==='glass'){ g.beginPath(); g.moveTo(cx-ux*R,cy-uy*R); g.lineTo(cx+ux*R,cy+uy*R); g.stroke(); }
     g.restore();
   }
+  let WALL_PLAIN=false;      // a trade sheet draws every wall plain grey (no 磚牆 hatching)
   function drawWallKinds(){
+    if(EXPORT_MODE && WALL_PLAIN) return;
     for(const w of state.walls){
       const k=wallKind(w); if(k==='exist' || wallLen(w)<1) continue;
       const b=kindBand(w); if(!b) continue;
@@ -7147,9 +7165,12 @@
     const inclNotes=has('notes'), inclPhotos=has('photos');
     if(!state.walls.length&&!state.dims.length&&!state.texts.length&&!state.ink.length&&!state.notes.length&&!state.furniture.length&&!state.mep.length) return null; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; const acc=(x,y)=>{x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}; for(const w of state.walls){acc(w.x1,w.y1);acc(w.x2,w.y2);} for(const d of state.dims){acc(d.x1,d.y1);acc(d.x2,d.y2);} for(const t of state.texts){acc(t.x,t.y);}
     for(const s2 of state.ink){ const b=strokeBBox(s2); acc(b.x0,b.y0); acc(b.x1,b.y1); }
-    for(const f of state.furniture) for(const c of furnCorners(f)) acc(c.x,c.y);
-    for(const z of (state.ceil||[]).concat(state.floor||[])){ const b2=ceilBBox(z); acc(b2.x0,b2.y0); acc(b2.x1,b2.y1); }
-    for(const m of state.mep){ const r=isLinear(m)?devLen(m)/2+5:(lightSpec(m).sz?devSz(m)/2+5:MEP_SIZE*(isLight(m)?lightScale(m):1)); acc(m.x-r,m.y-r); acc(m.x+r,m.y+r); }
+    // only what this sheet prints decides where the plan sits (a hidden layer's
+    // furniture used to pull the plan off-centre)
+    const L=o&&o.layers, lay=(id)=>!L || L[id]!==false && (L[id]||false);
+    for(const f of state.furniture){ if(L && !lay(f.layer||'plan')) continue; for(const c of furnCorners(f)) acc(c.x,c.y); }
+    for(const z of (state.ceil||[]).concat(state.floor||[])){ if(L && !lay(z.layer||'ceil')) continue; const b2=ceilBBox(z); acc(b2.x0,b2.y0); acc(b2.x1,b2.y1); }
+    for(const m of state.mep){ if(L && !lay(m.layer||'elec') && !(isCircItem(m) && lay('circuit'))) continue; const r=isLinear(m)?devLen(m)/2+5:(lightSpec(m).sz?devSz(m)/2+5:MEP_SIZE*(isLight(m)?lightScale(m):1)); acc(m.x-r,m.y-r); acc(m.x+r,m.y+r); }
     for(const n of state.notes){
       if(isPin(n) ? !inclPhotos : !inclNotes) continue;
       acc(n.ax,n.ay); acc(n.x,n.y);
@@ -7316,7 +7337,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b111';
+  const BUILD='b112';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -7513,6 +7534,7 @@
     document.querySelectorAll('#pdfModal .dxfonly').forEach(el=>el.style.display = kind==='dxf' ? '' : 'none');
     document.getElementById('mEmbedWarn').style.display = (EMBEDDED && !shareUsable()) ? '' : 'none';
     pdfOpt.layers=null;      // start from whatever is currently visible
+    pdfOpt.view={k:1,dx:0,dy:0};
     expLayerUI();
     frameRefreshUI();
     pdfModal.classList.add('open');
@@ -7537,9 +7559,22 @@
           const first=LAYERS.filter(L=>!L.fixed && sel[L.id])[0];
           if(first) layers=Object.assign({}, allOff, {base:sel.base!==false}, {[first.id]:true});
         }
+        // a sheet with a frame previews as the whole sheet, so the plan can be
+        // zoomed and moved on it before export (drawn at a lighter resolution)
+        const framed = exportKind==='pdf' || (exportKind==='png' && pdfOpt.pngFrame);
+        const ctl=document.getElementById('mViewCtl'); if(ctl) ctl.style.display = framed ? 'flex' : 'none';
+        if(framed){
+          const [pw,ph]=paperMM(pdfOpt), sv=SHEET_PPM; let c;
+          SHEET_PPM=4;
+          try{ c=composeSheet(Object.assign({},pdfOpt,{_preview:true}),{title:'',layers},1,1,pw,ph); } finally { SHEET_PPM=sv; }
+          img.src=c.toDataURL('image/png'); img.dataset.pw=pw;
+          const info=document.getElementById('mViewInfo'); const V=pdfOpt.view||{k:1};
+          if(info) info.textContent = pdfOpt.scale==='fit' ? ('縮放 '+Math.round((V.k||1)*100)+'%・拖動預覽圖可以移動戶型') : ('比例固定 1:'+pdfOpt.scale+'・拖動可以移動');
+        } else {
         const r=renderExport(1, {dims:pdfOpt.dims, rooms:pdfOpt.rooms, notes:pdfOpt.notes,
                                  photos:pdfOpt.photos, layers});
         img.src=r.oc.toDataURL('image/png');
+        }
         img.style.display='block'; msg.style.display='none';
         const note=document.getElementById('mPreviewNote');
         if(note) note.textContent = (exportKind==='pdf'&&pdfOpt.perLayer)
@@ -7550,6 +7585,30 @@
       }
     }, 60);
   }
+  // ---- zoom / move the plan on the preview (proportions never change) ----
+  (function wireViewCtl(){
+    const V=()=>pdfOpt.view||(pdfOpt.view={k:1,dx:0,dy:0});
+    const zoom=(f)=>{ if(pdfOpt.scale!=='fit'){ flashHint('固定比例時不能縮放，可以先選「適應」'); return; } const v=V(); v.k=Math.max(0.3,Math.min(4,(v.k||1)*f)); v.dx*=f; v.dy*=f; refreshPreview(); };
+    const zi=document.getElementById('mZoomIn'), zo=document.getElementById('mZoomOut'), rs=document.getElementById('mViewReset');
+    if(zi) zi.onclick=()=>zoom(1.15); if(zo) zo.onclick=()=>zoom(1/1.15);
+    if(rs) rs.onclick=()=>{ pdfOpt.view={k:1,dx:0,dy:0}; refreshPreview(); };
+    const img=document.getElementById('mPreviewImg'); if(!img) return;
+    img.style.touchAction='none';
+    const pts=new Map(); let st=null;
+    const framed=()=>exportKind==='pdf' || (exportKind==='png' && pdfOpt.pngFrame);
+    img.addEventListener('pointerdown',e=>{ if(!framed()) return; e.preventDefault(); img.setPointerCapture(e.pointerId); pts.set(e.pointerId,[e.clientX,e.clientY]);
+      const p=[...pts.values()]; st={p0:p.map(q=>q.slice()), d0:p.length>1?Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]):0}; });
+    img.addEventListener('pointermove',e=>{ if(!pts.has(e.pointerId)||!st) return; pts.set(e.pointerId,[e.clientX,e.clientY]);
+      const p=[...pts.values()];
+      if(p.length>1 && st.d0){ const r=Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1])/st.d0; img.style.transform='scale('+r+')'; st.r=r; }
+      else { st.tx=p[0][0]-st.p0[0][0]; st.ty=p[0][1]-st.p0[0][1]; img.style.transform='translate('+st.tx+'px,'+st.ty+'px)'; } });
+    const end=(e)=>{ if(!pts.has(e.pointerId)) return; pts.delete(e.pointerId); if(pts.size || !st) return;
+      img.style.transform=''; const v=V(), mmPerPx=(+img.dataset.pw||297)/Math.max(1,img.clientWidth);
+      if(st.r && Math.abs(st.r-1)>0.02){ if(pdfOpt.scale==='fit'){ v.k=Math.max(0.3,Math.min(4,(v.k||1)*st.r)); v.dx*=st.r; v.dy*=st.r; } }
+      else if(st.tx!=null){ v.dx+=st.tx*mmPerPx; v.dy+=st.ty*mmPerPx; }
+      st=null; refreshPreview(); };
+    img.addEventListener('pointerup',end); img.addEventListener('pointercancel',end);
+  })();
   function closePdfModal(){ pdfModal.classList.remove('open'); clearTimeout(previewTimer); }
   function bindSeg(id,key){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{ pdfOpt[key]=b.dataset.v; document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); refreshPreview(); }); }
   function bindToggle(id,key){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{
@@ -7706,7 +7765,7 @@
   // on a Chinese title block would be garbage. So the whole sheet — border, title
   // block, text and the plan itself — is composed on a CANVAS, which renders CJK
   // properly, and placed on the page as one image.
-  const SHEET_PPM = 12;                 // px per mm ≈ 305 dpi
+  let SHEET_PPM = 12;                   // px per mm ≈ 305 dpi (the preview borrows a lower one)
   const MM = (v)=> v*SHEET_PPM;         // work in device px, never a scaled ctx:
                                         // a scaled context needs sub-pixel font
                                         // sizes like "2.1px", which some canvas
@@ -7841,22 +7900,16 @@
       // So there are two shapes to try, and the plan takes whichever actually
       // prints bigger: the full width above the legend, or the full height beside
       // it. A wide flat plan wants the first; a tall one wants the second.
+      // the plan gets the full width above the legend strip, centred in it
       const fullW=pw-2*m-8;
-      const above ={x:ox, y:oy, w:fullW, h:((lg?lg.yMM:tb.yMM)-3)-oy};
-      const beside=lg ? {x:lg.xMM+lg.wMM+4, y:oy,
-                         w:fullW-(lg.xMM+lg.wMM+4-ox), h:(tb.yMM-3)-oy} : above;
-      const bT=bounds(opt)||{x0:0,y0:0,x1:400,y1:300};
-      const bwT=Math.max(1,bT.x1-bT.x0), bhT=Math.max(1,bT.y1-bT.y0);
-      const pad0=exportPad((TEXT_MM[opt.textSize||'m']||TEXT_MM.m)*SHEET_PPM/12);
-      const yield_=(R)=>Math.min((MM(R.w)-pad0.l-pad0.r)/bwT, (MM(R.h)-pad0.t-pad0.b)/bhT);
-      const pick = yield_(beside) > yield_(above) ? beside : above;
+      const pick={x:ox, y:oy, w:fullW, h:((lg?lg.yMM:tb.yMM)-3)-oy};
       ox=pick.x; oy=pick.y;
       availW=Math.max(20,pick.w); availH=Math.max(20,pick.h);
     }
     // Render the plan at exactly the pixel size it will occupy. The old code always
     // rendered at 3 px/cm and then stretched the result to fit the sheet, which is
     // why the PDF looked soft — it was an upscaled bitmap.
-    const b=bounds(opt)||{x0:0,y0:0,x1:400,y1:300};
+    const b=bounds(Object.assign({},opt,{layers:page.layers}))||{x0:0,y0:0,x1:400,y1:300};
     const bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0);
     const pxW=MM(availW), pxH=MM(availH);
     const targetMM0=TEXT_MM[opt.textSize||'m']||TEXT_MM.m;
@@ -7865,7 +7918,8 @@
     let S;                                       // px per cm for the plan render
     const fitS=()=>Math.min((pxW-padX)/bw, (pxH-padY)/bh);
     let scaleKept=true;
-    if(opt.scale==='fit'){ S=fitS(); }
+    const UV=opt.view||{k:1,dx:0,dy:0};          // the user's own zoom and shift (export preview)
+    if(opt.scale==='fit'){ S=fitS()*(UV.k||1); }
     else {
       S = 10*SHEET_PPM/parseFloat(opt.scale);    // 1cm real -> 10/N mm -> px
       if(bw*S+padX>pxW || bh*S+padY>pxH){
@@ -7873,7 +7927,7 @@
         // in the title block is not: the sheet claims a scale it is not drawn at,
         // and anyone measuring off it gets wrong numbers.
         scaleKept=false;
-        uiAlert(scaleFailMsg(opt, bw, bh, padX, padY));
+        if(!opt._preview) uiAlert(scaleFailMsg(opt, bw, bh, padX, padY));
         S=fitS();
       }
     }
@@ -7884,8 +7938,11 @@
                                      photos:opt.photos,layers:page.layers,
                                      textScale: TSv});
     const iw=cw/SHEET_PPM, ih=ch/SHEET_PPM;      // 1:1 pixels, no resampling
-    const ix=ox+(availW-iw)/2, iy=oy+(availH-ih)/2;
+    const ix=ox+(availW-iw)/2+(UV.dx||0), iy=oy+(availH-ih)/2+(UV.dy||0);
+    // never over the legend or the title block, however it was zoomed or moved
+    g.save(); g.beginPath(); g.rect(MM(ox),MM(oy),MM(availW),MM(availH)); g.clip();
     g.drawImage(oc, MM(ix),MM(iy), MM(iw),MM(ih));
+    g.restore();
     // The block is printed LAST, now that the plan's real scale is known. "NTS" on
     // a sheet that is in fact at a consistent ratio is a lie of omission — a builder
     // who wants to check a dimension by measuring it off the paper needs the number.
@@ -7897,52 +7954,50 @@
     }
     return sheet;
   }
-  // A legend the contractor can count from. It is built from the symbols actually
-  // on this sheet, so the quantities can never disagree with the drawing.
+  // A legend the contractor can count from, built from the symbols actually on this
+  // sheet. It is a LOW strip along the bottom (above the title block), split into
+  // as many columns as fit across the sheet — the plan is the point of the sheet,
+  // so the legend never grows tall and never pushes the plan smaller.
   function drawLegend(g, pwMM, phMM, mMM, tb, layersOpt){
-    const items=wallKindTally().concat(mepTally(layersOpt)).concat(ceilTally(layersOpt)).concat(floorLegend(layersOpt));
+    const structOnly=!layersOpt || !Object.keys(layersOpt).some(k=>k!=='base' && layersOpt[k]);
+    const items=(structOnly?wallKindTally():[]).concat(mepTally(layersOpt)).concat(ceilTally(layersOpt)).concat(floorLegend(layersOpt));
     if(!items.length) return null;
-    const colMM=96, rowMM=8.5, headMM=9;
-    // A long legend in one column is a tall block, and a tall block steals the
-    // height the floor plan needs. Past eight entries it splits into columns so
-    // it stays a low block in the corner.
-    const cols=items.length>8 ? 2 : 1;
-    const per=Math.ceil(items.length/cols);
-    const wMM=colMM*cols, hMM=headMM+per*rowMM;
-    // bottom-LEFT, sitting on top of the title strip
-    const xMM=mMM+4.5;
-    const yMM=(tb ? tb.yMM : (phMM-mMM-4.5)) - hMM;
+    const n=items.length, rowMM=5.2, headMM=5.6, fullW=pwMM-2*mMM-9;
+    const colMM=Math.max(52, Math.min(72, fullW/Math.min(n,5)));
+    const maxCols=Math.max(1, Math.floor(fullW/colMM));
+    const rows=Math.ceil(n/maxCols), cols=Math.ceil(n/rows);
+    const wMM=cols*colMM, hMM=headMM+rows*rowMM;
+    const xMM=mMM+4.5, yMM=(tb ? tb.yMM : (phMM-mMM-4.5)) - hMM;
     const x=MM(xMM), y=MM(yMM), w=MM(wMM);
-    g.strokeStyle='#24282E'; g.lineWidth=MM(0.35);
+    g.strokeStyle='#24282E'; g.lineWidth=MM(0.3);
     g.strokeRect(x,y,w,MM(hMM));
     g.beginPath(); g.moveTo(x,y+MM(headMM)); g.lineTo(x+w,y+MM(headMM)); g.stroke();
-    g.fillStyle='#24282E'; g.textAlign='left'; g.textBaseline='middle';
-    g.font='700 '+Math.round(MM(3.2))+'px '+SHEET_FONT;
-    g.fillText('圖例 LEGEND', x+MM(3), y+MM(headMM/2));
-    g.textAlign='right';
-    g.font='600 '+Math.round(MM(2.6))+'px '+SHEET_FONT;
-    g.fillText('數量 QTY', x+w-MM(3), y+MM(headMM/2));
+    g.fillStyle='#24282E'; g.textBaseline='middle';
+    g.textAlign='left'; g.font='700 '+Math.round(MM(2.5))+'px '+SHEET_FONT;
+    g.fillText('圖例 LEGEND', x+MM(2.5), y+MM(headMM/2));
+    g.textAlign='right'; g.font='600 '+Math.round(MM(2.1))+'px '+SHEET_FONT;
+    for(let c=0;c<cols;c++) g.fillText('數量', x+MM((c+1)*colMM)-MM(2.5), y+MM(headMM/2));
     items.forEach((it,i)=>{
-      const col=Math.floor(i/per), row=i%per;
+      const col=Math.floor(i/rows), row=i%rows;
       const cx0=x+MM(col*colMM), cw=MM(colMM);
       const ry=y+MM(headMM+row*rowMM), rh=MM(rowMM);
-      if(row){ g.strokeStyle='#D8DDE2'; g.lineWidth=MM(0.2);
-               g.beginPath(); g.moveTo(cx0,ry); g.lineTo(cx0+cw,ry); g.stroke(); }
-      if(col){ g.strokeStyle='#24282E'; g.lineWidth=MM(0.3);
-               g.beginPath(); g.moveTo(cx0,y+MM(headMM)); g.lineTo(cx0,y+MM(hMM)); g.stroke(); }
-      const sp=MM(rowMM*0.62);
-      g.save();
-      g.translate(cx0+MM(9), ry+rh/2);
+      if(row){ g.strokeStyle='#D8DDE2'; g.lineWidth=MM(0.15); g.beginPath(); g.moveTo(cx0,ry); g.lineTo(cx0+cw,ry); g.stroke(); }
+      if(col){ g.strokeStyle='#24282E'; g.lineWidth=MM(0.25); g.beginPath(); g.moveTo(cx0,y); g.lineTo(cx0,y+MM(hMM)); g.stroke(); }
+      const sp=MM(rowMM*0.58);
+      g.save(); g.translate(cx0+MM(5.5), ry+rh/2);
       g.strokeStyle=mepColor(it.kind); g.fillStyle='#fff';
       g.lineWidth=MEP_LW*(sp/110); g.lineJoin='round'; g.lineCap='round';
       if(it.sw) it.sw(g,sp); else (MEP_SY[it.kind]||MEP_SY.outlet2)(sp, g);
       g.restore();
-      g.fillStyle='#24282E'; g.textAlign='left'; g.textBaseline='middle';
-      g.font='500 '+Math.round(MM(2.9))+'px '+SHEET_FONT;
-      g.fillText(it.name, cx0+MM(17), ry+rh/2);
-      g.textAlign='right';
-      g.font='700 '+Math.round(MM(2.9))+'px '+SHEET_FONT;
-      g.fillText(String(it.n), cx0+cw-MM(4), ry+rh/2);
+      // the name and the count share the column; a long name gets a smaller font
+      const qty=String(it.n), room=cw-MM(11)-MM(2.5);
+      let f=2.3;
+      for(;f>1.5;f-=0.1){ g.font='700 '+Math.round(MM(f))+'px '+SHEET_FONT; const qw=g.measureText(qty).width;
+        g.font='500 '+Math.round(MM(f))+'px '+SHEET_FONT; if(g.measureText(it.name).width+qw+MM(2)<=room) break; }
+      g.fillStyle='#24282E'; g.textAlign='left'; g.font='500 '+Math.round(MM(f))+'px '+SHEET_FONT;
+      g.fillText(it.name, cx0+MM(11), ry+rh/2);
+      g.textAlign='right'; g.font='700 '+Math.round(MM(f))+'px '+SHEET_FONT;
+      g.fillText(qty, cx0+cw-MM(2.5), ry+rh/2);
     });
     return {xMM, yMM, wMM, hMM};
   }
@@ -7988,6 +8043,7 @@
     // single code path covers both "what you see" and "what you asked to print"
     const sVis=state.layerVis;
     if(o.layers) state.layerVis=Object.assign({}, o.layers);
+    WALL_PLAIN = !!(o.layers && Object.keys(o.layers).some(k=>k!=='base' && o.layers[k]));
     const sTS=TS; TS = (o.textScale!==undefined ? o.textScale : EXPORT_TEXT_SCALE);
     if(o.dims!==undefined) showOpt.dims=!!o.dims;
     if(o.rooms!==undefined) showOpt.rooms=!!o.rooms;
@@ -8015,7 +8071,7 @@
     } finally {
     // restore in a finally: a throw part-way through used to leave the app running
     // with the export's layer visibility, and no way back except a reload
-    ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid;
+    ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid; WALL_PLAIN=false;
     hitLabels=sHits; placedLabels=sPlaced; glyphBoxes=[]; ui.selected=sSel; TS=sTS; state.layer=sLayer;
     state.layerVis=sVis; EXPORT_MODE=sExp;
     showOpt.dims=sDims; showOpt.rooms=sRooms; showOpt.notes=sNotes; showOpt.photos=sPhotos;
@@ -8933,15 +8989,15 @@
     ['崁燈類','L_spot',  '投射崁燈',   {mount:'ceil', dia:9.5}],
     ['崁燈類','L_downWP','防水崁燈',   {mount:'ceil', dia:9.5, code:'WP'}],
     ['崁燈類','L_cyl',   '明裝筒燈',   {mount:'ceil', dia:10}],
-    ['吸頂 / 吊燈','L_ceil', '吸頂燈',       {mount:'ceil', k:1.35}],
-    ['吸頂 / 吊燈','L_pend', '吊燈',         {mount:'ceil', k:1.25}],
-    ['吸頂 / 吊燈','L_chand','主燈 / 水晶燈',{mount:'ceil', k:1.4}],
-    ['吸頂 / 吊燈','L_fan',  '吊扇燈',       {mount:'ceil', k:1.4}],
-    ['壁燈 / 地腳','L_wall',  '壁燈',   {mount:'wall', h:180}],
-    ['壁燈 / 地腳','L_step',  '地腳燈', {mount:'wall', h:30}],
-    ['壁燈 / 地腳','L_sensor','感應燈', {mount:'ceil', code:'S'}],
-    ['線型','L_track', '軌道燈',    {mount:'ceil', len:120, thick:8, linear:true}],
-    ['線型','L_mag',   '磁吸軌道',  {mount:'ceil', len:150, thick:6, linear:true}],
+    ['吸頂 / 吊燈','L_ceil', '吸頂燈',       {mount:'ceil', dsz:40}],
+    ['吸頂 / 吊燈','L_pend', '吊燈',         {mount:'ceil', dsz:40}],
+    ['吸頂 / 吊燈','L_chand','主燈 / 水晶燈',{mount:'ceil', dsz:60}],
+    ['吸頂 / 吊燈','L_fan',  '吊扇燈',       {mount:'ceil', dsz:100}],
+    ['壁燈 / 地腳','L_wall',  '壁燈',   {mount:'wall', h:180, wsz:20}],
+    ['壁燈 / 地腳','L_step',  '地腳燈', {mount:'wall', h:30, wsz:12}],
+    ['壁燈 / 地腳','L_sensor','感應燈', {mount:'ceil', code:'S', dsz:12}],
+    ['線型','L_track', '軌道燈',    {mount:'ceil', len:120, thick:8, linear:true, heads:3}],
+    ['線型','L_mag',   '磁吸軌道',  {mount:'ceil', len:150, thick:6, linear:true, heads:3}],
     ['線型','L_linear','線型燈',    {mount:'ceil', len:120, thick:5, linear:true}],
     ['線型','L_strip', '間接燈帶',  {mount:'ceil', len:200, thick:0, linear:true, strip:true}],
     ['線型','L_t5',    'T5 層板燈', {mount:'ceil', len:120, thick:8, linear:true}],
@@ -8962,18 +9018,27 @@
   const devLen=(m)=>m.len||lightSpec(m).len||100;
   const devDia=(m)=>m.dia||lightSpec(m).dia||9.5;
   const devSz=(m)=>m.sz||lightSpec(m).sz||60;
+  // real sizes: a ceiling fitting's diameter, a wall fitting's width, a strip's
+  // width, a track's number of heads — every fitting has a size you can type
+  const devDsz=(m)=>m.dsz||lightSpec(m).dsz||0;
+  const devWsz=(m)=>m.wsz||lightSpec(m).wsz||0;
+  const devThick=(m)=>m.thick||lightSpec(m).thick||4;
+  const devHeads=(m)=>Math.max(1, Math.min(12, Math.round(m.heads||lightSpec(m).heads||3)));
   // How much bigger than the base 30cm symbol a point light is drawn. A downlight
   // follows its cut-out, gently: Ø15 reads clearly bigger than Ø9.5 without the
   // symbol swallowing the ceiling around it.
   function lightScale(m){
     const sp=lightSpec(m);
     if(sp.dia) return Math.max(0.6, Math.min(2.4, 0.55+0.45*devDia(m)/9.5));
+    // drawn at its real size: the symbol's circle is 0.72 of the symbol box
+    if(sp.dsz) return Math.max(0.3, Math.min(8, devDsz(m)/(0.72*MEP_SIZE)));
+    if(sp.wsz) return Math.max(0.3, Math.min(4, devWsz(m)/(0.72*MEP_SIZE)));
     return sp.k||1;
   }
   // linear fitting as a rotated rectangle in world cm, corners clockwise
   function devPoly(m){
     const a=(m.rot||0)*Math.PI/180, ux=Math.cos(a), uy=Math.sin(a), nx=-uy, ny=ux;
-    const hl=devLen(m)/2, ht=Math.max(lightSpec(m).thick||0, 3)/2;
+    const hl=devLen(m)/2, ht=Math.max(lightSpec(m).strip?0:devThick(m), 3)/2;
     return [{x:m.x-ux*hl-nx*ht, y:m.y-uy*hl-ny*ht},{x:m.x+ux*hl-nx*ht, y:m.y+uy*hl-ny*ht},
             {x:m.x+ux*hl+nx*ht, y:m.y+uy*hl+ny*ht},{x:m.x-ux*hl+nx*ht, y:m.y-uy*hl+ny*ht}];
   }
@@ -8995,7 +9060,7 @@
     if(kind==='L_linear'){ box(); g.fillStyle=C; g.fill(); g.stroke(); return; }
     box(); g.fillStyle='#fff'; g.fill(); g.stroke();
     if(kind==='L_t5'){ g.beginPath(); g.moveTo(-L/2+T*0.4,0); g.lineTo(L/2-T*0.4,0); g.stroke(); return; }
-    const k=Math.max(2, n||3);
+    const k=Math.max(1, n||3);
     for(let i=0;i<k;i++){
       const x=-L/2 + L*(i+0.5)/k;
       if(kind==='L_mag'){ g.beginPath(); g.rect(x-T*0.55,-T/2,T*1.1,T); g.fillStyle=C; g.fill(); }
@@ -9065,7 +9130,10 @@
   function devLabel(m){
     const sp=lightSpec(m), n=mepName(m.kind);
     if(sp.dia) return n+' Ø'+Math.round(toDisp(devDia(m))*10)/10;
+    if(sp.heads) return n+' L'+Math.round(toDisp(devLen(m)))+' × '+devHeads(m)+' 燈頭';
     if(sp.linear && !sp.strip) return n+' L'+Math.round(toDisp(devLen(m)));
+    if(sp.dsz) return n+' Ø'+Math.round(toDisp(devDsz(m)));
+    if(sp.wsz) return n+' W'+Math.round(toDisp(devWsz(m)));
     if(sp.sz) return n+' '+Math.round(toDisp(devSz(m)))+'×'+Math.round(toDisp(devSz(m)));
     return n;
   }
@@ -9256,8 +9324,8 @@
     const [sx,sy]=toScreen(m.x,m.y);
     const L=devLen(m)*view.scale;
     const sp=lightSpec(m);
-    const T=Math.max((sp.thick||4)*view.scale, fpx(sp.strip?5:6));
-    const n=Math.max(2, Math.min(12, Math.round(devLen(m)/40)));
+    const T=Math.max((sp.strip?(sp.thick||4):devThick(m))*view.scale, fpx(sp.strip?5:6));
+    const n=sp.heads ? devHeads(m) : Math.max(2, Math.min(12, Math.round(devLen(m)/40)));
     ctx.save();
     ctx.globalAlpha=devAlpha(m);
     ctx.translate(sx,sy); ctx.rotate((m.rot||0)*Math.PI/180);
@@ -9713,7 +9781,7 @@
   //            ch (finished height), r / rv[] (corner radii), bz[] (arc edges),
   //            cove {on, edges|null, w, lip, dir}
   //   curtain / hatch / ventS / ventR   plain rectangles {x,y,w,h}
-  const CEIL_INK='#0F6E56', CEIL_COVE='#B0357F', CEIL_GREY='#5B646E';
+  const CEIL_INK='#0F6E56', CEIL_COVE='#F76707', CEIL_GREY='#5B646E';   // 間照 is orange
   const CEIL_NAME={zone:'造型區域',curtain:'窗簾盒',hatch:'維修孔',ventS:'出風口',ventR:'回風口'};
   const ceilById=(id)=>(state.ceil||[]).find(v=>v.id===id) || (state.floor||[]).find(v=>v.id===id);
   function ceilShow(){ return layerVisible('ceil'); }
@@ -9746,7 +9814,7 @@
       return {P,E};
     }
     const V=ceilVerts(z), n=V.length, bz=(z.kind==='zone'&&z.bz)||[];
-    const rad=(i)=>{ if(z.kind!=='zone') return 0; const rv=z.rv&&z.rv[i]; return rv!=null ? rv : (z.r||0); };
+    const rad=(i)=>{ if(z.kind!=='zone' && z.kind!=='hatch') return 0; const rv=z.rv&&z.rv[i]; return rv!=null ? rv : (z.r||0); };
     const cor=[];
     for(let i=0;i<n;i++){
       const p=V[(i-1+n)%n], v=V[i], q=V[(i+1)%n];
@@ -9974,10 +10042,12 @@
         ctx.strokeStyle=sel?'#275C7A':CEIL_INK; ctx.lineWidth=lw; ctx.strokeRect(x0,y0,w,h);
         ceilText('窗簾盒 深'+fmtLen(Math.min(z.w,z.h)), cx, cy, CEIL_GREY, 10, z.h>z.w?Math.PI/2:0, 600);
       } else if(z.kind==='hatch'){
+        // a hatch can have rounded corners (R): its outline follows them
         const [x0,y0]=toScreen(z.x,z.y), w=z.w*view.scale, h=z.h*view.scale;
         ctx.strokeStyle=sel?'#275C7A':CEIL_GREY; ctx.lineWidth=Math.max(1.1,1.1*TS); ctx.setLineDash([4*TS,3*TS]);
-        ctx.strokeRect(x0,y0,w,h);
-        ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0+w,y0+h); ctx.moveTo(x0+w,y0); ctx.lineTo(x0,y0+h); ctx.stroke();
+        ceilPathScreen(P); ctx.stroke();
+        ctx.save(); ceilPathScreen(P); ctx.clip();
+        ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0+w,y0+h); ctx.moveTo(x0+w,y0); ctx.lineTo(x0,y0+h); ctx.stroke(); ctx.restore();
         ceilText('維修孔 '+fmtLen(z.w)+'×'+fmtLen(z.h), cx, y0+h+fpx(9), CEIL_GREY, 9, 0, 600);
       } else {
         const [x0,y0]=toScreen(z.x,z.y), w=z.w*view.scale, h=z.h*view.scale;
@@ -9999,7 +10069,7 @@
         const V=z.shape==='ell'?null:ceilVerts(z), set=coveEdges(z);
         ctx.save(); ctx.lineWidth=6; ctx.lineCap='round';
         if(V) for(let i=0;i<V.length;i++){ const a=toScreen(V[i].x,V[i].y), b=toScreen(V[(i+1)%V.length].x,V[(i+1)%V.length].y);
-          ctx.strokeStyle = set&&set.has(i) ? 'rgba(176,53,127,.55)' : 'rgba(176,53,127,.18)';
+          ctx.strokeStyle = set&&set.has(i) ? 'rgba(247,103,7,.55)' : 'rgba(247,103,7,.18)';
           ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
           const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2; ctx.fillStyle='#fff'; ctx.strokeStyle=CEIL_COVE; ctx.lineWidth=1.5;
           ctx.beginPath(); ctx.arc(mx,my,8,0,Math.PI*2); ctx.fill(); ctx.stroke();
@@ -10048,6 +10118,7 @@
     return out;
   }
   function drawCeilHandles(z){
+    if(z.kind!=='zone' && z.kind!=='hatch') return;
     ctx.save(); ctx.globalAlpha=1;
     if(z.shape==='ell'){
       for(const p of [[z.cx+z.rx,z.cy],[z.cx,z.cy+z.ry]]){ const s=toScreen(p[0],p[1]); handle(s[0],s[1]); }
@@ -10070,6 +10141,8 @@
     ctx.restore();
   }
   function ceilHandleHit(z,wx,wy){
+    // vents and curtain boxes have no corner R and no edge handles
+    if(z.kind!=='zone' && z.kind!=='hatch') return null;
     const thr=24/view.scale;
     if(z.shape==='ell'){
       if(Math.hypot(wx-(z.cx+z.rx),wy-z.cy)<thr) return {kind:'ceilR', id:z.id, which:'rx'};
@@ -10129,6 +10202,13 @@
     ui.ceilHArmed=null;
     ui.selected={kind:'ceil',id:z.id};
     pushHistory(); refreshProp(); afterPlace();
+    // a new ceiling zone asks for its height straight away (CH or 下降)
+    if(z.layer==='ceil' && z.kind==='zone'){
+      setTimeout(()=>{ try{
+        const c=ceilCentre(z), [sx,sy]=toScreen(c.x,c.y), r=ceilRoom(z), slab=r?slabH(r):state.ceilingH;
+        ceilHeightPad(sx,sy,z.ch,slab,(v)=>{ z.ch=v; dbg(`  CEIL zone #${z.id} CH → ${v} (on create)`); pushHistory(); refreshProp(); draw(); });
+      }catch(_){ } },30);
+    }
     return z;
   }
   function commitCeilDraft(){
@@ -10254,9 +10334,9 @@
       if(H*view.scale>26) put(fmtLen(H), b.x0+W*0.25, (b.y0+b.y1)/2, -Math.PI/2, {kind:'ceildim', zid:z.id, axis:'h'});
       if(W*view.scale>40) put(fmtLen(W), (b.x0+b.x1)/2, b.y1-Math.min(H*0.25, 30/view.scale), 0, {kind:'ceildim', zid:z.id, axis:'w'});
     }
-    const floatsX=!flush('left')&&!flush('right'), floatsY=!flush('up')&&!flush('down');
+    // every side that is off the wall shows its distance (a side against a wall, 0, does not)
     for(const g of G){
-      if((g.dir==='left'||g.dir==='right') ? !floatsX : !floatsY) continue;
+      if(g.gap<0.6) continue;
       let px,py,ang=0;
       if(g.dir==='left'){ px=(g.face+b.x0)/2; py=(b.y0+b.y1)/2; }
       else if(g.dir==='right'){ px=(g.face+b.x1)/2; py=(b.y0+b.y1)/2; }
@@ -10396,6 +10476,21 @@
   function setCeilGap(z,dir,want){
     const g=ceilGaps(z).find(v=>v.dir===dir); if(!g) return false;
     const d=Math.max(0,want)-g.gap;
+    // a ceiling or floor ZONE: typing a side's distance moves THAT side only (the
+    // zone grows or shrinks); fixed-size parts (hatch, vents, curtain box) move whole
+    if(z.kind==='zone' && z.shape!=='ell'){
+      if(z.shape==='rect'){
+        if(dir==='left'){ const nx=z.x+d; if(z.x+z.w-nx<5) return false; z.w-=d; z.x=nx; }
+        if(dir==='right'){ if(z.w-d<5) return false; z.w-=d; }
+        if(dir==='up'){ const ny=z.y+d; if(z.y+z.h-ny<5) return false; z.h-=d; z.y=ny; }
+        if(dir==='down'){ if(z.h-d<5) return false; z.h-=d; }
+        return true;
+      }
+      const b=ceilBBox(z), on=(p)=> dir==='left'?Math.abs(p.x-b.x0)<0.6 : dir==='right'?Math.abs(p.x-b.x1)<0.6 : dir==='up'?Math.abs(p.y-b.y0)<0.6 : Math.abs(p.y-b.y1)<0.6;
+      const mv = dir==='left'?{x:d,y:0} : dir==='right'?{x:-d,y:0} : dir==='up'?{x:0,y:d} : {x:0,y:-d};
+      z.pts=z.pts.map(p=>on(p)?{x:p.x+mv.x,y:p.y+mv.y}:p);
+      return true;
+    }
     if(dir==='left') ceilShift(z,d,0); if(dir==='right') ceilShift(z,-d,0);
     if(dir==='up') ceilShift(z,0,d);   if(dir==='down') ceilShift(z,0,-d);
     return true;
@@ -10967,10 +11062,19 @@
     g.beginPath(); g.moveTo(mid,loY); g.lineTo(mid,upY); g.lineTo(x1,upY); g.stroke();
     g.fillStyle=CEIL_COVE;
     if(z.cove.dir==='side') g.fillRect(mid+3,loY-16,5,12); else g.fillRect(mid+8,loY-8,22,5);
+    // each label in its own lane: the higher CH ABOVE its line, the lower CH and the
+    // trough width BELOW, the lip beside it — they used to print on top of each other
+    T('CH '+fmtLen(hi), mid+(x1-mid)*0.7, Math.max(upY-9, slabY+8), CEIL_INK);
     T('CH '+fmtLen(lo), x0+(mid-x0)/2, loY+12, CEIL_INK);
-    T('CH '+fmtLen(hi), mid+(x1-mid)*0.66, upY+11, CEIL_INK);
     T('槽寬 '+fmtLen(z.cove.w||15), (mid+lipX)/2, loY+12, CEIL_COVE);
-    T('擋板 '+fmtLen(z.cove.lip||10), lipX+5, loY-12, CEIL_COVE, 'left');
+    T('擋板 '+fmtLen(z.cove.lip||10), lipX+(x1-lipX)/2, loY+12, CEIL_COVE);
+  }
+  // the four corner R boxes, laid out where the corners are on the drawing
+  // (vertex order is 左上 0, 右上 1, 右下 2, 左下 3)
+  function cornerGridHTML(z){
+    const cell=(i,t)=>{ const v=(z.rv&&z.rv[i]!=null)?z.rv[i]:(z.r||0);
+      return `<label style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted)">${t}<input type="number" class="pZrv" data-i="${i}" min="0" value="${Math.round(toDisp(v))}" style="width:100%;min-height:34px;text-align:center;border:1px solid var(--line-strong);border-radius:8px;font-size:13px"></label>`; };
+    return `<div class="row"><label>個別圓角</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;width:160px">${cell(0,'左上')}${cell(1,'右上')}${cell(3,'左下')}${cell(2,'右下')}</div></div>`;
   }
   function ceilPropHTML(z,U){
     const num=(id,val,step,extra)=>`<div class="field"><input type="number" id="${id}" value="${val}" step="${step||1}" ${extra||''}><span class="unit">${U}</span></div>`;
@@ -10980,6 +11084,7 @@
       return `
       <div class="row"><label>構件</label><span style="font-size:13px;font-weight:600;color:${CEIL_INK}">${CEIL_NAME[z.kind]}</span></div>
       ${z.kind==='hatch'?`<div class="row"><label>規格</label><div class="seg" id="pZhatch"><button data-s="45">450</button><button data-s="60">600</button></div></div>`:''}
+      ${z.kind==='hatch'?`<div class="row"><label>圓角 R（全部）</label>${num('pZr',Math.round(toDisp(z.r||0)),5,'min="0"')}</div>`+cornerGridHTML(z):''}
       <div class="row"><label>寬（橫）</label>${num('pZw',Math.round(toDisp(z.w)))}</div>
       <div class="row"><label>深（直）</label>${num('pZh',Math.round(toDisp(z.h)))}</div>
       ${gaps}
@@ -10997,7 +11102,7 @@
       ${z.shape==='rect'?`<div class="row"><label>寬（橫）</label>${num('pZw',Math.round(toDisp(z.w)))}</div><div class="row"><label>深（直）</label>${num('pZh',Math.round(toDisp(z.h)))}</div>`:''}
       ${z.shape==='ell'?`<div class="row"><label>寬（橫）</label>${num('pZrx',Math.round(toDisp(z.rx*2)))}</div><div class="row"><label>深（直）</label>${num('pZry',Math.round(toDisp(z.ry*2)))}</div>`:''}
       ${z.shape!=='ell'?`<div class="row"><label>圓角 R（全部）</label>${num('pZr',Math.round(toDisp(z.r||0)),5,'min="0"')}</div>`:''}
-      ${z.shape==='rect'?`<div class="row"><label>個別圓角</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;width:150px">${['左上','右上','右下','左下'].map((t,i)=>`<input type="number" class="pZrv" data-i="${i}" placeholder="${t}" min="0" value="${z.rv&&z.rv[i]!=null?Math.round(toDisp(z.rv[i])):''}" style="width:100%;min-height:36px;text-align:center;border:1px solid var(--line-strong);border-radius:8px;font-size:13px">`).join('')}</div></div>`:''}
+      ${(z.shape==='rect')?cornerGridHTML(z):''}
       ${z.shape!=='ell'?`<div class="row"><label style="font-size:11px;color:var(--muted)">圖上：菱形＝拖動那條邊；圓點＝點一下設圓角 R</label>${hasBz?'<button class="btn" id="pZflat" style="width:auto;min-height:34px;padding:0 10px">全部拉直</button>':''}</div>`:''}
       ${gaps}
       <div class="row"><label>間照</label><div class="seg" id="pZcove"><button data-v="1"${cv.on?' class="on"':''}>有</button><button data-v="0"${!cv.on?' class="on"':''}>無</button></div></div>
@@ -11022,12 +11127,12 @@
     on('pZh',v=>{ const x=val(v); if(x>=5) z.h=x; });
     on('pZrx',v=>{ const x=val(v); if(x>=10){ z.rx=x/2; z.oval=z.rx!==z.ry; } });
     on('pZry',v=>{ const x=val(v); if(x>=10){ z.ry=x/2; z.oval=z.rx!==z.ry; } });
-    on('pZr',v=>{ const x=val(v); z.r=x>0?x:0; });
+    on('pZr',v=>{ const x=val(v); z.r=x>0?x:0; if(z.rv) z.rv=z.rv.map(()=>z.r); });
     on('pZcw',v=>{ const x=val(v); if(x>0) z.cove.w=x; });
     on('pZcl',v=>{ const x=val(v); if(x>0) z.cove.lip=x; });
     document.querySelectorAll('.pZrv').forEach(inp=>inp.onchange=()=>{
-      z.rv=(z.rv||[null,null,null,null]).slice(); const x=val(inp.value);
-      z.rv[+inp.dataset.i]=(inp.value===''||!isFinite(x))?null:Math.max(0,x); done(); });
+      const base=z.r||0; z.rv=(z.rv||[base,base,base,base]).slice(); while(z.rv.length<4) z.rv.push(base);
+      const x=val(inp.value); z.rv[+inp.dataset.i]=(inp.value===''||!isFinite(x))?base:Math.max(0,x); done(); });
     document.querySelectorAll('.pZgap').forEach(inp=>inp.onchange=()=>{ const x=val(inp.value); if(isFinite(x)&&x>=0) setCeilGap(z,inp.dataset.dir,x); done(); });
     const b=(id,fn)=>{ const el=document.getElementById(id); if(el) el.onclick=()=>{ fn(); done(); }; };
     b('pZflat',()=>{ z.bz=[]; });
@@ -12080,7 +12185,8 @@
       // a pin IS a photo, so it follows the photo switch; a box note is an
       // annotation and follows the notes switch
       if(isPin(n) ? !showOpt.photos : !showOpt.notes) continue;
-      if(!layerVisible(n.layer||'plan')) continue;
+      // on a sheet, the 文字與註記／照片 switches decide — not the layer they were written on
+      if(!EXPORT_MODE && !layerVisible(n.layer||'plan')) continue;
       ctx.globalAlpha=layerAlpha(n.layer||'plan');
       const sel = ui.selected && ui.selected.kind==='note' && ui.selected.id===n.id;
       const [ax,ay]=toScreen(n.ax,n.ay);
