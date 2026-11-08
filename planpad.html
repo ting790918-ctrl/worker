@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b112</title>
+<title>PlanPad · 平面圖工具 b114</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -331,7 +331,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b112</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b114</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -628,7 +628,25 @@
     <div class="mrow"><span>設計師</span><input type="text" id="mtDesigner" class="meta-in" placeholder="選填"></div>
     <div class="mrow"><span>業主</span><input type="text" id="mtClient" class="meta-in" placeholder="例：王先生"></div>
     <div class="mrow"><span>圖號前綴</span><input type="text" id="mtSheet" class="meta-in" placeholder="A"></div>
-    <div class="mrow"><span style="font-size:11px;color:var(--muted);line-height:1.6">這些會印在匯出的圖框上。圖名會自動帶入該頁的圖層名稱。</span></div>
+    <div class="mrow"><span>日期</span><input type="text" id="mtDate" class="meta-in" placeholder="空白＝今天"></div>
+    <div class="mrow"><span>序號</span><input type="text" id="mtSerial" class="meta-in" placeholder="選填"></div>
+    <div class="mrow"><span>指北針角度</span><input type="number" id="mtNorth" class="meta-in" placeholder="0" step="5"></div>
+    <div style="font-size:12px;color:var(--muted);margin:2px 0 4px">備註（印在圖框最下面）</div>
+    <textarea id="mtRemark" style="width:100%;min-height:64px;border:1px solid var(--line);border-radius:8px;font-size:12px;padding:6px 8px;font-family:inherit"></textarea>
+    <div class="modal-title" style="margin-top:16px;font-size:14px">事務所資料（存在這台平板，每個專案自動帶入）</div>
+    <div class="mrow"><span>Logo</span><div style="display:flex;gap:8px;align-items:center;flex:1 1 auto;justify-content:flex-end"><img id="stLogoPrev" alt="" style="max-height:30px;max-width:120px;display:none"><button class="tbtn" id="stLogoBtn">上傳…</button><button class="tbtn" id="stLogoDel">移除</button></div></div>
+    <input type="file" id="stLogoFile" accept="image/*" style="display:none">
+    <div class="mrow"><span>項目負責</span><input type="text" id="stLead" class="meta-in" placeholder="例：象藝創意"></div>
+    <div class="mrow"><span>設計負責</span><input type="text" id="stDlead" class="meta-in" placeholder="例：黃鈺涵"></div>
+    <div class="mrow"><span>設計</span><input type="text" id="stDesign" class="meta-in"></div>
+    <div class="mrow"><span>製圖</span><input type="text" id="stDrawn" class="meta-in"></div>
+    <div class="mrow"><span>審核</span><input type="text" id="stCheck" class="meta-in"></div>
+    <div class="mrow"><span>校對</span><input type="text" id="stRevise" class="meta-in"></div>
+    <div style="font-size:12px;color:var(--muted);margin:2px 0 4px">注意事項（英文）</div>
+    <textarea id="stAttn" style="width:100%;min-height:64px;border:1px solid var(--line);border-radius:8px;font-size:12px;padding:6px 8px;font-family:inherit"></textarea>
+    <div style="font-size:12px;color:var(--muted);margin:8px 0 4px">注意事項（中文）</div>
+    <textarea id="stNotes" style="width:100%;min-height:64px;border:1px solid var(--line);border-radius:8px;font-size:12px;padding:6px 8px;font-family:inherit"></textarea>
+    <div class="mrow"><span style="font-size:11px;color:var(--muted);line-height:1.6">這些會印在匯出的事務所圖框上。圖名會自動帶入那張圖的種類。</span></div>
     <div class="modal-btns"><button class="tbtn primary" id="mtClose">完成</button></div>
   </div>
 </div>
@@ -649,13 +667,19 @@
   <div class="modal">
     <div class="modal-title" id="mTitle">匯出</div>
     <div class="modal-body">
-    <div class="mrow pdfonly"><span>紙張</span><div class="seg" id="mPaper"><button data-v="a4" class="on">A4</button><button data-v="a3">A3</button></div></div>
+    <div class="mrow pdfonly"><span>紙張</span><div class="seg" id="mPaper"><button data-v="a4">A4</button><button data-v="a3" class="on">A3</button></div></div>
     <div class="mrow pdfonly"><span>方向</span><div class="seg" id="mOrient"><button data-v="l" class="on">橫式</button><button data-v="p">直式</button></div></div>
     <div class="mrow pdfonly"><span>圖框</span>
       <div style="display:flex;gap:6px;align-items:center;flex:1 1 auto;min-width:0">
         <select id="mFrame" style="flex:1 1 auto;min-width:0;height:32px;border:1px solid var(--line);border-radius:8px;font-size:13px;padding:0 6px;background:#fff"></select>
         <button class="tbtn" id="mFrameAdd" style="flex:0 0 auto">匯入…</button>
       </div>
+    </div>
+    <div class="pdfonly" id="mStudioRow" style="margin:-4px 0 12px;padding:10px;background:#F5F7F9;border-radius:9px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="flex:0 0 44px;font-size:12px;color:var(--muted)">圖別</span><input type="text" id="mSkind" placeholder="例：水電" style="flex:1 1 auto;min-width:0;height:32px;border:1px solid var(--line);border-radius:8px;font-size:13px;padding:0 8px"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="flex:0 0 44px;font-size:12px;color:var(--muted)">圖號</span><input type="text" id="mSno" placeholder="例：E-01" style="flex:1 1 auto;min-width:0;height:32px;border:1px solid var(--line);border-radius:8px;font-size:13px;padding:0 8px"></div>
+      <div style="display:flex;gap:8px;align-items:center"><span style="flex:0 0 44px;font-size:12px;color:var(--muted)">指北針</span><div class="seg" id="mNorth"><button data-v="1" class="on">顯示</button><button data-v="0">隱藏</button></div></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">圖別、圖號每一種圖各自記住。人員、Logo、注意事項到「專案資訊」設定一次就好。</div>
     </div>
     <div class="pdfonly" id="mFrameEdit" style="display:none;margin:-6px 0 14px;padding:10px;background:#F5F7F9;border-radius:9px">
       <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6">繪圖區邊界（mm）— 平面圖會畫在圖框內的這塊範圍裡，底部通常留多一點給標題欄。</div>
@@ -5708,7 +5732,7 @@
     }
     else if(hit.kind==='mep'){
       const m=state.mep.find(v=>v.id===hit.id);
-      const sp=devSnap(m.kind, orig.x+dx, orig.y+dy);
+      const sp=devSnap(m.kind, orig.x+dx, orig.y+dy, m);
       m.x=sp.x; m.y=sp.y;
       faceInward(m);
     }
@@ -6293,6 +6317,14 @@
       el.oninput=ev=>{ M[k]=ev.target.value; };
       el.onchange=()=>{ pushHistory(); };
     }
+    for(const [id,k] of [['mtDate','date'],['mtSerial','serial'],['mtRemark','remark']]){
+      const el=document.getElementById(id); if(!el) continue; el.value=M[k]||''; el.oninput=ev=>{ M[k]=ev.target.value; }; el.onchange=()=>pushHistory(); }
+    { const el=document.getElementById('mtNorth'); if(el){ el.value=M.north||''; el.onchange=ev=>{ M.north=parseFloat(ev.target.value)||0; pushHistory(); }; } }
+    const ST=studioRead();
+    for(const [id,k] of [['stLead','lead'],['stDlead','dlead'],['stDesign','design'],['stDrawn','drawn'],['stCheck','check'],['stRevise','revise'],['stAttn','attn'],['stNotes','notes']]){
+      const el=document.getElementById(id); if(!el) continue; el.value=ST[k]||'';
+      el.onchange=ev=>{ const o=studioRead(); o[k]=ev.target.value; studioWrite(o); }; }
+    const lp=document.getElementById('stLogoPrev'); if(lp){ lp.src=ST.logo||''; lp.style.display=ST.logo?'':'none'; }
     const nm=document.getElementById('mtName');
     if(nm){
       nm.value=document.getElementById('fname').value;
@@ -6304,6 +6336,19 @@
     syncMetaUI();
     document.getElementById('metaModal').classList.add('open');
   };
+  (function wireStudioLogo(){
+    const b=document.getElementById('stLogoBtn'), f=document.getElementById('stLogoFile'), d=document.getElementById('stLogoDel');
+    if(b) b.onclick=()=>f.click();
+    if(d) d.onclick=()=>{ const o=studioRead(); o.logo=''; studioWrite(o); syncMetaUI(); };
+    if(f) f.onchange=()=>{ const file=f.files&&f.files[0]; if(!file) return; const fr=new FileReader();
+      fr.onload=()=>{ const im=new Image(); im.onload=()=>{
+        // shrink to a print-sensible size so it fits in storage
+        const sc=Math.min(1, 1200/Math.max(im.naturalWidth,im.naturalHeight)), c=document.createElement('canvas');
+        c.width=Math.round(im.naturalWidth*sc); c.height=Math.round(im.naturalHeight*sc); c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+        const o=studioRead(); o.logo=c.toDataURL('image/png'); if(studioWrite(o)){ syncMetaUI(); flashHint('Logo 已存好，之後每張圖都會帶入'); } };
+        im.src=fr.result; };
+      fr.readAsDataURL(file); f.value=''; };
+  })();
   document.getElementById('mtClose').onclick=()=>document.getElementById('metaModal').classList.remove('open');
   document.getElementById('metaModal').addEventListener('click',e=>{
     if(e.target.id==='metaModal') e.target.classList.remove('open'); });
@@ -7337,7 +7382,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b112';
+  const BUILD='b114';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -7518,8 +7563,8 @@
 
   // ---- export options modal (shared by PNG / PDF / DXF) ----
   const pdfModal=document.getElementById('pdfModal');
-  const pdfOpt={paper:'a4',orient:'l',scale:'fit',dims:true,rooms:true,notes:true,photos:true,
-                frame:'builtin', perLayer:false, layers:null, pngFrame:false, textSize:'m'};
+  const pdfOpt={paper:'a3',orient:'l',scale:'fit',dims:true,rooms:true,notes:true,photos:true,
+                frame:'studio', north:true, perLayer:false, layers:null, pngFrame:false, textSize:'m'};
   let exportKind='pdf';
   function openExportModal(kind){
     exportKind=kind;
@@ -7535,6 +7580,7 @@
     document.getElementById('mEmbedWarn').style.display = (EMBEDDED && !shareUsable()) ? '' : 'none';
     pdfOpt.layers=null;      // start from whatever is currently visible
     pdfOpt.view={k:1,dx:0,dy:0};
+    studioLogo();            // start decoding the logo before the first preview
     expLayerUI();
     frameRefreshUI();
     pdfModal.classList.add('open');
@@ -7562,6 +7608,11 @@
         // a sheet with a frame previews as the whole sheet, so the plan can be
         // zoomed and moved on it before export (drawn at a lighter resolution)
         const framed = exportKind==='pdf' || (exportKind==='png' && pdfOpt.pngFrame);
+        { const SM=sheetMeta(layers), a=document.getElementById('mSkind'), b2=document.getElementById('mSno');
+          if(a && document.activeElement!==a){ a.value=SM.kind||''; } if(b2 && document.activeElement!==b2){ b2.value=SM.no||''; }
+          if(a) a.oninput=()=>{ sheetMeta(layers).kind=a.value; refreshPreview(); };
+          if(b2) b2.oninput=()=>{ sheetMeta(layers).no=b2.value; refreshPreview(); };
+          if(a) a.onchange=()=>pushHistory(); if(b2) b2.onchange=()=>pushHistory(); }
         const ctl=document.getElementById('mViewCtl'); if(ctl) ctl.style.display = framed ? 'flex' : 'none';
         if(framed){
           const [pw,ph]=paperMM(pdfOpt), sv=SHEET_PPM; let c;
@@ -7620,7 +7671,7 @@
   bindSeg('mPaper','paper'); bindSeg('mOrient','orient'); bindSeg('mScale','scale'); bindSeg('mTextSize','textSize');
   bindToggle('mDims','dims'); bindToggle('mRooms','rooms');
   bindToggle('mNotes','notes'); bindToggle('mPhotos','photos'); bindToggle('mPerLayer','perLayer');
-  bindToggle('mPngFrame','pngFrame');
+  bindToggle('mPngFrame','pngFrame'); bindToggle('mNorth','north');
   function expLayerUI(){
     const box=document.getElementById('mLayers'); if(!box) return;
     // Default to the STRUCTURE only. An export is one drawing — 平面配置圖, or
@@ -7642,7 +7693,7 @@
       box.appendChild(b);
     }
   }
-  document.getElementById('mFrame').onchange=ev=>{ pdfOpt.frame=ev.target.value; frameRefreshUI(); };
+  document.getElementById('mFrame').onchange=ev=>{ pdfOpt.frame=ev.target.value; frameRefreshUI(); refreshPreview(); };
   document.getElementById('mFrameAdd').onclick=()=>document.getElementById('frameInput').click();
   document.getElementById('mFrameDel').onclick=()=>frameDelete();
   ['L','R','T','B'].forEach(k=>{ const el=document.getElementById('mMargin'+k); if(el) el.onchange=frameSaveMargins; });
@@ -7872,13 +7923,170 @@
     return fits.length ? head+'\n\n改用 '+fits.join(' 或 ')+' 就放得下。'
                        : head+'\n\n目前沒有紙張放得下這個比例，請選較小的比例。';
   }
+  // ================= 事務所圖框 =================
+  // The studio's own sheet: a double border and a full-height column on the right
+  // (logo, people, sheet data, project, notes, remarks). The people and the notes
+  // belong to the studio and are kept on this device for every project; project
+  // name, date, serial, remark belong to the project; 圖別／圖號 to each sheet.
+  const STUDIO_KEY='planpad.studio.v1';
+  const STUDIO_DEF={logo:'', lead:'', dlead:'', design:'', drawn:'', check:'', revise:'',
+    attn:'ATTENTION:\nCAN MEASURE THIS DIAGRAM WITH THE SCALE\nREAD THE DRAWIN IN CONJUNCTION WITH ALL RELATED DRAWINGS\nTHE ARCHITECT SHOULD BE NOTIFIED IMMEDIATELY OF ANY DISCREPANCY FOUND THEREIN.\nALL DIMENSIONS TO BE VERIFIED AND CHECKED ON SITE',
+    notes:'1 可以用比例尺量度此圖.\n2 閱讀了解此圖須與其它相關圖紙配合.\n3 若發現誤差時,應立即通知設計師.\n4 圖示所有尺寸均須在工地現場求證.'};
+  function studioRead(){ try{ return Object.assign({}, STUDIO_DEF, JSON.parse(localStorage.getItem(STUDIO_KEY)||'{}')||{}); }catch(_){ return Object.assign({},STUDIO_DEF); } }
+  function studioWrite(o){ try{ localStorage.setItem(STUDIO_KEY, JSON.stringify(o)); return true; }catch(_){ uiAlert('存不下來：Logo 圖片可能太大，請換一張小一點的'); return false; } }
+  let studioLogoImg=null, studioLogoSrc='';
+  function studioLogo(){ const s=studioRead(); if(!s.logo) return null;
+    if(studioLogoSrc!==s.logo){ studioLogoSrc=s.logo; studioLogoImg=new Image(); studioLogoImg.src=s.logo; }
+    return studioLogoImg && studioLogoImg.complete && studioLogoImg.naturalWidth ? studioLogoImg : null; }
+  // the sheet key a 圖別／圖號 is filed under: the trade layers it prints
+  function sheetKey(layers){ const k=Object.keys(layers||{}).filter(x=>x!=='base' && layers[x]).sort(); return k.length?k.join('+'):'base'; }
+  function sheetMeta(layers){ const M=state.meta||(state.meta={}); M.sheets=M.sheets||{}; const k=sheetKey(layers); return M.sheets[k]||(M.sheets[k]={}); }
+
+  function drawStudioFrame(g, pw, ph, opt, page, scaleTxt){
+    const S=studioRead(), M=state.meta||{}, SM=sheetMeta(page.layers);
+    const k=ph/297;                                   // A3 landscape = 1
+    const m=6*k, colW=Math.max(34, pw*0.094);
+    g.strokeStyle='#111'; g.lineWidth=MM(0.7*k); g.strokeRect(MM(m),MM(m),MM(pw-2*m),MM(ph-2*m));
+    g.lineWidth=MM(0.25*k); g.strokeRect(MM(m+2.5*k),MM(m+2.5*k),MM(pw-2*m-5*k),MM(ph-2*m-5*k));
+    const x0=pw-m-2.5*k-colW, x1=pw-m-2.5*k, top=m+2.5*k, bot=ph-m-2.5*k, H=bot-top;
+    g.lineWidth=MM(0.5*k); g.beginPath(); g.moveTo(MM(x0),MM(top)); g.lineTo(MM(x0),MM(bot)); g.stroke();
+    const rows=[
+      {h:0.13, logo:true},
+      {en:'APPROVED BY', zh:'項 目 負 責', v:S.lead},
+      {en:'DESIGNED BY', zh:'設 計 負 責', v:S.dlead},
+      {en:'DESIGNED BY', zh:'設　　計', v:S.design},
+      {en:'DRAWN BY', zh:'製　　圖', v:S.drawn},
+      {en:'CHECKED BY', zh:'審　　核', v:S.check},
+      {en:'REVISION', zh:'校　　對', v:S.revise},
+      {en:'DESCRIPTION', zh:'圖　　別', v:SM.kind||''},
+      {en:'DRAWING NO.', zh:'圖　　號', v:SM.no||''},
+      {en:'SCALE', zh:'比　　例', v:scaleTxt||''},
+      {en:'DATE REVISION NO.', zh:'日　　期', v:M.date||new Date().toISOString().slice(0,10).replace(/-/g,'/')},
+      {en:'SHEET NO.', zh:'序　　號', v:M.serial||''},
+      {en:'PROJECT', zh:'工 程 名 稱', v:fname(), big:true, h:0.065},
+      {en:'ALIGNMENT', zh:'項　　目', v:page.title||'', big:true, h:0.065},
+      {notes:true, h:0.15},
+      {en:'REMARKS', zh:'備　　註', v:M.remark||'', rest:true},
+    ];
+    const one=0.04, fixed=rows.reduce((a,r)=>a+(r.rest?0:(r.h||one)),0);
+    let y=top;
+    const T=(txt,x,yy,sz,wt,col,al)=>{ g.fillStyle=col||'#111'; g.textAlign=al||'left'; g.textBaseline='alphabetic';
+      g.font=(wt||500)+' '+Math.round(MM(sz))+'px '+SHEET_FONT; g.fillText(txt,MM(x),MM(yy)); };
+    const fit=(txt,maxW,sz,wt)=>{ let f=sz; g.font=(wt||500)+' '+Math.round(MM(f))+'px '+SHEET_FONT;
+      while(f>1.2 && g.measureText(txt).width>MM(maxW)){ f-=0.1; g.font=(wt||500)+' '+Math.round(MM(f))+'px '+SHEET_FONT; } return f; };
+    for(const r of rows){
+      const h=(r.rest ? Math.max(0.05,1-fixed) : (r.h||one))*H;
+      const pad=1.6*k;
+      if(r.logo){
+        const im=studioLogo();
+        if(im){ const bw=colW-2*pad*2, bh=h-2*pad*2, sc=Math.min(bw/im.naturalWidth, bh/im.naturalHeight);
+          const w=im.naturalWidth*sc, hh=im.naturalHeight*sc; g.drawImage(im, MM(x0+(colW-w)/2), MM(y+(h-hh)/2), MM(w), MM(hh)); }
+        else T('（到「專案資訊」上傳 Logo）', x0+colW/2, y+h/2, 2*k, 500, '#B5BBC1', 'center');
+      } else if(r.notes){
+        const lines=String(S.attn||'').split('\n'), nl=String(S.notes||'').split('\n');
+        let yy=y+pad+1.5*k;
+        // long English lines wrap at word boundaries inside the column
+        g.font='500 '+Math.round(MM(1.2*k))+'px '+SHEET_FONT;
+        for(const l of lines){ let cur='';
+          for(const wd of l.split(' ')){ const t=cur?cur+' '+wd:wd;
+            if(g.measureText(t).width>MM(colW-2*pad) && cur){ T(cur, x0+pad, yy, 1.2*k, 500, '#333'); yy+=1.6*k; cur=wd; } else cur=t; }
+          if(cur){ T(cur, x0+pad, yy, 1.2*k, 500, '#333'); yy+=1.6*k; } }
+        yy+=1.8*k; T('注　意', x0+pad, yy, 1.6*k, 600, '#333'); yy+=2.2*k;
+        for(const l of nl){ const f=fit(l, colW-2*pad, 1.45*k); T(l, x0+pad, yy, f, 500, '#333'); yy+=2.0*k; }
+      } else {
+        T(r.en, x0+pad, y+1.9*k, 1.15*k, 500, '#666');
+        if(r.big || r.rest){
+          T(r.zh, x0+pad*1.6, y+4.6*k, 1.9*k, 500, '#333');
+          const v=String(r.v||'');
+          if(r.rest){ let yy=y+8.2*k; for(const l of v.split('\n')){ const f=fit(l, colW-2*pad, 2.4*k); T(l, x0+pad, yy, f, 500); yy+=3.2*k; } }
+          else if(v){ const f=fit(v, colW-2*pad*2, 4.2*k, 500); T(v, x0+pad*2, y+h-2.2*k, f, 500); }
+        } else {
+          T(r.zh, x0+pad*1.6, y+h-1.6*k, 1.8*k, 500, '#333');
+          const v=String(r.v||''); if(v){ const lx=x0+colW*0.42, f=fit(v, x1-lx-pad, 3.4*k, 500); T(v, lx, y+h-1.5*k, f, 500); }
+        }
+      }
+      y+=h;
+      if(!r.rest){ g.strokeStyle='#111'; g.lineWidth=MM(0.25*k); g.beginPath(); g.moveTo(MM(x0),MM(y)); g.lineTo(MM(x1),MM(y)); g.stroke(); }
+    }
+    return {x:m+2.5*k+4*k, y:top+4*k, w:x0-(m+2.5*k)-8*k, h:H-8*k, k};
+  }
+  // a north arrow in the top-right corner of the drawing area
+  function drawNorth(g, cx, cy, r, deg){
+    g.save(); g.translate(MM(cx),MM(cy));
+    g.strokeStyle='#111'; g.lineWidth=MM(r*0.07); g.beginPath(); g.arc(0,0,MM(r),0,Math.PI*2); g.stroke();
+    g.rotate((deg||0)*Math.PI/180);
+    g.fillStyle='#111'; g.beginPath(); g.moveTo(0,-MM(r*1.05)); g.lineTo(MM(r*0.32),MM(r*0.7)); g.lineTo(0,MM(r*0.35)); g.closePath(); g.fill();
+    g.fillStyle='#fff'; g.strokeStyle='#111'; g.beginPath(); g.moveTo(0,-MM(r*1.05)); g.lineTo(-MM(r*0.32),MM(r*0.7)); g.lineTo(0,MM(r*0.35)); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle='#111'; g.textAlign='center'; g.textBaseline='alphabetic'; g.font='600 '+Math.round(MM(r*0.75))+'px '+SHEET_FONT;
+    g.fillText('N', 0, -MM(r*1.25));
+    g.restore();
+  }
+  // 燈具迴路圖例: one row per circuit — which room, which lights, which switch
+  function circLegendRows(layers){
+    if(!(layers && layers.circuit)) return [];
+    cleanCircuits();
+    return state.circuits.map(c=>{
+      const by={}; for(const id of c.lights){ const m=mepById(id); if(!m) continue; const n=devLabel(m); by[n]=(by[n]||0)+1; }
+      const sw=c.sw.map(mepById).filter(Boolean).map(m=>mepName(m.kind));
+      return {name:c.name, color:c.color, room:circRoomName(c), lights:Object.keys(by).map(n=>n+'×'+by[n]).join('、'), sw:[...new Set(sw)].join('、')};
+    });
+  }
+  function drawCircLegend(g, x, yBottom, maxW, rows, k){
+    if(!rows.length) return null;
+    const groups=rows.length>8?2:1, per=Math.ceil(rows.length/groups);
+    const rowH=3.6*k, titleH=5*k, headH=3.8*k, gw=[8*k,16*k,40*k,14*k], GWr=gw.reduce((a,b)=>a+b,0);
+    const w=Math.min(maxW, groups*GWr), sc=w/(groups*GWr), G=gw.map(v=>v*sc), GW=GWr*sc, h=titleH+headH+per*rowH, y=yBottom-h;
+    const L=(x1,y1,x2,y2,lw)=>{ g.lineWidth=MM(lw||0.22*k); g.beginPath(); g.moveTo(MM(x1),MM(y1)); g.lineTo(MM(x2),MM(y2)); g.stroke(); };
+    g.strokeStyle='#111'; g.lineWidth=MM(0.35*k); g.strokeRect(MM(x),MM(y),MM(w),MM(h));
+    L(x,y+titleH,x+w,y+titleH); L(x,y+titleH+headH,x+w,y+titleH+headH);
+    g.fillStyle='#111'; g.textAlign='center'; g.textBaseline='middle';
+    g.font='500 '+Math.round(MM(3.2*k))+'px '+SHEET_FONT; g.fillText('燈 具 迴 路 圖 例  LEGEND', MM(x+w/2), MM(y+titleH/2));
+    g.font='500 '+Math.round(MM(2*k))+'px '+SHEET_FONT;
+    for(let c=0;c<groups;c++){ const gx=x+c*GW; let cx=gx;
+      if(c) L(gx,y+titleH,gx,y+h,0.35*k);
+      ['迴路','區域','控制燈具','開關'].forEach((t,i)=>{ g.fillStyle='#111'; g.textAlign='center'; g.fillText(t, MM(cx+G[i]/2), MM(y+titleH+headH/2)); cx+=G[i]; if(i<3) L(cx,y+titleH,cx,y+h); }); }
+    rows.forEach((r,i)=>{
+      const c=Math.floor(i/per), rr=i%per, gx=x+c*GW, ry=y+titleH+headH+rr*rowH, cy=ry+rowH/2;
+      if(rr){ g.strokeStyle='#111'; L(gx,ry,gx+GW,ry,0.12*k); }
+      g.strokeStyle=r.color; g.lineWidth=MM(0.25*k); g.beginPath(); g.arc(MM(gx+G[0]/2),MM(cy),MM(1.35*k),0,Math.PI*2); g.stroke();
+      g.fillStyle=r.color; g.textAlign='center'; g.font='700 '+Math.round(MM(1.7*k))+'px '+SHEET_FONT; g.fillText(r.name, MM(gx+G[0]/2), MM(cy));
+      g.fillStyle='#111'; g.font='500 '+Math.round(MM(1.8*k))+'px '+SHEET_FONT;
+      let cx=gx+G[0];
+      [r.room,r.lights,r.sw].forEach((t,j)=>{ const cw=G[j+1]; let s2=String(t||''); const mw=MM(cw-1.6*k);
+        while(s2.length>1 && g.measureText(s2).width>mw) s2=s2.slice(0,-1);
+        g.textAlign='left'; g.fillText(s2+(s2.length<String(t||'').length?'…':''), MM(cx+0.8*k), MM(cy)); cx+=cw; });
+    });
+    return {w,h};
+  }
+
+
+  const SHEET_NAME={base:'結構平面圖',plan:'平面配置圖',elec:'插座配置圖',light:'燈具配置圖',circuit:'燈具迴路圖',ceil:'天花板施工圖',floor:'地板施工圖'};
+  function sheetTitle(layers){ const L=layers||{}; const k=LAYERS.map(l=>l.id).filter(id=>id!=='base' && L[id]);
+    if(L.light && L.circuit) return '燈具配置圖'; return k.length ? k.map(id=>SHEET_NAME[id]||layerName(id)).join('／') : SHEET_NAME.base; }
   function composeSheet(opt, page, pageNo, pageCount, pwMM, phMM){
     const pw=pwMM, ph=phMM;
     const {c:sheet,g}=sheetCanvas(pw,ph);
     const custom=frameCurrent();
     let availW, availH, ox, oy;                 // all in mm
-    let tb=null, tbM=8;
-    if(custom){
+    let tb=null, tbM=8, studio=null;
+    const title=(page.title||sheetTitle(page.layers));
+    if(opt.frame==='studio'){
+      // lay out first (the frame itself is drawn last, once the scale is known)
+      const k=ph/297, m=6*k, colW=Math.max(34, pw*0.094), A={x:m+6.5*k, y:m+6.5*k, w:pw-2*m-5*k-colW-8*k, h:ph-2*m-13*k};
+      const bottom=A.y+A.h, titleH=10*k;
+      const lg=drawLegend(g,pw,ph,m,null,page.layers,{x:A.x, bottom, w:A.w*0.55, k});
+      const cr=circLegendRows(page.layers);
+      const cl=drawCircLegend(g, A.x+(lg?lg.wMM+4*k:0), bottom, A.w-(lg?lg.wMM+4*k:0)-60*k, cr, k);
+      const used=(lg?lg.wMM+4*k:0)+(cl?cl.w+4*k:0), free=A.w-used;
+      let band=Math.max(lg?lg.hMM:0, cl?cl.h:0, titleH);
+      let tx=A.x+used+free/2, ty=bottom-band/2;
+      if(free<55*k){ tx=A.x+A.w/2; ty=bottom-band-titleH/2; band+=titleH; }
+      g.fillStyle='#111'; g.textAlign='center'; g.textBaseline='middle'; g.font='500 '+Math.round(MM(7*k))+'px '+SHEET_FONT;
+      g.fillText(title, MM(tx), MM(ty));
+      if(opt.north!==false) drawNorth(g, A.x+A.w-8*k, A.y+9*k, 4.2*k, (state.meta&&state.meta.north)||0);
+      studio={k};
+      ox=A.x; oy=A.y; availW=Math.max(20, A.w-(opt.north!==false?18*k:0)); availH=Math.max(20, A.h-band-4*k);
+    } else if(custom){
       g.drawImage(customImg(custom), 0,0, MM(pw),MM(ph));
       const mg=custom.margins;
       ox=mg.l; oy=mg.t;
@@ -7934,9 +8142,11 @@
     S=Math.max(0.05,S);
     // text size is stated in millimetres ON PAPER, so it no longer depends on how
     // big the plan happens to be or which sheet it landed on
-    const {oc,cw,ch}=renderExport(S,{dims:opt.dims,rooms:opt.rooms,notes:opt.notes,
+    SYM_CAP_PX=5*SHEET_PPM;
+    let rex; try{ rex=renderExport(S,{dims:opt.dims,rooms:opt.rooms,notes:opt.notes,
                                      photos:opt.photos,layers:page.layers,
-                                     textScale: TSv});
+                                     textScale: TSv}); } finally { SYM_CAP_PX=0; }
+    const {oc,cw,ch}=rex;
     const iw=cw/SHEET_PPM, ih=ch/SHEET_PPM;      // 1:1 pixels, no resampling
     const ix=ox+(availW-iw)/2+(UV.dx||0), iy=oy+(availH-ih)/2+(UV.dy||0);
     // never over the legend or the title block, however it was zoomed or moved
@@ -7952,53 +8162,81 @@
                                                    : ('≈1:'+Math.round(ratio));
       drawTitleBlock(g,pw,ph,tbM,opt,page,pageNo,pageCount,txt);
     }
+    if(studio){
+      const ratio=10*SHEET_PPM/S;
+      drawStudioFrame(g,pw,ph,opt,{title, layers:page.layers}, (opt.scale!=='fit' && scaleKept) ? ('1:'+opt.scale) : ('1:'+Math.round(ratio)));
+    }
     return sheet;
   }
   // A legend the contractor can count from, built from the symbols actually on this
   // sheet. It is a LOW strip along the bottom (above the title block), split into
   // as many columns as fit across the sheet — the plan is the point of the sheet,
   // so the legend never grows tall and never pushes the plan smaller.
-  function drawLegend(g, pwMM, phMM, mMM, tb, layersOpt){
+  // a count reads with its unit, as on a construction sheet: 20 只, 1 口, 6 盞
+  function legendUnit(it){
+    if(typeof it.n!=='number') return '';
+    if(it.head) return ' 顆';
+    const sp=LIGHT_SPEC[it.kind];
+    if(sp){ return sp.heads ? ' 支' : (sp.linear ? ' 支' : ' 盞'); }
+    const fam=MEP_FAMILY[it.kind];
+    if(fam==='low') return ' 口'; if(fam==='equip'||fam==='panel') return ' 台';
+    if(fam) return ' 只';
+    return ' 個';
+  }
+  // 圖例表 LEGEND in the studio's layout: a ruled table, title row across the top,
+  // then 圖例｜名稱｜數量 repeated in two (or three) groups side by side, eight rows
+  // a group at most, an optional note row underneath. Sizes are in mm on paper.
+  function drawLegend(g, pwMM, phMM, mMM, tb, layersOpt, area){
     const structOnly=!layersOpt || !Object.keys(layersOpt).some(k=>k!=='base' && layersOpt[k]);
-    const items=(structOnly?wallKindTally():[]).concat(mepTally(layersOpt)).concat(ceilTally(layersOpt)).concat(floorLegend(layersOpt));
+    let items=(structOnly?wallKindTally():[]).concat(mepTally(layersOpt)).concat(ceilTally(layersOpt)).concat(floorLegend(layersOpt));
+    let note='';
+    items=items.filter(it=>{ if(/^※/.test(it.name)){ note=it.name.replace(/^※\s*/,''); return false; } return true; });
     if(!items.length) return null;
-    const n=items.length, rowMM=5.2, headMM=5.6, fullW=pwMM-2*mMM-9;
-    const colMM=Math.max(52, Math.min(72, fullW/Math.min(n,5)));
-    const maxCols=Math.max(1, Math.floor(fullW/colMM));
-    const rows=Math.ceil(n/maxCols), cols=Math.ceil(n/rows);
-    const wMM=cols*colMM, hMM=headMM+rows*rowMM;
-    const xMM=mMM+4.5, yMM=(tb ? tb.yMM : (phMM-mMM-4.5)) - hMM;
-    const x=MM(xMM), y=MM(yMM), w=MM(wMM);
-    g.strokeStyle='#24282E'; g.lineWidth=MM(0.3);
-    g.strokeRect(x,y,w,MM(hMM));
-    g.beginPath(); g.moveTo(x,y+MM(headMM)); g.lineTo(x+w,y+MM(headMM)); g.stroke();
-    g.fillStyle='#24282E'; g.textBaseline='middle';
-    g.textAlign='left'; g.font='700 '+Math.round(MM(2.5))+'px '+SHEET_FONT;
-    g.fillText('圖例 LEGEND', x+MM(2.5), y+MM(headMM/2));
-    g.textAlign='right'; g.font='600 '+Math.round(MM(2.1))+'px '+SHEET_FONT;
-    for(let c=0;c<cols;c++) g.fillText('數量', x+MM((c+1)*colMM)-MM(2.5), y+MM(headMM/2));
+    const k=(area&&area.k)||phMM/297, n=items.length;
+    const groups=Math.min(3, Math.max(1, Math.ceil(n/8))), rows=Math.ceil(n/groups);
+    const rowMM=4.6*k, titleMM=5.4*k, headMM=4.6*k, noteMM=note?4.2*k:0;
+    const wide=items.some(it=>typeof it.n!=='number' && String(it.n).length>6);   // 坪・片 needs room
+    const gw=wide?[9*k, 40*k, 28*k]:[9*k, 40*k, 16*k], grpW=gw[0]+gw[1]+gw[2];
+    const maxW=area ? area.w : pwMM-2*mMM-9, wMM=Math.min(maxW, groups*grpW), sc=wMM/(groups*grpW);
+    const G=gw.map(v=>v*sc), GW=grpW*sc;
+    const hMM=titleMM+headMM+rows*rowMM+noteMM;
+    const xMM=area ? area.x : mMM+4.5, yMM=(area ? area.bottom : (tb ? tb.yMM : (phMM-mMM-4.5))) - hMM;
+    const X=(v)=>MM(xMM+v), Y=(v)=>MM(yMM+v);
+    const line=(x1,y1,x2,y2,w)=>{ g.lineWidth=MM(w||0.22*k); g.beginPath(); g.moveTo(X(x1),Y(y1)); g.lineTo(X(x2),Y(y2)); g.stroke(); };
+    g.strokeStyle='#111'; g.lineWidth=MM(0.35*k); g.strokeRect(X(0),Y(0),MM(wMM),MM(hMM));
+    line(0,titleMM,wMM,titleMM); line(0,titleMM+headMM,wMM,titleMM+headMM);
+    if(note) line(0,hMM-noteMM,wMM,hMM-noteMM);
+    g.fillStyle='#111'; g.textAlign='center'; g.textBaseline='middle';
+    g.font='500 '+Math.round(MM(3.3*k))+'px '+SHEET_FONT; g.fillText('圖 例 表  LEGEND', X(wMM/2), Y(titleMM/2));
+    g.font='500 '+Math.round(MM(2.4*k))+'px '+SHEET_FONT;
+    for(let c=0;c<groups;c++){
+      const gx=c*GW;
+      if(c) line(gx,titleMM,gx,hMM-noteMM,0.35*k);
+      line(gx+G[0],titleMM,gx+G[0],hMM-noteMM); line(gx+G[0]+G[1],titleMM,gx+G[0]+G[1],hMM-noteMM);
+      g.fillStyle='#111'; g.textAlign='center';
+      g.fillText('圖 例', X(gx+G[0]/2), Y(titleMM+headMM/2)); g.fillText('名 稱', X(gx+G[0]+G[1]/2), Y(titleMM+headMM/2)); g.fillText('數 量', X(gx+G[0]+G[1]+G[2]/2), Y(titleMM+headMM/2));
+    }
     items.forEach((it,i)=>{
-      const col=Math.floor(i/rows), row=i%rows;
-      const cx0=x+MM(col*colMM), cw=MM(colMM);
-      const ry=y+MM(headMM+row*rowMM), rh=MM(rowMM);
-      if(row){ g.strokeStyle='#D8DDE2'; g.lineWidth=MM(0.15); g.beginPath(); g.moveTo(cx0,ry); g.lineTo(cx0+cw,ry); g.stroke(); }
-      if(col){ g.strokeStyle='#24282E'; g.lineWidth=MM(0.25); g.beginPath(); g.moveTo(cx0,y); g.lineTo(cx0,y+MM(hMM)); g.stroke(); }
-      const sp=MM(rowMM*0.58);
-      g.save(); g.translate(cx0+MM(5.5), ry+rh/2);
+      const c=Math.floor(i/rows), r=i%rows, gx=c*GW, ry=titleMM+headMM+r*rowMM, cy=ry+rowMM/2;
+      if(r) line(gx,ry,gx+GW,ry,0.15*k);
+      const sp=MM(rowMM*0.9);
+      g.save(); g.translate(X(gx+G[0]/2), Y(cy));
       g.strokeStyle=mepColor(it.kind); g.fillStyle='#fff';
       g.lineWidth=MEP_LW*(sp/110); g.lineJoin='round'; g.lineCap='round';
       if(it.sw) it.sw(g,sp); else (MEP_SY[it.kind]||MEP_SY.outlet2)(sp, g);
       g.restore();
-      // the name and the count share the column; a long name gets a smaller font
-      const qty=String(it.n), room=cw-MM(11)-MM(2.5);
-      let f=2.3;
-      for(;f>1.5;f-=0.1){ g.font='700 '+Math.round(MM(f))+'px '+SHEET_FONT; const qw=g.measureText(qty).width;
-        g.font='500 '+Math.round(MM(f))+'px '+SHEET_FONT; if(g.measureText(it.name).width+qw+MM(2)<=room) break; }
-      g.fillStyle='#24282E'; g.textAlign='left'; g.font='500 '+Math.round(MM(f))+'px '+SHEET_FONT;
-      g.fillText(it.name, cx0+MM(11), ry+rh/2);
-      g.textAlign='right'; g.font='700 '+Math.round(MM(f))+'px '+SHEET_FONT;
-      g.fillText(qty, cx0+cw-MM(2.5), ry+rh/2);
+      let f=2.3*k; const nmMax=MM(G[1]-2*k);
+      g.font='500 '+Math.round(MM(f))+'px '+SHEET_FONT;
+      while(f>1.4*k && g.measureText(it.name).width>nmMax){ f-=0.1*k; g.font='500 '+Math.round(MM(f))+'px '+SHEET_FONT; }
+      g.fillStyle='#111'; g.textAlign='left'; g.fillText(it.name, X(gx+G[0]+1.4*k), Y(cy));
+      const q=String(it.n), u=legendUnit(it);
+      g.textAlign='right'; g.font='500 '+Math.round(MM(2.1*k))+'px '+SHEET_FONT; const uw=g.measureText(u).width;
+      g.fillText(u, X(gx+GW-1.2*k), Y(cy));
+      let fq=2.4*k; g.font='700 '+Math.round(MM(fq))+'px '+SHEET_FONT;
+      while(fq>1.4*k && g.measureText(q).width+uw>MM(G[2]-2*k)){ fq-=0.1*k; g.font='700 '+Math.round(MM(fq))+'px '+SHEET_FONT; }
+      g.fillText(q, X(gx+GW-1.2*k)-uw, Y(cy));
     });
+    if(note){ g.textAlign='left'; g.fillStyle='#111'; g.font='500 '+Math.round(MM(2*k))+'px '+SHEET_FONT; g.fillText('註：'+note, X(1.5*k), Y(hMM-noteMM/2)); }
     return {xMM, yMM, wMM, hMM};
   }
   function pdfPage(pdf, opt, page, pageNo, pageCount){
@@ -9130,7 +9368,7 @@
   function devLabel(m){
     const sp=lightSpec(m), n=mepName(m.kind);
     if(sp.dia) return n+' Ø'+Math.round(toDisp(devDia(m))*10)/10;
-    if(sp.heads) return n+' L'+Math.round(toDisp(devLen(m)))+' × '+devHeads(m)+' 燈頭';
+    if(sp.heads) return (m.kind==='L_mag'?'磁吸軌道':'軌道')+' L'+Math.round(toDisp(devLen(m)));
     if(sp.linear && !sp.strip) return n+' L'+Math.round(toDisp(devLen(m)));
     if(sp.dsz) return n+' Ø'+Math.round(toDisp(devDsz(m)));
     if(sp.wsz) return n+' W'+Math.round(toDisp(devWsz(m)));
@@ -9156,6 +9394,7 @@
       mepNear.set(a.id, best);
     }
   }
+  let SYM_CAP_PX=0;            // set while a framed sheet is rendered
   function mepPx(m){
     const real=MEP_SIZE*view.scale;          // the symbol at its true 30cm size
     if(TS<=1) return Math.max(MEP_MIN_PX, real);   // on screen: unchanged
@@ -9166,11 +9405,22 @@
     // to grow only as far as its own nearest neighbour, so a crowded pair reproduces
     // the spacing you drew while everything else still prints full size.
     const gap = m ? (mepNear.get(m.id) ?? Infinity) : Infinity;
+    // on a framed sheet a symbol prints at a fixed paper size, as a CAD block does
+    // (a socket circle ≈ 3.6 mm, whatever the scale); crowded pairs still shrink
+    if(SYM_CAP_PX) return Math.max(SYM_CAP_PX*0.55, Math.min(SYM_CAP_PX, gap));
     return Math.max(real, Math.min(MEP_MIN_PX*TS, gap));
   }
   // A symbol is dimensioned off its surroundings the same way a piece of
   // furniture is — four directions, each to whatever is actually nearest.
-  function mepBox(m){ const r=(lightSpec(m)&&lightSpec(m).sz) ? devSz(m)/2 : MEP_R;
+  // how far a wall fitting's centre sits off the wall face when it touches it: a
+  // wall light's dome stands on its flat base (the centre line), a step light is a
+  // small box, a socket is its circle
+  function wallOff(m){
+    if(m.kind==='L_wall') return 0;
+    if(m.kind==='L_step') return MEP_SIZE*0.13*lightScale(m);
+    return MEP_R;
+  }
+  function mepBox(m){ const r=(lightSpec(m)&&lightSpec(m).sz) ? devSz(m)/2 : (isWallDevice(m) ? wallOff(m) : MEP_R);
     return {x0:m.x-r, y0:m.y-r, x1:m.x+r, y1:m.y+r}; }
   // To a wall, a column or a shaft: from the symbol's EDGE (0 = its circle touching
   // the face, so it is plain which room it belongs to). To another symbol: centre
@@ -9296,6 +9546,12 @@
       // a panel is drawn at its real size (its square is 0.68 of the glyph box)
       return Math.max(MEP_MIN_PX*(TS>1?TS:1)*1.1, devSz(m)*view.scale/0.68);
     }
+    // a fitting with a real size (吸頂燈 Ø400, 吊扇 Ø1000, 壁燈 W200) prints at that size, never below the symbol size
+    if(SYM_CAP_PX && (lightSpec(m).dsz || lightSpec(m).wsz)){
+      const real=(lightSpec(m).dsz?devDsz(m):devWsz(m))*view.scale/0.72;
+      return Math.max(SYM_CAP_PX*0.9, real);
+    }
+    if(SYM_CAP_PX && isLight(m)) return mepPx(m)*Math.min(1.25, lightScale(m));
     return mepPx(m)*(isLight(m)?lightScale(m):1);
   }
   // footprint on screen, used to keep labels off the symbol
@@ -9690,19 +9946,20 @@
   // wall's centreline once it is close enough — the same magnetic feel as snapping a
   // door into a wall. Beyond that reach it stays wherever you put it (an island
   // hob outlet or a floor box is a real case), falling back to the grid.
-  function mepSnap(wx,wy){
+  function mepSnap(wx,wy,off){
+    if(off==null) off=MEP_R;
     let best=null, bd=Infinity;
     for(const w of state.walls){
       if(wallLen(w)<1) continue;
       const cl=wallCenterline(w);
       const pr=projPointToSeg(wx,wy,cl.x1,cl.y1,cl.x2,cl.y2);
       // reach: the wall's own band plus a finger's width of slack on screen
-      const reach=w.t/2 + MEP_R + Math.max(8, 16/view.scale);
+      const reach=w.t/2 + Math.max(off,MEP_R) + Math.max(8, 16/view.scale);
       if(pr.d<=reach && pr.d<bd){
         // sit against the face on the side you tapped, the circle's edge touching it
         const L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1, nx=-(cl.y2-cl.y1)/L, ny=(cl.x2-cl.x1)/L;
-        const side=((wx-pr.x)*nx+(wy-pr.y)*ny)>=0?1:-1, off=w.t/2+MEP_R;
-        bd=pr.d; best={x:pr.x+nx*side*off, y:pr.y+ny*side*off}; }
+        const side=((wx-pr.x)*nx+(wy-pr.y)*ny)>=0?1:-1, offW=w.t/2+off;
+        bd=pr.d; best={x:pr.x+nx*side*offW, y:pr.y+ny*side*offW}; }
     }
     if(best) return best;
     if(ui.snap){ const g=ui.gridSize; return {x:Math.round(wx/g)*g, y:Math.round(wy/g)*g}; }
@@ -9718,12 +9975,12 @@
     return m;
   }
   // a ceiling light is not mounted on a wall, so it only follows the grid
-  function devSnap(kind,wx,wy){
+  function devSnap(kind,wx,wy,m){
     if(isLightKind(kind) && LIGHT_SPEC[kind].mount!=='wall'){
       if(ui.snap){ const g=ui.gridSize; return {x:Math.round(wx/g)*g, y:Math.round(wy/g)*g}; }
       return {x:wx, y:wy};
     }
-    return mepSnap(wx,wy);
+    return mepSnap(wx,wy, wallOff(m||{kind}));
   }
   // a wall light faces into the room it lights
   function faceInward(m){
@@ -9765,11 +10022,25 @@
       e.n++; e.len+=isStrip(m)?devLen(m):0;
       by.set(key,e);
     }
+    // a track and its heads are ordered separately: the rail by length, the heads
+    // counted on their own across every rail (3 on one, 4 on another → 7 heads)
+    const heads={};
+    for(const m of state.mep){ if(!lightSpec(m).heads) continue;
+      if(!vis(m.layer||'elec') && !(isCircItem(m) && vis('circuit') && (layersOpt || circMode()))) continue;
+      heads[m.kind]=(heads[m.kind]||0)+devHeads(m); }
     const order=MEP_LIST.map(e=>e[1]).concat(LIGHT_LIST.map(e=>e[1]));
+    const headRows=Object.keys(heads).map(k=>({kind:k, name:k==='L_mag'?'磁吸燈頭':'軌道燈頭', n:heads[k], head:true,
+      sw:(g,sp)=>{ const T=sp*0.36; g.strokeStyle=MEP_COLOR.light; g.lineWidth=Math.max(1,sp*0.07);
+        if(k==='L_mag'){ g.fillStyle=MEP_COLOR.light; g.fillRect(-T*0.6,-T/2,T*1.2,T); }
+        else { g.beginPath(); g.arc(0,0,T*0.78,0,Math.PI*2); g.fillStyle='#fff'; g.fill(); g.stroke();
+               g.beginPath(); g.arc(0,0,T*0.28,0,Math.PI*2); g.fillStyle=MEP_COLOR.light; g.fill(); } }}));
+    const rail=(k)=>(g,sp)=>{ g.strokeStyle=MEP_COLOR.light; g.lineWidth=Math.max(1,sp*0.07); g.fillStyle='#fff';
+      g.beginPath(); g.rect(-sp*0.6,-sp*0.1,sp*1.2,sp*0.2); g.fill(); g.stroke(); };
     return [...by.values()]
       .sort((a,b)=>order.indexOf(a.kind)-order.indexOf(b.kind) || a.name.localeCompare(b.name,undefined,{numeric:true}))
-      .map(e=>({kind:e.kind, name:e.name,
-                n: LIGHT_SPEC[e.kind]&&LIGHT_SPEC[e.kind].strip ? (Math.round(e.len)/100).toFixed(1)+' m' : e.n}));
+      .map(e=>({kind:e.kind, name:e.name, sw: LIGHT_SPEC[e.kind]&&LIGHT_SPEC[e.kind].heads ? rail(e.kind) : undefined,
+                n: LIGHT_SPEC[e.kind]&&LIGHT_SPEC[e.kind].strip ? (Math.round(e.len)/100).toFixed(1)+' m' : e.n}))
+      .concat(headRows);
   }
 
   // ================= 天花板施工 =================
@@ -11984,10 +12255,10 @@
   }
   function drawInk(){
     if(!showOpt.notes){ if(inkDraft) drawInkStroke(inkDraft); return; }
-    for(const s of state.ink){ if(!layerVisible(s.layer||'plan')) continue;
+    for(const s of state.ink){ if(!EXPORT_MODE && !layerVisible(s.layer||'plan')) continue;
       ctx.globalAlpha=layerAlpha(s.layer||'plan'); drawInkStroke(s); }
     ctx.globalAlpha=1;
-    for(const n of state.notes){ if(!layerVisible(n.layer||'plan')) continue;
+    for(const n of state.notes){ if(isPin(n)) continue; if(!EXPORT_MODE && !layerVisible(n.layer||'plan')) continue;
       for(const s of (n.ink||[])) drawInkStroke(s); }
     if(inkDraft) drawInkStroke(inkDraft);
     if(eraser){
@@ -12309,14 +12580,15 @@
     flashHint('已匯入圖框「'+name+'」');
     return id;
   }
-  function frameCurrent(){ return pdfOpt.frame==='builtin' ? null : (framesRead()[pdfOpt.frame]||null); }
+  function frameCurrent(){ return (pdfOpt.frame==='builtin'||pdfOpt.frame==='studio') ? null : (framesRead()[pdfOpt.frame]||null); }
   function frameRefreshUI(){
     const sel=document.getElementById('mFrame'); if(!sel) return;
     const all=framesRead();
-    sel.innerHTML='<option value="builtin">內建圖框</option>'
+    sel.innerHTML='<option value="studio">事務所圖框（右側欄）</option><option value="builtin">簡易圖框（底部欄）</option>'
       + Object.keys(all).sort((a,b)=>all[b].t-all[a].t)
           .map(id=>`<option value="${id}">${all[id].name}</option>`).join('');
-    if(!all[pdfOpt.frame]) pdfOpt.frame='builtin';
+    if(!all[pdfOpt.frame] && pdfOpt.frame!=='studio') pdfOpt.frame='builtin';
+    const so=document.getElementById('mStudioRow'); if(so) so.style.display = pdfOpt.frame==='studio' ? '' : 'none';
     sel.value=pdfOpt.frame;
     const f=frameCurrent();
     document.getElementById('mFrameEdit').style.display = f ? '' : 'none';
