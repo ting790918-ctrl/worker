@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b117</title>
+<title>PlanPad · 平面圖工具 b118</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -342,7 +342,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b117</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b118</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -580,6 +580,8 @@
         <div class="ptitle">油漆</div>
         <div class="furn-cats" id="paintModes"></div>
         <div class="furn-list" id="paintList"></div>
+        <div class="row"><label>平面標示</label><div class="seg" id="paintLblSeg"><button data-v="1">顯示</button><button data-v="0">隱藏</button></div></div>
+        <div class="lay-note" style="margin-top:-2px">品牌・色號的文字標籤。隱藏時看圖例表對顏色；立面索引照常顯示。</div>
         <div class="ptitle" style="margin-top:6px">油漆坪數</div>
         <div id="paintQty"></div>
       </div>
@@ -7535,7 +7537,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b117';
+  const BUILD='b118';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -11166,8 +11168,8 @@
       g.beginPath(); r.V.forEach((p,i)=>{ const [sx,sy]=toScreen(p.x,p.y); i?g.lineTo(sx,sy):g.moveTo(sx,sy); }); g.closePath(); g.stroke(); g.restore();
       let cx=0,cy=0; for(const p of r.V){ cx+=p.x; cy+=p.y; } cx/=r.V.length; cy/=r.V.length;
       const [sx,sy]=toScreen(cx+(c.lx||0), cy+(c.ly||0));
-      const bx=paintLabel(g, sx-fpx(40), sy+fpx(34), s, '天花', fpx(10));
-      paintHits.push(Object.assign({kind:'paintCeil', id:c.rid}, bx));
+      if(P.showLabels!==false){ const bx=paintLabel(g, sx-fpx(40), sy+fpx(34), s, '天花', fpx(10));
+        paintHits.push(Object.assign({kind:'paintCeil', id:c.rid}, bx)); }
     }
     for(const f of P.faces){
       const G=faceGeom(f); if(!G) continue;
@@ -11192,7 +11194,11 @@
         f._idx=[ix,iy,R];
         paintHits.push({kind:'paintFace', id:f.id, x0:ix-R, y0:iy-R, x1:ix+R, y1:iy+R});
       } else f._idx=null;
-      if(s || (f.elev && !s && !(f.elev.regions||[]).length)){
+      // the band itself can be tapped too (the only handle when labels are hidden)
+      { const [ax,ay]=toScreen(A.x,A.y), [bx2,by2]=toScreen(B.x,B.y), pd=fpx(6);
+        paintHits.unshift({kind:'paintFace', id:f.id, x0:Math.min(ax,bx2)-pd, y0:Math.min(ay,by2)-pd, x1:Math.max(ax,bx2)+pd, y1:Math.max(ay,by2)+pd}); }
+      if(P.showLabels===false){}
+      else if(s || (f.elev && !s && !(f.elev.regions||[]).length)){
         const [mx,my]=toScreen(mid.x+G.n.x*off*2, mid.y+G.n.y*off*2), [lx,ly]=toScreen(lab.x,lab.y);
         g.strokeStyle='#5B646E'; g.lineWidth=fpx(0.8); g.beginPath(); g.moveTo(mx,my); g.lineTo(lx,ly); g.stroke();
         g.fillStyle='#5B646E'; g.beginPath(); g.arc(mx,my,fpx(1.8),0,Math.PI*2); g.fill();
@@ -11302,6 +11308,9 @@
       nb.onclick=()=>openPaintSpec(null); list.appendChild(nb);
       if(P.specs.length){ const tip=document.createElement('div'); tip.className='lay-note'; tip.style.alignSelf='center'; tip.textContent='選中的顏色再點一次＝編輯'; list.appendChild(tip); }
     }
+    const seg=document.getElementById('paintLblSeg');
+    if(seg) seg.querySelectorAll('button').forEach(b=>{ b.classList.toggle('on', (b.dataset.v==='1')===(P.showLabels!==false));
+      b.onclick=()=>{ P.showLabels = b.dataset.v==='1'; if(!P.showLabels && ui.selected && /^paint/.test(ui.selected.kind)){ ui.selected=null; refreshProp(); } pushHistory(); syncPaintUI(); draw(); }; });
     const q=document.getElementById('paintQty');
     if(q){ const t=paintTally();
       q.innerHTML = !t.length ? '<div class="lay-note">刷了油漆之後，這裡會列出每個顏色的坪數。牆面扣掉門窗；天花含降板的側面和間照燈槽。</div>'
