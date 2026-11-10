@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b115</title>
+<title>PlanPad · 平面圖工具 b117</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -224,6 +224,17 @@
   #debugPanel.show{display:block;}
   .modal-mask{position:fixed; inset:0; background:rgba(20,26,32,.4); display:none; align-items:center; justify-content:center; z-index:100;}
   .modal-mask.open{display:flex;}
+  .pt-sw{display:inline-block; width:16px; height:16px; border-radius:4px; border:1px solid rgba(0,0,0,.25); vertical-align:middle; margin-right:5px; flex:0 0 auto;}
+  .elev-mask{position:fixed; inset:0; background:rgba(20,26,32,.45); display:none; z-index:110; padding:12px;}
+  .elev-mask.open{display:flex;}
+  .elev-box{background:#fff; border-radius:14px; flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0;}
+  .elev-top{display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--line);}
+  .elev-tools{display:flex; gap:6px; flex-wrap:wrap; padding:8px 14px; border-bottom:1px solid var(--line); align-items:center;}
+  .elev-tools .tbtn{display:inline-flex; align-items:center;}
+  .elev-main{flex:1; display:flex; min-height:0;}
+  #evCanvas{flex:1; min-width:0; display:block; touch-action:none; width:100%; height:100%;}
+  .elev-side{width:250px; flex:0 0 250px; border-left:1px solid var(--line); padding:12px; overflow:auto; font-size:13px;}
+  #evTextIn{position:fixed; display:none; z-index:130; height:32px; min-width:180px; padding:0 8px; border:1.5px solid #275C7A; border-radius:8px; font-size:15px; font-family:inherit;}
   .modal{background:#fff; border-radius:14px; padding:20px; width:340px; max-width:92vw; box-shadow:0 10px 40px rgba(0,0,0,.25);
          display:flex; flex-direction:column; max-height:calc(100dvh - 32px); max-height:calc(100vh - 32px);}
   .modal-title{font-size:16px; font-weight:600; margin-bottom:16px; color:var(--ink); flex:0 0 auto;}
@@ -331,7 +342,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b115</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b117</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -565,6 +576,13 @@
         <div class="ptitle" style="margin-top:6px">叫料數量</div>
         <div id="floorQty"></div>
       </div>
+      <div class="psec" data-layer="paint">
+        <div class="ptitle">油漆</div>
+        <div class="furn-cats" id="paintModes"></div>
+        <div class="furn-list" id="paintList"></div>
+        <div class="ptitle" style="margin-top:6px">油漆坪數</div>
+        <div id="paintQty"></div>
+      </div>
       <div class="psec" data-layer="ceil">
         <div class="ptitle">天花板</div>
         <div class="furn-list" id="ceilTools"></div>
@@ -620,13 +638,37 @@
     <div class="tour-btns"><button class="chip" id="tourSkip">略過教學</button><span style="flex:1"></span><button class="chip" id="tourPrev">上一步</button><button class="chip tour-next" id="tourNext">下一步</button></div>
   </div>
 </div>
+<div id="paintModal" class="modal-mask">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">油漆顏色</div>
+    <div class="modal-body">
+      <div class="mrow"><span>品牌</span><input type="text" id="pmBrand" class="meta-in" placeholder="例：得利、虹牌、ICI"></div>
+      <div class="mrow"><span>色號</span><input type="text" id="pmCode" class="meta-in" placeholder="例：A986、5B-1"></div>
+      <div class="mrow"><span>備註</span><input type="text" id="pmNote" class="meta-in" placeholder="例：平光、一底二度"></div>
+      <div style="font-size:12px;color:var(--muted);margin:10px 0 6px">畫面上的顏色（圖上標示的是品牌・色號・備註，不是 RGB）</div>
+      <div id="pmBoard"></div>
+    </div>
+    <div class="modal-btns"><button class="tbtn" id="pmDel">刪除這個顏色</button><span style="flex:1"></span><button class="tbtn primary" id="pmOk">完成</button></div>
+  </div>
+</div>
+<div id="elevModal" class="elev-mask">
+  <div class="elev-box">
+    <div class="elev-top"><b id="evTitle" style="font-size:16px">立面</b>
+      <span style="font-size:12px;color:var(--muted)">代號</span><input type="text" id="evLetter" class="tin" style="width:52px">
+      <span id="evSize" style="font-size:12px;color:var(--muted)"></span><span style="flex:1"></span>
+      <button class="tbtn" id="evUndo">復原</button><button class="tbtn primary" id="evClose">完成</button></div>
+    <div class="elev-tools" id="evTools"></div>
+    <div class="elev-main"><canvas id="evCanvas"></canvas><div class="elev-side" id="evSide"></div></div>
+  </div>
+  <input type="text" id="evTextIn" placeholder="輸入文字，按 Enter">
+</div>
 <div id="metaModal" class="modal-mask">
   <div class="modal" style="width:380px">
     <div class="modal-title">專案資訊</div>
     <div class="mrow"><span>專案名稱</span><input type="text" id="mtName" class="meta-in" placeholder="例：王宅 大安路二段"></div>
-    <div class="mrow"><span>設計單位</span><input type="text" id="mtFirm" class="meta-in" placeholder="例：某某室內設計"></div>
-    <div class="mrow"><span>設計師</span><input type="text" id="mtDesigner" class="meta-in" placeholder="選填"></div>
-    <div class="mrow"><span>業主</span><input type="text" id="mtClient" class="meta-in" placeholder="例：王先生"></div>
+    <div class="mrow"><span>設計單位</span><input type="text" id="mtFirm" class="meta-in" placeholder="印在「項目負責」；空白＝用事務所資料"></div>
+    <div class="mrow"><span>設計師</span><input type="text" id="mtDesigner" class="meta-in" placeholder="印在「設計」；空白＝用事務所資料"></div>
+    <div class="mrow"><span>業主</span><input type="text" id="mtClient" class="meta-in" placeholder="印在「業主」，例：王先生"></div>
     <div class="mrow"><span>圖號前綴</span><input type="text" id="mtSheet" class="meta-in" placeholder="A"></div>
     <div class="mrow"><span>日期</span><input type="text" id="mtDate" class="meta-in" placeholder="空白＝今天"></div>
     <div class="mrow"><span>序號</span><input type="text" id="mtSerial" class="meta-in" placeholder="選填"></div>
@@ -769,6 +811,7 @@
                     // is L-shaped or a neighbour's label is already there — so it
                     // is a starting point you can drag away from, not a rule.
     ceilingH: 280,  // 樓高 cm (whole plan)
+    paint: {specs:[],faces:[],ceils:[]},   // 油漆施工 — see paintData()
     _seq: 1,
   };
   const view = { scale: 0.7, ox: 0, oy: 0 };  // scale = px per cm
@@ -1014,7 +1057,7 @@
 
   // ================= History =================
   const history=[]; let hi=-1;
-  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,circuits:state.circuits,ceil:state.ceil,floor:state.floor,ceilLabel:state.ceilLabel,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,rooms:state.rooms,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,underlay:state.underlay,ceilingH:state.ceilingH,_seq:state._seq}); }
+  function snapshot(){ return JSON.stringify({walls:state.walls,openings:state.openings,dims:state.dims,texts:state.texts,columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,furniture:state.furniture,mep:state.mep,circuits:state.circuits,ceil:state.ceil,floor:state.floor,ceilLabel:state.ceilLabel,layer:state.layer,layerVis:state.layerVis,baseLock:state.baseLock,meta:state.meta,rooms:state.rooms,roomNames:state.roomNames,roomLabelOff:state.roomLabelOff,underlay:state.underlay,ceilingH:state.ceilingH,paint:state.paint,_seq:state._seq}); }
   // A length typed on a free-standing wall is what the tape read between two
   // FACES — the clear size of the room. But a lone wall has no faces to measure
   // between yet, so the number can only be applied to its centreline; then the
@@ -1316,6 +1359,7 @@
     state.mep=arr(o.mep);
     state.circuits=arr(o.circuits);
     state.ceil=arr(o.ceil); state.floor=arr(o.floor); state.ceilLabel=o.ceilLabel||'ch';
+    state.paint=(o.paint&&typeof o.paint==='object')?o.paint:{specs:[],faces:[],ceils:[]}; paintData();
     state.layer=o.layer||'plan';
     state.layerVis=(o.layerVis&&typeof o.layerVis==='object')?o.layerVis:{};
     state.baseLock=!!o.baseLock;
@@ -2605,7 +2649,7 @@
     toScreen, toWorld, wallLen,
     api:{ enterFocus, exitFocus, mergeCoincidentWalls, healJunctions, recomputeRooms, editRoomEdge:(r,i,l,m)=>editRoomEdge(r,i,l,m), applyRoomDim:(r,i,l,m,f)=>applyRoomDim(r,i,l,m,f),
           draw, pushHistory, renderExport, exportPDF, buildDXF:(o)=>buildDXF(o),
-          ceilTally:(v)=>ceilTally(v), ceilArea:(z)=>ceilArea(z), coveLen:(z)=>coveLen(z), ceilGaps:(z)=>ceilGaps(z),
+          ceilTally:(v)=>ceilTally(v), paintTap:(x,y)=>paintTap(x,y), paintTally:()=>paintTally(), paintData:()=>paintData(), faceGeom:(f)=>faceGeom(f), openElev:(id)=>openElev(id), openPaintSpec:(id)=>openPaintSpec(id), evState:()=>EV, ceilPaintArea:(r)=>ceilPaintArea(r), ceilArea:(z)=>ceilArea(z), coveLen:(z)=>coveLen(z), ceilGaps:(z)=>ceilGaps(z),
           splitAt:(id,d)=>splitAt(id,d), splitStart:(id)=>splitStart(id),
           circStart:(id)=>circStart(id), circFinish:()=>circFinish(),
           mepGaps:(m)=>mepGaps(m), dimGeom:(d)=>dimGeom(d), mepTally:(o)=>mepTally(o), setTool:(t)=>setTool(t), gapsToDims:(m)=>gapsToDims(m),
@@ -3169,6 +3213,7 @@
   // ================= Hit testing =================
   const structureLocked=()=> !!state.baseLock;
   function hitTest(wx,wy){
+    { const pz=paintHitTest(wx,wy); if(pz) return pz; }
     { const cz=ceilHitTest(wx,wy); if(cz) return cz; }
     for(let i=state.mep.length-1;i>=0;i--){
       const m=state.mep[i];
@@ -3943,6 +3988,13 @@
   let draft=null;
   let cgest=null;          // the finger / pen drawing a wall run or a room right now
   let inkDraft=null;      // stroke being laid down right now
+  // 手寫 → 直線: draw a stroke and hold the pen still at its end for a moment; it
+  // becomes a straight line from where it started, and keeps following the pen
+  // (clicking onto 0/45/90°) until you lift — the way iPad Notes does it
+  let inkHoldT=null;
+  function inkArmHold(){ clearTimeout(inkHoldT); inkHoldT=setTimeout(()=>{ const d=inkDraft; if(!d||d.straight) return;
+      const n=d.pts.length; if(n<4) return; if(Math.hypot(d.pts[n-2]-d.pts[0], d.pts[n-1]-d.pts[1])*view.scale<20) return;
+      d.straight=true; d.pts=[d.pts[0],d.pts[1],d.pts[n-2],d.pts[n-1]]; draw(); }, 550); }
   let eraser=null;        // eraser being dragged
   let inkPenSeen=false;   // once a stylus is used, ignore fingers while inking
   function drawDraft(){
@@ -4013,6 +4065,7 @@
     drawCircLines();
     drawMEP();
     drawCircLabels();
+    drawPaint();
     drawTexts();
     drawCalibSpan();
     drawCalibMark();
@@ -4151,9 +4204,9 @@
       <div class="row"><label>濃度</label><div class="field" style="gap:6px"><input type="range" min="10" max="100" id="${pre}A" value="${Math.round((a!=null?a:0.45)*100)}" style="flex:1">
         <span class="unit" id="${pre}An">${Math.round((a!=null?a:0.45)*100)}%</span></div></div>`;
   }
-  function colorBoardBind(pre, get, set){
+  function colorBoardBind(pre, get, set, onFinal){
     const $=(id)=>document.getElementById(pre+id);
-    const commit=(hex,a,final)=>{ set(hex,a); draw(); if(final){ pushHistory(); refreshProp(); } else syncUI(hex,a); };
+    const commit=(hex,a,final)=>{ set(hex,a); draw(); if(final){ if(onFinal) onFinal(); else { pushHistory(); refreshProp(); } } else syncUI(hex,a); };
     const syncUI=(hex,a)=>{ const c=hexRGB(hex); if(!c) return; ['R','G','B'].forEach((k,i)=>{ $(k).value=c[i]; $(k+'n').value=c[i]; });
       $('Pick').value=hex; if(document.activeElement!==$('Hex')) $('Hex').value=hex; };
     const cur=()=>get();
@@ -4166,8 +4219,8 @@
       $(k).oninput=()=>commit(fromSliders(''), cur().a, false); $(k).onchange=()=>commit(fromSliders(''), cur().a, true);
       $(k+'n').onchange=()=>commit(fromSliders('n'), cur().a, true);
     });
-    $('A').oninput=ev=>{ const a=+ev.target.value/100; $('An').textContent=Math.round(a*100)+'%'; set(cur().hex, a); draw(); };
-    $('A').onchange=()=>{ pushHistory(); refreshProp(); };
+    if($('A')) $('A').oninput=ev=>{ const a=+ev.target.value/100; $('An').textContent=Math.round(a*100)+'%'; set(cur().hex, a); draw(); };
+    if($('A')) $('A').onchange=()=>{ pushHistory(); refreshProp(); };
   }
   function drawRoomsFill(){
     for(const r of roomsCache){ if(r.V.length<3) continue;
@@ -4848,6 +4901,7 @@
       // a finger still TAPS in the one-tap ceiling tools (整間平釘, 間接照明, 維修孔…):
       // it is taken on lift, only if the finger did not move and no second finger came
       if(ui.tool==='ceil' && (['room','cove','hatch','ventS','ventR','offset'].includes(ui.ceilPick) || (ui.ceilPick==='line'&&ui.clinePending))) ui._ceilTap={px,py,wx,wy,tool:true};
+      if(ui.tool==='paint') ui._paintTap={px,py,wx,wy};
       return;
     }
     if(ui.tool==='wall'||ui.tool==='room'||ui.tool==='part'){ chainDown(e,px,py,wx,wy); return; }
@@ -5023,8 +5077,10 @@
       inkDraft.pts.push(wx,wy);
       inkDraft.pointerId=e.pointerId;
       inkDraft.target=noteAt(wx,wy);          // writing inside a note box belongs to it
+      inkDraft.hold={px,py}; inkArmHold();
       draw();
     }
+    else if(ui.tool==='paint'){ ui._paintTap={px,py,wx,wy}; panStart={px,py,ox:view.ox,oy:view.oy}; }
     else if(ui.tool==='note'){ placeNote(wx,wy); }
     else if(ui.tool==='photo'){ placePhotoPin(wx,wy); }
   });
@@ -5047,7 +5103,11 @@
       if(eraseInkArea(wx,wy,eraser.r)) eraser.changed=true;
       draw(); return;
     }
+    if(inkDraft && inkDraft.pointerId===e.pointerId && inkDraft.straight){
+      const q=inkStraightEnd(inkDraft.pts[0],inkDraft.pts[1],wx,wy); inkDraft.pts[2]=q.x; inkDraft.pts[3]=q.y; draw(); return;
+    }
     if(inkDraft && inkDraft.pointerId===e.pointerId){
+      if(inkDraft.hold && Math.hypot(px-inkDraft.hold.px,py-inkDraft.hold.py)>4){ inkDraft.hold={px,py}; inkArmHold(); }
       const n=inkDraft.pts.length;
       // drop points closer than half a pixel: the pen fires far faster than the
       // shape changes, and every extra point is weight in the saved project
@@ -5125,6 +5185,7 @@
     pointers.delete(e.pointerId);
     if(pointers.size<2){ pinch=null; }
     if(panStart){ panStart=null;
+      if(ui._paintTap){ const t=ui._paintTap; ui._paintTap=null; const [ux,uy]=evtPos(e); if(pointers.size===0 && Math.hypot(ux-t.px,uy-t.py)<10) paintTap(t.wx,t.wy); draw(); }
       if(ui._ceilTap){ const t=ui._ceilTap; ui._ceilTap=null; const [ux,uy]=evtPos(e);
         if(t.tool){ if(Math.hypot(ux-t.px,uy-t.py)<10){ dbg('  finger tap → '+ui.ceilPick); ceilTap(t.wx,t.wy,ux,uy); draw(); } }
         else if(Math.hypot(ux-t.px,uy-t.py)<8){ const r=roomAt(t.wx,t.wy); if(r && r.rid!=null){ ui.selected={kind:'room',id:r.rid}; refreshProp(); draw(); dbg(`  CEIL select room ${r.rid}`); } } }
@@ -5155,9 +5216,9 @@
       draw(); return;
     }
     if(inkDraft && inkDraft.pointerId===e.pointerId){
-      const st=inkDraft; inkDraft=null;
-      st.pts=simplify(st.pts, 0.35);
-      delete st.pointerId;
+      const st=inkDraft; inkDraft=null; clearTimeout(inkHoldT);
+      if(!st.straight) st.pts=simplify(st.pts, 0.35);
+      delete st.pointerId; delete st.hold; delete st.straight;
       const target=st.target; delete st.target;
       if(st.pts.length>=2){ (target ? (target.ink=target.ink||[]) : state.ink).push(st); pushHistory(); }
       draw(); return;
@@ -5703,6 +5764,8 @@
     stretchHosts(dragging.hosts,w);
   }
   function cloneForDrag(hit){
+    if(hit.kind==='paintFace'){ const f=paintFaceById(hit.id); return f?{lx:f.lx||0,ly:f.ly||0}:{}; }
+    if(hit.kind==='paintCeil'){ const c=paintData().ceils.find(v=>v.rid===hit.id); return c?{lx:c.lx||0,ly:c.ly||0}:{}; }
     if(/^ceil/.test(hit.kind)){ const z=ceilById(hit.id); return z?JSON.parse(JSON.stringify(z)):{}; }
     if(hit.kind==='wall'){ const w=state.walls.find(v=>v.id===hit.id); return {...w}; }
     if(hit.kind==='opening'){ const o=state.openings.find(v=>v.id===hit.id); return {...o}; }
@@ -5725,6 +5788,8 @@
     if(!dragging.live){ if(Math.hypot(dx,dy)*view.scale<8) return; dragging.live=true; }
     if(Math.hypot(dx,dy)>2/view.scale) dragging.moved=true;
     if(/^ceil/.test(hit.kind)){ ceilDrag(hit,orig,dx,dy,wx,wy); refreshProp(); draw(); return; }
+    if(hit.kind==='paintFace'){ const f=paintFaceById(hit.id); if(f){ f.lx=orig.lx+dx; f.ly=orig.ly+dy; } draw(); return; }
+    if(hit.kind==='paintCeil'){ const c=paintData().ceils.find(v=>v.rid===hit.id); if(c){ c.lx=orig.lx+dx; c.ly=orig.ly+dy; } draw(); return; }
     // NOTE: grid-snap the MOVEMENT, not each endpoint separately. Rounding both
     // ends independently is what used to quietly bend a wall a degree or two off
     // square every time it was dragged.
@@ -5902,6 +5967,7 @@
     if(ae && propBody.contains(ae) && (ae.tagName==='TEXTAREA' || ae.tagName==='INPUT')) return;
     const s=ui.selected; const U=ui.unit;
     if(!s){ propBody.innerHTML='<div class="empty">選一個物件來編輯它的尺寸與屬性，或從左邊工具列選一個工具開始畫。</div>'; return; }
+    if(s.kind==='paintFace'||s.kind==='paintCeil'){ paintProp(s); return; }
     if(s.kind==='room'){
       const e=roomById(s.id), r=roomCacheById(s.id);
       if(!e){ propBody.innerHTML='<div class="empty">這個空間已經不存在了。</div>'; return; }
@@ -6286,6 +6352,8 @@
   }
   function selBarActions(s){
     const A=[];
+    if(s.kind==='paintFace'){ A.push(['立面',()=>{ const f=paintFaceById(s.id); if(!f) return; if(!f.elev){ f.elev={letter:nextElevLetter(),regions:[],texts:[],ink:[]}; pushHistory(); } openElev(f.id); }]); A.push(['刪除',deleteSelected,'del']); return A; }
+    if(s.kind==='paintCeil'){ A.push(['刪除',deleteSelected,'del']); return A; }
     if(s.kind==='wall'){ A.push(['拆分',()=>splitStart(s.id)]); A.push(['刪除',deleteSelected,'del']); }
     else if(s.kind==='opening'){ const o=state.openings.find(v=>v.id===s.id); if(!o) return A;
       const sub=openKind(o)===OPEN_KINDS.slide?'slide':(o.sub||'');
@@ -6313,6 +6381,7 @@
     else if(s.kind==='mep'){ const m=state.mep.find(v=>v.id===s.id); if(!m) return null; const b=mepBox(m); add(b.x0,b.y0); add(b.x1,b.y1); }
     else if(s.kind==='beam'){ const b=state.beams.find(v=>v.id===s.id); if(!b) return null; for(const q of beamCorners(b)) add(q.x,q.y); }
     else if(s.kind==='ceil'){ const z=ceilById(s.id); if(!z) return null; const b=ceilBBox(z); add(b.x0,b.y0); add(b.x1,b.y1); }
+    else if(s.kind==='paintFace'||s.kind==='paintCeil'){ const h=paintHits.find(v=>v.kind===s.kind&&v.id===s.id); if(!h) return null; pts.push([h.x0,h.y0],[h.x1,h.y1]); }
     else { const c=objCenter(s.kind,s.id); if(!c) return null; add(c.x,c.y); }
     const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
     return {x0:Math.min(...xs), x1:Math.max(...xs), y0:Math.min(...ys), y1:Math.max(...ys)};
@@ -6344,6 +6413,8 @@
   function deleteSelected(){
     const s=ui.selected; if(!s) return;
     if(s.kind==='room'){ flashHint('空間是由牆圍出來的：要刪除請選取並刪掉它的牆'); return; }
+    if(s.kind==='paintFace'||s.kind==='paintCeil'){ if(s.kind==='paintFace') paintRemoveFace(s.id); else { const P=paintData(); P.ceils=P.ceils.filter(c=>c.rid!==s.id); }
+      ui.selected=null; pushHistory(); syncPaintUI(); refreshProp(); draw(); return; }
     if(s.kind==='wall'){ state.walls=state.walls.filter(w=>w.id!==s.id); state.openings=state.openings.filter(o=>o.wallId!==s.id); }
     else if(s.kind==='mep'){ state.mep=state.mep.filter(v=>v.id!==s.id); cleanCircuits(); }
     else if(s.kind==='circuit'){ state.circuits=state.circuits.filter(v=>v.id!==s.id); }
@@ -6370,9 +6441,9 @@
         draw:()=>draw(), recompute:()=>recomputeRooms(), toScreen:(x,y)=>toScreen(x,y),
         editDimLabel:(l,x,y)=>editDimLabel(l,x,y), pushHistory:()=>pushHistory(),
         hitLabel:(x,y)=>hitLabel(x,y), openLabelEditor:(l,x,y)=>openLabelEditor(l,x,y) }; }catch(_){ }
-  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',room:'畫房間',part:'畫隔間',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ceil:'天花板',split:'拆分牆',ulcalib:'底圖校正'})[ui.tool]||''; }
+  function setHint(){ statusHint.textContent=({select:'選取工具',wall:'畫牆',room:'畫房間',part:'畫隔間',door:'放門',window:'放窗',dim:'標尺寸',text:'文字',column:'放柱子',beam:'畫樑',shaft:'放管道間',ink:'手寫',note:'引線註記',photo:'現場照片',furn:'放家具',mep:(state.layer==='light'?'放燈具':'放水電符號'),circuit:'建立迴路',ceil:'天花板',split:'拆分牆',ulcalib:'底圖校正',paint:'油漆'})[ui.tool]||''; }
   function flashHint(msg){ if(!msg) return; hintEl.textContent=msg; hintEl.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'),1600); }
-  function showToolHint(){ flashHint(TOOL_HINT[ui.tool]); }
+  function showToolHint(){ if(TOOL_HINT[ui.tool]) flashHint(TOOL_HINT[ui.tool]); }
 
   // ================= Tool switching =================
   // Only the settings for the tool in your hand are worth screen space. Showing
@@ -6420,6 +6491,18 @@
       fr.readAsDataURL(file); f.value=''; };
   })();
   document.getElementById('mtClose').onclick=()=>document.getElementById('metaModal').classList.remove('open');
+  document.getElementById('pmOk').onclick=closePaintSpec;
+  document.getElementById('pmDel').onclick=async()=>{ if(await uiConfirm('刪除這個油漆顏色？刷了這個顏色的牆面、天花和立面範圍都會一起取消。')) deletePaintSpec(); };
+  document.getElementById('evClose').onclick=closeElev;
+  document.getElementById('evUndo').onclick=()=>{ const f=evFace(); if(!f) return; const E=f.elev;
+    // the last thing put down in this elevation comes off
+    const last=[...E.regions.map(v=>['regions',v]),...E.texts.map(v=>['texts',v])].sort((a,b)=>b[1].id-a[1].id)[0];
+    if(E.ink.length && (!last || E._lastInk)){ E.ink.pop(); E._lastInk=false; } else if(last){ E[last[0]]=E[last[0]].filter(v=>v!==last[1]); } EV.sel=null; evDraw(); evSide(); };
+  document.getElementById('evLetter').onchange=ev=>{ const f=evFace(); if(!f) return; const v=ev.target.value.trim(); if(v) f.elev.letter=v.slice(0,4); evTools(); };
+  { const cv=document.getElementById('evCanvas');
+    cv.addEventListener('pointerdown',evDown); cv.addEventListener('pointermove',evMove);
+    cv.addEventListener('pointerup',evUp); cv.addEventListener('pointercancel',evUp);
+    window.addEventListener('resize',()=>{ if(EV) evDraw(); }); }
   document.getElementById('metaModal').addEventListener('click',e=>{
     if(e.target.id==='metaModal') e.target.classList.remove('open'); });
   function syncLayerUI(){
@@ -6597,7 +6680,7 @@
     if(dockBuilt) return; dockBuilt=true;
     const dock=document.getElementById('libDock'); if(!dock) return;
     const spec={plan:['家具庫',['furnCats','furnList']], elec:['水電圖示庫',['mepCats','mepList']],
-                light:['燈具圖示庫',['lightCats','lightList']], circuit:['開關',['swList']], ceil:['天花板工具',['ceilTools']], floor:['地板施工',['floorModes','floorList']]};
+                light:['燈具圖示庫',['lightCats','lightList']], circuit:['開關',['swList']], ceil:['天花板工具',['ceilTools']], floor:['地板施工',['floorModes','floorList']], paint:['油漆施工',['paintModes','paintList']]};
     for(const lay of Object.keys(spec)){
       const [title,ids]=spec[lay], g=document.createElement('div'); g.className='dock-group'; g.dataset.layer=lay;
       const head=document.createElement('div'); head.className='dock-head';
@@ -6623,7 +6706,7 @@
   function syncToolSections(){
     buildDock();
     try{ syncHelpBtn(); const hc=document.getElementById('helpCard'); if(hc&&hc.classList.contains('open')) openHelp(); }catch(_){}
-    try{ if(state.layer==='floor') syncFloorUI(); }catch(_){}
+    try{ if(state.layer==='floor') syncFloorUI(); if(state.layer==='paint') syncPaintUI(); }catch(_){}
     document.querySelectorAll('#panel .psec[data-tool]').forEach(sec=>{
       sec.style.display = sec.dataset.tool.split(' ').includes(ui.tool) ? '' : 'none';
     });
@@ -7452,7 +7535,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b115';
+  const BUILD='b117';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -7756,6 +7839,16 @@
       for(const L of LAYERS) pdfOpt.layers[L.id] = !!L.fixed;
     }
     box.innerHTML='';
+    // 原始結構圖 is a sheet, not a layer — it lives here only, never in the canvas
+    // layer list. It comes first, as the set starts from it. In 每層一頁 it adds its own page in front of the others.
+    const ob=document.createElement('button');
+    ob.textContent='原始結構圖'; ob.id='mOrig'; ob.style.borderStyle='dashed';
+    if(pdfOpt.layers.orig) ob.className='on';
+    ob.onclick=()=>{ const on=!pdfOpt.layers.orig; pdfOpt.layers.orig=on;
+      if(on && !(exportKind==='pdf' && pdfOpt.perLayer)) for(const L of LAYERS) if(!L.fixed) pdfOpt.layers[L.id]=false;
+      if(on) pdfOpt.layers.base=true;
+      expLayerUI(); refreshPreview(); };
+    box.appendChild(ob);
     for(const L of LAYERS){
       const b=document.createElement('button');
       b.textContent=L.name;
@@ -7766,16 +7859,6 @@
         expLayerUI(); refreshPreview(); };
       box.appendChild(b);
     }
-    // 原始結構圖 is a sheet, not a layer — it lives here only, never in the canvas
-    // layer list. In 每層一頁 it adds its own page in front of the others.
-    const ob=document.createElement('button');
-    ob.textContent='原始結構圖'; ob.id='mOrig'; ob.style.borderStyle='dashed';
-    if(pdfOpt.layers.orig) ob.className='on';
-    ob.onclick=()=>{ const on=!pdfOpt.layers.orig; pdfOpt.layers.orig=on;
-      if(on && !(exportKind==='pdf' && pdfOpt.perLayer)) for(const L of LAYERS) if(!L.fixed) pdfOpt.layers[L.id]=false;
-      if(on) pdfOpt.layers.base=true;
-      expLayerUI(); refreshPreview(); };
-    box.appendChild(ob);
   }
   document.getElementById('mFrame').onchange=ev=>{ pdfOpt.frame=ev.target.value; frameRefreshUI(); refreshPreview(); };
   document.getElementById('mFrameAdd').onclick=()=>document.getElementById('frameInput').click();
@@ -8037,9 +8120,9 @@
     g.lineWidth=MM(0.5*k); g.beginPath(); g.moveTo(MM(x0),MM(top)); g.lineTo(MM(x0),MM(bot)); g.stroke();
     const rows=[
       {h:0.13, logo:true},
-      {en:'APPROVED BY', zh:'項 目 負 責', v:S.lead},
+      {en:'APPROVED BY', zh:'項 目 負 責', v:M.firm||S.lead},
       {en:'DESIGNED BY', zh:'設 計 負 責', v:S.dlead},
-      {en:'DESIGNED BY', zh:'設　　計', v:S.design},
+      {en:'DESIGNED BY', zh:'設　　計', v:M.designer||S.design},
       {en:'DRAWN BY', zh:'製　　圖', v:S.drawn},
       {en:'CHECKED BY', zh:'審　　核', v:S.check},
       {en:'REVISION', zh:'校　　對', v:S.revise},
@@ -8048,6 +8131,7 @@
       {en:'SCALE', zh:'比　　例', v:scaleTxt||''},
       {en:'DATE REVISION NO.', zh:'日　　期', v:M.date||new Date().toISOString().slice(0,10).replace(/-/g,'/')},
       {en:'SHEET NO.', zh:'序　　號', v:M.serial||''},
+      {en:'CLIENT', zh:'業　　主', v:M.client||''},
       {en:'PROJECT', zh:'工 程 名 稱', v:fname(), big:true, h:0.065},
       {en:'ALIGNMENT', zh:'項　　目', v:page.title||'', big:true, h:0.065},
       {notes:true, h:0.15},
@@ -8145,7 +8229,7 @@
   }
 
 
-  const SHEET_NAME={base:'結構平面圖',plan:'平面配置圖',elec:'插座配置圖',light:'燈具配置圖',circuit:'燈具迴路圖',ceil:'天花板施工圖',floor:'地板施工圖'};
+  const SHEET_NAME={base:'結構平面圖',plan:'平面配置圖',elec:'插座配置圖',light:'燈具配置圖',circuit:'燈具迴路圖',ceil:'天花板施工圖',floor:'地板施工圖',paint:'油漆施工圖'};
   function sheetTitle(layers){ const L=layers||{}; if(L.orig) return '原始結構圖'; const k=LAYERS.map(l=>l.id).filter(id=>id!=='base' && L[id]);
     if(L.light && L.circuit) return '燈具配置圖'; return k.length ? k.map(id=>SHEET_NAME[id]||layerName(id)).join('／') : SHEET_NAME.base; }
   // 【原始結構圖】: the plan as it was handed over — only walls drawn with the 牆 /
@@ -8220,6 +8304,15 @@
     // why the PDF looked soft — it was an upscaled bitmap.
     const b=bounds(Object.assign({},opt,{layers:page.layers}))||{x0:0,y0:0,x1:400,y1:300};
     const bw=Math.max(1,b.x1-b.x0), bh=Math.max(1,b.y1-b.y0);
+    // 油漆施工圖 with elevations: the plan gives up a strip on the right, and the split
+    // is chosen so neither the plan nor the elevations end up tiny
+    let elevArea=null; const elevs=paintElevList(page.layers);
+    if(elevs.length){ const kk=ph/297; let best=null;
+      for(const q of [0.45,0.5,0.55,0.6,0.65,0.7,0.75]){
+        const sP=Math.min((availW*q-25*kk)/bw, (availH-25*kk)/bh);
+        const lay=paintElevLayout(elevs,0,0,availW*(1-q)-4*kk,availH,kk), e=Math.min(lay?lay.e:0, sP);
+        const sc=Math.min(sP, e*1.35); if(!best||sc>best.sc) best={q,sc}; }
+      elevArea={x:ox+availW*best.q+4*kk, y:oy, w:availW*(1-best.q)-4*kk, h:availH, k:kk}; availW=availW*best.q; }
     const pxW=MM(availW), pxH=MM(availH);
     const targetMM0=TEXT_MM[opt.textSize||'m']||TEXT_MM.m;
     const TSv=targetMM0*SHEET_PPM/12, PADp=exportPad(TSv);
@@ -8254,6 +8347,8 @@
     g.save(); g.beginPath(); g.rect(MM(ox),MM(oy),MM(availW),MM(availH)); g.clip();
     g.drawImage(oc, MM(ix),MM(iy), MM(iw),MM(ih));
     g.restore();
+    if(elevArea) drawPaintElevs(g, elevs, elevArea, elevArea.k, S/SHEET_PPM,
+      (f)=>f._idx ? {x:ix+f._idx[0]/SHEET_PPM, y:iy+f._idx[1]/SHEET_PPM} : null);
     // The block is printed LAST, now that the plan's real scale is known. "NTS" on
     // a sheet that is in fact at a consistent ratio is a lie of omission — a builder
     // who wants to check a dimension by measuring it off the paper needs the number.
@@ -8289,7 +8384,7 @@
   // a group at most, an optional note row underneath. Sizes are in mm on paper.
   function drawLegend(g, pwMM, phMM, mMM, tb, layersOpt, area){
     const structOnly=!layersOpt || !Object.keys(layersOpt).some(k=>k!=='base' && layersOpt[k]);
-    let items=(structOnly?wallKindTally():[]).concat(mepTally(layersOpt)).concat(ceilTally(layersOpt)).concat(floorLegend(layersOpt));
+    let items=(structOnly?wallKindTally():[]).concat(mepTally(layersOpt)).concat(ceilTally(layersOpt)).concat(floorLegend(layersOpt)).concat(paintLegend(layersOpt));
     let note='';
     items=items.filter(it=>{ if(/^※/.test(it.name)){ note=it.name.replace(/^※\s*/,''); return false; } return true; });
     if(!items.length) return null;
@@ -8392,6 +8487,27 @@
     if(o.photos!==undefined) showOpt.photos=!!o.photos;
     try{ resolveDims(); }catch(_){}
     ctx=g; view.scale=scale; view.ox=pad.l-b.x0*scale; view.oy=pad.t-b.y0*scale; W=cw; H=ch; ui.grid=false;
+    // A sheet prints symbols at a fixed paper size, smaller (or larger) than the
+    // 30 cm they occupy on the canvas. Kept at the same centre, a socket that
+    // touched the wall on screen came out floating off it. So each wall device is
+    // slid along its wall normal by the change in radius: its EDGE keeps exactly
+    // the gap to the wall face you drew (0 stays touching). Put back afterwards.
+    const mepShift=[];
+    try{ mepRecalcSpacing();
+      for(const m of state.mep){
+        if(!isWallDevice(m) || isLinear(m) || (lightSpec(m)&&lightSpec(m).sz) || !devVisible(m)) continue;
+        const off=wallOff(m); if(!(off>0)) continue;
+        // the nearest wall within reach (a socket set 30 cm off a wall keeps its 30 cm edge gap too)
+        let host=null, bd=Infinity;
+        for(const w of state.walls){ if(wallLen(w)<1) continue; const cl=wallCenterline(w);
+          const pr=projPointToSeg(m.x,m.y,cl.x1,cl.y1,cl.x2,cl.y2);
+          if(pr.t>0.0001 && pr.t<0.9999 && pr.d<=w.t/2+off+60 && pr.d-w.t/2<bd){ bd=pr.d-w.t/2; host={w,pr}; } }
+        if(!host) continue;
+        let vx=m.x-host.pr.x, vy=m.y-host.pr.y; const d=Math.hypot(vx,vy); if(d<0.5) continue; vx/=d; vy/=d;
+        const trueP=MEP_SIZE*view.scale*(isLight(m)?lightScale(m):1); if(!(trueP>0)) continue;
+        const sh=(devPx(m)/trueP-1)*off; if(Math.abs(sh)<0.05) continue;
+        mepShift.push([m,m.x,m.y]); m.x+=vx*sh; m.y+=vy*sh;
+      } }catch(_){}
     try{
     if(EXPORT_FILL) drawRoomsFill();
     drawFloor();
@@ -8408,11 +8524,13 @@
     drawCircLines();
     drawMEP();
     drawCircLabels();
+    drawPaint();
     drawTexts();
     drawNotes(); drawInk();
     } finally {
     // restore in a finally: a throw part-way through used to leave the app running
     // with the export's layer visibility, and no way back except a reload
+    for(const [m,x,y] of mepShift){ m.x=x; m.y=y; }
     ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid; WALL_PLAIN=false;
     hitLabels=sHits; placedLabels=sPlaced; glyphBoxes=[]; ui.selected=sSel; TS=sTS; state.layer=sLayer;
     state.layerVis=sVis; EXPORT_MODE=sExp; EXPORT_FILL=false;
@@ -10908,6 +11026,576 @@
     for(const k of Object.keys(cnt)) out.push({name:k, n:cnt[k].n, sw:fill('#FFFFFF',CEIL_GREY,cnt[k].kind==='hatch')});
     return out;
   }
+  // ================= 油漆施工 =================
+  // Paint is specified per WALL FACE (one side of one wall, as one room sees it)
+  // and per room CEILING. Each colour is a spec the designer names once — brand,
+  // code, a note — and the sheet labels it by those words, never by RGB.
+  //   state.paint.specs  [{id, hex, brand, code, note}]
+  //   state.paint.faces  [{id, wallId, side ±1, t, spec|null, lx, ly,
+  //                        elev:null | {letter, H?, regions:[{id,x,y,w,h,spec}],
+  //                                     texts:[{id,x,y,s,size}], ink:[{c,w,pts}]}}]
+  //   state.paint.ceils  [{rid, spec}]
+  // A face is found again from (wall, side, how far along): it follows the wall
+  // when the wall is moved or resized. Elevation coordinates are cm, x from the
+  // face's left end as you stand in the room looking at it, y up from the floor.
+  function paintData(){ const P=state.paint||(state.paint={}); P.specs=P.specs||[]; P.faces=P.faces||[]; P.ceils=P.ceils||[]; return P; }
+  const paintSpec=(id)=>id==null?null:(paintData().specs.find(s=>s.id===id)||null);
+  function paintSpecTitle(s){ if(!s) return ''; return [s.brand,s.code].filter(v=>v&&String(v).trim()).join(' ') || '未命名顏色'; }
+  const pingOf=(cm2)=>cm2/10000/3.305785;
+  function paintOn(){ return EXPORT_MODE ? state.layerVis.paint===true : (layerVisible('paint') && state.layer==='paint'); }
+  function ptInPoly(x,y,P){ let c=false; for(let i=0,j=P.length-1;i<P.length;j=i++){ const a=P[i],b=P[j]; if(((a.y>y)!=(b.y>y)) && (x<(b.x-a.x)*(y-a.y)/((b.y-a.y)||1e-9)+a.x)) c=!c; } return c; }
+
+  function faceGeom(f){
+    const w=state.walls.find(v=>v.id===f.wallId); if(!w) return null;
+    const cl=wallCenterline(w), L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1;
+    const ux=(cl.x2-cl.x1)/L, uy=(cl.y2-cl.y1)/L, nx=-uy*f.side, ny=ux*f.side;
+    const t=Math.max(0.002,Math.min(0.998,f.t));
+    const px=cl.x1+ux*L*t + nx*(w.t/2+3), py=cl.y1+uy*L*t + ny*(w.t/2+3);
+    const r=roomAt(px,py); if(!r||!r.V||r.V.length<3) return null;
+    let E=null, ed=Infinity;
+    for(let i=0;i<r.V.length;i++){ const a=r.V[i], b=r.V[(i+1)%r.V.length];
+      const el=Math.hypot(b.x-a.x,b.y-a.y); if(el<1) continue;
+      if(Math.abs(((b.x-a.x)*ux+(b.y-a.y)*uy)/el)<0.995) continue;
+      const q=projPointToSeg(px,py,a.x,a.y,b.x,b.y);
+      if(q.d<ed && q.d<10){ ed=q.d; E={a,b}; } }
+    if(!E) return null;
+    // stand in the room, face the wall: x runs to your right
+    const rx=ny, ry=-nx;
+    let a=E.a, b=E.b; if((b.x-a.x)*rx+(b.y-a.y)*ry<0){ const s=a; a=b; b=s; }
+    const EL=Math.hypot(b.x-a.x,b.y-a.y);
+    const H=(f.elev && f.elev.H>0) ? f.elev.H : roomBaseCH(r);
+    const open=[];
+    for(const o of state.openings){ if(o.wallId!==w.id) continue;
+      const K=openKind(o), c=o.pos*wallLen(w), cx=w.x1+(w.x2-w.x1)/(wallLen(w)||1)*c, cy=w.y1+(w.y2-w.y1)/(wallLen(w)||1)*c;
+      const xc=(cx-a.x)*rx+(cy-a.y)*ry, x0=Math.max(0,xc-o.width/2), x1=Math.min(EL,xc+o.width/2);
+      if(x1-x0<1) continue;
+      const y0=o.type==='door'?0:(o.sill!=null?o.sill:K.sill), y1=Math.min(H, y0+(o.height||K.h));
+      if(y1-y0<1) continue;
+      open.push({x0,x1,y0,y1,type:o.type,label:openLabel(o)}); }
+    const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+    const tMid=projPointToSeg(mx,my,cl.x1,cl.y1,cl.x2,cl.y2).t;
+    return {w,r,a,b,L:EL,H,n:{x:nx,y:ny},rt:{x:rx,y:ry},open,mid:{x:mx,y:my},tMid};
+  }
+  function faceAt(wx,wy){
+    let best=null, bd=Infinity;
+    for(const w of state.walls){ if(wallLen(w)<1) continue; const cl=wallCenterline(w);
+      const pr=projPointToSeg(wx,wy,cl.x1,cl.y1,cl.x2,cl.y2);
+      if(pr.t<=0 || pr.t>=1) continue;
+      if(pr.d<=w.t/2+Math.max(20,16/view.scale) && pr.d<bd){ bd=pr.d; best={w,pr,cl}; } }
+    if(!best) return null;
+    const {w,pr,cl}=best, L=Math.hypot(cl.x2-cl.x1,cl.y2-cl.y1)||1;
+    const nx=-(cl.y2-cl.y1)/L, ny=(cl.x2-cl.x1)/L;
+    const side=Math.sign((wx-pr.x)*nx+(wy-pr.y)*ny)||1;
+    for(const sd of [side,-side]){ const f={wallId:w.id, side:sd, t:pr.t}; const g=faceGeom(f); if(g){ f.t=g.tMid; return f; } }
+    return null;
+  }
+  function findFace(f){
+    const g=faceGeom(f); if(!g) return null;
+    return paintData().faces.find(x=>{ if(x.wallId!==f.wallId||x.side!==f.side) return false; const h=faceGeom(x); return h && Math.hypot(h.mid.x-g.mid.x,h.mid.y-g.mid.y)<2; })||null;
+  }
+  function nextElevLetter(){
+    const used=new Set(paintData().faces.filter(f=>f.elev).map(f=>f.elev.letter));
+    for(let k=0;k<200;k++){ const s=String.fromCharCode(65+k%26)+(k>=26?Math.floor(k/26):''); if(!used.has(s)) return s; }
+    return '?';
+  }
+  // ---- quantities ----
+  function clipR(R,W){ const x0=Math.max(R.x,W.x), y0=Math.max(R.y,W.y), x1=Math.min(R.x+R.w,W.x+W.w), y1=Math.min(R.y+R.h,W.y+W.h);
+    return (x1>x0&&y1>y0)?{x:x0,y:y0,w:x1-x0,h:y1-y0}:null; }
+  function rOver(a,b){ const c=clipR(a,b); return c?c.w*c.h:0; }
+  // a face: the whole wall less its doors and windows; a drawn area takes its own
+  // colour, and is taken out of the face's main colour
+  function faceAreas(f,g){
+    g=g||faceGeom(f); const out=new Map(); if(!g) return out;
+    const add=(id,v)=>{ if(!paintSpec(id)||!(v>0)) return; out.set(id,(out.get(id)||0)+v); };
+    const ops=g.open.map(o=>({x:o.x0,y:o.y0,w:o.x1-o.x0,h:o.y1-o.y0})), W={x:0,y:0,w:g.L,h:g.H};
+    let reg=0;
+    for(const R of (f.elev&&f.elev.regions)||[]){ const c=clipR(R,W); if(!c) continue; let a=c.w*c.h; for(const o of ops) a-=rOver(c,o); a=Math.max(0,a); reg+=a; add(R.spec,a); }
+    if(f.spec){ let a=g.L*g.H; for(const o of ops) a-=rOver(o,W); add(f.spec, Math.max(0,a-reg)); }
+    return out;
+  }
+  // a ceiling: the room's plan area (columns already out), plus every vertical
+  // face a 天花板圖 builds — the step of each recess or drop (its outline × the
+  // height difference to what it sits in) and the inside of each 間照 trough
+  function ceilPaintArea(r){
+    let a=r.area; const base=roomBaseCH(r);
+    const zs=(state.ceil||[]).filter(z=>z.kind==='zone' && ceilRoom(z)===r);
+    for(const z of zs){
+      const P=ceilOutline(z).P; let per=0; for(let i=0;i<P.length;i++){ const p=P[i],q=P[(i+1)%P.length]; per+=Math.hypot(q.x-p.x,q.y-p.y); }
+      let ref=base, refA=Infinity; const za=ceilArea(z), c=ceilCentre(z);
+      for(const z2 of zs){ if(z2===z) continue; const a2=ceilArea(z2); if(a2>za && a2<refA && ptInPoly(c.x,c.y,ceilOutline(z2).P)){ ref=z2.ch; refA=a2; } }
+      a+=per*Math.abs(ref-(z.ch!=null?z.ch:base));
+      if(z.cove && z.cove.on) a+=coveLen(z)*((z.cove.w||15)+(z.cove.lip||10));
+    }
+    return a;
+  }
+  function paintTally(){
+    const P=paintData(), m=new Map();
+    const get=(id)=>{ let e=m.get(id); if(!e){ e={spec:paintSpec(id),wall:0,ceil:0}; m.set(id,e); } return e; };
+    for(const f of P.faces) for(const [id,a] of faceAreas(f)) get(id).wall+=a;
+    for(const c of P.ceils){ const r=roomsCache.find(x=>x.rid===c.rid); if(r && paintSpec(c.spec)) get(c.spec).ceil+=ceilPaintArea(r); }
+    return P.specs.map(s=>m.get(s.id)).filter(e=>e && e.spec && (e.wall+e.ceil)>0);
+  }
+  function paintSw(hex){ return (g,sp)=>{ g.fillStyle=hex; g.strokeStyle='#333'; g.lineWidth=Math.max(1,sp*0.05); g.beginPath(); g.rect(-sp*0.55,-sp*0.36,sp*1.1,sp*0.72); g.fill(); g.stroke(); }; }
+  function paintLegend(vis){
+    if(!(vis ? vis.paint===true : paintOn())) return [];
+    return paintTally().map(e=>({name:paintSpecTitle(e.spec)+(e.spec.note?'・'+e.spec.note:''), n:pingOf(e.wall+e.ceil).toFixed(2)+' 坪', sw:paintSw(e.spec.hex)}));
+  }
+
+  // ---- the plan ----
+  let paintHits=[];
+  function paintLabel(g, x, y, s, extra, size){
+    // a colour chip and the words: 品牌 色號 / 備註
+    const f=size; g.font='600 '+Math.round(f)+'px '+SHEET_FONT; g.textAlign='left'; g.textBaseline='middle';
+    const l1=s?paintSpecTitle(s):(extra||''), l2=s?[s.note,extra].filter(Boolean).join('　'):'';
+    const w=Math.max(g.measureText(l1).width, l2?(g.font='500 '+Math.round(f*0.86)+'px '+SHEET_FONT, g.measureText(l2).width):0);
+    const cs=f*1.05, pad=f*0.35, H=l2?f*2.3:f*1.3, W2=cs+pad*3+w;
+    g.fillStyle='rgba(255,255,255,.92)'; g.fillRect(x-pad, y-H/2, W2, H);
+    if(s){ g.fillStyle=s.hex; g.fillRect(x, y-cs/2-(l2?f*0.55:0), cs, cs); g.strokeStyle='#333'; g.lineWidth=Math.max(1,f*0.06); g.strokeRect(x, y-cs/2-(l2?f*0.55:0), cs, cs); }
+    g.fillStyle='#1E2328'; g.font='600 '+Math.round(f)+'px '+SHEET_FONT; g.fillText(l1, x+(s?cs+pad:0), y-(l2?f*0.55:0));
+    if(l2){ g.fillStyle='#4A525A'; g.font='500 '+Math.round(f*0.86)+'px '+SHEET_FONT; g.fillText(l2, x+(s?cs+pad:0), y+f*0.6); }
+    return {x0:x-pad, y0:y-H/2, x1:x-pad+W2, y1:y+H/2};
+  }
+  function drawPaint(){
+    paintHits=[];
+    if(!paintOn()) return;
+    const P=paintData(), g=ctx, k=view.scale;
+    // ceilings: a dashed outline in the colour, and a label under the room name
+    for(const c of P.ceils){
+      const r=roomsCache.find(x=>x.rid===c.rid), s=paintSpec(c.spec); if(!r||!s) continue;
+      g.save(); g.strokeStyle=s.hex; g.lineWidth=fpx(2.4); g.setLineDash([fpx(7),fpx(4)]);
+      g.beginPath(); r.V.forEach((p,i)=>{ const [sx,sy]=toScreen(p.x,p.y); i?g.lineTo(sx,sy):g.moveTo(sx,sy); }); g.closePath(); g.stroke(); g.restore();
+      let cx=0,cy=0; for(const p of r.V){ cx+=p.x; cy+=p.y; } cx/=r.V.length; cy/=r.V.length;
+      const [sx,sy]=toScreen(cx+(c.lx||0), cy+(c.ly||0));
+      const bx=paintLabel(g, sx-fpx(40), sy+fpx(34), s, '天花', fpx(10));
+      paintHits.push(Object.assign({kind:'paintCeil', id:c.rid}, bx));
+    }
+    for(const f of P.faces){
+      const G=faceGeom(f); if(!G) continue;
+      const s=paintSpec(f.spec), band=fpx(5), off=band/2/k;
+      const A={x:G.a.x+G.n.x*off, y:G.a.y+G.n.y*off}, B={x:G.b.x+G.n.x*off, y:G.b.y+G.n.y*off};
+      const seg=(x0,x1,col,wd)=>{ const [ax,ay]=toScreen(A.x+G.rt.x*x0, A.y+G.rt.y*x0), [bx,by]=toScreen(A.x+G.rt.x*x1, A.y+G.rt.y*x1);
+        g.strokeStyle=col; g.lineWidth=wd; g.lineCap='butt'; g.beginPath(); g.moveTo(ax,ay); g.lineTo(bx,by); g.stroke(); };
+      if(s) seg(0, G.L, s.hex, band);
+      // a partly painted face: the stretches its drawn areas cover, in their colours
+      for(const R of (f.elev&&f.elev.regions)||[]){ const rs=paintSpec(R.spec); if(!rs) continue;
+        const x0=Math.max(0,R.x), x1=Math.min(G.L,R.x+R.w); if(x1-x0<1) continue;
+        g.save(); g.setLineDash([fpx(4),fpx(2.5)]); seg(x0,x1,rs.hex, s?band*0.55:band); g.restore(); }
+      // 立面索引: a circle with the letter, its point aimed at the wall it shows
+      const mid=G.mid; let lab={x:mid.x+G.n.x*(f.elev?95:55)+(f.lx||0), y:mid.y+G.n.y*(f.elev?95:55)+(f.ly||0)};
+      if(f.elev){
+        const ic={x:mid.x+G.n.x*35, y:mid.y+G.n.y*35};
+        const [ix,iy]=toScreen(ic.x,ic.y), R=fpx(9);
+        const [tx,ty]=toScreen(ic.x-G.n.x*1, ic.y-G.n.y*1); let vx=tx-ix, vy=ty-iy; const vl=Math.hypot(vx,vy)||1; vx/=vl; vy/=vl;
+        g.fillStyle='#1E2328'; g.beginPath(); g.moveTo(ix+vx*R*1.75, iy+vy*R*1.75); g.lineTo(ix-vy*R*0.92, iy+vx*R*0.92); g.lineTo(ix+vy*R*0.92, iy-vx*R*0.92); g.closePath(); g.fill();
+        g.beginPath(); g.arc(ix,iy,R,0,Math.PI*2); g.fillStyle='#fff'; g.fill(); g.strokeStyle='#1E2328'; g.lineWidth=fpx(1.3); g.stroke();
+        g.fillStyle='#1E2328'; g.font='700 '+Math.round(fpx(10))+'px '+SHEET_FONT; g.textAlign='center'; g.textBaseline='middle'; g.fillText(f.elev.letter, ix, iy+fpx(0.5));
+        f._idx=[ix,iy,R];
+        paintHits.push({kind:'paintFace', id:f.id, x0:ix-R, y0:iy-R, x1:ix+R, y1:iy+R});
+      } else f._idx=null;
+      if(s || (f.elev && !s && !(f.elev.regions||[]).length)){
+        const [mx,my]=toScreen(mid.x+G.n.x*off*2, mid.y+G.n.y*off*2), [lx,ly]=toScreen(lab.x,lab.y);
+        g.strokeStyle='#5B646E'; g.lineWidth=fpx(0.8); g.beginPath(); g.moveTo(mx,my); g.lineTo(lx,ly); g.stroke();
+        g.fillStyle='#5B646E'; g.beginPath(); g.arc(mx,my,fpx(1.8),0,Math.PI*2); g.fill();
+        const bx=paintLabel(g, lx+fpx(3), ly, s, f.elev?('見立面 '+f.elev.letter):'', fpx(10));
+        paintHits.push(Object.assign({kind:'paintFace', id:f.id}, bx));
+      } else if(f.elev && !EXPORT_MODE){
+        const [lx,ly]=toScreen(lab.x,lab.y);
+        const bx=paintLabel(g, lx, ly, null, '局部油漆・見立面 '+f.elev.letter, fpx(9));
+        paintHits.push(Object.assign({kind:'paintFace', id:f.id}, bx));
+      }
+      // the selected face is outlined
+      if(!EXPORT_MODE && ui.selected && ui.selected.kind==='paintFace' && ui.selected.id===f.id){
+        const [ax,ay]=toScreen(G.a.x,G.a.y), [bx,by]=toScreen(G.b.x,G.b.y);
+        g.save(); g.strokeStyle='#275C7A'; g.lineWidth=fpx(1.5); g.setLineDash([fpx(4),fpx(3)]); g.beginPath(); g.moveTo(ax,ay); g.lineTo(bx,by); g.stroke(); g.restore();
+      }
+    }
+  }
+  function paintHitTest(wx,wy){
+    if(state.layer!=='paint') return null;
+    const [sx,sy]=toScreen(wx,wy);
+    for(let i=paintHits.length-1;i>=0;i--){ const h=paintHits[i]; if(sx>=h.x0-4&&sx<=h.x1+4&&sy>=h.y0-4&&sy<=h.y1+4) return {kind:h.kind, id:h.id}; }
+    return null;
+  }
+  function paintTap(wx,wy){
+    const P=paintData(), mode=ui.paintMode||'wall', sp=paintSpec(ui.paintSpec);
+    if(mode==='ceil'){
+      const r=roomAt(wx,wy); if(!r||r.rid==null){ flashHint('請點在空間裡面'); return; }
+      if(!sp){ flashHint('先在下面選一個油漆顏色，或按「＋ 新增顏色」'); return; }
+      const i=P.ceils.findIndex(c=>c.rid===r.rid);
+      if(i>=0 && P.ceils[i].spec===sp.id){ P.ceils.splice(i,1); flashHint('這間的天花已取消油漆'); }
+      else { if(i>=0) P.ceils[i].spec=sp.id; else P.ceils.push({rid:r.rid, spec:sp.id});
+        flashHint('天花：'+paintSpecTitle(sp)+'，'+pingOf(ceilPaintArea(r)).toFixed(2)+' 坪（含降板、間照側面）'); }
+      pushHistory(); syncPaintUI(); draw(); return;
+    }
+    const f=faceAt(wx,wy); if(!f){ flashHint('請點在牆面上，靠要上漆的那個房間那一側'); return; }
+    let rec=findFace(f);
+    if(mode==='elev'){
+      if(!rec){ rec=Object.assign({id:uid(), spec:null}, f); P.faces.push(rec); }
+      if(!rec.elev) rec.elev={letter:nextElevLetter(), regions:[], texts:[], ink:[]};
+      pushHistory(); openElev(rec.id); return;
+    }
+    if(!sp){ flashHint('先在下面選一個油漆顏色，或按「＋ 新增顏色」'); return; }
+    if(rec && rec.spec===sp.id){ rec.spec=null; if(!rec.elev) P.faces.splice(P.faces.indexOf(rec),1); flashHint('這面牆已取消油漆'); }
+    else { if(!rec){ rec=Object.assign({id:uid()}, f); P.faces.push(rec); } rec.spec=sp.id;
+      const a=faceAreas(rec).get(sp.id)||0; flashHint('牆面：'+paintSpecTitle(sp)+'，'+pingOf(a).toFixed(2)+' 坪（已扣門窗）'); }
+    ui.selected=rec&&P.faces.includes(rec)?{kind:'paintFace',id:rec.id}:null; refreshProp();
+    pushHistory(); syncPaintUI(); draw();
+  }
+
+  function paintProp(s){
+    const opts=(id,none)=>(none?`<option value="">${none}</option>`:'')+paintData().specs.map(v=>`<option value="${v.id}"${v.id===id?' selected':''}>${pEsc(paintSpecTitle(v))}</option>`).join('');
+    if(s.kind==='paintCeil'){
+      const c=paintData().ceils.find(v=>v.rid===s.id), r=roomsCache.find(x=>x.rid===s.id), e=roomById(s.id);
+      if(!c||!r){ propBody.innerHTML='<div class="empty">這個天花油漆已經不存在了。</div>'; return; }
+      propBody.innerHTML=`<div class="ptitle">天花油漆　${pEsc((e&&e.name)||'未命名')}</div>
+        <div class="row"><label>顏色</label><select id="pPcs" class="tin">${opts(c.spec)}</select></div>
+        <div class="row"><label>坪數</label><span><b>${pingOf(ceilPaintArea(r)).toFixed(2)} 坪</b></span></div>
+        <div class="lay-note">平面面積（扣柱）＋降板、凹槽的側面＋間照燈槽內面。</div>
+        <button class="btn warn" id="pPcDel" style="margin-top:8px">取消這間的天花油漆</button>`;
+      document.getElementById('pPcs').onchange=ev=>{ c.spec=ev.target.value; pushHistory(); syncPaintUI(); refreshProp(); draw(); };
+      document.getElementById('pPcDel').onclick=deleteSelected; return;
+    }
+    const f=paintFaceById(s.id), G=f&&faceGeom(f);
+    if(!G){ propBody.innerHTML='<div class="empty">這面牆已經不在了。</div>'; return; }
+    const A=faceAreas(f,G);
+    propBody.innerHTML=`<div class="ptitle">牆面油漆${f.elev?'　立面 '+pEsc(f.elev.letter):''}</div>
+      <div class="row"><label>整面顏色</label><select id="pPfs" class="tin">${opts(f.spec,'不整面刷')}</select></div>
+      <div class="row"><label>牆長</label><span>${fmtLenU(G.L)}</span></div>
+      <div class="row"><label>高度</label><span>${fmtLenU(G.H)}</span></div>
+      ${[...A].map(([id,a])=>{ const v=paintSpec(id); return `<div class="row"><label><span class="pt-sw" style="background:${v.hex}"></span></label><span>${pEsc(paintSpecTitle(v))}：<b>${pingOf(a).toFixed(2)} 坪</b></span></div>`; }).join('')}
+      <button class="btn primary" id="pPfElev" style="margin-top:8px">${f.elev?'編輯立面 '+pEsc(f.elev.letter):'畫立面（局部油漆）'}</button>
+      ${f.elev?'<button class="btn" id="pPfElevDel" style="margin-top:8px">刪除立面</button>':''}
+      <button class="btn warn" id="pPfDel" style="margin-top:8px">移除這面牆的油漆</button>
+      <div class="lay-note">標籤可以拖到別的位置。</div>`;
+    document.getElementById('pPfs').onchange=ev=>{ f.spec=ev.target.value||null; if(!f.spec&&!f.elev){ deleteSelected(); return; } pushHistory(); syncPaintUI(); refreshProp(); draw(); };
+    document.getElementById('pPfElev').onclick=()=>{ if(!f.elev){ f.elev={letter:nextElevLetter(),regions:[],texts:[],ink:[]}; pushHistory(); } openElev(f.id); };
+    const ed=document.getElementById('pPfElevDel'); if(ed) ed.onclick=async()=>{ if(!(await uiConfirm('刪除立面 '+f.elev.letter+'？框的油漆範圍、手寫和文字都會一起刪掉。'))) return;
+      f.elev=null; if(!f.spec) paintRemoveFace(f.id); pushHistory(); syncPaintUI(); refreshProp(); draw(); };
+    document.getElementById('pPfDel').onclick=deleteSelected;
+  }
+  function paintFaceById(id){ return paintData().faces.find(f=>f.id===id)||null; }
+  function paintRemoveFace(id){ const P=paintData(); P.faces=P.faces.filter(f=>f.id!==id); }
+  function paintPurge(){
+    // a face whose wall has gone, or that has nothing on it, is dropped
+    const P=paintData(); P.faces=P.faces.filter(f=>state.walls.some(w=>w.id===f.wallId) && (f.spec || f.elev));
+  }
+
+  // ---- the dock: what to paint, then the colours ----
+  const PAINT_MODES=[['wall','牆面上色'],['ceil','天花上色'],['elev','立面（局部）']];
+  function paintStart(){ setTool('paint');
+    const m=ui.paintMode||'wall', s=paintSpec(ui.paintSpec);
+    flashHint(m==='elev'?'點一面牆，打開它的立面：可以框出局部油漆、標尺寸、手寫或打字'
+      : !s?'先在下面選一個油漆顏色，或按「＋ 新增顏色」'
+      : m==='ceil'?'點一個空間，天花刷 '+paintSpecTitle(s)+'（再點一次取消）':'點一面牆（靠房間那一側），刷 '+paintSpecTitle(s)+'（再點一次取消）'); }
+  function syncPaintUI(){
+    const modes=document.getElementById('paintModes'), list=document.getElementById('paintList'), P=paintData();
+    if(modes){ modes.innerHTML='';
+      for(const [k,name] of PAINT_MODES){ const b=document.createElement('button'); b.textContent=name;
+        if((ui.paintMode||'wall')===k && ui.tool==='paint') b.className='on';
+        b.onclick=()=>{ ui.paintMode=k; paintStart(); syncPaintUI(); }; modes.appendChild(b); } }
+    if(list){ list.innerHTML='';
+      for(const s of P.specs){ const b=document.createElement('button'); b.className='furn-item'+(ui.paintSpec===s.id?' on':'');
+        b.innerHTML=`<span class="pt-sw" style="background:${s.hex}"></span><b>${pEsc(paintSpecTitle(s))}</b><span>${pEsc(s.note||s.hex)}</span>`;
+        b.onclick=()=>{ if(ui.paintSpec===s.id && ui.tool==='paint'){ openPaintSpec(s.id); return; } ui.paintSpec=s.id; if((ui.paintMode||'wall')==='elev') ui.paintMode='wall'; paintStart(); syncPaintUI(); };
+        list.appendChild(b); }
+      const nb=document.createElement('button'); nb.className='furn-item'; nb.innerHTML='<b>＋ 新增顏色</b><span>品牌・色號・備註</span>';
+      nb.onclick=()=>openPaintSpec(null); list.appendChild(nb);
+      if(P.specs.length){ const tip=document.createElement('div'); tip.className='lay-note'; tip.style.alignSelf='center'; tip.textContent='選中的顏色再點一次＝編輯'; list.appendChild(tip); }
+    }
+    const q=document.getElementById('paintQty');
+    if(q){ const t=paintTally();
+      q.innerHTML = !t.length ? '<div class="lay-note">刷了油漆之後，這裡會列出每個顏色的坪數。牆面扣掉門窗；天花含降板的側面和間照燈槽。</div>'
+        : t.map(e=>`<div class="flq"><div class="flq-t"><span class="pt-sw" style="background:${e.spec.hex};display:inline-block;vertical-align:-2px;margin-right:6px"></span>${pEsc(paintSpecTitle(e.spec))}</div>
+          ${e.wall>0?`<div class="row"><label>牆面</label><span>${pingOf(e.wall).toFixed(2)} 坪（${(e.wall/10000).toFixed(2)} m²）</span></div>`:''}
+          ${e.ceil>0?`<div class="row"><label>天花</label><span>${pingOf(e.ceil).toFixed(2)} 坪（${(e.ceil/10000).toFixed(2)} m²）</span></div>`:''}
+          <div class="row"><label>合計</label><span><b>${pingOf(e.wall+e.ceil).toFixed(2)} 坪</b></span></div></div>`).join('');
+    }
+  }
+  function pEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  // ---- the colour editor ----
+  let pmId=null;
+  function openPaintSpec(id){
+    const P=paintData(); let s=paintSpec(id);
+    if(!s){ s={id:uid(), hex:'#E9DFCF', brand:'', code:'', note:''}; P.specs.push(s); ui.paintSpec=s.id; }
+    pmId=s.id;
+    const M=document.getElementById('paintModal');
+    document.getElementById('pmBrand').value=s.brand||''; document.getElementById('pmCode').value=s.code||''; document.getElementById('pmNote').value=s.note||'';
+    const render=()=>{ document.getElementById('pmBoard').innerHTML=colorBoardHTML('pmC', s.hex, 1).replace(/<div class="row"><label>濃度[\s\S]*$/,'');
+      colorBoardBind('pmC', ()=>({hex:s.hex,a:1}), (hex)=>{ if(hex) s.hex=hex; }, ()=>{ render(); draw(); }); };
+    render();
+    M.classList.add('open');
+  }
+  function closePaintSpec(){
+    const s=paintSpec(pmId); if(s){ s.brand=document.getElementById('pmBrand').value.trim(); s.code=document.getElementById('pmCode').value.trim(); s.note=document.getElementById('pmNote').value.trim(); }
+    document.getElementById('paintModal').classList.remove('open'); pmId=null;
+    pushHistory(); syncPaintUI(); paintStart(); draw(); if(EV) evDraw();
+  }
+  function deletePaintSpec(){
+    const P=paintData(), id=pmId; if(!id) return;
+    P.specs=P.specs.filter(s=>s.id!==id); P.ceils=P.ceils.filter(c=>c.spec!==id);
+    for(const f of P.faces){ if(f.spec===id) f.spec=null; if(f.elev) f.elev.regions=f.elev.regions.filter(R=>R.spec!==id); }
+    paintPurge(); if(ui.paintSpec===id) ui.paintSpec=null;
+    document.getElementById('paintModal').classList.remove('open'); pmId=null;
+    pushHistory(); syncPaintUI(); draw(); if(EV) evDraw();
+  }
+
+  // ---- an elevation, drawn the same way on screen and on the sheet ----
+  // (X0,Y0) is where the face's bottom-left corner lands, sc px per cm, u(n) the
+  // size of n "points" (screen px, or a fixed paper size on a sheet)
+  function drawElev(g, f, G, X0, Y0, sc, u, opt){
+    opt=opt||{}; const E=f.elev||{regions:[],texts:[],ink:[]};
+    const X=(x)=>X0+x*sc, Y=(y)=>Y0-y*sc, L=G.L, H=G.H, base=paintSpec(f.spec);
+    g.save();
+    g.fillStyle=base?base.hex:'#fff'; g.globalAlpha=base?0.9:1; g.fillRect(X(0),Y(H),L*sc,H*sc); g.globalAlpha=1;
+    for(const R of E.regions){ const s=paintSpec(R.spec), c=clipR(R,{x:0,y:0,w:L,h:H}); if(!c) continue;
+      g.fillStyle=s?s.hex:'#ddd'; g.globalAlpha=0.92; g.fillRect(X(c.x),Y(c.y+c.h),c.w*sc,c.h*sc); g.globalAlpha=1;
+      g.strokeStyle='#2B3137'; g.lineWidth=u(0.7); g.setLineDash([u(3),u(2)]); g.strokeRect(X(c.x),Y(c.y+c.h),c.w*sc,c.h*sc); g.setLineDash([]);
+      if(opt.sel===R.id){ g.strokeStyle='#275C7A'; g.lineWidth=u(2); g.strokeRect(X(c.x),Y(c.y+c.h),c.w*sc,c.h*sc);
+        for(const [hx,hy] of [[c.x,c.y],[c.x+c.w,c.y],[c.x,c.y+c.h],[c.x+c.w,c.y+c.h]]){ g.fillStyle='#fff'; g.fillRect(X(hx)-u(6),Y(hy)-u(6),u(12),u(12)); g.strokeRect(X(hx)-u(6),Y(hy)-u(6),u(12),u(12)); } } }
+    for(const o of G.open){ g.fillStyle='#fff'; g.fillRect(X(o.x0),Y(o.y1),(o.x1-o.x0)*sc,(o.y1-o.y0)*sc);
+      g.strokeStyle='#2B3137'; g.lineWidth=u(1); g.strokeRect(X(o.x0),Y(o.y1),(o.x1-o.x0)*sc,(o.y1-o.y0)*sc);
+      g.lineWidth=u(0.5); g.beginPath();
+      if(o.type==='door'){ g.moveTo(X(o.x0),Y(o.y1)); g.lineTo(X((o.x0+o.x1)/2),Y(o.y0)); g.lineTo(X(o.x1),Y(o.y1)); }
+      else { g.moveTo(X((o.x0+o.x1)/2),Y(o.y0)); g.lineTo(X((o.x0+o.x1)/2),Y(o.y1)); }
+      g.stroke();
+      g.fillStyle='#6B737B'; g.font='500 '+Math.round(u(8))+'px '+SHEET_FONT; g.textAlign='center'; g.textBaseline='bottom'; g.fillText(o.label, X((o.x0+o.x1)/2), Y(o.y1)-u(2)); }
+    g.strokeStyle='#111'; g.lineWidth=u(1.6); g.strokeRect(X(0),Y(H),L*sc,H*sc);
+    g.lineWidth=u(2.4); g.beginPath(); g.moveTo(X(0)-u(10),Y(0)); g.lineTo(X(L)+u(10),Y(0)); g.stroke();
+    // handwriting and words, in the elevation's own coordinates
+    for(const s of E.ink||[]){ if(!s.pts||s.pts.length<4) continue; g.strokeStyle=s.c||'#C92A2A'; g.lineWidth=Math.max(u(0.8),(s.w||2)*u(0.6)); g.lineCap='round'; g.lineJoin='round';
+      g.beginPath(); for(let i=0;i<s.pts.length;i+=2){ const x=X(s.pts[i]), y=Y(s.pts[i+1]); i?g.lineTo(x,y):g.moveTo(x,y); } g.stroke(); }
+    for(const t of E.texts||[]){ g.fillStyle=t.c||'#1E2328'; g.font='500 '+Math.round(u(t.size||11))+'px '+SHEET_FONT; g.textAlign='left'; g.textBaseline='middle';
+      String(t.s||'').split('\n').forEach((ln,i)=>g.fillText(ln, X(t.x), Y(t.y)+i*u((t.size||11)*1.3)));
+      if(opt.sel===t.id){ const w=g.measureText(t.s||'').width; g.strokeStyle='#275C7A'; g.lineWidth=u(1); g.setLineDash([u(3),u(2)]); g.strokeRect(X(t.x)-u(3),Y(t.y)-u(9),w+u(6),u(18)); g.setLineDash([]); } }
+    // dimensions: the drawn areas' edges along the bottom and the left, then the overall size
+    const dimH=(x0,x1,y,txt)=>{ g.strokeStyle='#333'; g.lineWidth=u(0.6); g.beginPath(); g.moveTo(X(x0),y); g.lineTo(X(x1),y);
+      for(const x of [x0,x1]){ g.moveTo(X(x)-u(3),y+u(3)); g.lineTo(X(x)+u(3),y-u(3)); g.moveTo(X(x),y-u(5)); g.lineTo(X(x),y+u(5)); } g.stroke();
+      if(X(x1)-X(x0)>u(14)){ g.fillStyle='#111'; g.font='500 '+Math.round(u(8.5))+'px '+SHEET_FONT; g.textAlign='center'; g.textBaseline='bottom'; g.fillText(txt,(X(x0)+X(x1))/2,y-u(1.5)); } };
+    const dimV=(y0,y1,x,txt)=>{ g.strokeStyle='#333'; g.lineWidth=u(0.6); g.beginPath(); g.moveTo(x,Y(y0)); g.lineTo(x,Y(y1));
+      for(const y of [y0,y1]){ g.moveTo(x-u(3),Y(y)+u(3)); g.lineTo(x+u(3),Y(y)-u(3)); g.moveTo(x-u(5),Y(y)); g.lineTo(x+u(5),Y(y)); } g.stroke();
+      if(Y(y0)-Y(y1)>u(14)){ g.save(); g.translate(x-u(1.5),(Y(y0)+Y(y1))/2); g.rotate(-Math.PI/2); g.fillStyle='#111'; g.font='500 '+Math.round(u(8.5))+'px '+SHEET_FONT; g.textAlign='center'; g.textBaseline='bottom'; g.fillText(txt,0,0); g.restore(); } };
+    const xs=new Set([0,L]), ys=new Set([0,H]);
+    for(const R of E.regions){ const c=clipR(R,{x:0,y:0,w:L,h:H}); if(!c) continue; xs.add(Math.round(c.x)); xs.add(Math.round(c.x+c.w)); ys.add(Math.round(c.y)); ys.add(Math.round(c.y+c.h)); }
+    const XS=[...xs].sort((a,b)=>a-b), YS=[...ys].sort((a,b)=>a-b);
+    const yb=Y(0)+u(16), xl=X(0)-u(16);
+    if(XS.length>2) for(let i=0;i<XS.length-1;i++) dimH(XS[i],XS[i+1],yb,fmtLen(XS[i+1]-XS[i]));
+    dimH(0,L,yb+(XS.length>2?u(14):0),fmtLen(L));
+    if(YS.length>2) for(let i=0;i<YS.length-1;i++) dimV(YS[i],YS[i+1],xl,fmtLen(YS[i+1]-YS[i]));
+    dimV(0,H,xl-(YS.length>2?u(14):0),fmtLen(H));
+    // the labels: a column to the right, each with a leader to what it names
+    const items=[]; if(base) items.push({s:base, p:{x:L*0.94,y:H*0.9}, tag:'整面'});
+    for(const R of E.regions){ const s=paintSpec(R.spec), c=clipR(R,{x:0,y:0,w:L,h:H}); if(s&&c) items.push({s, p:{x:c.x+c.w/2,y:c.y+c.h/2}}); }
+    const lx=X(L)+u(26); let ly=Y(H)+u(10);
+    const step=Math.max(u(30), Math.min(u(44), (H*sc)/Math.max(1,items.length)));
+    for(const it of items){
+      g.strokeStyle='#5B646E'; g.lineWidth=u(0.7); g.beginPath(); g.moveTo(X(it.p.x),Y(it.p.y)); g.lineTo(lx-u(6),ly); g.lineTo(lx-u(2),ly); g.stroke();
+      g.fillStyle='#5B646E'; g.beginPath(); g.arc(X(it.p.x),Y(it.p.y),u(1.8),0,Math.PI*2); g.fill();
+      paintLabel(g, lx, ly, it.s, it.tag||'', u(9.5)); ly+=step; }
+    g.restore();
+    return {labelW:u(120), left:u(42), bottom:u(44)};
+  }
+
+  // ---- the elevation editor ----
+  let EV=null;
+  function openElev(fid){
+    const f=paintFaceById(fid); if(!f||!f.elev) return;
+    EV={fid, tool:EV&&EV.tool||'rect', sel:null, draft:null};
+    document.getElementById('elevModal').classList.add('open');
+    evTools(); setTimeout(()=>{ evDraw(); evSide(); },0);
+  }
+  function closeElev(){ document.getElementById('elevModal').classList.remove('open'); EV=null; pushHistory(); syncPaintUI(); refreshProp(); draw(); }
+  function evFace(){ return EV && paintFaceById(EV.fid); }
+  function evTools(){
+    const f=evFace(); if(!f) return; const box=document.getElementById('evTools'); box.innerHTML='';
+    const btn=(txt,on,fn,cls)=>{ const b=document.createElement('button'); b.className='tbtn'+(on?' primary':'')+(cls?' '+cls:''); b.textContent=txt; b.onclick=fn; box.appendChild(b); return b; };
+    for(const [k,n] of [['select','選取'],['rect','框油漆範圍'],['text','打字'],['ink','手寫'],['erase','橡皮擦']]) btn(n, EV.tool===k, ()=>{ EV.tool=k; EV.draft=null; evTools(); evDraw(); });
+    const sep=document.createElement('span'); sep.style.cssText='width:1px;background:var(--line);margin:0 4px;align-self:stretch'; box.appendChild(sep);
+    for(const s of paintData().specs){ const b=btn('', ui.paintSpec===s.id, ()=>{ ui.paintSpec=s.id;
+        if(EV.sel){ const R=(f.elev.regions||[]).find(r=>r.id===EV.sel); if(R){ R.spec=s.id; } }
+        evTools(); evDraw(); evSide(); }); b.innerHTML=`<span class="pt-sw" style="background:${s.hex}"></span>${pEsc(paintSpecTitle(s))}`; }
+    btn('＋ 新增顏色', false, ()=>openPaintSpec(null));
+    const g=faceGeom(f); document.getElementById('evTitle').textContent='立面 '+f.elev.letter;
+    document.getElementById('evLetter').value=f.elev.letter;
+    document.getElementById('evSize').textContent=g?('牆長 '+fmtLenU(g.L)+' × 高 '+fmtLenU(g.H)):'這面牆已經不在了';
+  }
+  function evFit(){
+    const cv=document.getElementById('evCanvas'), f=evFace(), G=f&&faceGeom(f); if(!G) return null;
+    const dpr=window.devicePixelRatio||1, r=cv.getBoundingClientRect();
+    if(cv.width!==Math.round(r.width*dpr)||cv.height!==Math.round(r.height*dpr)){ cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr); }
+    const u=(n)=>n*dpr, ml=u(70), mr=u(200), mt=u(30), mb=u(70);
+    const sc=Math.min((cv.width-ml-mr)/G.L, (cv.height-mt-mb)/G.H);
+    const X0=ml+((cv.width-ml-mr)-G.L*sc)/2, Y0=mt+G.H*sc+((cv.height-mt-mb)-G.H*sc)/2;
+    return {cv,f,G,dpr,u,sc,X0,Y0};
+  }
+  function evDraw(){
+    const F=evFit(); if(!F){ return; } const {cv,f,G,u,sc,X0,Y0}=F, g=cv.getContext('2d');
+    g.setTransform(1,0,0,1,0,0); g.fillStyle='#F6F7F8'; g.fillRect(0,0,cv.width,cv.height);
+    drawElev(g, f, G, X0, Y0, sc, u, {sel:EV.sel});
+    const d=EV.draft;
+    if(d && d.kind==='rect'){ const x=Math.min(d.x0,d.x1), y=Math.min(d.y0,d.y1), w=Math.abs(d.x1-d.x0), h=Math.abs(d.y1-d.y0);
+      const s=paintSpec(ui.paintSpec); g.fillStyle=s?s.hex:'#ccc'; g.globalAlpha=0.6; g.fillRect(X0+x*sc,Y0-(y+h)*sc,w*sc,h*sc); g.globalAlpha=1;
+      g.strokeStyle='#275C7A'; g.lineWidth=u(1.5); g.strokeRect(X0+x*sc,Y0-(y+h)*sc,w*sc,h*sc);
+      g.fillStyle='#275C7A'; g.font='600 '+Math.round(u(12))+'px '+SHEET_FONT; g.textAlign='center'; g.textBaseline='bottom';
+      g.fillText(fmtLen(w)+' × '+fmtLen(h), X0+(x+w/2)*sc, Y0-(y+h)*sc-u(4)); }
+    if(d && d.kind==='ink' && d.pts.length>=4){ g.strokeStyle=ui.inkColor||'#C92A2A'; g.lineWidth=u(2); g.lineCap='round'; g.beginPath();
+      for(let i=0;i<d.pts.length;i+=2){ const x=X0+d.pts[i]*sc, y=Y0-d.pts[i+1]*sc; i?g.lineTo(x,y):g.moveTo(x,y); } g.stroke(); }
+  }
+  function evLocal(e){ const F=evFit(); const r=F.cv.getBoundingClientRect(); const px=(e.clientX-r.left)*F.dpr, py=(e.clientY-r.top)*F.dpr;
+    return {x:(px-F.X0)/F.sc, y:(F.Y0-py)/F.sc, px, py, F}; }
+  function evSnap(v, axis, F, skip){
+    const f=F.f, G=F.G, tol=10*F.dpr/F.sc, c=[0, axis==='x'?G.L:G.H];
+    for(const R of f.elev.regions){ if(R.id===skip) continue; if(axis==='x'){ c.push(R.x,R.x+R.w); } else { c.push(R.y,R.y+R.h); } }
+    for(const o of G.open){ if(axis==='x') c.push(o.x0,o.x1); else c.push(o.y0,o.y1); }
+    let best=Math.round(v), bd=tol; for(const q of c){ if(Math.abs(q-v)<bd){ bd=Math.abs(q-v); best=Math.round(q); } } return best;
+  }
+  function evHit(p){
+    const f=evFace(), E=f.elev, F=p.F, tol=8*F.dpr/F.sc;
+    if(EV.sel){ const R=E.regions.find(r=>r.id===EV.sel); if(R){ for(const [cx,cy,k] of [[R.x,R.y,'bl'],[R.x+R.w,R.y,'br'],[R.x,R.y+R.h,'tl'],[R.x+R.w,R.y+R.h,'tr']]) if(Math.hypot(p.x-cx,p.y-cy)<tol*1.4) return {kind:'corner',R,k}; } }
+    const g2=F.cv.getContext('2d');
+    for(let i=E.texts.length-1;i>=0;i--){ const t=E.texts[i]; g2.font='500 '+Math.round(F.u(t.size||11))+'px '+SHEET_FONT; const w=g2.measureText(t.s||'').width/F.sc, h=F.u(t.size||11)/F.sc;
+      if(p.x>=t.x-tol&&p.x<=t.x+w+tol&&p.y>=t.y-h&&p.y<=t.y+h) return {kind:'text',t}; }
+    for(let i=E.regions.length-1;i>=0;i--){ const R=E.regions[i]; if(p.x>=R.x&&p.x<=R.x+R.w&&p.y>=R.y&&p.y<=R.y+R.h) return {kind:'region',R}; }
+    return null;
+  }
+  function evInkHit(p){ const E=evFace().elev, tol=10*p.F.dpr/p.F.sc;
+    for(let i=E.ink.length-1;i>=0;i--){ const s=E.ink[i]; for(let j=0;j<s.pts.length;j+=2) if(Math.hypot(s.pts[j]-p.x,s.pts[j+1]-p.y)<tol) return i; } return -1; }
+  let evPenSeen=false, evHold=null;
+  function evDown(e){
+    if(!EV) return; const p=evLocal(e), f=evFace(); if(!f) return; const E=f.elev;
+    if(e.pointerType==='pen') evPenSeen=true;
+    if(evPenSeen && e.pointerType==='touch' && EV.tool!=='select') return;
+    e.preventDefault(); try{ e.target.setPointerCapture(e.pointerId); }catch(_){}
+    if(EV.tool==='rect'){ const x=evSnap(p.x,'x',p.F), y=evSnap(p.y,'y',p.F); EV.draft={kind:'rect',x0:x,y0:y,x1:x,y1:y,pid:e.pointerId}; }
+    else if(EV.tool==='ink'){ EV.draft={kind:'ink',pts:[p.x,p.y],pid:e.pointerId,hold:{px:p.px,py:p.py},straight:false}; evArmHold(); }
+    else if(EV.tool==='text'){ evAskText(p, null); return; }
+    else if(EV.tool==='erase'){
+      const k=evInkHit(p); if(k>=0){ E.ink.splice(k,1); }
+      else { const h=evHit(p); if(h&&h.kind==='text') E.texts=E.texts.filter(t=>t!==h.t); else if(h&&h.kind==='region') E.regions=E.regions.filter(R=>R!==h.R); }
+      EV.sel=null; evDraw(); evSide(); return; }
+    else { const h=evHit(p);
+      if(!h){ EV.sel=null; EV.draft=null; }
+      else if(h.kind==='corner'){ EV.draft={kind:'corner',R:h.R,k:h.k,o:{...h.R},pid:e.pointerId}; }
+      else if(h.kind==='region'){ EV.sel=h.R.id; EV.draft={kind:'move',R:h.R,o:{...h.R},sx:p.x,sy:p.y,pid:e.pointerId}; }
+      else if(h.kind==='text'){ EV.sel=h.t.id; EV.draft={kind:'tmove',t:h.t,o:{...h.t},sx:p.x,sy:p.y,pid:e.pointerId,moved:false}; }
+      evSide(); }
+    evDraw();
+  }
+  function evArmHold(){ clearTimeout(evHold); evHold=setTimeout(()=>{ const d=EV&&EV.draft; if(!d||d.kind!=='ink'||d.straight) return;
+      const n=d.pts.length; if(n<4) return; const len=Math.hypot(d.pts[n-2]-d.pts[0], d.pts[n-1]-d.pts[1]); if(len*evFit().sc<20) return;
+      d.straight=true; d.pts=[d.pts[0],d.pts[1],d.pts[n-2],d.pts[n-1]]; evDraw(); }, INK_HOLD_MS); }
+  function evMove(e){
+    const d=EV&&EV.draft; if(!d||d.pid!==e.pointerId) return; const p=evLocal(e), f=evFace(), G=p.F.G;
+    if(d.kind==='rect'){ d.x1=Math.max(0,Math.min(G.L,evSnap(p.x,'x',p.F))); d.y1=Math.max(0,Math.min(G.H,evSnap(p.y,'y',p.F))); }
+    else if(d.kind==='ink'){
+      if(d.straight){ const q=inkStraightEnd(d.pts[0],d.pts[1],p.x,p.y); d.pts[2]=q.x; d.pts[3]=q.y; }
+      else { d.pts.push(p.x,p.y); if(Math.hypot(p.px-d.hold.px,p.py-d.hold.py)>4*p.F.dpr){ d.hold={px:p.px,py:p.py}; evArmHold(); } } }
+    else if(d.kind==='move'){ const R=d.R; R.x=Math.max(0,Math.min(G.L-R.w, evSnap(d.o.x+(p.x-d.sx),'x',p.F,R.id))); R.y=Math.max(0,Math.min(G.H-R.h, evSnap(d.o.y+(p.y-d.sy),'y',p.F,R.id))); evSide(); }
+    else if(d.kind==='corner'){ const R=d.R, o=d.o; let x0=o.x, x1=o.x+o.w, y0=o.y, y1=o.y+o.h;
+      const sx=Math.max(0,Math.min(G.L,evSnap(p.x,'x',p.F,R.id))), sy=Math.max(0,Math.min(G.H,evSnap(p.y,'y',p.F,R.id)));
+      if(d.k[1]==='l') x0=sx; else x1=sx; if(d.k[0]==='b') y0=sy; else y1=sy;
+      R.x=Math.min(x0,x1); R.w=Math.max(1,Math.abs(x1-x0)); R.y=Math.min(y0,y1); R.h=Math.max(1,Math.abs(y1-y0)); evSide(); }
+    else if(d.kind==='tmove'){ d.t.x=d.o.x+(p.x-d.sx); d.t.y=d.o.y+(p.y-d.sy); d.moved=true; }
+    evDraw();
+  }
+  function evUp(e){
+    const d=EV&&EV.draft; if(!d||d.pid!==e.pointerId) return; const f=evFace(); EV.draft=null; clearTimeout(evHold);
+    if(d.kind==='rect'){ const w=Math.abs(d.x1-d.x0), h=Math.abs(d.y1-d.y0);
+      if(w>=3 && h>=3){ let sp=paintSpec(ui.paintSpec)||paintSpec(f.spec)||paintData().specs[0];
+        if(!sp){ flashHint('先按上面的「＋ 新增顏色」建立一個油漆顏色'); evDraw(); return; }
+        const R={id:uid(), x:Math.min(d.x0,d.x1), y:Math.min(d.y0,d.y1), w, h, spec:sp.id}; f.elev.regions.push(R); EV.sel=R.id; EV.tool='select'; evTools(); } }
+    else if(d.kind==='ink' && d.pts.length>=4){ f.elev.ink.push({c:ui.inkColor||'#C92A2A', w:2, pts:d.straight?d.pts:d.pts.map(v=>Math.round(v*10)/10)}); f.elev._lastInk=true; }
+    else if(d.kind==='tmove' && !d.moved){ evAskText(null, d.t); }
+    evDraw(); evSide();
+  }
+  // typing: a box right where you tapped; Enter or tapping away puts it down
+  function evAskText(p, t){
+    const F=evFit(), box=document.getElementById('evTextIn'), wrap=document.getElementById('evCanvas').getBoundingClientRect();
+    const px=t?(F.X0+t.x*F.sc)/F.dpr:p.px/F.dpr, py=t?(F.Y0-t.y*F.sc)/F.dpr:p.py/F.dpr;
+    box.style.left=(wrap.left+px)+'px'; box.style.top=(wrap.top+py-16)+'px'; box.style.display='block'; box.value=t?t.s:'';
+    const opened=Date.now(); setTimeout(()=>box.focus(),30);
+    const done=()=>{ if(Date.now()-opened<450 && document.activeElement!==box){ box.focus(); return; }
+      box.style.display='none'; box.onblur=null; box.onkeydown=null; const v=box.value.trim(), f=evFace(); if(!f) return;
+      if(t){ if(v) t.s=v; else f.elev.texts=f.elev.texts.filter(x=>x!==t); }
+      else if(v){ const n={id:uid(), x:p.x, y:p.y, s:v, size:11}; f.elev.texts.push(n); EV.sel=n.id; }
+      evDraw(); evSide(); };
+    box.onblur=done; box.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); box.blur(); } };
+  }
+  function evSide(){
+    const f=evFace(), el=document.getElementById('evSide'); if(!f||!el) return; const G=faceGeom(f), U=ui.unit, E=f.elev;
+    const R=E.regions.find(r=>r.id===EV.sel), T=E.texts.find(t=>t.id===EV.sel);
+    const opt=(id)=>paintData().specs.map(s=>`<option value="${s.id}"${s.id===id?' selected':''}>${pEsc(paintSpecTitle(s))}</option>`).join('');
+    const num=(id,label,v)=>`<div class="row"><label>${label}</label><div class="field"><input type="number" id="${id}" value="${Math.round(toDisp(v))}" step="1"><span class="unit">${U}</span></div></div>`;
+    let h='';
+    if(R){ h+=`<div class="ptitle">油漆範圍</div><div class="row"><label>顏色</label><select id="evRs" class="tin">${opt(R.spec)}</select></div>
+        ${num('evRx','離左',R.x)}${num('evRy','離地',R.y)}${num('evRw','寬',R.w)}${num('evRh','高',R.h)}
+        <button class="btn warn" id="evRdel" style="margin-top:8px">刪除這個範圍</button>`; }
+    else if(T){ h+=`<div class="ptitle">文字</div><div class="row"><label>內容</label><input type="text" class="tin" id="evTs" value="${pEsc(T.s)}"></div>
+        <div class="row"><label>字級</label><div class="seg" id="evTz">${[9,11,14,18].map(z=>`<button data-v="${z}"${(T.size||11)===z?' class="on"':''}>${z}</button>`).join('')}</div></div>
+        <button class="btn warn" id="evTdel" style="margin-top:8px">刪除文字</button>`; }
+    else { h+=`<div class="ptitle">這面牆</div>
+        <div class="row"><label>整面顏色</label><select id="evBase" class="tin"><option value="">不整面刷</option>${opt(f.spec)}</select></div>
+        ${G?num('evH','立面高度',G.H):''}
+        <div class="lay-note">高度預設到天花板（沒做天花板就到樓板）。框出來的範圍會從整面顏色裡扣掉，門窗也會扣掉。</div>`; }
+    if(G){ const A=faceAreas(f,G); if(A.size){ h+='<div class="ptitle" style="margin-top:12px">這面牆的坪數</div>'+[...A].map(([id,a])=>{ const s=paintSpec(id);
+        return `<div class="row"><label><span class="pt-sw" style="background:${s.hex}"></span></label><span>${pEsc(paintSpecTitle(s))}：<b>${pingOf(a).toFixed(2)} 坪</b></span></div>`; }).join(''); } }
+    h+=`<div class="lay-note" style="margin-top:12px">手寫：筆畫完停住不動，就會變成直線。</div>`;
+    el.innerHTML=h;
+    const $=(id)=>document.getElementById(id), redraw=()=>{ evDraw(); evSide(); };
+    if(R){ $('evRs').onchange=ev=>{ R.spec=ev.target.value; ui.paintSpec=R.spec; evTools(); redraw(); };
+      for(const [id,k] of [['evRx','x'],['evRy','y'],['evRw','w'],['evRh','h']]) $(id).onchange=ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(Number.isFinite(v)){ R[k]=Math.max(k==='w'||k==='h'?1:0,v); } redraw(); };
+      $('evRdel').onclick=()=>{ E.regions=E.regions.filter(x=>x!==R); EV.sel=null; redraw(); }; }
+    else if(T){ $('evTs').onchange=ev=>{ T.s=ev.target.value; redraw(); };
+      $('evTz').querySelectorAll('button').forEach(b=>b.onclick=()=>{ T.size=+b.dataset.v; redraw(); });
+      $('evTdel').onclick=()=>{ E.texts=E.texts.filter(x=>x!==T); EV.sel=null; redraw(); }; }
+    else { $('evBase').onchange=ev=>{ f.spec=ev.target.value||null; redraw(); };
+      if($('evH')) $('evH').onchange=ev=>{ const v=fromDisp(parseFloat(ev.target.value)); f.elev.H=(v>=50)?v:null; evTools(); redraw(); }; }
+  }
+
+  // ---- on the sheet: the elevations beside the plan, each tied to its 索引 by a leader ----
+  function paintElevList(layers){ return (layers && layers.paint) ? paintData().faces.filter(f=>f.elev && faceGeom(f)) : []; }
+  // the right-hand strip for n elevations: how wide to make it, and at what scale
+  function paintElevLayout(list, x, y, w, h, k){
+    const Gs=list.map(f=>faceGeom(f)), lab=34*k, left=12*k, bot=18*k, gap=6*k;
+    let best=null;
+    for(let cols=1; cols<=3; cols++){
+      const per=Math.ceil(list.length/cols), cw=w/cols;
+      let e=Infinity;
+      for(let c=0;c<cols;c++){ const part=Gs.slice(c*per,(c+1)*per); if(!part.length) continue;
+        const maxL=Math.max(...part.map(G=>G.L)), sumH=part.reduce((a,G)=>a+G.H,0);
+        e=Math.min(e, (cw-lab-left)/maxL, (h-part.length*(bot+gap))/sumH); }
+      if(!best || e>best.e) best={cols, per, cw, e}; }
+    return best;
+  }
+  function drawPaintElevs(g, list, area, k, planMMperCM, mapPlan){
+    if(!list.length) return;
+    const L0=paintElevLayout(list, area.x, area.y, area.w, area.h, k); if(!L0||!(L0.e>0)) return;
+    const e=Math.min(L0.e, planMMperCM*1.0);            // never larger than the plan
+    const u=(n)=>MM(n*0.28*k);
+    for(let c=0;c<L0.cols;c++){
+      const part=list.slice(c*L0.per,(c+1)*L0.per); let yy=area.y;
+      for(const f of part){ const G=faceGeom(f);
+        const X0=area.x+c*L0.cw+12*k, Y0=yy+G.H*e+2*k;
+        drawElev(g, f, G, MM(X0), MM(Y0), e*SHEET_PPM, u, {});
+        g.fillStyle='#111'; g.font='600 '+Math.round(MM(3.4*k))+'px '+SHEET_FONT; g.textAlign='left'; g.textBaseline='top';
+        g.fillText('立面 '+f.elev.letter+'　1:'+Math.round(10/e), MM(X0), MM(Y0+11*k));
+        // the leader from the 索引 on the plan
+        const ip=mapPlan(f);
+        if(ip){ g.save(); g.strokeStyle='#5B646E'; g.lineWidth=MM(0.18*k); g.setLineDash([MM(1.4*k),MM(0.9*k)]);
+          g.beginPath(); g.moveTo(MM(ip.x),MM(ip.y)); g.lineTo(MM(X0-4*k),MM(Y0-G.H*e/2)); g.stroke(); g.restore();
+          g.fillStyle='#5B646E'; g.beginPath(); g.arc(MM(X0-4*k),MM(Y0-G.H*e/2),MM(0.6*k),0,Math.PI*2); g.fill(); }
+        yy=Y0+18*k; }
+    }
+  }
+
+  // ---- 手寫：draw, then hold still → a straight line ----
+  const INK_HOLD_MS=550;
+  function inkStraightEnd(x0,y0,x,y){
+    // the line clicks onto 0/45/90° when within 4°
+    const a=Math.atan2(y-y0,x-x0), L=Math.hypot(x-x0,y-y0), q=Math.round(a/(Math.PI/4))*(Math.PI/4);
+    if(Math.abs(a-q)<4*Math.PI/180) return {x:x0+Math.cos(q)*L, y:y0+Math.sin(q)*L};
+    return {x,y};
+  }
   // ================= 地板施工 =================
   // A floor is one finish per room (整間鋪設), plus drawn zones that override it
   // (a 落塵區 of tile inside a wooden living room). The zones reuse the ceiling
@@ -11870,6 +12558,7 @@
     {id:'circuit', name:'燈具迴路'},
     {id:'ceil',    name:'天花板施工'},
     {id:'floor',   name:'地板施工'},
+    {id:'paint',   name:'油漆施工'},
   ];
   const layerName=(id)=>(LAYERS.find(l=>l.id===id)||{}).name||id;
   function layerVisible(id){ return state.layerVis[id]!==false; }
@@ -12937,7 +13626,7 @@
             columns:state.columns,beams:state.beams,ink:state.ink,notes:state.notes,
             furniture:state.furniture, mep:state.mep, circuits:state.circuits, ceil:state.ceil, floor:state.floor, ceilLabel:state.ceilLabel, layer:state.layer, layerVis:state.layerVis, baseLock:state.baseLock,
             meta:state.meta,
-            rooms:state.rooms, roomNames:state.roomNames, ceilingH:state.ceilingH,_seq:state._seq, unit:ui.unit};
+            rooms:state.rooms, roomNames:state.roomNames, ceilingH:state.ceilingH, paint:state.paint, _seq:state._seq, unit:ui.unit};
   }
   // applies a unit without touching geometry (internal storage is always cm)
   function applyAreaUnit(a){
@@ -13057,7 +13746,7 @@
   }
   function blankPlan(){
     state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
-    state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[]; state.circuits=[]; state.ceil=[]; state.floor=[]; state.ceilLabel='ch';
+    state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[]; state.circuits=[]; state.ceil=[]; state.floor=[]; state.paint={specs:[],faces:[],ceils:[]}; state.ceilLabel='ch';
     state.layer='base'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.underlay=null; underlayImg=null;
     // the studio name survives a new project; the client and sheet number do not
     state.meta={firm:(state.meta&&state.meta.firm)||'', designer:(state.meta&&state.meta.designer)||''};
