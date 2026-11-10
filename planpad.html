@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b114</title>
+<title>PlanPad · 平面圖工具 b115</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -331,7 +331,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b114</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b115</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -804,6 +804,7 @@
   // number to retype that wall's length. So they stay exactly as they were, and
   // the tidy exterior chains are built only for the exported sheet.
   let EXPORT_MODE = false;
+  let ORIG_ON=false, EXPORT_FILL=false;   // 原始結構圖 render in progress / print room 底色
   const TOOL_HINT = {
     circuit:'建立迴路：先點開關，再依序點要接的燈，按下方「完成」',
     ceil:'天花板：照右邊選的工具，在畫面上拖曳或點一下',
@@ -3181,6 +3182,8 @@
       const f=state.furniture[i];
       if(!itemLive(f)) continue;
       const c=furnCorners(f), g=12/view.scale;
+      if(ui.selected && ui.selected.kind==='furn' && ui.selected.id===f.id){
+        const rh=furnRotHandle(f); if(Math.hypot(wx-rh.x,wy-rh.y)<g*1.3) return {kind:'furn',id:f.id,which:'rotate'}; }
       if(Math.hypot(wx-c[2].x,wy-c[2].y)<g) return {kind:'furn',id:f.id,which:'resize'};
       if(furnHit(f,wx,wy)) return {kind:'furn',id:f.id,which:'move'};
     }
@@ -4128,9 +4131,51 @@
     }
   }
 
+  function hexRGB(h){ const m=/^#?([0-9a-f]{6})$/i.exec(h||''); if(!m) return null; const n=parseInt(m[1],16); return [n>>16&255, n>>8&255, n&255]; }
+  function rgbHex(r,g,b){ return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v||0))).toString(16).padStart(2,'0')).join('').toUpperCase(); }
+  function hexRGBA(h,a){ const c=hexRGB(h)||[39,92,122]; return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+  // RGB colour board: presets, the system spectrum picker, R/G/B sliders, HEX and 濃度.
+  // get() → {hex, a}; set(hex|null, a) writes it back. Used by the room 底色.
+  const FILL_PRESETS=['#F6D7A7','#F4B6B6','#F7E3A1','#CDE5B5','#B9DCE8','#C9C3E6','#E6D3C2','#D9D9D9'];
+  function colorBoardHTML(pre, hex, a){
+    const c=hexRGB(hex)||[200,200,200], on=!!hex;
+    return `<div class="chips" id="${pre}Sw" style="margin-bottom:8px">
+        <div class="chip${!on?' on':''}" data-c="">無</div>
+        ${FILL_PRESETS.map(p=>`<div class="chip${on&&hex.toUpperCase()===p?' on':''}" data-c="${p}" style="background:${p};min-width:28px;color:transparent">■</div>`).join('')}
+      </div>
+      <div class="row"><label>色盤</label><div class="field"><input type="color" id="${pre}Pick" value="${rgbHex(...c)}" style="width:44px;height:30px;padding:0;border:none;background:none">
+        <input type="text" class="tin" id="${pre}Hex" value="${on?hex.toUpperCase():''}" placeholder="#RRGGBB" style="width:90px;margin-left:8px"></div></div>
+      ${['R','G','B'].map((k,i)=>`<div class="row"><label>${k}</label><div class="field" style="gap:6px">
+        <input type="range" min="0" max="255" id="${pre}${k}" value="${c[i]}" style="flex:1;accent-color:${['#D33','#3A3','#36D'][i]}">
+        <input type="number" min="0" max="255" id="${pre}${k}n" value="${c[i]}" style="width:56px"></div></div>`).join('')}
+      <div class="row"><label>濃度</label><div class="field" style="gap:6px"><input type="range" min="10" max="100" id="${pre}A" value="${Math.round((a!=null?a:0.45)*100)}" style="flex:1">
+        <span class="unit" id="${pre}An">${Math.round((a!=null?a:0.45)*100)}%</span></div></div>`;
+  }
+  function colorBoardBind(pre, get, set){
+    const $=(id)=>document.getElementById(pre+id);
+    const commit=(hex,a,final)=>{ set(hex,a); draw(); if(final){ pushHistory(); refreshProp(); } else syncUI(hex,a); };
+    const syncUI=(hex,a)=>{ const c=hexRGB(hex); if(!c) return; ['R','G','B'].forEach((k,i)=>{ $(k).value=c[i]; $(k+'n').value=c[i]; });
+      $('Pick').value=hex; if(document.activeElement!==$('Hex')) $('Hex').value=hex; };
+    const cur=()=>get();
+    document.querySelectorAll('#'+pre+'Sw .chip').forEach(ch=>ch.onclick=()=>commit(ch.dataset.c||null, cur().a, true));
+    $('Pick').oninput=ev=>commit(ev.target.value.toUpperCase(), cur().a, false);
+    $('Pick').onchange=ev=>commit(ev.target.value.toUpperCase(), cur().a, true);
+    $('Hex').onchange=ev=>{ let v=ev.target.value.trim(); if(v && v[0]!=='#') v='#'+v; if(hexRGB(v)) commit(v.toUpperCase(), cur().a, true); else if(!v) commit(null, cur().a, true); else flashHint('色碼格式：#RRGGBB，例如 #F6D7A7'); };
+    const fromSliders=(src)=>rgbHex(...['R','G','B'].map(k=>+$(k+src).value));
+    ['R','G','B'].forEach(k=>{
+      $(k).oninput=()=>commit(fromSliders(''), cur().a, false); $(k).onchange=()=>commit(fromSliders(''), cur().a, true);
+      $(k+'n').onchange=()=>commit(fromSliders('n'), cur().a, true);
+    });
+    $('A').oninput=ev=>{ const a=+ev.target.value/100; $('An').textContent=Math.round(a*100)+'%'; set(cur().hex, a); draw(); };
+    $('A').onchange=()=>{ pushHistory(); refreshProp(); };
+  }
   function drawRoomsFill(){
     for(const r of roomsCache){ if(r.V.length<3) continue;
-      ctx.fillStyle='rgba(39,92,122,.05)'; ctx.beginPath();
+      const e=ORIG_ON?null:roomEntry(r);
+      if(EXPORT_MODE && !(e && e.fill && !e.floor)) continue;
+      // a room with no floor finish can carry its own 底色 (picked in the room panel)
+      ctx.fillStyle = (e && e.fill && !e.floor) ? hexRGBA(e.fill, e.fillA!=null?e.fillA:0.45) : 'rgba(39,92,122,.05)';
+      ctx.beginPath();
       const p0=toScreen(r.V[0].x,r.V[0].y); ctx.moveTo(p0[0],p0[1]);
       for(let i=1;i<r.V.length;i++){ const p=toScreen(r.V[i].x,r.V[i].y); ctx.lineTo(p[0],p[1]); }
       ctx.closePath(); ctx.fill();
@@ -5749,7 +5794,18 @@
     }
     else if(hit.kind==='furn'){
       const f=state.furniture.find(v=>v.id===hit.id);
-      if(hit.which==='resize'){ f.w=Math.max(5,orig.w+dx*2); f.h=Math.max(5,orig.h+dy*2); }
+      if(hit.which==='rotate'){
+        // free rotation: drag the ↻ handle round the centre. Whole degrees, and it
+        // clicks onto every 45° when you come within 3° of one
+        let deg=Math.atan2(wy-f.y, wx-f.x)*180/Math.PI+90;
+        deg=Math.round(deg); const near=Math.round(deg/45)*45; if(Math.abs(deg-near)<=3) deg=near;
+        f.rot=((deg%360)+360)%360;
+        flashHint('旋轉 '+f.rot+'°（靠近 45° 倍數會吸住）');
+      }
+      else if(hit.which==='resize'){
+        // stretch in the piece's own axes, so a turned sofa grows along its length
+        const a=(orig.rot||0)*Math.PI/180, lx=dx*Math.cos(a)+dy*Math.sin(a), ly=-dx*Math.sin(a)+dy*Math.cos(a);
+        f.w=Math.max(5,orig.w+lx*2); f.h=Math.max(5,orig.h+ly*2); }
       else { const sn=furnSnap(f, orig.x+dx, orig.y+dy); f.x=sn.x; f.y=sn.y; }
     }
     else if(hit.kind==='note'){
@@ -5863,6 +5919,7 @@
       <div class="row"><label>名稱</label><div class="field"><input type="text" class="tin" id="pRname" value="${(e.name||'').replace(/"/g,'&quot;')}" placeholder="未命名"></div></div>
       <div class="row"><label>面積</label><span style="font-size:13px;color:var(--text)">${r?fmtArea(r.area):'—'}</span></div>
       <div class="row"><label>樓高</label><div class="field"><input type="number" id="pRch" value="${Math.round(toDisp(e.ceilingH||state.ceilingH))}" step="1"><span class="unit">${U}</span></div></div>
+      ${!e.floor?`<div class="ptitle" style="margin-top:12px">空間底色</div>${colorBoardHTML('pRc', e.fill||null, e.fillA)}`:''}
       ${state.layer==='ceil'&&r?`
       <div class="ptitle" style="margin-top:12px">這間的天花板</div>
       <div class="row"><label>整間平釘</label><div class="seg" id="pRceil"><button data-v="0"${!roomHasCeil(r)?' class="on"':''}>不做</button><button data-v="1"${roomHasCeil(r)?' class="on"':''}>平釘</button></div></div>
@@ -5873,6 +5930,7 @@
       <div class="lay-note">也可以用下面的「整間鋪設」選好材料後點這間。</div>`:''}
       <div class="row"><button class="chip" id="pRfocus" style="width:100%;text-align:center">${ui.focusRoom===s.id?'離開房間編輯':'進入房間編輯'}</button></div>
       ${rows?`<div class="ptitle" style="margin-top:12px">各邊長度</div>${rows}`:''}`;
+      if(!e.floor) colorBoardBind('pRc', ()=>({hex:e.fill||null, a:e.fillA}), (hex,a)=>{ if(hex) e.fill=hex; else delete e.fill; if(a!=null) e.fillA=a; });
       if(state.layer==='floor' && r) flFormBind(()=>flNorm(e.floor), (v)=>{ if(v) e.floor=v; else delete e.floor; });
       if(state.layer==='ceil' && r){
         document.querySelectorAll('#pRceil button').forEach(b=>b.onclick=()=>{
@@ -6038,7 +6096,7 @@
       <div class="row"><label>長度</label><div class="field"><input type="number" id="pFw" value="${Math.round(toDisp(f.w))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>寬度</label><div class="field"><input type="number" id="pFh" value="${Math.round(toDisp(f.h))}" step="1"><span class="unit">${U}</span></div></div>
       <div class="row"><label>旋轉</label><div class="seg" id="pFrotSeg"><button data-r="0">0°</button><button data-r="90">90°</button><button data-r="180">180°</button><button data-r="270">270°</button></div></div>
-      <div class="row"><label></label><div class="field"><input type="number" id="pFrot" value="${Math.round(f.rot||0)}" step="5"><span class="unit">°</span></div></div>
+      <div class="row"><label></label><div class="field"><input type="number" id="pFrot" value="${Math.round(f.rot||0)}" step="1"><span class="unit">°</span></div></div>
       ${(()=>{const D={up:'上',down:'下',left:'左',right:'右'};
         const gs=furnGaps(f);
         const short=(t)=>{ t=String(t||'牆'); return t.length>4 ? t.slice(0,4)+'…' : t; };
@@ -6208,6 +6266,18 @@
       else { n.x=m.x+Math.max(60, (lightSpec(m).sz?devSz(m):MEP_SIZE)*1.5); }
       state.mep.push(n); }
     else if(s.kind==='column'){ const c=state.columns.find(v=>v.id===s.id); if(!c) return; n=clone(c); n.id=uid(); n.x=c.x+c.w; state.columns.push(n); }
+    else if(s.kind==='opening'){ const o=state.openings.find(v=>v.id===s.id); if(!o) return;
+      const w=state.walls.find(v=>v.id===o.wallId); if(!w) return;
+      const L=wallLen(w)||1, c=o.pos*L;
+      // the copy goes on the same wall, in the free stretch right beside the original
+      // (then the left side); a wall with no room left for it is refused, never overlapped
+      const fit=openingFit(w, c+o.width, o.width) || openingFit(w, c-o.width, o.width);
+      if(!fit){ flashHint('這面牆旁邊放不下同尺寸的門窗了'); return; }
+      n=clone(o); n.id=uid(); n.pos=fit.pos; state.openings.push(n); }
+    else if(s.kind==='beam'){ const b=state.beams.find(v=>v.id===s.id); if(!b) return; n=clone(b); n.id=uid();
+      // a parallel beam, touching the original on its side
+      const L=Math.hypot(b.x2-b.x1,b.y2-b.y1)||1, px=-(b.y2-b.y1)/L*b.w, py=(b.x2-b.x1)/L*b.w;
+      n.x1=b.x1+px; n.y1=b.y1+py; n.x2=b.x2+px; n.y2=b.y2+py; state.beams.push(n); }
     else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(!t) return; n=clone(t); n.id=uid(); n.y=t.y+textH(t)*1.3; state.texts.push(n); }
     if(!n) return;
     dbg(`  DUPLICATE ${kind} #${s.id} → #${n.id}`);
@@ -6221,14 +6291,14 @@
       const sub=openKind(o)===OPEN_KINDS.slide?'slide':(o.sub||'');
       if(o.type==='door' && sub!=='cased') A.push([sub==='slide'?'換邊':'內外翻轉',()=>{ o.flipV=!o.flipV; pushHistory(); refreshProp(); draw(); }]);
       if(o.sub==='swing'||(!o.sub&&o.type==='door')) A.push(['左右翻轉',()=>{ o.flipH=!o.flipH; pushHistory(); refreshProp(); draw(); }]);
-      A.push(['刪除',deleteSelected,'del']); }
+      A.push(['複製',duplicateSelected]); A.push(['刪除',deleteSelected,'del']); }
     else if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(!f) return A;
       A.push(['複製',duplicateSelected]); A.push(['旋轉 90°',()=>{ f.rot=((f.rot||0)+90)%360; pushHistory(); refreshProp(); draw(); }]); A.push(['刪除',deleteSelected,'del']); }
     else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(!t) return A;
       A.push(['改文字',()=>{ const [sx,sy]=toScreen(t.x,t.y); showTextInput(sx,sy-14,t.text,(val)=>{ if(val.trim()===''){ state.texts=state.texts.filter(x=>x.id!==t.id); ui.selected=null; } else t.text=val; refreshProp(); pushHistory(); draw(); }); }]);
       A.push(['複製',duplicateSelected]); A.push(['刪除',deleteSelected,'del']); }
-    else if(s.kind==='mep'||s.kind==='column'){ A.push(['複製',duplicateSelected]); A.push(['刪除',deleteSelected,'del']); }
-    else if(['beam','dim','note','ceil'].includes(s.kind)) A.push(['刪除',deleteSelected,'del']);
+    else if(s.kind==='mep'||s.kind==='column'||s.kind==='beam'){ A.push(['複製',duplicateSelected]); A.push(['刪除',deleteSelected,'del']); }
+    else if(['dim','note','ceil'].includes(s.kind)) A.push(['刪除',deleteSelected,'del']);
     return A;
   }
   // the selected thing's footprint on screen — the bar goes outside it, never over it
@@ -6237,7 +6307,7 @@
     if(s.kind==='wall'){ const w=state.walls.find(v=>v.id===s.id); if(!w) return null; const c=wallCorners(w); for(const k of ['L1','L2','R1','R2']) add(c[k].x,c[k].y); }
     else if(s.kind==='opening'){ const o=state.openings.find(v=>v.id===s.id); const w=o&&state.walls.find(v=>v.id===o.wallId); if(!w) return null;
       const [cx,cy]=wallPointAt(w,o.pos), r=o.width/2+(o.type==='door'?o.width*0.6:0)+w.t/2+(o.proj||0); add(cx-r,cy-r); add(cx+r,cy+r); }
-    else if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(!f) return null; for(const q of furnCorners(f)) add(q.x,q.y); }
+    else if(s.kind==='furn'){ const f=state.furniture.find(v=>v.id===s.id); if(!f) return null; for(const q of furnCorners(f)) add(q.x,q.y); const rh=furnRotHandle(f); add(rh.x,rh.y); }
     else if(s.kind==='column'){ const c=state.columns.find(v=>v.id===s.id); if(!c) return null; const r=Math.max(c.w,c.h)/2*1.42; add(c.x-r,c.y-r); add(c.x+r,c.y+r); }
     else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(!t) return null; const b=textBox(t); add(b.x0,b.y0); add(b.x1,b.y1); }
     else if(s.kind==='mep'){ const m=state.mep.find(v=>v.id===s.id); if(!m) return null; const b=mepBox(m); add(b.x0,b.y0); add(b.x1,b.y1); }
@@ -7382,7 +7452,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b114';
+  const BUILD='b115';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -7603,7 +7673,8 @@
         let layers=Object.assign({}, allOff, sel);
         if(exportKind==='pdf' && pdfOpt.perLayer){
           const first=LAYERS.filter(L=>!L.fixed && sel[L.id])[0];
-          if(first) layers=Object.assign({}, allOff, {base:sel.base!==false}, {[first.id]:true});
+          if(sel.orig) layers=Object.assign({}, allOff, {base:true, orig:true});
+          else if(first) layers=Object.assign({}, allOff, {base:sel.base!==false}, {[first.id]:true});
         }
         // a sheet with a frame previews as the whole sheet, so the plan can be
         // zoomed and moved on it before export (drawn at a lighter resolution)
@@ -7689,9 +7760,22 @@
       const b=document.createElement('button');
       b.textContent=L.name;
       if(pdfOpt.layers[L.id]) b.className='on';
-      b.onclick=()=>{ pdfOpt.layers[L.id]=!pdfOpt.layers[L.id]; expLayerUI(); refreshPreview(); };
+      b.onclick=()=>{ pdfOpt.layers[L.id]=!pdfOpt.layers[L.id];
+        // one sheet is one drawing: picking a trade layer takes it off 原始結構圖
+        if(pdfOpt.layers[L.id] && !L.fixed && !pdfOpt.perLayer) pdfOpt.layers.orig=false;
+        expLayerUI(); refreshPreview(); };
       box.appendChild(b);
     }
+    // 原始結構圖 is a sheet, not a layer — it lives here only, never in the canvas
+    // layer list. In 每層一頁 it adds its own page in front of the others.
+    const ob=document.createElement('button');
+    ob.textContent='原始結構圖'; ob.id='mOrig'; ob.style.borderStyle='dashed';
+    if(pdfOpt.layers.orig) ob.className='on';
+    ob.onclick=()=>{ const on=!pdfOpt.layers.orig; pdfOpt.layers.orig=on;
+      if(on && !(exportKind==='pdf' && pdfOpt.perLayer)) for(const L of LAYERS) if(!L.fixed) pdfOpt.layers[L.id]=false;
+      if(on) pdfOpt.layers.base=true;
+      expLayerUI(); refreshPreview(); };
+    box.appendChild(ob);
   }
   document.getElementById('mFrame').onchange=ev=>{ pdfOpt.frame=ev.target.value; frameRefreshUI(); refreshPreview(); };
   document.getElementById('mFrameAdd').onclick=()=>document.getElementById('frameInput').click();
@@ -7801,10 +7885,11 @@
     // page was a near-copy of the others.
     const allOff = LAYERS.reduce((m,L)=>{ m[L.id]=false; return m; }, {});
     const pages = opt.perLayer
-      ? LAYERS.filter(L=>!L.fixed && sel[L.id]).map(L=>({
+      ? (sel.orig?[{title:'原始結構圖', layers:Object.assign({}, allOff, {base:true, orig:true})}]:[]).concat(
+        LAYERS.filter(L=>!L.fixed && sel[L.id]).map(L=>({
           title:L.name,
           layers:Object.assign({}, allOff, {base:sel.base!==false}, {[L.id]:true})
-        }))
+        })))
       : [{title:'', layers:Object.assign({}, allOff, opt.layers)}];
     if(!pages.length) pages.push({title:'', layers:opt.layers});
     pages.forEach((pg,i)=>{ if(i) pdf.addPage(opt.paper, landscape?'l':'p');
@@ -8061,9 +8146,25 @@
 
 
   const SHEET_NAME={base:'結構平面圖',plan:'平面配置圖',elec:'插座配置圖',light:'燈具配置圖',circuit:'燈具迴路圖',ceil:'天花板施工圖',floor:'地板施工圖'};
-  function sheetTitle(layers){ const L=layers||{}; const k=LAYERS.map(l=>l.id).filter(id=>id!=='base' && L[id]);
+  function sheetTitle(layers){ const L=layers||{}; if(L.orig) return '原始結構圖'; const k=LAYERS.map(l=>l.id).filter(id=>id!=='base' && L[id]);
     if(L.light && L.circuit) return '燈具配置圖'; return k.length ? k.map(id=>SHEET_NAME[id]||layerName(id)).join('／') : SHEET_NAME.base; }
+  // 【原始結構圖】: the plan as it was handed over — only walls drawn with the 牆 /
+  // 房間 tools (no kind), every new 隔間 and the doors/windows in it left out, 拆除牆
+  // shown as ordinary walls, and the rooms worked out again without the partitions.
+  // The model is swapped for the length of one render and put back exactly.
+  function withOrigStructure(fn){
+    if(ORIG_ON) return fn();
+    const sW=state.walls, sO=state.openings, sR=JSON.stringify(state.rooms||[]), sN=JSON.stringify(state.roomNames||{}), sF=ui.focusRoom;
+    const keep=sW.filter(w=>!PART_KINDS.includes(w.kind)).map(w=>{ if(w.kind!=='demo') return w; const c=Object.assign({},w); delete c.kind; return c; });
+    const ids=new Set(keep.map(w=>w.id));
+    state.walls=keep; state.openings=sO.filter(o=>ids.has(o.wallId)); ui.focusRoom=null;
+    ORIG_ON=true;
+    try{ recomputeRooms(); return fn(); }
+    finally{ state.walls=sW; state.openings=sO; state.rooms=JSON.parse(sR); state.roomNames=JSON.parse(sN); ui.focusRoom=sF;
+             ORIG_ON=false; recomputeRooms(); }
+  }
   function composeSheet(opt, page, pageNo, pageCount, pwMM, phMM){
+    if(page && page.layers && page.layers.orig && !ORIG_ON) return withOrigStructure(()=>composeSheet(opt, page, pageNo, pageCount, pwMM, phMM));
     const pw=pwMM, ph=phMM;
     const {c:sheet,g}=sheetCanvas(pw,ph);
     const custom=frameCurrent();
@@ -8256,6 +8357,7 @@
 
   // export renderer: temporarily swap ctx to an offscreen canvas
   function renderExport(scale,opt){
+    if(opt && opt.layers && opt.layers.orig && !ORIG_ON) return withOrigStructure(()=>renderExport(scale,opt));
     const o=opt||{};
     const b=bounds(o)||{x0:0,y0:0,x1:400,y1:300};
     const pad=exportPad(o.textScale!==undefined ? o.textScale : EXPORT_TEXT_SCALE);
@@ -8281,7 +8383,8 @@
     // single code path covers both "what you see" and "what you asked to print"
     const sVis=state.layerVis;
     if(o.layers) state.layerVis=Object.assign({}, o.layers);
-    WALL_PLAIN = !!(o.layers && Object.keys(o.layers).some(k=>k!=='base' && o.layers[k]));
+    WALL_PLAIN = !!(o.layers && Object.keys(o.layers).some(k=>k!=='base' && k!=='orig' && o.layers[k]));
+    EXPORT_FILL = !!(o.layers && !o.layers.orig && (!WALL_PLAIN || o.layers.plan));
     const sTS=TS; TS = (o.textScale!==undefined ? o.textScale : EXPORT_TEXT_SCALE);
     if(o.dims!==undefined) showOpt.dims=!!o.dims;
     if(o.rooms!==undefined) showOpt.rooms=!!o.rooms;
@@ -8290,6 +8393,7 @@
     try{ resolveDims(); }catch(_){}
     ctx=g; view.scale=scale; view.ox=pad.l-b.x0*scale; view.oy=pad.t-b.y0*scale; W=cw; H=ch; ui.grid=false;
     try{
+    if(EXPORT_FILL) drawRoomsFill();
     drawFloor();
     drawCeilFill();
     drawWalls(true); drawBeams(true); drawColumns();
@@ -8311,7 +8415,7 @@
     // with the export's layer visibility, and no way back except a reload
     ctx=screenCtx; Object.assign(view,saveView); W=sW; H=sH; ui.grid=sGrid; WALL_PLAIN=false;
     hitLabels=sHits; placedLabels=sPlaced; glyphBoxes=[]; ui.selected=sSel; TS=sTS; state.layer=sLayer;
-    state.layerVis=sVis; EXPORT_MODE=sExp;
+    state.layerVis=sVis; EXPORT_MODE=sExp; EXPORT_FILL=false;
     showOpt.dims=sDims; showOpt.rooms=sRooms; showOpt.notes=sNotes; showOpt.photos=sPhotos;
     }
     return {oc,cw,ch};
@@ -11908,10 +12012,23 @@
         const h=toScreen(c[2].x,c[2].y);
         ctx.fillStyle='#275C7A'; ctx.fillRect(h[0]-6,h[1]-6,12,12);
         ctx.fillStyle='#fff'; ctx.fillRect(h[0]-4,h[1]-4,8,8);
+        if(!EXPORT_MODE){ // ↻ rotation handle on a stalk above the top edge
+          const r=furnRotHandle(f), q=toScreen(r.x,r.y), a=(f.rot||0)*Math.PI/180;
+          const top=toScreen(f.x+Math.sin(a)*f.h/2, f.y-Math.cos(a)*f.h/2);
+          ctx.strokeStyle='#275C7A'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(top[0],top[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+          ctx.beginPath(); ctx.arc(q[0],q[1],10,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.lineWidth=1.6; ctx.stroke();
+          ctx.beginPath(); ctx.arc(q[0],q[1],5,-Math.PI*0.9,Math.PI*0.5); ctx.stroke();
+          const ex=q[0]+5*Math.cos(Math.PI*0.5), ey=q[1]+5*Math.sin(Math.PI*0.5);
+          ctx.beginPath(); ctx.moveTo(ex-3.5,ey-1); ctx.lineTo(ex,ey); ctx.lineTo(ex+0.5,ey-3.5); ctx.stroke();
+        }
         ctx.restore();
         drawFurnGaps(f);
       }
     }
+  }
+  function furnRotHandle(f){
+    const a=(f.rot||0)*Math.PI/180, d=f.h/2+32/view.scale;
+    return {x:f.x+Math.sin(a)*d, y:f.y-Math.cos(a)*d};
   }
   function furnCorners(f){
     const a=(f.rot||0)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
