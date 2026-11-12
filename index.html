@@ -1,0 +1,2131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系統櫃才數 + 工資計算器</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F2EA;--surface:#FFFDF9;--surface2:#F3ECE1;
+  --border:#E6DCCB;--border2:#D3C4AC;
+  --text:#1A1814;--text2:#6B6560;--text3:#9E9891;
+  --accent:#8A6D45;--accent-light:#F3EBDD;
+  --red:#C0392B;--red-light:#FDECEA;
+  --blue:#1B4F8A;--blue-light:#EBF0F8;
+  --amber:#92600A;--amber-light:#FDF3E3;
+  --orange:#B84D00;--orange-light:#FEF0E6;
+  --radius:10px;--radius-sm:6px;
+}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
+
+/* HEADER */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-icon{width:34px;height:34px;background:var(--accent);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700}
+.brand-name{font-size:14px;font-weight:700}
+.brand-sub{font-size:11px;color:var(--text3)}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.unit-sw{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.unit-sw button{padding:5px 14px;border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);font-family:'DM Mono',monospace;transition:all .15s}
+.unit-sw button.active{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--border2)}
+.btn-export{display:flex;align-items:center;gap:5px;padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:500;font-family:'Noto Sans TC',sans-serif}
+.btn-export:hover{opacity:.88}
+.btn-outline{display:flex;align-items:center;gap:5px;padding:6px 14px;background:transparent;color:var(--blue);border:1px solid var(--blue);border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:500;font-family:'Noto Sans TC',sans-serif}
+.btn-outline:hover{background:var(--blue-light)}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:1fr 300px;gap:1.25rem;max-width:1200px;margin:0 auto;padding:1.25rem}
+.left{display:flex;flex-direction:column;gap:1rem;min-width:0}
+.right{display:flex;flex-direction:column;gap:1rem;position:sticky;top:66px}
+
+/* PROJECT BANNER */
+.proj-banner{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px}
+.proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
+.proj-banner .section-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-hdr{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.step-badge{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-badge.s2{background:var(--orange)}
+.step-badge.s3{background:var(--blue)}
+.section-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+
+/* TOOLBAR */
+.toolbar{padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.toolbar-l{display:flex;align-items:center;gap:8px}
+.count-badge{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2)}
+.btn-add{display:flex;align-items:center;gap:5px;padding:6px 14px;background:var(--accent-light);border:1px solid #D9C7A7;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:500;color:var(--accent);font-family:'Noto Sans TC',sans-serif;transition:all .15s}
+.btn-add:hover{background:#EADFCB}
+
+/* EMPTY */
+.empty-state{padding:3rem 2rem;text-align:center;color:var(--text3)}
+.empty-icon{font-size:36px;margin-bottom:10px;opacity:.35}
+.empty-text{font-size:13px;line-height:1.8}
+
+/* CAB ITEM */
+.cab-item{border-bottom:1px solid var(--border)}
+.cab-item:last-child{border-bottom:none}
+.cab-hdr{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;user-select:none;transition:background .12s}
+.cab-hdr:hover{background:var(--surface2)}
+.cab-num{width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text2);flex-shrink:0}
+.cab-info{flex:1;min-width:0}
+.cab-name-d{font-size:13px;font-weight:500;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cab-dim-d{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.pills{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:'DM Mono',monospace}
+.pill-green{background:var(--accent-light);border:1px solid #D9C7A7;color:var(--accent)}
+.pill-orange{background:var(--orange-light);border:1px solid #F0C49A;color:var(--orange)}
+.pill-zero{background:var(--surface2);border:1px solid var(--border);color:var(--text3)}
+.btn-rm{width:26px;height:26px;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;cursor:pointer;font-size:12px;color:var(--text3);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.btn-rm:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+.chev{font-size:10px;color:var(--text3);transition:transform .2s;flex-shrink:0}
+.chev.open{transform:rotate(180deg)}
+
+.cab-body{display:none;background:var(--surface2);border-top:1px solid var(--border)}
+.cab-body.open{display:grid;grid-template-columns:1fr 240px}
+
+/* CAB BODY LEFT */
+.cab-left{padding:16px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:14px}
+.fsec-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:7px;display:flex;align-items:center;gap:8px}
+.fsec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:7px}
+.fgrid-2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.field label{display:block;font-size:11px;color:var(--text2);margin-bottom:3px;font-weight:500}
+.field input,.field select{width:100%;height:32px;padding:0 8px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:12px;font-family:'DM Mono',monospace;-webkit-appearance:none}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239E9891'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px;cursor:pointer}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(138,109,69,.14)}
+.field .hint{font-size:10px;color:var(--text3);margin-top:2px}
+
+.opts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:5px}
+.opt{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text2);cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);transition:all .15s;user-select:none}
+.opt:hover{border-color:var(--border2)}
+.opt.on{border-color:var(--accent);background:var(--accent-light);color:var(--accent);font-weight:500}
+.opt input{display:none}
+.opt-dot{width:13px;height:13px;border-radius:3px;flex-shrink:0;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent;transition:all .15s}
+.opt.on .opt-dot{background:var(--accent);border-color:var(--accent);color:#fff}
+.sub-panel{margin-top:6px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:7px}
+
+/* CAB BODY RIGHT = ASSEMBLY */
+.cab-right{padding:14px 14px;overflow-y:auto;max-height:600px}
+.wage-section-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px;margin-top:10px}
+.wage-section-title:first-child{margin-top:0}
+.wage-item{display:grid;grid-template-columns:1fr 70px;gap:6px;align-items:center;margin-bottom:5px}
+.wage-label{font-size:11px;color:var(--text2);line-height:1.3}
+.wage-label small{display:block;font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
+.wage-input{height:28px;padding:0 6px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:12px;font-family:'DM Mono',monospace;text-align:right;width:100%}
+.wage-input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 2px rgba(184,77,0,.1)}
+.wage-estimate{height:28px;padding:0 6px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;width:100%}
+.wage-estimate:focus{outline:none;border-color:var(--orange)}
+.wage-auto{height:28px;padding:0 6px;border:1px solid #D9C7A7;border-radius:var(--radius-sm);background:var(--accent-light);color:var(--accent);font-size:11px;font-family:'DM Mono',monospace;text-align:right;width:100%;display:flex;align-items:center;justify-content:flex-end}
+
+/* DETAIL TABLE */
+.dtitle{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin:14px 0 7px;display:flex;align-items:center;gap:8px}
+.dtitle::after{content:'';flex:1;height:1px;background:var(--border)}
+.dwrap{overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border)}
+table.dt{width:100%;border-collapse:collapse;font-size:11px}
+table.dt th{text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text2);font-weight:600;font-size:10px;border-bottom:1px solid var(--border);white-space:nowrap}
+table.dt td{padding:6px 8px;background:var(--surface);border-bottom:1px solid var(--border);color:var(--text)}
+table.dt tr:last-child td{border-bottom:none}
+table.dt .mono{font-family:'DM Mono',monospace;font-size:11px}
+table.dt .r{text-align:right}
+table.dt .total-row td{background:var(--surface2);font-weight:600}
+.tag8{display:inline-block;font-size:9px;padding:1px 4px;border-radius:3px;background:var(--accent-light);color:var(--accent);margin-left:3px}
+.tag18{display:inline-block;font-size:9px;padding:1px 4px;border-radius:3px;background:var(--amber-light);color:var(--amber);margin-left:3px}
+.empty-table{padding:16px;text-align:center;font-size:12px;color:var(--text3);background:var(--surface)}
+
+/* SUMMARY CARD */
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.grand-num{font-size:40px;font-weight:300;letter-spacing:-2px;font-family:'DM Mono',monospace;line-height:1}
+.grand-unit{font-size:12px;color:var(--text3);margin:3px 0 12px}
+.sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.sub-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px}
+.sub-box .lbl{font-size:10px;color:var(--text3);margin-bottom:2px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.sub-box .val{font-size:18px;font-weight:500;font-family:'DM Mono',monospace}
+.sub-box .u{font-size:10px;color:var(--text3)}
+
+.divider{height:1px;background:var(--border)}
+.per-list{padding:4px 0}
+.per-row{display:flex;align-items:center;padding:7px 16px;gap:8px;font-size:11px;border-bottom:1px solid var(--border)}
+.per-row:last-child{border-bottom:none}
+.per-name{flex:1;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.per-bar-bg{width:48px;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;flex-shrink:0}
+.per-bar{height:100%;border-radius:2px}
+.per-bar-green{background:var(--accent)}
+.per-bar-orange{background:var(--orange)}
+.per-val{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;min-width:36px;text-align:right}
+
+.warn-box{background:var(--red-light);border:1px solid #EABAB4;border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--red);display:flex;align-items:flex-start;gap:8px;margin-top:8px}
+.info-box{background:var(--amber-light);border:1px solid #E8D5AA;border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--amber);display:flex;align-items:flex-start;gap:8px;margin-top:8px}
+
+.rules-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.rules-list{padding:8px 16px}
+.rule{display:flex;align-items:baseline;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+.rule:last-child{border-bottom:none}
+.rk{color:var(--text3);width:72px;flex-shrink:0;font-weight:500}
+.rv{color:var(--text2);font-family:'DM Mono',monospace;font-size:11px}
+
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .hdr,.right,.toolbar,.btn-rm,.chev,.cab-right,.rules-card{display:none!important}
+  .layout{display:block;padding:0;max-width:100%}
+  .cab-body{display:block!important;grid-template-columns:1fr!important}
+  .cab-left{border-right:none!important}
+  body{background:#fff}
+}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.cell-input{height:24px;padding:0 3px;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text);font-size:11px;font-family:'DM Mono',monospace;}
+.cell-input:focus{outline:none;border-color:var(--accent);}
+/* 模式切換 */
+.mode-sw{display:inline-flex;background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:2px;gap:2px}
+.mode-sw button{border:none;background:transparent;padding:5px 14px;border-radius:16px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;font-family:'Noto Sans TC',sans-serif}
+.mode-sw button.on{background:var(--accent);color:#fff}
+/* 畫圖模式 */
+.ved{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:10px;align-items:start}
+@media(max-width:1150px){.ved{grid-template-columns:1fr}}
+.ved-canvas{background:#FBF8F2;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.ved-canvas svg{max-width:100%;height:auto;touch-action:none;user-select:none}
+.ved-tip{font-size:10px;color:var(--text3)}
+.ved-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;display:flex;flex-direction:column;gap:10px;font-size:12px}
+.vp-hd{display:flex;justify-content:space-between;align-items:center;gap:6px;font-weight:600;color:var(--accent)}
+.vp-hd span{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);font-weight:500}
+.vp-sec{border-top:1px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.vp-sec>b{font-size:10px;letter-spacing:.08em;color:var(--text3);font-weight:700}
+.vrow{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.vrow label{font-size:11px;color:var(--text2)}
+.vin{width:62px;height:26px;padding:0 6px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);font-size:12px;font-family:'DM Mono',monospace;text-align:right;color:var(--text)}
+.vin:focus{outline:none;border-color:var(--accent)}
+select.vin{text-align:left;width:auto;font-family:'Noto Sans TC',sans-serif}
+.vbtn{padding:4px 9px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);font-size:11px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;color:var(--text2);white-space:nowrap}
+.vbtn:hover{border-color:var(--accent);color:var(--accent)}
+.vbtn.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
+.vbtn.pri:hover{opacity:.9;color:#fff}
+.vhint{font-size:10px;color:var(--text3);line-height:1.5}
+.vgap-list{display:grid;grid-template-columns:1fr 62px;gap:4px 6px;align-items:center;font-size:11px;color:var(--text2)}
+.vcount{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.vcount span{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 9px;font-size:11px;color:var(--text2)}
+.vcount b{color:var(--accent);font-family:'DM Mono',monospace;font-weight:600}
+.vthumb{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.vthumb-img{background:#FBF8F2;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px;cursor:pointer;transition:border-color .15s}
+.vthumb-img:hover{border-color:var(--accent)}
+.vthumb-side{flex:1;min-width:180px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+#ws{position:fixed;inset:0;z-index:400;background:var(--bg);display:none;flex-direction:column}
+#ws.open{display:flex}
+#ws-top{min-height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:8px 14px;flex-wrap:wrap}
+#ws-top .nm{font-weight:700;font-size:15px}
+#ws-top .dim{display:flex;gap:5px;align-items:center;font-size:12px;color:var(--text2)}
+#ws-top .dim input{width:66px;height:30px;padding:0 6px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:'DM Mono',monospace;font-size:12px;background:var(--surface)}
+#ws-top .dim label{font-weight:600;color:var(--text3);margin-left:4px}
+.ws-body{flex:1;display:grid;grid-template-columns:206px minmax(0,1fr) 270px;min-height:0}
+#ws-lib{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:10px 12px 20px}
+#ws-lib h4{font-size:11px;color:var(--text3);margin:12px 0 6px;font-weight:700;letter-spacing:.06em}
+#ws-lib h4:first-child{margin-top:2px}
+.ws-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ws-item{background:#FFFDF8;border:1px solid var(--border);border-radius:8px;padding:7px 4px 6px;text-align:center;font-size:11.5px;color:var(--text);cursor:grab;user-select:none;transition:all .12s}
+.ws-item:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(138,109,69,.15);transform:translateY(-1px)}
+.ws-item.on{border-color:var(--accent);background:var(--accent-light);box-shadow:0 0 0 2px rgba(138,109,69,.25)}
+.ws-item svg{display:block;margin:0 auto 4px}
+.ws-center{display:flex;flex-direction:column;min-width:0;min-height:0}
+#ws-canvas{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:12px;background:#F4EEE4;min-height:0}
+#ws-canvas.armed svg{cursor:copy}
+.ws-stage{position:relative;flex-shrink:0}
+.ws-stage svg{display:block;touch-action:none;user-select:none}
+.ws-stage [data-leaf].drop-on{fill:rgba(184,155,107,.35)!important;stroke:#8A6D45;stroke-width:1.5}
+#ws-mini{position:absolute;display:none;background:#3A2E22;border-radius:7px;gap:2px;padding:3px;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+#ws-mini button{background:transparent;border:none;color:#fff;font-size:11.5px;padding:5px 9px;border-radius:5px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;white-space:nowrap}
+#ws-mini button:hover{background:rgba(255,255,255,.16)}
+#ws-bar{background:var(--surface);border-top:1px solid var(--border);padding:8px 14px;display:flex;gap:14px;align-items:center;font-size:12px;flex-wrap:wrap}
+#ws-parts{max-height:34vh;overflow:auto;border-top:1px solid var(--border);background:var(--surface)}
+#ws-props{background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;font-size:12px}
+.wp-hd{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--accent)}
+.wp-sec{border-top:1px solid var(--border);padding-top:9px;display:flex;flex-direction:column;gap:7px}
+.wp-sec>b{font-size:10.5px;letter-spacing:.06em;color:var(--text3);font-weight:700}
+.wp-row{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--text2)}
+.wp-row .vin{width:84px}
+.wp-info{font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);line-height:1.6}
+.wp-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#FFFDF8;cursor:pointer}
+.wp-item span{flex:1}
+.wp-item em{font-style:normal;font-family:'DM Mono',monospace;color:var(--text3);font-size:11px}
+.wp-item:hover{border-color:var(--accent)}
+.seg{display:flex;border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden}
+.seg button{flex:1;border:none;background:var(--surface);padding:6px 0;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;color:var(--text2)}
+.seg button.on{background:var(--accent);color:#fff}
+.vlab{box-sizing:border-box;height:21px;margin:1px 0;display:block;border:1px solid #B89B6B;border-radius:4px;background:#fff;font:11px 'DM Mono',monospace;text-align:center;color:#3A2E22;padding:0;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.vlab:hover{border-color:#8A6D45}
+.vlab:focus{outline:none;border-color:#8A6D45;box-shadow:0 0 0 2px rgba(138,109,69,.25)}
+@media(max-width:980px){.ws-body{grid-template-columns:150px minmax(0,1fr)}#ws-props{grid-column:1/-1;max-height:38vh;border-left:none;border-top:1px solid var(--border)}.ws-grid{grid-template-columns:1fr}}
+.xp-row{display:grid;grid-template-columns:1.4fr 70px 12px 70px 70px 52px 26px;gap:5px;align-items:center;margin-bottom:5px;font-size:11px;color:var(--text3)}
+.xp-row input,.xp-row select{height:28px;padding:0 6px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);font-size:12px;font-family:'DM Mono',monospace;width:100%}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="brand">
+    <div class="brand-icon">才</div>
+    <div>
+      <div class="brand-name">系統櫃才數 + 工資計算</div>
+      <div class="brand-sub">填一次 · 輸出兩份清單</div>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <div class="unit-sw">
+      <button id="btn-mm" class="active" onclick="setUnit('mm')">mm</button>
+      <button id="btn-cm" onclick="setUnit('cm')">cm</button>
+    </div>
+    <button class="btn-outline" style="color:var(--text2);border-color:var(--border2)" onclick="clearAll()">🗑 清空</button>
+    <button class="btn-outline" onclick="openPrintWindow('board')">📋 才數清單</button>
+    <button class="btn-export" onclick="openPrintWindow('wage')">💰 工資清單</button>
+  </div>
+</header>
+
+<div class="layout">
+<div class="left">
+
+  <!-- PROJECT INFO -->
+  <div class="proj-banner">
+    <div class="section-label">案場資訊</div>
+    <div class="proj-grid">
+      <div class="field" style="grid-column:span 2">
+        <label>案場名稱</label>
+        <input id="proj-name" value="" placeholder="例：板橋金世紀錄裝修案" style="font-family:'Noto Sans TC',sans-serif" oninput="renderSummary()">
+      </div>
+      <div class="field">
+        <label>設計師</label>
+        <input id="proj-designer" value="" placeholder="姓名" style="font-family:'Noto Sans TC',sans-serif">
+      </div>
+      <div class="field">
+        <label>日期</label>
+        <input id="proj-date" type="date" value="">
+      </div>
+      <div class="field">
+        <label>會員等級</label>
+        <select id="proj-level" onchange="renderAll()">
+          <option value="0">好宅會員</option>
+          <option value="1">商會會員（9折）</option>
+          <option value="2">合夥人（8折）</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- CABINET LIST -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="step-badge">1</div>
+      <div class="section-label">櫃體清單</div>
+    </div>
+    <div class="toolbar">
+      <div class="toolbar-l">
+        <div class="section-label">共</div>
+        <div class="count-badge" id="count-badge">0 個</div>
+      </div>
+      <button class="btn-add" onclick="addCabinet()">＋ 新增櫃體</button>
+    </div>
+    <div id="cab-list">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🗂</div>
+        <div class="empty-text">點擊「新增櫃體」開始<br>填好 W/H/D 後，在模擬圖上切格子、放層板與抽屜<br>右側填組裝數量</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /left -->
+
+<!-- RIGHT SUMMARY -->
+<div class="right">
+
+  <!-- BOARD SUMMARY -->
+  <div class="sum-card">
+    <div class="card-hdr">
+      <div class="step-badge">2</div>
+      <div class="section-label" style="color:var(--accent)">板材才數</div>
+    </div>
+    <div style="padding:16px 18px">
+      <div class="grand-num" id="grand-cai">0.0</div>
+      <div class="grand-unit">才　（1才 = 30×30 cm）</div>
+      <div class="sub-grid">
+        <div class="sub-box"><div class="lbl">片數</div><div class="val" id="grand-pcs">0</div><div class="u">片</div></div>
+        <div class="sub-box"><div class="lbl">備料+10%</div><div class="val" id="grand-spare">0.0</div><div class="u">才</div></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="per-list" id="per-cai-list"></div>
+  </div>
+
+  <!-- WAGE SUMMARY -->
+  <div class="sum-card">
+    <div class="card-hdr">
+      <div class="step-badge s2">3</div>
+      <div class="section-label" style="color:var(--orange)">組裝工資</div>
+    </div>
+    <div style="padding:16px 18px">
+      <div class="grand-num" id="grand-wage" style="color:var(--orange)">0</div>
+      <div class="grand-unit">元</div>
+      <div id="wage-warn"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="per-list" id="per-wage-list"></div>
+  </div>
+
+  <!-- RULES -->
+  <div class="rules-card">
+    <div class="card-hdr"><div class="section-label">計算規則</div></div>
+    <div class="rules-list">
+      <div class="rule"><span class="rk">才數公式</span><span class="rv">長×深÷90,000</span></div>
+      <div class="rule"><span class="rk">頂底板</span><span class="rv">W−板厚×2</span></div>
+      <div class="rule"><span class="rk">固隔深</span><span class="rv">D−28mm</span></div>
+      <div class="rule"><span class="rk">活格深</span><span class="rv">D−38mm</span></div>
+      <div class="rule"><span class="rk">背板</span><span class="rv">H−22(有底)/H−11(無底)</span></div>
+      <div class="rule"><span class="rk">推拉門寬</span><span class="rv">(W−36)÷2+50mm</span></div>
+      <div class="rule"><span class="rk">美背才數</span><span class="rv">W×H÷90,000</span></div>
+      <div class="rule"><span class="rk">工資未滿萬</span><span class="rv">自動補至10,000</span></div>
+      <div class="rule"><span class="rk">中立板</span><span class="rv">格高×(D−28)</span></div>
+      <div class="rule"><span class="rk">固格／活格</span><span class="rv">格寬×(D−28)／(格寬−1)×(D−38)</span></div>
+      <div class="rule"><span class="rk">分格比例</span><span class="rv">依門片覆蓋寬，對齊門縫</span></div>
+      <div class="rule"><span class="rk">抽屜深</span><span class="rv">D−30（可手改）</span></div>
+      <div class="rule"><span class="rk">抽頭高</span><span class="rv">(段高−取手)÷數量−4</span></div>
+    </div>
+  </div>
+
+</div><!-- /right -->
+</div><!-- /layout -->
+
+<div id="ws">
+  <div id="ws-top"></div>
+  <div class="ws-body">
+    <div id="ws-lib"></div>
+    <div class="ws-center"><div id="ws-canvas"></div><div id="ws-bar"></div><div id="ws-parts" style="display:none"></div></div>
+    <div id="ws-props"></div>
+  </div>
+</div>
+<script>
+// ── CONSTANTS ──
+const LEVEL_KEYS = ['好宅','商會','合夥人'];
+// price per unit, index = level 0/1/2
+const WAGE_RATES = {
+  F2:  [21.25, 19.125, 17],   // 高櫃 /cm寬
+  F3:  [15,    13.5,   12],   // 矮櫃 /cm寬
+  F4:  [15,    13.5,   12],   // 吊櫃 /cm寬
+  F5:  [15,    13.5,   12],   // 懸吊抽屜 /cm寬
+  F6:  [12.5,  11.25,  10],   // 疊櫃 /cm寬
+  F7:  [40,    36,     32],   // 特殊設計H≥100 /cm寬
+  F8:  [33.75, 30.375, 27],   // 特殊設計H<100 /cm寬
+  F10: [8.75,  7.875,  7],    // 拉推門H≥100 /cm寬
+  F11: [7.5,   6.75,   6],    // 拉推門H<100 /cm寬
+  F12: [6.25,  5.625,  5],    // 拉推門H≤65 /cm寬
+  F13: [125,   112.5,  100],  // 木抽屜/組
+  F14: [225,   202.5,  180],  // 自組木抽屜/組
+  F15: [187.5, 168.75, 150],  // 進口BLUM木抽屜/組
+  F16: [250,   225,    200],  // 鋁型抽屜/組
+  F17: [75,    67.5,   60],   // 鋁型抽屜內組件/件
+  F18: [337.5, 303.75, 270],  // 側拉籃/組
+  F19: [337.5, 303.75, 270],  // 旋轉鏡/片
+  F20: [150,   135,    120],  // 明鏡平貼/片
+  F21: [212.5, 191.25, 170],  // 安裝鎖頭/個
+  F22: [6.25,  5.625,  5],    // 隱藏層板/cm寬
+  F23: [62.5,  56.25,  50],   // 各式五金/個
+  F24: [125,   112.5,  100],  // G腿/支
+  F25: [6.25,  5.625,  5],    // 層板安裝/cm寬
+  F27: [312.5, 281.25, 250],  // 補邊封板/處
+  F29: [0,     0,      0],    // 擋板/cm寬
+  F30: [750,   675,    600],  // 滑軌洞洞板/式
+  F31: [212.5, 191.25, 170],  // 假門落側H<100/片
+  F32: [150,   135,    120],  // 假門落側H≤65/片
+  F33: [37.5,  33.75,  30],   // 美背/才
+  F34: [8.75,  7.875,  7],    // 直封壁板H≤240/cm
+  F35: [6.25,  5.625,  5],    // 直封壁板H≤160/cm
+  F36: [6.25,  5.625,  5],    // 直封壁板H≤80/cm
+  F37: [11.25, 10.125, 9],    // 墊出壁板H≤240/cm
+  F38: [8.75,  7.875,  7],    // 墊出壁板H≤160/cm
+  F39: [8.75,  7.875,  7],    // 墊出壁板H≤80/cm
+  F43: [3.75,  3.375,  3],    // 畫框/cm周長
+  F46: [625,   562.5,  500],  // 櫃體修改/櫃
+  F47: [125,   112.5,  100],  // 活格固格修改/片
+  F48: [187.5, 168.75, 150],  // 改門改抽屜/片
+  F49: [3.75,  3.375,  3],    // 現場貼皮封邊/cm
+  F51: [375,   337.5,  300],  // 油煙機烘碗機/台
+  F52: [1000,  900,    800],  // 洗碗機/台
+  F53: [375,   337.5,  300],  // 水龍頭/支
+  F54: [3.75,  3.375,  3],    // 檯面安裝/cm
+  F56: [437.5, 393.75, 350],  // 拉線含面板/處
+  F57: [312.5, 281.25, 250],  // 拉線不含面板/處
+  F58: [625,   562.5,  500],  // LED燈條/組
+  F59: [337.5, 303.75, 270],  // 炊燈燈管/組
+  F60: [87.5,  78.75,  70],   // 出線孔維修孔/處
+  F61: [437.5, 393.75, 350],  // 開電箱孔/處
+  F62: [437.5, 393.75, 350],  // 總電源箱蓋/組
+  F63: [375,   337.5,  300],  // 三角凡爾/組
+  F64: [337.5, 303.75, 270],  // 洗溝藏線/處
+  F66: [625,   562.5,  500],  // 垃圾清理/包
+  F67: [812.5, 731.25, 650],  // 五金螺絲/式
+  F68: [3,     2,      1],    // 矽利康/cm
+  F69: [4375,  3937.5, 3500], // 補工資/工
+  F70: [1875,  1687.5, 1500], // 補板車資/車
+};
+
+// Accessory definitions per cabinet (right panel)
+const ACCESSORY_DEFS = [
+  // [code, label, unit, isEstimate]
+  {sec:'櫃體配件'},
+  {code:'F13', label:'木抽屜/拉籃/拉盤/格抽', unit:'組'},
+  {code:'F14', label:'自組木抽屜', unit:'組'},
+  {code:'F15', label:'進口BLUM木抽屜', unit:'組'},
+  {code:'F16', label:'鋁型抽屜', unit:'組'},
+  {code:'F17', label:'鋁型抽屜內組件', unit:'件'},
+  {code:'F18', label:'側拉籃', unit:'組'},
+  {code:'F19', label:'旋轉鏡', unit:'片'},
+  {code:'F20', label:'明鏡平貼固定', unit:'片'},
+  {code:'F21', label:'安裝鎖頭', unit:'個'},
+  {code:'F22', label:'隱藏層板', unit:'cm寬'},
+  {code:'F23', label:'各式五金小配件', unit:'個'},
+  {code:'F24', label:'其他五金(G腿)', unit:'支'},
+  {code:'F25', label:'層板安裝', unit:'cm寬'},
+  {sec:'封板類'},
+  {code:'F27', label:'補邊封板', unit:'處'},
+  {code:'F28', label:'造型補邊封板', unit:'元', isEstimate:true},
+  {code:'F29', label:'擋板', unit:'cm寬'},
+  {code:'F30', label:'滑軌洞洞板安裝', unit:'式'},
+  {code:'F31', label:'假門/落側 H<100', unit:'片'},
+  {code:'F32', label:'假門/落側 H≤65', unit:'片'},
+  {code:'F34', label:'直封壁板 H≤240', unit:'cm寬'},
+  {code:'F35', label:'直封壁板 H≤160', unit:'cm寬'},
+  {code:'F36', label:'直封壁板 H≤80', unit:'cm寬'},
+  {code:'F37', label:'墊出壁板 H≤240', unit:'cm寬'},
+  {code:'F38', label:'墊出壁板 H≤160', unit:'cm寬'},
+  {code:'F39', label:'墊出壁板 H≤80', unit:'cm寬'},
+  {code:'F40', label:'造型壁板', unit:'元', isEstimate:true},
+  {code:'F41', label:'其他封板', unit:'元', isEstimate:true},
+  {code:'F42', label:'造型修邊檯面', unit:'元', isEstimate:true},
+  {code:'F43', label:'畫框', unit:'cm周長'},
+  {sec:'修改類'},
+  {code:'F46', label:'櫃體修改', unit:'櫃'},
+  {code:'F47', label:'活格固格修改', unit:'片'},
+  {code:'F48', label:'改門/改抽屜/改抽頭', unit:'片'},
+  {code:'F49', label:'現場貼皮/封邊', unit:'cm長'},
+  {sec:'廚具類'},
+  {code:'F51', label:'油煙機/烘碗機安裝', unit:'台'},
+  {code:'F52', label:'洗碗機安裝', unit:'台'},
+  {code:'F53', label:'水龍頭', unit:'支'},
+  {code:'F54', label:'檯面安裝', unit:'cm長'},
+  {sec:'水電類'},
+  {code:'F56', label:'拉線（含面板）', unit:'處'},
+  {code:'F57', label:'拉線（不含面板）', unit:'處'},
+  {code:'F58', label:'LED燈條安裝', unit:'組'},
+  {code:'F59', label:'炊燈/燈管安裝', unit:'組'},
+  {code:'F60', label:'出線孔/維修孔', unit:'處'},
+  {code:'F61', label:'開電箱孔/對講機孔', unit:'處'},
+  {code:'F62', label:'總電源箱蓋/受信箱蓋移動', unit:'組'},
+  {code:'F63', label:'三角凡爾', unit:'組'},
+  {code:'F64', label:'櫃體洗溝藏線', unit:'處'},
+  {sec:'其他'},
+  {code:'F66', label:'垃圾清理費含搬運', unit:'包'},
+  {code:'F67', label:'五金螺絲', unit:'式'},
+  {code:'F68', label:'矽利康', unit:'cm'},
+  {code:'F69', label:'另補工資', unit:'工'},
+  {code:'F70', label:'補板車資', unit:'車'},
+];
+
+// ── STATE ──
+let unit = 'mm';
+let cabinets = [];
+let nextId = 1;
+
+// init date
+document.getElementById('proj-date').value = new Date().toISOString().slice(0,10);
+
+function setUnit(u){
+  unit=u;
+  document.getElementById('btn-mm').classList.toggle('active',u==='mm');
+  document.getElementById('btn-cm').classList.toggle('active',u==='cm');
+  renderAll();
+}
+function toMM(v){const n=parseFloat(v)||0;return unit==='cm'?n*10:n}
+function cai(w,h){
+  const raw=w*h/90000;
+  return raw<1.5?1.5:raw;
+}
+function caiRaw(w,h){return w*h/90000;} // for display of actual size
+function getLevel(){return parseInt(document.getElementById('proj-level').value)||0}
+function rate(code){return WAGE_RATES[code]?WAGE_RATES[code][getLevel()]:0}
+
+// ── ADD CABINET ──
+function addCabinet(){
+  const id=nextId++;
+  const num=cabinets.length+1;
+  // build default accessories object
+  const acc={};
+  ACCESSORY_DEFS.forEach(d=>{if(d.code)acc[d.code]=0});
+
+  cabinets.push({
+    id, _open:true,
+    name:String(num).padStart(2,'0')+'號櫃',
+    W:'',H:'',D:'',kick:100,
+    cabinetType:'高櫃',
+    boardThickness:18, backThickness:8,
+    hasBottom:true, leftDrop:false, rightDrop:false,
+    hasDoor:false, doorCount:2, doorType:'外蓋', doorFloorGap:0, doorDropDown:0, doorCustomH:0,
+    hasDrawer:false, drawerCount:1, drawerH:180,
+    hasDrawer2:false, drawerCount2:1, drawerH2:180,
+    hasDivider:false, dividerCount:1,
+    hasSliding:false, slidingCount:2,
+    hasBeautyBack:false,
+    hasFingerStop:false, fingerStopCount:1, fingerStopH:60,
+    dividerH:0,
+    hasCountertop:false, countertopL:0, countertopW:0, countertopT:18, countertopQty:1,
+    hasExtraShelf:false, extraShelfL:0, extraShelfW:0, extraShelfT:18, extraShelfQty:1,
+
+    kickBoard:false,
+    adjShelves:0, fixShelves:0,
+    mode:'visual', hasTop:true, topCover:false, ovL:0, ovR:0, ovF:20, noBack:false,
+    layout:null, _nid:0, _sel:null, _showDoor:true, extraParts:[],
+    acc,
+  });
+  renderAll();
+  setTimeout(()=>{
+    const items=document.querySelectorAll('.cab-item');
+    if(items.length)items[items.length-1].scrollIntoView({behavior:'smooth',block:'start'});
+  },50);
+}
+
+function removeCab(id){
+  if(!confirm('確定刪除？'))return;
+  cabinets=cabinets.filter(c=>c.id!==id);
+  renderAll();
+}
+
+function refreshWagePanel(c){
+  const rightEl=document.querySelector('#cab-body-'+c.id+' .cab-right');
+  if(rightEl){
+    rightEl.innerHTML='<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);margin-bottom:10px">組裝配件數量</div>'+buildWagePanel(c);
+  }
+}
+
+function updateCab(id,key,val){
+  const c=cabinets.find(c=>c.id===id);
+  if(!c)return;
+  c[key]=val;
+  patchCabItem(c, key);
+  // Refresh wage panel when anything that affects F13 changes
+  if(['hasDrawer','drawerCount','hasDrawer2','drawerCount2'].includes(key)){
+    refreshWagePanel(c);
+  }
+  renderSummary();
+}
+
+function updateAcc(id,code,val){
+  const c=cabinets.find(c=>c.id===id);
+  if(!c)return;
+  c.acc[code]=val;
+  // If F14/F15/F16 changed, rebuild wage panel to update F13 display
+  if(['F14','F15','F16'].includes(code)){
+    refreshWagePanel(c);
+  }
+  renderSummary();
+}
+
+function toggleCab(id){
+  const c=cabinets.find(c=>c.id===id);
+  if(!c)return;
+  c._open=!c._open;
+  const body=document.getElementById('cab-body-'+id);
+  const chev=document.getElementById('cab-chev-'+id);
+  if(body)body.classList.toggle('open',c._open);
+  if(chev)chev.classList.toggle('open',c._open);
+}
+
+function patchCabItem(cab, changedKey){
+  // Clear overrides when main dimensions change
+  if(['W','H','D','boardThickness','hasBottom','hasDoor','doorCount','doorType',
+      'hasDrawer','drawerCount','drawerH','hasDrawer2','drawerCount2','drawerH2',
+      'hasDivider','dividerCount','adjShelves','fixShelves','hasSliding','hasBeautyBack',
+      'leftDrop','rightDrop','kick','kickBoard','hasFingerStop','fingerStopCount','fingerStopH','dividerH','hasSliding','slidingCount','hasCountertop','countertopL','countertopW','countertopT','countertopQty','hasExtraShelf','extraShelfL','extraShelfW','extraShelfT','extraShelfQty','mode','hasTop','topCover','ovL','ovR','ovF','noBack','__v'].includes(changedKey)){
+    cab._overrides={};
+  }
+  // Auto-set cabinet type based on height
+  const Hmm=toMM(cab.H);
+  if(Hmm>0&&(cab.cabinetType==='高櫃'||cab.cabinetType==='矮櫃')){
+    cab.cabinetType=Hmm>=1000?'高櫃':'矮櫃';
+  }
+  const parts=calcParts(cab);
+  const totalCai=calcPartsFinal(cab).reduce((s,p)=>s+p.sub,0);
+  const {total:totalWage}=calcCabWage(cab);
+  const T=parseInt(cab.boardThickness)||18;
+  const hasData=toMM(cab.W)&&toMM(cab.H)&&toMM(cab.D);
+  const nmEl=document.getElementById('cab-name-'+cab.id);
+  if(nmEl)nmEl.innerHTML=cab.name+'　<span style="font-size:11px;color:var(--text3);font-weight:400">'+cab.cabinetType+(cab.mode==='visual'?' · 畫圖':'')+'</span>';
+  const pillCai=document.getElementById('pill-cai-'+cab.id);
+  const pillWage=document.getElementById('pill-wage-'+cab.id);
+  const dimEl=document.getElementById('cab-dim-'+cab.id);
+  if(pillCai){pillCai.textContent=hasData?totalCai.toFixed(1)+' 才':'未填';pillCai.className='pill '+(hasData?'pill-green':'pill-zero');}
+  if(pillWage){pillWage.textContent=totalWage>0?'$'+Math.round(totalWage).toLocaleString():'$0';pillWage.className='pill '+(totalWage>0?'pill-orange':'pill-zero');}
+  if(dimEl)dimEl.textContent='W'+(cab.W||'?')+'×H'+(cab.H||'?')+'×D'+(cab.D||'?')+' '+unit+' · T'+T+'mm';
+  const leftEl=document.getElementById('cab-left-'+cab.id);
+  if(leftEl){leftEl.innerHTML=buildCabLeft(cab,parts,totalCai);vBind(cab);}
+}
+
+// ── CALC BOARD ──
+function calcParts(cab){
+  const T=parseInt(cab.boardThickness)||18;
+  const BT=parseInt(cab.backThickness)||8;
+  const W=toMM(cab.W),H=toMM(cab.H),D=toMM(cab.D);
+  const kick=parseFloat(cab.kick)||0;
+  if(!W||!H||!D)return[];
+  const parts=[];
+  function add(name,w,h,qty,badge){
+    w=Math.round(w);h=Math.round(h);
+    if(qty<=0||w<=0||h<=0)return;
+    const cp=cai(w,h);
+    parts.push({name,w,h,qty,cp,sub:cp*qty,badge:badge||''});
+  }
+  const V=cab.mode==='visual';
+  const hasTop=cab.hasTop!==false;
+  const sideH=(hasTop&&cab.topCover)?H-T:H;
+  add(cab.leftDrop?'左側板（側落）':'左側板', cab.leftDrop?sideH+kick:sideH, D, 1);
+  add(cab.rightDrop?'右側板（側落）':'右側板', cab.rightDrop?sideH+kick:sideH, D, 1);
+  if(hasTop){
+    if(cab.topCover)add('外蓋頂板',W+(parseFloat(cab.ovL)||0)+(parseFloat(cab.ovR)||0),D+(parseFloat(cab.ovF)||0),1);
+    else add('頂板',W-T*2,D,1);
+  }
+  if(cab.hasBottom)add('底板',W-T*2,D,1);
+  if(V){
+    vParts(cab,add);
+  } else {
+  if(cab.fixShelves>0)add('固隔（固定層板）',W-T*2,D-28,cab.fixShelves);
+  if(cab.adjShelves>0)add('活格（活動層板）',W-T*2-1,D-38,cab.adjShelves);
+  if(cab.hasDivider&&cab.dividerCount>0){
+    const divH=parseFloat(cab.dividerH)>0?parseFloat(cab.dividerH):(cab.hasBottom?H-T*2:H-T);
+    add('直立隔板',divH,D-28,cab.dividerCount);
+  }
+  } // end quick-only (層板/隔板)
+  if(!cab.noBack){
+    const railQty=H<=1000?1:H<=2000?2:3;
+    add('背拉桿',W-T*2,80,railQty);
+    add('背板',cab.hasBottom?H-22:H-11,W-22,1,BT===8?'8mm':'18mm');
+  }
+  if(cab.hasBeautyBack)add('美背',H,W,1);
+  if(cab.kickBoard&&kick>0)add('踢腳板',W-T*2,kick,1);
+  if(!V){
+  // ── 推拉門片 ──
+  if(cab.hasSliding){
+    const T2=parseInt(cab.boardThickness)||18;
+    const slidingW=(W-T2*2)/2+50;
+    const slidingH=cab.hasBottom?(H-4):(H-2-(parseFloat(cab.doorFloorGap)||0));
+    const slidingQty=parseInt(cab.slidingCount)||2;
+    add('推拉門片',slidingH,slidingW,slidingQty);
+  }
+  // ── 門片 ──
+  if(cab.hasDoor&&cab.doorCount>0){
+    const doorW=cab.doorType==='外蓋'
+      ? W/cab.doorCount-3
+      : (W-T*2)/cab.doorCount-3;
+    const floorGap=parseFloat(cab.doorFloorGap)||0;
+    const dropDown=parseFloat(cab.doorDropDown)||0;
+    const customH=parseFloat(cab.doorCustomH)||0;
+    let doorH;
+    if(customH>0){
+      doorH=customH; // 手填門片高度（混合配置用）
+    } else if(cab.hasBottom){
+      doorH=dropDown>0?H-2+dropDown:H-4;
+    } else {
+      doorH=H-2-floorGap;
+    }
+    add(cab.doorType==='外蓋'?'門片（外蓋）':'門片（入柱）', doorH, doorW, cab.doorCount);
+  }
+  if(cab.hasFingerStop)add('指縫擋板',W-T*2,parseFloat(cab.fingerStopH)||60,parseInt(cab.fingerStopCount)||1);
+  // ── 抽屜組1 ──
+  if(cab.hasDrawer&&cab.drawerCount>0){
+    const dH=parseFloat(cab.drawerH)||180;
+    const dW=cab.doorType==='外蓋'&&cab.hasDoor ? W/cab.drawerCount-3 : (W-T*2)/cab.drawerCount-3;
+    const dD=D-30,wH=dH-18;
+    add('抽頭（抽屜前板）',dH,dW,cab.drawerCount);
+    add('左右抽牆',dD,wH,cab.drawerCount*2);
+    add('前後抽牆',dW-T*2,wH,cab.drawerCount*2);
+    add('抽底',dW-T*2,dD,cab.drawerCount,'8mm');
+  }
+  // ── 抽屜組2（混合配置，如上2抽+下門片）──
+  if(cab.hasDrawer2&&cab.drawerCount2>0){
+    const dH2=parseFloat(cab.drawerH2)||180;
+    const dW2=(W-T*2)/cab.drawerCount2-3;
+    const dD2=D-30,wH2=dH2-18;
+    add('抽頭2（抽屜前板）',dH2,dW2,cab.drawerCount2);
+    add('左右抽牆2',dD2,wH2,cab.drawerCount2*2);
+    add('前後抽牆2',dW2-T*2,wH2,cab.drawerCount2*2);
+    add('抽底2',dW2-T*2,dD2,cab.drawerCount2,'8mm');
+  }
+  } // end quick-only (門片/抽屜)
+  const tb=t=>{t=parseInt(t)||T;return t===T?'':t+'mm';};
+  // 台面板
+  if(cab.hasCountertop&&parseFloat(cab.countertopL)>0&&parseFloat(cab.countertopW)>0){
+    const ctL=toMM(cab.countertopL), ctW=toMM(cab.countertopW), ctQty=parseInt(cab.countertopQty)||1;
+    add('台面板',ctL,ctW,ctQty,tb(cab.countertopT));
+  }
+  // 外掛層板
+  if(cab.hasExtraShelf&&parseFloat(cab.extraShelfL)>0&&parseFloat(cab.extraShelfW)>0){
+    const esL=toMM(cab.extraShelfL), esW=toMM(cab.extraShelfW), esQty=parseInt(cab.extraShelfQty)||1;
+    add('外掛層板',esL,esW,esQty,tb(cab.extraShelfT));
+  }
+  // 其他板件（封板/散板/假門…，一律 mm）
+  (cab.extraParts||[]).forEach(x=>{
+    const l=parseFloat(x.L)||0,w=parseFloat(x.W)||0,q=parseInt(x.qty)||0;
+    if(l>0&&w>0&&q>0)add(x.name||'其他板件',l,w,q,tb(x.t));
+  });
+  // 畫圖模式：同名同尺寸合併
+  if(V){
+    const m=[];
+    parts.forEach(p=>{const f=m.find(q=>q.name===p.name&&q.w===p.w&&q.h===p.h&&q.badge===p.badge);
+      if(f){f.qty+=p.qty;f.sub=f.cp*f.qty;}else m.push({...p});});
+    return m;
+  }
+  return parts;
+}
+// 套用明細表手改後的最終板材（總計/列印都用這個）
+function calcPartsFinal(cab){
+  const ov=cab._overrides||{};
+  return calcParts(cab).map((p,ri)=>{
+    const o=ov[p.name+ri]||{};
+    const w=o.w!==undefined?o.w:p.w, h=o.h!==undefined?o.h:p.h, qty=o.qty!==undefined?o.qty:p.qty;
+    const cp=cai(w,h);
+    return {...p,w,h,qty,cp,sub:cp*qty};
+  });
+}
+
+// ── CALC WAGE ──
+function calcCabWage(cab){
+  const lv=getLevel();
+  const W=toMM(cab.W),H=toMM(cab.H);
+  const T=parseInt(cab.boardThickness)||18;
+  if(!W||!H)return{lines:[],total:0};
+  const Wcm=W/10;
+  const lines=[];
+  function addLine(label,qty,unitPrice,subtotal){
+    lines.push({label,qty,unitPrice,subtotal});
+  }
+
+  // Cabinet body wage
+  const bodyRate=rate(cab.cabinetType==='高櫃'?'F2':
+    cab.cabinetType==='矮櫃'?'F3':
+    cab.cabinetType==='吊櫃'?'F4':
+    cab.cabinetType==='懸吊抽屜結構'?'F5':
+    cab.cabinetType==='疊櫃'?'F6':
+    cab.cabinetType==='特殊設計(H≥100)'?'F7':'F8');
+  addLine(cab.cabinetType+' 組裝',Wcm.toFixed(1)+' cm',bodyRate,(Wcm*bodyRate));
+
+  // Sliding door
+  if(cab.mode==='visual'?vHasKind(cab,'推拉'):cab.hasSliding){
+    const doorW=((W-T*2)/2+50)/10; // cm
+    const dCode=H>=1000?'F10':H>650?'F11':'F12';
+    const dr=rate(dCode);
+    addLine('推拉門組',doorW.toFixed(1)+' cm',dr,doorW*dr);
+  }
+
+  // Beauty back
+  if(cab.hasBeautyBack){
+    const beautyC=cai(W,H);
+    const br=rate('F33');
+    addLine('美背',beautyC.toFixed(3)+' 才',br,beautyC*br);
+  }
+
+  // 外掛層板安裝工資 F25 (總寬cm)
+  if(cab.hasExtraShelf&&parseFloat(cab.extraShelfW)>0&&parseInt(cab.extraShelfQty)>0){
+    const esW=toMM(cab.extraShelfW), esQty=parseInt(cab.extraShelfQty)||1;
+    const totalWidthCm=(esW*esQty)/10;
+    const sr=rate('F25');
+    addLine('外掛層板安裝',totalWidthCm.toFixed(1)+' cm',sr,totalWidthCm*sr);
+  }
+
+  // Accessories
+  ACCESSORY_DEFS.forEach(d=>{
+    if(!d.code)return;
+    // F13: use auto-calculated value
+    const qty=d.code==='F13'?getF13(cab):(parseFloat(cab.acc[d.code])||0);
+    if(qty===0)return;
+    if(d.isEstimate){
+      addLine(d.label,'(現場估價)','-',qty);
+    } else {
+      const r=rate(d.code);
+      addLine(d.label,qty+' '+d.unit,r,qty*r);
+    }
+  });
+
+  const total=lines.reduce((s,l)=>s+l.subtotal,0);
+  return{lines,total};
+}
+
+// ── OVERRIDE PARTS ──
+function overridePart(cabId, key, field, val){
+  const c=cabinets.find(c=>c.id===cabId);
+  if(!c)return;
+  if(!c._overrides)c._overrides={};
+  if(!c._overrides[key])c._overrides[key]={};
+  c._overrides[key][field]=val;
+  // recalc this cab's left panel only
+  const parts=calcParts(c);
+  const leftEl=document.getElementById('cab-left-'+cabId);
+  if(leftEl){
+    // recalc totalCai with overrides
+    const totalCai=parts.map((p,ri)=>{
+      const k=p.name+ri;const ov=c._overrides[k]||{};
+      const w=ov.w!==undefined?ov.w:p.w;const h=ov.h!==undefined?ov.h:p.h;
+      const qty=ov.qty!==undefined?ov.qty:p.qty;
+      const rawCp=w*h/90000;const cp=rawCp<1.5?1.5:rawCp;
+      return Math.round(cp*qty*100)/100;
+    }).reduce((a,b)=>a+b,0);
+    leftEl.innerHTML=buildCabLeft(c,parts,totalCai);
+    vBind(c);
+  }
+  renderSummary();
+}
+
+// ── RENDER ──
+function renderAll(){renderCabs();renderSummary();}
+
+function renderCabs(){
+  const list=document.getElementById('cab-list');
+  const empty=document.getElementById('empty-state');
+  document.getElementById('count-badge').textContent=cabinets.length+' 個';
+  if(!cabinets.length){list.innerHTML='';list.appendChild(empty);return;}
+  list.innerHTML='';
+  cabinets.forEach((cab,idx)=>{
+    const parts=calcParts(cab);
+    const totalCai=calcPartsFinal(cab).reduce((s,p)=>s+p.sub,0);
+    const {total:totalWage}=calcCabWage(cab);
+    const T=parseInt(cab.boardThickness)||18;
+    const hasData=toMM(cab.W)&&toMM(cab.H)&&toMM(cab.D);
+    const item=document.createElement('div');
+    item.className='cab-item';
+    item.innerHTML=buildCabHTML(cab,idx,parts,totalCai,totalWage,T,hasData);
+    list.appendChild(item);
+    vBind(cab);
+  });
+}
+
+function buildCabLeft(cab,parts,totalCai){
+  const V=cab.mode==='visual';
+  if(V)vEnsure(cab);
+  function opt(key,label){
+    const on=cab[key];
+    return `<label class="opt ${on?'on':''}" onclick="updateCab(${cab.id},'${key}',${!on})">
+      <input type="checkbox" ${on?'checked':''}><span class="opt-dot">${on?'✓':''}</span>${label}</label>`;
+  }
+  let subs='';
+  if(!V&&cab.hasDoor)subs+=`<div class="sub-panel">
+    <div class="field"><label>門片類型</label>
+      <select onchange="updateCab(${cab.id},'doorType',this.value)">
+        <option value="外蓋" ${cab.doorType==='外蓋'?'selected':''}>外蓋門片</option>
+        <option value="入柱" ${cab.doorType==='入柱'?'selected':''}>入柱門片</option>
+      </select></div>
+    <div class="field"><label>門片數量</label>
+      <input type="number" value="${cab.doorCount}" min="1" max="8" onchange="updateCab(${cab.id},'doorCount',+this.value)"></div>
+    ${!cab.hasBottom?`<div class="field"><label>離地高度 (mm)</label>
+      <input type="number" value="${cab.doorFloorGap||0}" min="0" placeholder="0"
+        onchange="updateCab(${cab.id},'doorFloorGap',+this.value)">
+      <div class="hint">無底板門片離地距離</div></div>`:''}
+    ${cab.hasBottom?`<div class="field"><label>下凸尺寸 (mm)</label>
+      <input type="number" value="${cab.doorDropDown||0}" min="0" placeholder="0"
+        onchange="updateCab(${cab.id},'doorDropDown',+this.value)">
+      <div class="hint">外蓋門下凸當把手</div></div>`:''}
+    <div class="field"><label>門片高度手填 (mm)</label>
+      <input type="number" value="${cab.doorCustomH||0}" min="0" placeholder="0=自動"
+        onchange="updateCab(${cab.id},'doorCustomH',+this.value)">
+      <div class="hint">混合配置時手填，0=自動計算</div></div>
+  </div>`;
+  if(!V&&cab.hasDivider){
+    const _T=parseInt(cab.boardThickness)||18;
+    const _H=toMM(cab.H);
+    const _divAutoH=_H>0?(cab.hasBottom?_H-_T*2:_H-_T):0;
+    const _divVal=cab.dividerH>0?cab.dividerH:(_divAutoH>0?_divAutoH:'');
+    subs+=`<div class="sub-panel">
+      <div class="field"><label>直立隔板數量</label>
+        <input type="number" value="${cab.dividerCount}" min="1" onchange="updateCab(${cab.id},'dividerCount',+this.value)"></div>
+      <div class="field"><label>直立隔板高度 (mm)</label>
+        <input type="number" value="${_divVal}" min="1" placeholder="自動"
+          onchange="updateCab(${cab.id},'dividerH',+this.value)">
+        <div class="hint">留空或改數字，自動 = H−${cab.hasBottom?'頂底板36':'頂板18'}</div></div>
+    </div>`;
+  }
+  if(!V&&cab.hasDrawer)subs+=`<div class="sub-panel">
+    <div class="field"><label>抽屜數量</label><input type="number" value="${cab.drawerCount}" min="1" onchange="updateCab(${cab.id},'drawerCount',+this.value)"></div>
+    <div class="field"><label>抽屜高度(mm)</label><input type="number" value="${cab.drawerH}" min="60" onchange="updateCab(${cab.id},'drawerH',+this.value)"></div>
+  </div>
+  <div style="margin-top:4px;font-size:10px;color:var(--text3);padding:0 2px">＋ 第二組抽屜（混合配置，如上抽+下門片）</div>
+  <div class="sub-panel" style="border-style:dashed">
+    <div class="field"><label style="display:flex;align-items:center;gap:6px">
+      <input type="checkbox" ${cab.hasDrawer2?'checked':''} onchange="updateCab(${cab.id},'hasDrawer2',this.checked)">
+      啟用第二組抽屜</label></div>
+    ${cab.hasDrawer2?`
+    <div class="field"><label>數量</label><input type="number" value="${cab.drawerCount2||1}" min="1" onchange="updateCab(${cab.id},'drawerCount2',+this.value)"></div>
+    <div class="field"><label>抽屜高度(mm)</label><input type="number" value="${cab.drawerH2||180}" min="60" onchange="updateCab(${cab.id},'drawerH2',+this.value)"></div>
+    `:''}
+  </div>`;
+  if(!V&&cab.hasSliding)subs+=`<div class="sub-panel">
+    <div class="field"><label>推拉門數量</label>
+      <input type="number" value="${cab.slidingCount||2}" min="1" max="6"
+        onchange="updateCab(${cab.id},'slidingCount',+this.value)">
+      <div class="hint">預設2片</div></div>
+  </div>`;
+  if(!V&&cab.hasFingerStop)subs+=`<div class="sub-panel">
+    <div class="field"><label>指縫擋板數量</label>
+      <input type="number" value="${cab.fingerStopCount||1}" min="1"
+        onchange="updateCab(${cab.id},'fingerStopCount',+this.value)"></div>
+    <div class="field"><label>指縫擋板高度 (mm)</label>
+      <input type="number" value="${cab.fingerStopH||60}" min="1"
+        onchange="updateCab(${cab.id},'fingerStopH',+this.value)">
+      <div class="hint">預設 60mm</div></div>
+  </div>`;
+  if(V&&cab.topCover)subs+=`<div class="sub-panel">
+    <div class="field"><label>左凸出 (mm)</label><input type="number" value="${cab.ovL||0}" onchange="updateCab(${cab.id},'ovL',+this.value)"></div>
+    <div class="field"><label>右凸出 (mm)</label><input type="number" value="${cab.ovR||0}" onchange="updateCab(${cab.id},'ovR',+this.value)"></div>
+    <div class="field"><label>前凸出 (mm)</label><input type="number" value="${cab.ovF||0}" onchange="updateCab(${cab.id},'ovF',+this.value)"><div class="hint">頂板蓋住側板，側板=H−板厚</div></div>
+  </div>`;
+  if(cab.hasCountertop)subs+=`<div class="sub-panel">
+    <div class="field"><label>長 (${unit})</label><input type="number" value="${cab.countertopL||''}" placeholder="0" onchange="updateCab(${cab.id},'countertopL',+this.value)"></div>
+    <div class="field"><label>寬 (${unit})</label><input type="number" value="${cab.countertopW||''}" placeholder="0" onchange="updateCab(${cab.id},'countertopW',+this.value)"></div>
+    <div class="field"><label>板厚 (mm)</label><input type="number" value="${cab.countertopT||18}" min="1" onchange="updateCab(${cab.id},'countertopT',+this.value)"></div>
+    <div class="field"><label>數量</label><input type="number" value="${cab.countertopQty||1}" min="1" onchange="updateCab(${cab.id},'countertopQty',+this.value)"></div>
+  </div>`;
+  if(cab.hasExtraShelf)subs+=`<div class="sub-panel">
+    <div class="field"><label>長 (${unit})</label><input type="number" value="${cab.extraShelfL||''}" placeholder="0" onchange="updateCab(${cab.id},'extraShelfL',+this.value)"></div>
+    <div class="field"><label>寬 (${unit})</label><input type="number" value="${cab.extraShelfW||''}" placeholder="0" onchange="updateCab(${cab.id},'extraShelfW',+this.value)"></div>
+    <div class="field"><label>板厚 (mm)</label><input type="number" value="${cab.extraShelfT||18}" min="1" onchange="updateCab(${cab.id},'extraShelfT',+this.value)"></div>
+    <div class="field"><label>數量</label><input type="number" value="${cab.extraShelfQty||1}" min="1" onchange="updateCab(${cab.id},'extraShelfQty',+this.value)"></div>
+    <div class="hint" style="grid-column:span 4">工資自動帶入F25：寬度×數量÷10 cm</div>
+  </div>`;
+
+  // Store overrides on cab if not exist
+  if(!cab._overrides)cab._overrides={};
+  let trows='';
+  if(parts.length){
+    trows=parts.map((p,ri)=>{
+      const key=p.name+ri;
+      const ov=cab._overrides[key]||{};
+      const w=ov.w!==undefined?ov.w:p.w;
+      const h=ov.h!==undefined?ov.h:p.h;
+      const qty=ov.qty!==undefined?ov.qty:p.qty;
+      const rawCp=w*h/90000;
+      const cp=rawCp<1.5?1.5:rawCp;
+      const sub=Math.round(cp*qty*100)/100;
+      return `<tr style="background:${ri%2===0?'#f9f8f6':'#fff'}">
+        <td style="font-size:11px">${p.name}${p.badge==='8mm'?'<span class="tag8">8mm</span>':p.badge?'<span class="tag18">'+p.badge+'</span>':''}</td>
+        <td class="mono r" style="padding:2px 4px">
+          <input class="cell-input" type="number" value="${w}" min="1"
+            style="width:52px;text-align:right"
+            onchange="overridePart(${cab.id},'${key}','w',+this.value)">
+          ×
+          <input class="cell-input" type="number" value="${h}" min="1"
+            style="width:52px;text-align:right"
+            onchange="overridePart(${cab.id},'${key}','h',+this.value)">
+        </td>
+        <td class="mono r" style="padding:2px 4px">
+          <input class="cell-input" type="number" value="${qty}" min="1"
+            style="width:36px;text-align:right"
+            onchange="overridePart(${cab.id},'${key}','qty',+this.value)">
+        </td>
+        <td class="mono r" id="cp-${cab.id}-${ri}">${cp.toFixed(2)}</td>
+        <td class="mono r" id="sub-${cab.id}-${ri}">${sub.toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+    // total
+    const grandSub=parts.map((p,ri)=>{
+      const key=p.name+ri;const ov=cab._overrides[key]||{};
+      const w=ov.w!==undefined?ov.w:p.w;const h=ov.h!==undefined?ov.h:p.h;
+      const qty=ov.qty!==undefined?ov.qty:p.qty;
+      const rawCp=w*h/90000;const cp=rawCp<1.5?1.5:rawCp;
+      return Math.round(cp*qty*100)/100;
+    }).reduce((a,b)=>a+b,0);
+    const grandQty=parts.map((p,ri)=>{const key=p.name+ri;const ov=cab._overrides[key]||{};return ov.qty!==undefined?ov.qty:p.qty;}).reduce((a,b)=>a+b,0);
+    trows+=`<tr class="total-row"><td colspan="2">合計</td><td class="mono r">${grandQty}</td><td></td><td class="mono r">${grandSub.toFixed(2)}</td></tr>`;
+  }
+
+  const T=parseInt(cab.boardThickness)||18;
+  const xpRows=(cab.extraParts||[]).map((x,i)=>`<div class="xp-row">
+      <input value="${x.name||''}" placeholder="名稱（例：封板）" style="font-family:'Noto Sans TC',sans-serif" onchange="xpSet(${cab.id},${i},'name',this.value)">
+      <input type="number" value="${x.L||''}" placeholder="長" onchange="xpSet(${cab.id},${i},'L',+this.value)"><span>×</span>
+      <input type="number" value="${x.W||''}" placeholder="寬" onchange="xpSet(${cab.id},${i},'W',+this.value)">
+      <select onchange="xpSet(${cab.id},${i},'t',+this.value)">${[18,8,25,36].map(t=>`<option value="${t}" ${(x.t||18)==t?'selected':''}>${t}mm</option>`).join('')}</select>
+      <input type="number" value="${x.qty||1}" min="1" onchange="xpSet(${cab.id},${i},'qty',+this.value)">
+      <button class="btn-rm" onclick="xpDel(${cab.id},${i})">✕</button></div>`).join('');
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div class="mode-sw">
+        <button class="${V?'on':''}" onclick="updateCab(${cab.id},'mode','visual')">✏️ 畫圖模式</button>
+        <button class="${V?'':'on'}" onclick="updateCab(${cab.id},'mode','quick')">⚡ 快速模式</button>
+      </div>
+      <span class="vhint">${V?'在模擬圖上切格子、放層板與抽屜，板材自動算':'填數量與高度的簡易算法'}</span>
+    </div>
+    <div>
+      <div class="fsec-title">基本尺寸</div>
+      <div class="fgrid">
+        <div class="field" style="grid-column:span 2"><label>櫃名稱</label>
+          <input value="${cab.name}" style="font-family:'Noto Sans TC',sans-serif" onchange="updateCab(${cab.id},'name',this.value)"></div>
+        <div class="field"><label>寬 W (${unit})</label><input type="number" value="${cab.W}" placeholder="800" onchange="updateCab(${cab.id},'W',+this.value)"></div>
+        <div class="field"><label>高 H (${unit})</label><input type="number" value="${cab.H}" placeholder="2310" onchange="updateCab(${cab.id},'H',+this.value)"></div>
+        <div class="field"><label>深 D (${unit})</label><input type="number" value="${cab.D}" placeholder="380" onchange="updateCab(${cab.id},'D',+this.value)"><div class="hint">不含門片，+20前凸不計</div></div>
+        <div class="field"><label>踢腳高 (mm)</label><input type="number" value="${cab.kick}" placeholder="100" onchange="updateCab(${cab.id},'kick',+this.value)"></div>
+      </div>
+    </div>
+    <div>
+      <div class="fsec-title">板材規格</div>
+      <div class="fgrid-2">
+        <div class="field"><label>板材厚度</label>
+          <select onchange="updateCab(${cab.id},'boardThickness',+this.value)">
+            <option value="18" ${cab.boardThickness==18?'selected':''}>18 mm</option>
+            <option value="25" ${cab.boardThickness==25?'selected':''}>25 mm</option>
+            <option value="36" ${cab.boardThickness==36?'selected':''}>36 mm</option>
+          </select></div>
+        <div class="field"><label>背板厚度</label>
+          <select onchange="updateCab(${cab.id},'backThickness',+this.value)">
+            <option value="8" ${cab.backThickness==8?'selected':''}>8 mm（預設）</option>
+            <option value="18" ${cab.backThickness==18?'selected':''}>18 mm（特標）</option>
+          </select></div>
+      </div>
+    </div>
+    ${V?'':`<div>
+      <div class="fsec-title">層板</div>
+      <div class="fgrid-2">
+        <div class="field"><label>活格（活動層板）數量</label><input type="number" value="${cab.adjShelves}" min="0" onchange="updateCab(${cab.id},'adjShelves',+this.value)"></div>
+        <div class="field"><label>固隔（固定層板）數量</label><input type="number" value="${cab.fixShelves}" min="0" onchange="updateCab(${cab.id},'fixShelves',+this.value)"></div>
+      </div>
+    </div>`}
+    <div>
+      <div class="fsec-title">結構配件</div>
+      <div class="opts-grid">
+        ${V?`${opt('hasTop','有頂板')}${opt('topCover','頂板外蓋')}${opt('hasBottom','有底板')}${opt('noBack','無背板/背拉')}
+        ${opt('leftDrop','左側落（含踢腳）')}${opt('rightDrop','右側落（含踢腳）')}${opt('kickBoard','踢腳板（正面）')}
+        ${opt('hasBeautyBack','美背')}${opt('hasCountertop','台面板')}${opt('hasExtraShelf','外掛層板')}`
+        :`${opt('hasBottom','有底板')}${opt('leftDrop','左側落（含踢腳）')}${opt('rightDrop','右側落（含踢腳）')}
+        ${opt('kickBoard','踢腳板（正面）')}${opt('hasDoor','門片')}${opt('hasDivider','直立隔板')}
+        ${opt('hasDrawer','抽屜')}${opt('hasSliding','推拉門')}${opt('hasBeautyBack','美背')}${opt('hasFingerStop','指縫擋板')}${opt('hasCountertop','台面板')}${opt('hasExtraShelf','外掛層板')}`}
+      </div>
+      ${subs}
+    </div>
+    ${V?`<div>
+      <div class="fsec-title">櫃內模擬圖</div>
+      <div class="vthumb">
+        <div class="vthumb-img" onclick="wsOpen(${cab.id})" title="點一下開啟畫圖工作區">${vDraw(cab,{w:230,h:300},false)}</div>
+        <div class="vthumb-side">
+          <button class="btn-export" style="padding:9px 16px;font-size:13px" onclick="wsOpen(${cab.id})">✏️ 開啟畫圖工作區</button>
+          <div class="vhint">在工作區裡從左邊拖層板、中立板、吊衣桿、抽屜、門片進櫃子，尺寸直接在櫃子裡改。</div>
+          ${vCountsHTML(cab)}
+        </div>
+      </div>
+    </div>`:''}
+    <div>
+      <div class="fsec-title">其他板件（封板 / 散板 / 假門…，單位 mm）</div>
+      ${xpRows||'<div class="vhint" style="margin-bottom:6px">需要額外的板材（例如封板 200×307、散板檯面）可在這裡加</div>'}
+      <button class="vbtn" onclick="xpAdd(${cab.id})">＋ 新增板件</button>
+    </div>
+    <div>
+      <div class="fsec-title">組裝類別（影響工資）</div>
+      <div class="field" style="max-width:200px"><label>此櫃類型</label>
+        <select onchange="updateCab(${cab.id},'cabinetType',this.value)">
+          ${['高櫃','矮櫃','吊櫃','懸吊抽屜結構','疊櫃','特殊設計(H≥100)','特殊設計(H<100)'].map(t=>
+            `<option value="${t}" ${cab.cabinetType===t?'selected':''}>${t}</option>`).join('')}
+        </select></div>
+    </div>
+    <div>
+      <div class="dtitle">板材才數明細（長×深 mm）</div>
+      <div class="dwrap">
+        ${parts.length?`<table class="dt"><thead><tr>
+          <th>板材名稱</th><th class="r">尺寸</th><th class="r">數量</th><th class="r">才/片</th><th class="r">小計才</th>
+        </tr></thead><tbody>${trows}</tbody></table>`:'<div class="empty-table">請填入 W/H/D 後自動計算</div>'}
+      </div>
+    </div>
+    <div>
+      <div class="dtitle" style="color:var(--orange)">組裝工資明細</div>
+      ${buildWageDetail(cab)}
+    </div>`;
+}
+
+function buildWageDetail(cab){
+  const {lines,total}=calcCabWage(cab);
+  if(!lines.length)return'<div class="empty-table">請填入 W/H 及選擇櫃體類型</div>';
+  const rows=lines.map((l,ri)=>`<tr style="background:${ri%2===0?'#fff8f4':'#fff'}">
+    <td>${l.label}</td>
+    <td class="mono r">${l.qty}</td>
+    <td class="mono r">${l.unitPrice!=='-'?'$'+l.unitPrice:'-'}</td>
+    <td class="mono r" style="font-weight:600;color:var(--orange)">$${Math.round(l.subtotal).toLocaleString()}</td>
+  </tr>`).join('');
+  return`<div class="dwrap"><table class="dt">
+    <thead><tr>
+      <th>項目</th>
+      <th class="r">數量</th>
+      <th class="r">單價</th>
+      <th class="r" style="color:var(--orange)">小計</th>
+    </tr></thead>
+    <tbody>${rows}
+    <tr class="total-row" style="background:#fef0e6">
+      <td colspan="3" style="color:var(--orange);font-weight:600">工資小計</td>
+      <td class="mono r" style="color:var(--orange);font-weight:700;font-size:13px">$${Math.round(total).toLocaleString()}</td>
+    </tr></tbody>
+  </table></div>`;
+}
+
+
+function buildCabHTML(cab,idx,parts,totalCai,totalWage,T,hasData){
+  return `
+  <div class="cab-hdr" onclick="toggleCab(${cab.id})">
+    <div class="cab-num">${String(idx+1).padStart(2,'0')}</div>
+    <div class="cab-info">
+      <div class="cab-name-d" id="cab-name-${cab.id}">${cab.name}　<span style="font-size:11px;color:var(--text3);font-weight:400">${cab.cabinetType}${cab.mode==='visual'?' · 畫圖':''}</span></div>
+      <div class="cab-dim-d" id="cab-dim-${cab.id}">W${cab.W||'?'}×H${cab.H||'?'}×D${cab.D||'?'} ${unit} · T${T}mm</div>
+    </div>
+    <div class="pills">
+      <div class="pill ${hasData?'pill-green':'pill-zero'}" id="pill-cai-${cab.id}">${hasData?totalCai.toFixed(1)+' 才':'未填'}</div>
+      <div class="pill ${totalWage>0?'pill-orange':'pill-zero'}" id="pill-wage-${cab.id}">${totalWage>0?'$'+Math.round(totalWage).toLocaleString():'$0'}</div>
+    </div>
+    <button class="btn-rm" onclick="event.stopPropagation();removeCab(${cab.id})">✕</button>
+    <div class="chev ${cab._open?'open':''}" id="cab-chev-${cab.id}">▼</div>
+  </div>
+  <div class="cab-body ${cab._open?'open':''}" id="cab-body-${cab.id}">
+    <div class="cab-left" id="cab-left-${cab.id}">${buildCabLeft(cab,parts,totalCai)}</div>
+    <div class="cab-right">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);margin-bottom:10px">組裝配件數量</div>
+      ${buildWagePanel(cab)}
+    </div>
+  </div>`;
+}
+
+function getTotalDrawers(cab){
+  if(cab.mode==='visual')return vCounts(cab).dr;
+  const d1=(cab.hasDrawer?parseInt(cab.drawerCount)||0:0);
+  const d2=(cab.hasDrawer2?parseInt(cab.drawerCount2)||0:0);
+  return d1+d2;
+}
+
+function getF13(cab){
+  const total=getTotalDrawers(cab);
+  const f14=parseFloat(cab.acc['F14'])||0;
+  const f15=parseFloat(cab.acc['F15'])||0;
+  const f16=parseFloat(cab.acc['F16'])||0;
+  return Math.max(0, total-f14-f15-f16);
+}
+
+function buildWagePanel(cab){
+  const f13Auto=getF13(cab);
+  let html='';
+  ACCESSORY_DEFS.forEach(d=>{
+    if(d.sec){
+      html+=`<div class="wage-section-title">${d.sec}</div>`;
+      return;
+    }
+    const lv=getLevel();
+    const r=WAGE_RATES[d.code]?WAGE_RATES[d.code][lv]:0;
+
+    // F13: auto-calculated, read-only
+    if(d.code==='F13'){
+      html+=`<div class="wage-item">
+        <div class="wage-label">${d.label}
+          <small>自動 = 抽屜總數-F14-F15-F16　$${r}/${d.unit}</small>
+        </div>
+        <div class="wage-auto" style="background:var(--accent-light);border:1px solid #D9C7A7;color:var(--accent);height:28px;padding:0 6px;border-radius:var(--radius-sm);font-size:12px;font-family:'DM Mono',monospace;display:flex;align-items:center;justify-content:flex-end;width:70px">
+          ${f13Auto}
+        </div>
+      </div>`;
+      return;
+    }
+
+    const val=cab.acc[d.code]||0;
+    html+=`<div class="wage-item">
+      <div class="wage-label">${d.label}<small>${d.isEstimate?'元（直接填金額）':'$'+r+'/'+d.unit}</small></div>
+      <input class="${d.isEstimate?'wage-estimate':'wage-input'}"
+        type="number" min="0" value="${val||''}" placeholder="0"
+        onchange="updateAcc(${cab.id},'${d.code}',+this.value)">
+    </div>`;
+  });
+  return html;
+}
+
+function renderSummary(){
+  saveState();
+  let grandCai=0,grandPcs=0,grandWage=0;
+  const caiRows=[],wageRows=[];
+  cabinets.forEach(cab=>{
+    const parts=calcPartsFinal(cab);
+    const c=parts.reduce((s,p)=>s+p.sub,0);
+    const p=parts.reduce((s,p)=>s+p.qty,0);
+    const {total:w}=calcCabWage(cab);
+    grandCai+=c;grandPcs+=p;grandWage+=w;
+    caiRows.push({name:cab.name,c});
+    wageRows.push({name:cab.name,w});
+  });
+
+  // board
+  document.getElementById('grand-cai').textContent=grandCai.toFixed(1);
+  document.getElementById('grand-pcs').textContent=grandPcs;
+  document.getElementById('grand-spare').textContent=(grandCai*1.1).toFixed(1);
+  const maxC=Math.max(...caiRows.map(r=>r.c),0.001);
+  document.getElementById('per-cai-list').innerHTML=caiRows.map(r=>`
+    <div class="per-row">
+      <div class="per-name">${r.name}</div>
+      <div class="per-bar-bg"><div class="per-bar per-bar-green" style="width:${(r.c/maxC*100).toFixed(0)}%"></div></div>
+      <div class="per-val">${r.c.toFixed(1)}</div>
+    </div>`).join('');
+
+  // wage — min 10000
+  const effectiveWage=grandWage>0&&grandWage<10000?10000:grandWage;
+  document.getElementById('grand-wage').textContent=Math.round(effectiveWage).toLocaleString();
+  const warnEl=document.getElementById('wage-warn');
+  if(grandWage>0&&grandWage<10000){
+    warnEl.innerHTML=`<div class="warn-box">⚠️ 工資合計 $${Math.round(grandWage).toLocaleString()}，未滿一萬，自動補至 $10,000</div>`;
+  } else {
+    warnEl.innerHTML='';
+  }
+  const maxW=Math.max(...wageRows.map(r=>r.w),0.001);
+  document.getElementById('per-wage-list').innerHTML=wageRows.map(r=>`
+    <div class="per-row">
+      <div class="per-name">${r.name}</div>
+      <div class="per-bar-bg"><div class="per-bar per-bar-orange" style="width:${(r.w/maxW*100).toFixed(0)}%"></div></div>
+      <div class="per-val">$${Math.round(r.w).toLocaleString()}</div>
+    </div>`).join('');
+}
+
+// ── PRINT WINDOWS ──
+function openPrintWindow(type){
+  if(!cabinets.length){alert('請先新增櫃體');return;}
+  const projName=document.getElementById('proj-name').value||'（未填案場）';
+  const designer=document.getElementById('proj-designer').value||'';
+  const date=document.getElementById('proj-date').value||'';
+  const levelName=LEVEL_KEYS[getLevel()];
+
+  let grandCai=0,grandPcs=0,grandWage=0;
+  let bodyHTML='';
+
+  if(type==='board'){
+    cabinets.forEach((cab,idx)=>{
+      const parts=calcPartsFinal(cab);
+      const totalCai=parts.reduce((s,p)=>s+p.sub,0);
+      const totalPcs=parts.reduce((s,p)=>s+p.qty,0);
+      grandCai+=totalCai;grandPcs+=totalPcs;
+      const T=parseInt(cab.boardThickness)||18;
+      const BT=parseInt(cab.backThickness)||8;
+      const rows=parts.map((p,ri)=>`<tr style="background:${ri%2===0?'#f9f8f6':'#fff'}">
+        <td>${p.name}${p.badge?` (${p.badge})`:''}</td>
+        <td style="text-align:right;font-family:monospace">${p.w}×${p.h}</td>
+        <td style="text-align:right">${p.qty}</td>
+        <td style="text-align:right;font-family:monospace">${p.cp.toFixed(3)}</td>
+        <td style="text-align:right;font-family:monospace;font-weight:600">${p.sub.toFixed(2)}</td>
+      </tr>`).join('');
+      bodyHTML+=`<div style="margin-bottom:16px;break-inside:avoid">
+        <div style="background:#8A6D45;color:#fff;padding:7px 12px;border-radius:5px 5px 0 0;font-size:12px">
+          ${String(idx+1).padStart(2,'0')}　${cab.name}　W${cab.W}×H${cab.H}×D${cab.D} ${unit}　T${T}mm/背${BT}mm　<strong>${totalCai.toFixed(2)} 才</strong>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;border:1px solid #e2ddd6;border-top:none">
+          <thead><tr style="background:#f0ede8">
+            <th style="text-align:left;padding:5px 8px;border-bottom:1px solid #cfc9c0">板材名稱</th>
+            <th style="text-align:right;padding:5px 8px;border-bottom:1px solid #cfc9c0">尺寸(長×深mm)</th>
+            <th style="text-align:right;padding:5px 8px;border-bottom:1px solid #cfc9c0">數量</th>
+            <th style="text-align:right;padding:5px 8px;border-bottom:1px solid #cfc9c0">才/片</th>
+            <th style="text-align:right;padding:5px 8px;border-bottom:1px solid #cfc9c0">小計才</th>
+          </tr></thead>
+          <tbody>${rows}
+          <tr style="background:#F3EBDD;font-weight:600">
+            <td style="padding:5px 8px" colspan="2">合計</td>
+            <td style="text-align:right;padding:5px 8px">${totalPcs}</td><td></td>
+            <td style="text-align:right;padding:5px 8px;font-family:monospace">${totalCai.toFixed(2)}</td>
+          </tr></tbody>
+        </table></div>`;
+    });
+
+    const summaryHTML=`
+      <div style="background:#F3EBDD;border:1px solid #D9C7A7;border-radius:6px;padding:12px 16px;margin-bottom:20px;display:flex;gap:40px;flex-wrap:wrap">
+        <div><div style="font-size:10px;color:#6b6560;margin-bottom:2px">全案總才數</div>
+          <div style="font-size:32px;font-weight:300;font-family:monospace;color:#8A6D45">${grandCai.toFixed(1)}</div><div style="font-size:11px;color:#6b6560">才</div></div>
+        <div><div style="font-size:10px;color:#6b6560;margin-bottom:4px">板材片數</div><div style="font-size:18px;font-weight:500;font-family:monospace">${grandPcs}</div><div style="font-size:11px;color:#6b6560">片</div></div>
+        <div><div style="font-size:10px;color:#6b6560;margin-bottom:4px">備料才數(+10%)</div><div style="font-size:18px;font-weight:500;font-family:monospace">${(grandCai*1.1).toFixed(1)}</div><div style="font-size:11px;color:#6b6560">才</div></div>
+        <div><div style="font-size:10px;color:#6b6560;margin-bottom:4px">櫃體數量</div><div style="font-size:18px;font-weight:500;font-family:monospace">${cabinets.length}</div><div style="font-size:11px;color:#6b6560">個</div></div>
+      </div>`;
+
+    buildWindow('板材才數清單','#8A6D45',projName,designer,date,levelName,summaryHTML,bodyHTML,grandCai,null);
+
+  } else {
+    // wage
+    cabinets.forEach((cab,idx)=>{
+      const {lines,total}=calcCabWage(cab);
+      grandWage+=total;
+      const rows=lines.map((l,ri)=>`<tr style="background:${ri%2===0?'#fef8f3':'#fff'}">
+        <td style="padding:5px 8px">${l.label}</td>
+        <td style="text-align:right;padding:5px 8px;font-family:monospace">${l.qty}</td>
+        <td style="text-align:right;padding:5px 8px;font-family:monospace">${l.unitPrice!=='-'?'$'+l.unitPrice:'-'}</td>
+        <td style="text-align:right;padding:5px 8px;font-family:monospace;font-weight:600">$${Math.round(l.subtotal).toLocaleString()}</td>
+      </tr>`).join('');
+      bodyHTML+=`<div style="margin-bottom:16px;break-inside:avoid">
+        <div style="background:#b84d00;color:#fff;padding:7px 12px;border-radius:5px 5px 0 0;font-size:12px">
+          ${String(idx+1).padStart(2,'0')}　${cab.name}　${cab.cabinetType}　<strong>$${Math.round(total).toLocaleString()}</strong>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;border:1px solid #e2ddd6;border-top:none">
+          <thead><tr style="background:#fef0e6">
+            <th style="text-align:left;padding:5px 8px;border-bottom:1px solid #cfc9c0">項目</th>
+            <th style="text-align:right;padding:5px 8px;border-bottom:1px solid #cfc9c0">數量</th>
+            <th style="text-align:right;padding:5px 8px;border-bottom:1px solid #cfc9c0">單價</th>
+            <th style="text-align:right;padding:5px 8px;border-bottom:1px solid #cfc9c0">小計</th>
+          </tr></thead>
+          <tbody>${rows}
+          <tr style="background:#fef0e6;font-weight:600">
+            <td style="padding:5px 8px" colspan="3">小計</td>
+            <td style="text-align:right;padding:5px 8px;font-family:monospace">$${Math.round(total).toLocaleString()}</td>
+          </tr></tbody>
+        </table></div>`;
+    });
+
+    const effWage=grandWage>0&&grandWage<10000?10000:grandWage;
+    const warnHTML=grandWage>0&&grandWage<10000
+      ?`<div style="background:#fdecea;border:1px solid #eabab4;border-radius:5px;padding:10px 14px;margin-top:8px;font-size:12px;color:#c0392b">⚠️ 工資合計 $${Math.round(grandWage).toLocaleString()}，未滿一萬，自動補至 $10,000</div>`:'';
+
+    const summaryHTML=`
+      <div style="background:#fef0e6;border:1px solid #f0c49a;border-radius:6px;padding:12px 16px;margin-bottom:12px;display:flex;gap:40px;flex-wrap:wrap">
+        <div><div style="font-size:10px;color:#6b6560;margin-bottom:2px">全案工資總計</div>
+          <div style="font-size:32px;font-weight:300;font-family:monospace;color:#b84d00">$${Math.round(effWage).toLocaleString()}</div></div>
+        <div><div style="font-size:10px;color:#6b6560;margin-bottom:4px">會員等級</div><div style="font-size:18px;font-weight:500">${levelName}</div></div>
+        <div><div style="font-size:10px;color:#6b6560;margin-bottom:4px">櫃體數量</div><div style="font-size:18px;font-weight:500;font-family:monospace">${cabinets.length}</div><div style="font-size:11px;color:#6b6560">個</div></div>
+      </div>${warnHTML}`;
+
+    buildWindow('組裝工資清單','#b84d00',projName,designer,date,levelName,summaryHTML,bodyHTML,null,effWage);
+  }
+}
+
+function buildWindow(title,color,projName,designer,date,level,summaryHTML,bodyHTML,cai,wage){
+  const w=window.open('','_blank','width=900,height=700');
+  w.document.write(`<!DOCTYPE html><html lang="zh-TW"><head>
+  <meta charset="UTF-8"><title>${title}_${projName}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;font-size:12px;color:#1a1814;padding:20mm 18mm}
+    h1{font-size:17px;font-weight:500;margin-bottom:4px}
+    .meta{font-size:11px;color:#888;margin-bottom:16px;display:flex;gap:20px;flex-wrap:wrap}
+    @media print{
+      *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+      .no-print{display:none!important}
+      body{padding:10mm 12mm}
+    }
+  </style></head><body>
+  <div class="no-print" style="background:${color};color:#fff;padding:11px 18px;margin:-20mm -18mm 18px;display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:13px;font-weight:500">📄 ${title}　—　${projName}</span>
+    <button onclick="window.print()" style="background:#fff;color:${color};border:none;padding:7px 18px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">列印 / 儲存為 PDF</button>
+  </div>
+  <h1>${title}</h1>
+  <div class="meta">
+    <span>📋 ${projName}</span>
+    ${designer?`<span>設計師：${designer}</span>`:''}
+    ${date?`<span>日期：${date}</span>`:''}
+    <span>會員：${level}</span>
+    <span>單位：${unit}</span>
+  </div>
+  ${summaryHTML}
+  ${bodyHTML}
+  </body></html>`);
+  w.document.close();
+}
+
+</script>
+<script>
+// ════════════════════════════════════════════════
+//  畫圖模式 v2：酷家樂式工作區
+//  櫃內 = 空間樹。直切 = 中立板；橫切 = 固定層板 / 活動層板
+//  所有尺寸 mm，格寬、格高皆為「淨空」
+// ════════════════════════════════════════════════
+const V_ACC=[
+  {k:'basket',label:'拉籃'},{k:'sideBasket',label:'側拉籃'},{k:'pants',label:'吊褲架'},
+  {k:'mirror',label:'旋轉鏡'},{k:'peg',label:'洞洞板'},{k:'ledShelf',label:'崁燈層板'},
+  {k:'hidShelf',label:'隱藏層板'},{k:'front',label:'前擋'}
+];
+const V_DOOR=['外蓋','入柱','推拉','上掀','假門'];
+const V_DRK=['木抽屜','自組木抽屜','BLUM木抽屜','鋁型抽屜'];
+const VW={cid:null,armed:null,showParts:false,selBox:null};
+
+// 物件庫（小圖 + 文字）
+const ICO={
+  fix:'<rect x="5" y="12" width="38" height="6" fill="#C9B28C" stroke="#8A6D45" stroke-width=".7"/>',
+  adj:'<rect x="5" y="12" width="38" height="6" fill="#EADDC4" stroke="#B89B6B" stroke-width=".7"/><circle cx="9" cy="22" r="1.6" fill="#8A6D45"/><circle cx="39" cy="22" r="1.6" fill="#8A6D45"/>',
+  mid:'<rect x="21" y="2" width="6" height="26" fill="#C9B28C" stroke="#8A6D45" stroke-width=".7"/>',
+  front:'<rect x="5" y="13" width="38" height="4" fill="#CDB896"/><rect x="5" y="9" width="38" height="3" fill="#C9B28C" stroke="#8A6D45" stroke-width=".5"/>',
+  ledShelf:'<rect x="5" y="11" width="38" height="6" fill="#C9B28C" stroke="#8A6D45" stroke-width=".7"/><line x1="10" y1="20" x2="38" y2="20" stroke="#E9B949" stroke-width="2" stroke-linecap="round"/>',
+  hidShelf:'<rect x="5" y="13" width="38" height="5" fill="#EADDC4" stroke="#B89B6B" stroke-width=".7" stroke-dasharray="2 1.5"/>',
+  peg:'<rect x="9" y="3" width="30" height="24" rx="1" fill="#F3EBDD" stroke="#B89B6B" stroke-width=".7"/>'+[0,1,2].map(r=>[0,1,2,3].map(c=>`<circle cx="${15+c*6}" cy="${9+r*6}" r="1.1" fill="#B89B6B"/>`).join('')).join(''),
+  rod:'<line x1="6" y1="14" x2="42" y2="14" stroke="#6E5535" stroke-width="3" stroke-linecap="round"/><rect x="5" y="10" width="3" height="8" fill="#8A6D45"/><rect x="40" y="10" width="3" height="8" fill="#8A6D45"/>',
+  pants:'<rect x="8" y="6" width="32" height="3" fill="#8A6D45"/>'+[0,1,2,3,4].map(i=>`<line x1="${12+i*6}" y1="9" x2="${12+i*6}" y2="26" stroke="#B89B6B" stroke-width="1.4"/>`).join(''),
+  mirror:'<rect x="15" y="2" width="18" height="26" rx="2" fill="#E6EEF2" stroke="#8A9BA6" stroke-width=".8"/><line x1="19" y1="7" x2="24" y2="12" stroke="#fff" stroke-width="1.2"/>',
+  drawer:'<rect x="6" y="5" width="36" height="20" rx="2" fill="#EFE5D3" stroke="#B89B6B" stroke-width=".8"/><line x1="18" y1="15" x2="30" y2="15" stroke="#8A6D45" stroke-width="1.8" stroke-linecap="round"/>',
+  basket:'<rect x="7" y="7" width="34" height="18" rx="2" fill="none" stroke="#8A9BA6" stroke-width="1"/>'+[0,1,2,3,4].map(i=>`<line x1="${12+i*6}" y1="7" x2="${12+i*6}" y2="25" stroke="#A8B5BE" stroke-width=".8"/>`).join(''),
+  sideBasket:'<rect x="16" y="3" width="16" height="24" rx="2" fill="none" stroke="#8A9BA6" stroke-width="1"/>'+[0,1,2].map(i=>`<line x1="16" y1="${9+i*6}" x2="32" y2="${9+i*6}" stroke="#A8B5BE" stroke-width=".8"/>`).join(''),
+  'd外蓋':'<rect x="9" y="2" width="30" height="26" fill="#F3EBDD" stroke="#A88A5E" stroke-width=".8"/><line x1="34" y1="12" x2="34" y2="18" stroke="#8A6D45" stroke-width="1.6"/>',
+  'd入柱':'<rect x="9" y="2" width="30" height="26" fill="none" stroke="#8A6D45" stroke-width="1.4"/><rect x="12" y="5" width="24" height="20" fill="#F3EBDD" stroke="#A88A5E" stroke-width=".7"/>',
+  'd推拉':'<rect x="5" y="4" width="22" height="22" fill="#F3EBDD" stroke="#A88A5E" stroke-width=".8"/><rect x="21" y="4" width="22" height="22" fill="#EADDC4" stroke="#A88A5E" stroke-width=".8"/><path d="M14 15h-5m0 0l2-2m-2 2l2 2" stroke="#8A6D45" stroke-width=".9" fill="none"/>',
+  'd上掀':'<rect x="6" y="9" width="36" height="17" fill="#F3EBDD" stroke="#A88A5E" stroke-width=".8"/><path d="M24 7V2m0 0l-2 2m2-2l2 2" stroke="#8A6D45" stroke-width=".9" fill="none"/>',
+  'd假門':'<rect x="9" y="2" width="30" height="26" fill="#F3EBDD" stroke="#A88A5E" stroke-width=".8" stroke-dasharray="3 2"/>'
+};
+const V_LIB=[
+  {g:'板件',items:[['fix','固定層板'],['adj','活動層板'],['mid','中立板'],['front','前擋'],['ledShelf','崁燈層板'],['hidShelf','隱藏層板'],['peg','洞洞板']]},
+  {g:'衣通 / 收納',items:[['rod','吊衣桿'],['pants','吊褲架'],['mirror','旋轉鏡']]},
+  {g:'抽屜 / 拉籃',items:[['drawer','抽屜'],['basket','拉籃'],['sideBasket','側拉籃']]},
+  {g:'門片',items:[['d外蓋','外蓋門'],['d入柱','入柱門'],['d推拉','推拉門'],['d上掀','上掀門'],['d假門','假門']]}
+];
+const icon=(k,w=48,h=30)=>`<svg width="${w}" height="${h}" viewBox="0 0 48 30">${ICO[k]||''}</svg>`;
+
+function vNewLeaf(cab){cab._nid=(cab._nid||0)+1;return {id:cab._nid,type:'leaf',rod:false,rodTop:60,dr:null,acc:{},door:null};}
+// 舊版資料轉換：活格改成「切空間」、橫切補上層板種類
+function vMigrate(c,n){
+  if(n.type==='split'){
+    if(n.dir==='h'&&(!n.seps||n.seps.length!==n.children.length-1))n.seps=Array(n.children.length-1).fill('fix');
+    n.children.forEach(ch=>vMigrate(c,ch)); return;
+  }
+  if(n.adj>0&&!n.dr){
+    const k=n.adj|0, first=vNewLeaf(c);
+    first.rod=!!n.rod; first.rodTop=n.rodTop||60; first.acc=n.acc||{};
+    const kids=[first]; for(let i=0;i<k;i++)kids.push(vNewLeaf(c));
+    const id=n.id, door=n.door;
+    Object.keys(n).forEach(key=>delete n[key]);
+    Object.assign(n,{id,type:'split',dir:'h',sizes:kids.map(()=>null),seps:Array(k).fill('adj'),children:kids,door});
+    return;
+  }
+  delete n.adj; delete n.gaps;
+}
+function vEnsure(cab){
+  if(!cab.layout){cab._nid=0;cab.layout=vNewLeaf(cab);}
+  if(!cab._v2){vMigrate(cab,cab.layout);cab._v2=true;}
+  if(!cab.extraParts)cab.extraParts=[];
+  if(cab.hasTop===undefined)cab.hasTop=true;
+  if(cab._showDoor===undefined)cab._showDoor=true;
+  if(typeof cab._sel!=='string')cab._sel='n:'+cab.layout.id;
+}
+function vDims(cab){
+  const T=parseInt(cab.boardThickness)||18;
+  const W=toMM(cab.W),H=toMM(cab.H),D=toMM(cab.D);
+  const top=cab.hasTop===false?0:T, bot=cab.hasBottom?T:0;
+  return {T,W,H,D,top,bot,iw:W-2*T,ih:H-top-bot};
+}
+function vLayout(cab){
+  vEnsure(cab);
+  const d=vDims(cab), info={};
+  (function lay(n,x,y,w,h,p){
+    info[n.id]={n,p,r:{x,y,w,h}};
+    if(n.type!=='split')return;
+    const m=n.children.length, T=d.T;
+    const total=(n.dir==='v'?w:h)-(m-1)*T;
+    let fixed=0,autoN=0; n.sizes.forEach(v=>{if(v>0)fixed+=v;else autoN++;});
+    const a=autoN?(total-fixed)/autoN:0, sz=[];
+    let pos=n.dir==='v'?x:y;
+    n.children.forEach((c,i)=>{
+      const s=n.sizes[i]>0?n.sizes[i]:a; sz.push(s);
+      if(n.dir==='v')lay(c,pos,y,s,h,n); else lay(c,x,pos,w,s,n);
+      pos+=s+T;
+    });
+    info[n.id].sz=sz;
+  })(cab.layout,0,0,d.iw,d.ih,null);
+  return {d,info};
+}
+function vExt(r,d){const e=0.5;return{
+  l:r.x<e?d.T:d.T/2, r:Math.abs(r.x+r.w-d.iw)<e?d.T:d.T/2,
+  t:r.y<e?d.top:d.T/2, b:Math.abs(r.y+r.h-d.ih)<e?d.bot:d.T/2};}
+function vCover(r,d){const x=vExt(r,d);return{w:r.w+x.l+x.r,h:r.h+x.t+x.b,x};}
+function vDoorOwner(info,id){let q=info[id]&&info[id].n;while(q){if(q.door&&q.door.n>0)return q;const p=info[q.id].p;q=p;}return null;}
+function vDrawer(info,d,leaf){
+  const dr=leaf.dr; if(!dr||!(dr.n>0))return null;
+  const r=info[leaf.id].r;
+  const internal=!!vDoorOwner(info,leaf.id);
+  const fs=dr.fs?(parseFloat(dr.fsH)||0):0;
+  let fw,avail;
+  if(internal){fw=r.w-6;avail=r.h-fs;}
+  else{const c=vCover(r,d);fw=c.w-3;avail=c.h-fs;}
+  const fh=avail/dr.n-4;
+  const depth=parseFloat(dr.depth)>0?parseFloat(dr.depth):d.D-30;
+  return {internal,fw,fh,fs,depth,n:dr.n,kind:dr.kind||'木抽屜'};
+}
+// ── 板材（由 calcParts 呼叫）──
+function vParts(cab,add){
+  const {d,info}=vLayout(cab); const T=d.T,D=d.D;
+  if(!(d.iw>0&&d.ih>0))return;
+  Object.values(info).forEach(({n,r})=>{
+    if(n.type==='split'){
+      if(n.dir==='v')add('中立板',r.h,D-28,n.children.length-1);
+      else (n.seps||[]).forEach(t=>{ if(t==='adj')add('活格',r.w-1,D-38,1); else add('固格',r.w,D-28,1); });
+    } else {
+      const di=vDrawer(info,d,n);
+      if(di){
+        if(di.fs)add('指縫擋板',r.w,di.fs,1);
+        add(di.internal?'抽頭（內抽）':'抽頭',di.fh,di.fw,di.n);
+        const wH=di.fh-18;
+        add('左右抽牆',di.depth,wH,di.n*2);
+        add('前後抽牆',di.fw-T*2,wH,di.n*2);
+        add('抽底',di.fw-T*2,di.depth,di.n,'8mm');
+      }
+      const ac=n.acc||{};
+      if(ac.peg>0)add('洞洞板',r.h,r.w,ac.peg,'8mm');
+      if(ac.ledShelf>0)add('崁燈層板',r.w,D-28,ac.ledShelf);
+      if(ac.hidShelf>0)add('隱藏層板',r.w,D-28,ac.hidShelf);
+      if(ac.front>0)add('前擋',r.w,60,ac.front);
+    }
+    if(n.door&&n.door.n>0){
+      const k=n.door.kind||'外蓋', c=vCover(r,d), q=n.door.n;
+      if(k==='入柱')add('門片（入柱）',r.h-4,r.w/q-3,q);
+      else if(k==='推拉')add('推拉門片',c.h-4,r.w/q+50,q);
+      else add(k==='假門'?'假門板':k==='上掀'?'上掀門片':'門片（外蓋）',c.h-4,c.w/q-3,q);
+    }
+  });
+}
+function vHasKind(cab,k){
+  if(!cab.layout)return false;
+  let f=false;(function w(n){if(n.door&&n.door.n>0&&n.door.kind===k)f=true;if(n.children)n.children.forEach(w);})(cab.layout);
+  return f;
+}
+function vHasAdj(n){return n.type==='split'&&(((n.seps||[]).includes('adj'))||n.children.some(vHasAdj));}
+function vCounts(cab){
+  const out={adj:0,fix:0,mid:0,mid2:0,dr:0,doors:0,rods:[]};
+  if(cab.mode!=='visual'||!cab.layout||!(toMM(cab.W)>0&&toMM(cab.H)>0))return out;
+  const {info}=vLayout(cab);
+  Object.values(info).forEach(({n,r})=>{
+    if(n.type==='split'){
+      if(n.dir==='v'){const m=n.children.length-1;out.mid+=m;for(let i=0;i<m;i++)if(vHasAdj(n.children[i])&&vHasAdj(n.children[i+1]))out.mid2++;}
+      else (n.seps||[]).forEach(t=>t==='adj'?out.adj++:out.fix++);
+    } else {
+      if(n.dr&&n.dr.n>0)out.dr+=n.dr.n;
+      if(n.rod)out.rods.push(Math.round(r.w));
+    }
+    if(n.door&&n.door.n>0)out.doors+=n.door.n;
+  });
+  return out;
+}
+function vCountsHTML(cab){
+  const c=vCounts(cab);
+  const it=[['固定層板',c.fix,'片'],['活動層板',c.adj,'片'],['中立板',c.mid,'片'],['雙排孔',c.mid2,'片'],['抽屜',c.dr,'組'],['門片',c.doors,'片']]
+    .filter(x=>x[1]>0).map(x=>`<span>${x[0]} <b>${x[1]}</b> ${x[2]}</span>`);
+  c.rods.forEach(w=>it.push(`<span>吊衣桿 <b>${w}</b> mm</span>`));
+  return it.length?`<div class="vcount">${it.join('')}</div>`:'';
+}
+
+// ── 畫圖（act=true 為工作區，可操作；false 為清單縮圖）──
+function vDraw(cab,box,act){
+  const {d,info}=vLayout(cab);
+  if(!(d.W>0&&d.H>0&&d.D>0))return `<div class="empty-table" style="width:${act?340:220}px;border-radius:8px">先填入 寬 W / 高 H / 深 D<br>就會出現空櫃</div>`;
+  if(!(d.iw>0&&d.ih>0))return '<div class="empty-table">尺寸太小</div>';
+  const kick=parseFloat(cab.kick)||0;
+  const mL=act?48:24, mT=act?30:16, mR=act?26:8, mB=act?20:8;
+  const s=Math.max(0.02,Math.min((box.w-mL-mR)/d.W,(box.h-mT-mB)/(d.H+kick)));
+  const Wp=d.W*s,Hp=d.H*s,Kp=kick*s,Tp=d.T*s, ox=mL, oy=mT;
+  const vw=Math.ceil(Wp+mL+mR), vh=Math.ceil(Hp+Kp+mT+mB);
+  const ix=ox+Tp, iy=oy+d.top*s;
+  const P=v=>(+v).toFixed(1), R=v=>Math.round(v);
+  const PANEL='fill="#D9C7A7" stroke="#8A6D45" stroke-width="0.6"';
+  const TX='font-family="DM Mono,monospace" font-size="10" fill="#7A6A56"';
+  const sel=act?(cab._sel||''):'';
+  let g='',gTop='',lab='';
+  VW.selBox=null;
+  g+=`<rect x="${P(ox)}" y="${P(oy)}" width="${P(Wp)}" height="${P(Hp)}" fill="#FFFDF8"/>`;
+  if(kick>0)g+=`<rect x="${P(ix)}" y="${P(oy+Hp)}" width="${P(d.iw*s)}" height="${P(Kp)}" fill="${cab.kickBoard?'#E3D3B3':'#F1EADF'}" stroke="#B89B6B" stroke-width="0.5"/>`;
+  const sy=(d.top&&cab.topCover)?oy+Tp:oy;
+  g+=`<rect x="${P(ox)}" y="${P(sy)}" width="${P(Tp)}" height="${P(Hp-(sy-oy)+(cab.leftDrop?Kp:0))}" ${PANEL}/>`;
+  g+=`<rect x="${P(ox+Wp-Tp)}" y="${P(sy)}" width="${P(Tp)}" height="${P(Hp-(sy-oy)+(cab.rightDrop?Kp:0))}" ${PANEL}/>`;
+  if(d.top){
+    if(cab.topCover){const oL=(parseFloat(cab.ovL)||0)*s,oR=(parseFloat(cab.ovR)||0)*s;
+      g+=`<rect x="${P(ox-oL)}" y="${P(oy)}" width="${P(Wp+oL+oR)}" height="${P(Tp)}" ${PANEL}/>`;}
+    else g+=`<rect x="${P(ix)}" y="${P(oy)}" width="${P(d.iw*s)}" height="${P(Tp)}" ${PANEL}/>`;
+  }
+  if(d.bot)g+=`<rect x="${P(ix)}" y="${P(oy+Hp-Tp)}" width="${P(d.iw*s)}" height="${P(Tp)}" ${PANEL}/>`;
+  if(act){
+    g+=`<text x="${P(ox+Wp/2)}" y="16" text-anchor="middle" ${TX}>W ${R(d.W)}</text>`;
+    g+=`<text x="16" y="${P(oy+Hp/2)}" text-anchor="middle" ${TX} transform="rotate(-90 16 ${P(oy+Hp/2)})">H ${R(d.H)}${kick?' ＋ 踢腳 '+R(kick):''}</text>`;
+  }
+  const scr=r=>({X:ix+r.x*s,Y:iy+r.y*s,W:r.w*s,H:r.h*s});
+  const input=(x,y,val,fn,w=50)=>`<foreignObject x="${P(x-w/2)}" y="${P(y-11)}" width="${w}" height="23"><input xmlns="http://www.w3.org/1999/xhtml" class="vlab" style="width:${w-2}px" value="${R(val)}" onfocus="this.select()" onkeydown="if(event.key==='Enter')this.blur()" onchange="${fn}(this.value)"/></foreignObject>`;
+  const labelX=(n,info)=>{const it=info[n.id];if(n.type==='split'&&n.dir==='v')return labelX(n.children[0],info);return it.r.x+it.r.w/2;};
+  // 1) 空間（底層）
+  Object.values(info).forEach(({n,r})=>{
+    if(n.type!=='leaf')return;
+    const q=scr(r), on=sel==='n:'+n.id;
+    g+=`<rect ${act?`data-leaf="${n.id}"`:''} x="${P(q.X)}" y="${P(q.Y)}" width="${P(q.W)}" height="${P(q.H)}" fill="${on?'rgba(184,155,107,.20)':'rgba(255,255,255,0)'}" ${on?'stroke="#8A6D45" stroke-width="1.4" stroke-dasharray="5 3"':''}/>`;
+    if(on)VW.selBox={x:q.X,y:q.Y,w:q.W,h:q.H};
+    // 抽屜
+    const di=vDrawer(info,d,n);
+    if(di){
+      let yy=q.Y; const don=sel==='d:'+n.id;
+      if(di.fs){const fh=di.fs*s;g+=`<rect x="${P(q.X)}" y="${P(q.Y)}" width="${P(q.W)}" height="${P(fh)}" fill="#D9C7A7" pointer-events="none"/>`;yy+=fh;}
+      const each=(q.Y+q.H-yy)/di.n;
+      for(let i=0;i<di.n;i++){
+        const y0=yy+i*each;
+        g+=`<rect ${act?`data-dr="${n.id}"`:''} x="${P(q.X+1.5)}" y="${P(y0+1)}" width="${P(q.W-3)}" height="${P(Math.max(each-2,1))}" rx="1.5" fill="${don?'#E3D3B3':'#EFE5D3'}" stroke="${don?'#6E5535':'#B89B6B'}" stroke-width="${don?1.3:0.6}" style="cursor:pointer"/>`;
+        g+=`<line x1="${P(q.X+q.W/2-Math.min(14,q.W/5))}" y1="${P(y0+each/2)}" x2="${P(q.X+q.W/2+Math.min(14,q.W/5))}" y2="${P(y0+each/2)}" stroke="#8A6D45" stroke-width="1.4" stroke-linecap="round" pointer-events="none"/>`;
+      }
+      if(act&&each>16)g+=`<text x="${P(q.X+4)}" y="${P(yy+12)}" ${TX} pointer-events="none">抽頭 ${R(di.fh)}</text>`;
+      if(don)VW.selBox={x:q.X,y:yy,w:q.W,h:q.Y+q.H-yy};
+    }
+    // 吊衣桿
+    if(n.rod){
+      const top=Math.min(Math.max(parseFloat(n.rodTop)||60,0),r.h), yy=q.Y+top*s, ron=sel==='r:'+n.id;
+      g+=`<line x1="${P(q.X+4)}" y1="${P(yy)}" x2="${P(q.X+q.W-4)}" y2="${P(yy)}" stroke="${ron?'#B84D00':'#6E5535'}" stroke-width="${act?3:2}" stroke-linecap="round" pointer-events="none"/>`;
+      g+=`<rect x="${P(q.X+1)}" y="${P(yy-3)}" width="3" height="6" fill="#8A6D45" pointer-events="none"/><rect x="${P(q.X+q.W-4)}" y="${P(yy-3)}" width="3" height="6" fill="#8A6D45" pointer-events="none"/>`;
+      if(act){
+        g+=`<line data-rod="${n.id}" x1="${P(q.X+4)}" y1="${P(yy)}" x2="${P(q.X+q.W-4)}" y2="${P(yy)}" stroke="rgba(0,0,0,0)" stroke-width="12" style="cursor:ns-resize"/>`;
+        const lx=q.X+q.W-Math.min(34,q.W/2);
+        const fT=`vRodTopFn_${cab.id}_${n.id}`, fB=`vRodBotFn_${cab.id}_${n.id}`;
+        window[fT]=v=>vRodSet(cab.id,n.id,'top',v);
+        window[fB]=v=>vRodSet(cab.id,n.id,'bot',v);
+        lab+=input(lx,top*s>24?q.Y+top*s/2:yy-13,top,fT,44);
+        lab+=input(lx,(r.h-top)*s>24?yy+Math.min((r.h-top)*s/2,60):yy+13,r.h-top,fB,44);
+        if(ron)VW.selBox={x:q.X,y:yy-6,w:q.W,h:12};
+      }
+    }
+    // 其他物件
+    const tags=V_ACC.filter(a=>(n.acc||{})[a.k]>0).map(a=>a.label+((n.acc[a.k]>1)?'×'+n.acc[a.k]:''));
+    if(tags.length&&q.H>22)g+=`<text x="${P(q.X+q.W/2)}" y="${P(q.Y+q.H-7)}" text-anchor="middle" font-size="${act?11:9}" fill="#8A6D45" pointer-events="none">${tags.join('・')}</text>`;
+    if((n.acc||{}).front>0)g+=`<rect x="${P(q.X)}" y="${P(q.Y)}" width="${P(q.W)}" height="${P(Math.max(60*s,2))}" fill="#CDB896" opacity=".8" pointer-events="none"/>`;
+  });
+  // 2) 分隔板：中立板 / 固定層板 / 活動層板
+  Object.values(info).forEach(({n,r,sz})=>{
+    if(n.type!=='split')return;
+    const q=scr(r); let pos=0;
+    for(let i=0;i<sz.length-1;i++){
+      pos+=sz[i];
+      const t=n.dir==='v'?'mid':((n.seps||[])[i]||'fix');
+      const on=sel===`s:${n.id}:${i}`;
+      const fill=on?'#B89B6B':t==='adj'?'#EADDC4':'#C9B28C', st=on?'#6E5535':t==='adj'?'#B89B6B':'#8A6D45';
+      const th=Math.max(Tp,act?3:2);
+      if(n.dir==='v'){
+        const x=q.X+pos*s;
+        g+=`<rect x="${P(x)}" y="${P(q.Y)}" width="${P(th)}" height="${P(q.H)}" fill="${fill}" stroke="${st}" stroke-width="${on?1.2:0.5}"/>`;
+        if(act)g+=`<rect data-sep="${n.id}:${i}" data-dir="v" x="${P(x+th/2-6)}" y="${P(q.Y)}" width="12" height="${P(q.H)}" fill="rgba(0,0,0,0)" style="cursor:ew-resize"/>`;
+        if(on)VW.selBox={x:x,y:q.Y,w:th,h:q.H};
+      } else {
+        const y=q.Y+pos*s;
+        g+=`<rect x="${P(q.X)}" y="${P(y)}" width="${P(q.W)}" height="${P(th)}" fill="${fill}" stroke="${st}" stroke-width="${on?1.2:0.5}"/>`;
+        if(t==='adj'&&act){g+=`<circle cx="${P(q.X+4)}" cy="${P(y+th+2.5)}" r="1.6" fill="#8A6D45"/><circle cx="${P(q.X+q.W-4)}" cy="${P(y+th+2.5)}" r="1.6" fill="#8A6D45"/>`;}
+        if(act)g+=`<rect data-sep="${n.id}:${i}" data-dir="h" x="${P(q.X)}" y="${P(y+th/2-6)}" width="${P(q.W)}" height="12" fill="rgba(0,0,0,0)" style="cursor:ns-resize"/>`;
+        if(on)VW.selBox={x:q.X,y:y,w:q.W,h:th};
+      }
+      pos+=d.T;
+    }
+    // 尺寸輸入框（淨空）
+    if(act){
+      let p2=0;
+      n.children.forEach((ch,i)=>{
+        const v=sz[i];
+        const fn=`vGapFn_${cab.id}_${n.id}_${i}`; window[fn]=val=>vSetGap(cab.id,n.id,i,val);
+        if(n.dir==='h'){
+          const cy=q.Y+(p2+v/2)*s, cx=ix+labelX(ch,info)*s;
+          if(v*s>=18)lab+=input(cx,cy,v,fn);
+        } else {
+          const cx=q.X+(p2+v/2)*s, cy=q.Y+14;
+          if(v*s>=34)lab+=input(cx,Math.min(cy,q.Y+q.H/2),v,fn,46);
+        }
+        p2+=v+d.T;
+      });
+    }
+  });
+  // 3) 門片
+  if(cab._showDoor!==false)Object.values(info).forEach(({n,r})=>{
+    if(!n.door||!(n.door.n>0))return;
+    const k=n.door.kind||'外蓋', qn=n.door.n;
+    let x0,y0,w0,h0;
+    if(k==='入柱'){const q=scr(r);x0=q.X;y0=q.Y;w0=q.W;h0=q.H;}
+    else{const c=vCover(r,d);x0=ix+(r.x-c.x.l)*s;y0=iy+(r.y-c.x.t)*s;w0=c.w*s;h0=c.h*s;}
+    const pw=w0/qn;
+    for(let i=0;i<qn;i++)gTop+=`<rect x="${P(x0+i*pw+1)}" y="${P(y0+1)}" width="${P(pw-2)}" height="${P(h0-2)}" fill="none" stroke="#A88A5E" stroke-width="0.9" stroke-dasharray="6 3" pointer-events="none"/>`;
+    if(act)gTop+=`<text x="${P(x0+6)}" y="${P(y0+h0-6)}" font-size="10" fill="#A88A5E" pointer-events="none">${k}門 ×${qn}</text>`;
+  });
+  if(!act)return `<svg viewBox="0 0 ${vw} ${vh}" width="${vw}" height="${vh}">${g}${gTop}</svg>`;
+  VW.geom={ix,iy,s,vw,vh};
+  return `<div class="ws-stage" style="width:${vw}px;height:${vh}px"><svg id="ws-svg" viewBox="0 0 ${vw} ${vh}" width="${vw}" height="${vh}">${g}${gTop}${lab}</svg><div id="ws-mini"></div></div>`;
+}
+
+// ── 編輯核心 ──
+function vCab(cid){return cabinets.find(c=>c.id===cid);}
+function vSz(info,id){return info[id].sz.map(v=>Math.round(v));}
+function vFixLast(a){a[a.length-1]=null;return a;}
+function vCommit(cab){cab._overrides={};patchCabItem(cab,'__v');refreshWagePanel(cab);renderSummary();if(VW.cid===cab.id)wsRender();}
+function vRedraw(cab){if(VW.cid===cab.id)wsRender();}
+function vSelect(cid,key){const c=vCab(cid);if(!c)return;c._sel=key;vRedraw(c);}
+function vReplace(c,info,nid,nn){
+  const p=info[nid].p;
+  if(!p)c.layout=nn; else p.children[p.children.indexOf(info[nid].n)]=nn;
+}
+// 在空間裡插入分隔（同方向時併入上層，不多一層巢狀）
+function vInsertInto(c,info,leafId,dir,childSizes,seps){
+  const it=info[leafId], leaf=it.n, p=it.p, k=childSizes.length-1;
+  const news=[leaf]; for(let i=0;i<k;i++)news.push(vNewLeaf(c));
+  if(p&&p.dir===dir){
+    const idx=p.children.indexOf(leaf), sz=vSz(info,p.id);
+    p.children.splice(idx,1,...news);
+    sz.splice(idx,1,...childSizes.map(v=>Math.round(v)));
+    p.sizes=vFixLast(sz);
+    if(dir==='h'){if(!p.seps)p.seps=[];p.seps.splice(idx,0,...seps);}
+    return p;
+  }
+  c._nid=(c._nid||0)+1;
+  const sp={id:c._nid,type:'split',dir,sizes:vFixLast(childSizes.map(v=>Math.round(v))),seps:dir==='h'?seps.slice():null,children:news,door:leaf.door};
+  leaf.door=null;
+  vReplace(c,info,leafId,sp);
+  return sp;
+}
+function vHit(cab,mx,my){
+  const {info}=vLayout(cab);
+  for(const it of Object.values(info)){
+    if(it.n.type!=='leaf')continue;const r=it.r;
+    if(mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h)return {id:it.n.id,lx:mx-r.x,ly:my-r.y};
+  }
+  return null;
+}
+// 從物件庫放進空間
+function vDropItem(cid,leafId,kind,lx,ly){
+  const c=vCab(cid); const {d,info}=vLayout(c); const it=info[leafId]; if(!it)return;
+  const n=it.n, r=it.r, T=d.T;
+  if(kind==='fix'||kind==='adj'){
+    if(n.dr){alert('這個空間放了抽屜，請先移除抽屜，或放到別的空間');return;}
+    if(r.h<T+60){alert('空間太矮，放不下層板');return;}
+    let top=Math.round((ly==null?r.h/2:ly)-T/2); top=Math.max(30,Math.min(r.h-T-30,top));
+    vInsertInto(c,info,leafId,'h',[top,r.h-top-T],[kind]);
+    c._sel='n:'+leafId;
+  } else if(kind==='mid'){
+    if(r.w<T+80){alert('空間太窄，放不下中立板');return;}
+    let left=Math.round((lx==null?r.w/2:lx)-T/2); left=Math.max(40,Math.min(r.w-T-40,left));
+    const sp=vInsertInto(c,info,leafId,'v',[left,r.w-left-T],[]);
+    const owner=vDoorOwner(vLayout(c).info,sp.id);
+    if(owner&&owner.door.n>=2)vAlignCore(c,sp.id,owner.door.n,true);
+    c._sel='n:'+leafId;
+  } else if(kind==='rod'){
+    n.rod=true; n.rodTop=Math.max(30,Math.min(r.h-30,Math.round(ly==null?60:ly))); c._sel='r:'+leafId;
+  } else if(kind==='drawer'){
+    if(n.type!=='leaf')return;
+    if(n.dr)n.dr.n++; else n.dr={n:r.h>320?2:1,kind:'木抽屜',fs:false,fsH:60,depth:0};
+    c._sel='d:'+leafId;
+  } else if(kind.startsWith('d')&&V_DOOR.includes(kind.slice(1))){
+    const k=kind.slice(1), owner=vDoorOwner(info,leafId);
+    if(owner)owner.door.kind=k;
+    else{const cw=vCover(r,d).w; n.door={n:k==='推拉'?2:Math.max(1,Math.round(cw/420)),kind:k};}
+    c._sel='n:'+leafId;
+  } else {
+    if(!n.acc)n.acc={}; n.acc[kind]=(n.acc[kind]||0)+1; c._sel='n:'+leafId;
+  }
+  vCommit(c);
+}
+// 改某一格淨空：只動相鄰那一格
+function vSetGap(cid,sid,i,val){
+  const c=vCab(cid); const {info}=vLayout(c); const it=info[sid]; if(!it)return;
+  const sz=vSz(info,sid), m=sz.length, j=i+1<m?i+1:i-1, v=Math.round(parseFloat(val));
+  if(!(v>=0)){wsRender();return;}
+  const delta=v-sz[i]; sz[i]+=delta; sz[j]-=delta;
+  if(sz[i]<20||sz[j]<20){alert('相鄰空間會小於 20mm，請改小一點');wsRender();return;}
+  it.n.sizes=vFixLast(sz); vCommit(c);
+}
+function vDragSep(cab,key,mm){
+  const [sid,i]=key.split(':').map(Number);
+  const {info}=vLayout(cab); const it=info[sid]; if(!it)return;
+  const sz=vSz(info,sid); sz[i]+=mm; sz[i+1]-=mm;
+  if(sz[i]<20||sz[i+1]<20){wsRender();return;}
+  it.n.sizes=vFixLast(sz); vCommit(cab);
+}
+function vDelSep(cid,sid,i){
+  const c=vCab(cid); const {d,info}=vLayout(c); const it=info[sid]; if(!it)return;
+  const p=it.n, sz=vSz(info,sid), a=p.children[i], b=p.children[i+1];
+  const keep=a.type==='leaf'?a:(b.type==='leaf'?b:vNewLeaf(c));
+  p.children.splice(i,2,keep); sz.splice(i,2,sz[i]+d.T+sz[i+1]); if(p.seps)p.seps.splice(i,1);
+  if(p.children.length===1){if(!keep.door&&p.door)keep.door=p.door;vReplace(c,info,sid,keep);}
+  else p.sizes=vFixLast(sz);
+  c._sel='n:'+keep.id; vCommit(c);
+}
+function vSepType(cid,sid,i,t){const c=vCab(cid);const it=vLayout(c).info[sid];if(!it||!it.n.seps)return;it.n.seps[i]=t;vCommit(c);}
+function vEvenGroup(cid,sid){const c=vCab(cid);const it=vLayout(c).info[sid];if(!it)return;it.n.sizes=it.n.sizes.map(()=>null);vCommit(c);}
+function vEvenLeaf(cid,leafId){
+  const c=vCab(cid); const {d,info}=vLayout(c); const it=info[leafId]; if(!it)return;
+  const k=parseInt((document.getElementById('wp-even-n')||{}).value)||0;
+  const t=(document.getElementById('wp-even-t')||{}).value||'adj';
+  if(k<1){alert('片數至少 1');return;}
+  if(it.n.dr){alert('這個空間放了抽屜，請先移除抽屜');return;}
+  const each=(it.r.h-k*d.T)/(k+1);
+  if(each<20){alert('放不下這麼多片');return;}
+  vInsertInto(c,info,leafId,'h',Array(k+1).fill(each),Array(k).fill(t));
+  c._sel='n:'+leafId; vCommit(c);
+}
+// 中立板對齊門縫
+function vAlignCore(c,sid,n,silent){
+  const {d,info}=vLayout(c); const it=info[sid]; if(!it)return false;
+  const p=it.n, r=it.r, x=vExt(r,d), T=d.T, start=r.x-x.l, span=r.w+x.l+x.r, unit=span/n;
+  const sz=it.sz; let pos=r.x; const centers=[];
+  for(let k=0;k<sz.length-1;k++){pos+=sz[k];centers.push(pos+T/2);pos+=T;}
+  if(centers.length>n-1){if(!silent)alert('中立板比門縫多，無法全部對齊');return false;}
+  const used=new Set(), seams=[];
+  centers.forEach(cx=>{let best=null;for(let s=1;s<n;s++){if(used.has(s))continue;if(best===null||Math.abs(start+s*unit-cx)<Math.abs(start+best*unit-cx))best=s;}used.add(best);seams.push(best);});
+  seams.sort((a,b)=>a-b);
+  const m=sz.length, sizes=[];
+  for(let k=0;k<m;k++){
+    const L=k===0?r.x:start+seams[k-1]*unit+T/2, Rr=k===m-1?r.x+r.w:start+seams[k]*unit-T/2;
+    sizes.push(Math.round(Rr-L));
+  }
+  if(sizes.some(v=>v<20))return false;
+  p.sizes=vFixLast(sizes); return true;
+}
+function vAlign(cid,sid){
+  const c=vCab(cid); const n=parseInt((document.getElementById('wp-seam')||{}).value)||0;
+  if(n<2){alert('請填門片數（2 片以上）');return;}
+  if(vAlignCore(c,sid,n,false))vCommit(c);
+}
+function vRodSet(cid,leafId,which,val){
+  const c=vCab(cid); const it=vLayout(c).info[leafId]; if(!it)return;
+  let v=Math.round(parseFloat(val)); if(!(v>=0)){wsRender();return;}
+  if(which==='bot')v=it.r.h-v;
+  it.n.rodTop=Math.max(0,Math.min(it.r.h,v)); c._sel='r:'+leafId; vCommit(c);
+}
+function vDragRod(cab,leafId,mm){
+  const it=vLayout(cab).info[leafId]; if(!it)return;
+  it.n.rodTop=Math.max(0,Math.min(it.r.h,Math.round((parseFloat(it.n.rodTop)||60)+mm))); vCommit(cab);
+}
+function vDelRod(cid,leafId){const c=vCab(cid);const it=vLayout(c).info[leafId];it.n.rod=false;c._sel='n:'+leafId;vCommit(c);}
+function vDr(cid,leafId,key,val){const c=vCab(cid);const it=vLayout(c).info[leafId];if(!it||!it.n.dr)return;it.n.dr[key]=val;vCommit(c);}
+function vDelDr(cid,leafId){const c=vCab(cid);const it=vLayout(c).info[leafId];it.n.dr=null;c._sel='n:'+leafId;vCommit(c);}
+function vAcc(cid,leafId,k,val){const c=vCab(cid);const it=vLayout(c).info[leafId];if(!it)return;if(!it.n.acc)it.n.acc={};it.n.acc[k]=Math.max(0,parseInt(val)||0);vCommit(c);}
+function vDoorSet(cid,ownerId,key,val){const c=vCab(cid);const it=vLayout(c).info[ownerId];if(!it||!it.n.door)return;it.n.door[key]=val;if(!(it.n.door.n>0))it.n.door=null;vCommit(c);}
+function vDoorMove(cid,fromId,toId){const c=vCab(cid);const {info}=vLayout(c);const a=info[fromId],b=info[toId];if(!a||!b)return;
+  const dd=a.n.door; a.n.door=null;
+  (function clr(n){if(n!==b.n)n.door=null;if(n.children)n.children.forEach(clr);})(b.n);
+  b.n.door=dd; vCommit(c);}
+function vDoorDel(cid,ownerId){const c=vCab(cid);const it=vLayout(c).info[ownerId];if(it)it.n.door=null;vCommit(c);}
+function vClear(cid,leafId){const c=vCab(cid);const it=vLayout(c).info[leafId];if(!it)return;Object.assign(it.n,{rod:false,dr:null,acc:{}});vCommit(c);}
+function vReset(cid){const c=vCab(cid);if(!confirm('清空整個櫃內配置？'))return;c.layout=null;c._v2=false;c._sel=null;vEnsure(c);vCommit(c);}
+function vDeleteSel(cid){
+  const c=vCab(cid); const [t,a,b]=(c._sel||'').split(':');
+  if(t==='s')vDelSep(cid,+a,+b); else if(t==='r')vDelRod(cid,+a); else if(t==='d')vDelDr(cid,+a);
+}
+function vBind(){} // 清單縮圖不需互動
+
+// ════════ 工作區 ════════
+function wsOpen(cid){
+  const c=vCab(cid); if(!c)return;
+  if(c.mode!=='visual'){c.mode='visual';patchCabItem(c,'mode');}
+  vEnsure(c); VW.cid=cid; VW.armed=null;
+  const ws=document.getElementById('ws'); ws.classList.add('open'); document.body.style.overflow='hidden';
+  wsBuildLib(); wsRender();
+}
+function wsClose(){VW.cid=null;VW.armed=null;document.getElementById('ws').classList.remove('open');document.body.style.overflow='';}
+function wsBuildLib(){
+  document.getElementById('ws-lib').innerHTML=V_LIB.map(gp=>`<h4>${gp.g}</h4><div class="ws-grid">${gp.items.map(([k,l])=>
+    `<div class="ws-item ${VW.armed===k?'on':''}" draggable="true" data-kind="${k}" ondragstart="event.dataTransfer.setData('text/plain','${k}');event.dataTransfer.effectAllowed='copy'" onclick="wsArm('${k}')">${icon(k)}<div>${l}</div></div>`).join('')}</div>`).join('')
+    +`<div class="vhint" style="margin-top:12px">拖進櫃子裡的空間就放好了。<br>平板：先點物件，再點空間。</div>`;
+}
+function wsArm(k){VW.armed=VW.armed===k?null:k;wsBuildLib();const cv=document.querySelector('.ws-canvas');if(cv)cv.classList.toggle('armed',!!VW.armed);}
+function wsDim(key,val){updateCab(VW.cid,key,val);wsRender();}
+function wsRender(){
+  const c=vCab(VW.cid); if(!c){wsClose();return;}
+  vEnsure(c);
+  const T=parseInt(c.boardThickness)||18;
+  document.getElementById('ws-top').innerHTML=`
+    <button class="btn-outline" style="color:var(--text2);border-color:var(--border2)" onclick="wsClose()">← 回櫃體清單</button>
+    <div class="nm">${c.name}</div>
+    <div class="dim">
+      <label>W</label><input type="number" value="${c.W}" onchange="wsDim('W',+this.value)">
+      <label>H</label><input type="number" value="${c.H}" onchange="wsDim('H',+this.value)">
+      <label>D</label><input type="number" value="${c.D}" onchange="wsDim('D',+this.value)">
+      <label>踢腳</label><input type="number" value="${c.kick}" onchange="wsDim('kick',+this.value)">
+      <span>${unit} · 板厚 ${T}mm</span>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button class="btn-outline" style="color:var(--text2);border-color:var(--border2)" onclick="(function(){var x=vCab(VW.cid);x._showDoor=!x._showDoor;wsRender();})()">${c._showDoor!==false?'隱藏門片':'顯示門片'}</button>
+      <button class="btn-outline" style="color:var(--text2);border-color:var(--border2)" onclick="vReset(VW.cid)">清空配置</button>
+    </div>`;
+  const cv=document.getElementById('ws-canvas');
+  const bw=Math.max(320,cv.clientWidth-24), bh=Math.max(360,cv.clientHeight-24);
+  cv.innerHTML=vDraw(c,{w:bw,h:bh},true);
+  cv.classList.toggle('armed',!!VW.armed);
+  wsBindCanvas(c); wsMini(c);
+  document.getElementById('ws-props').innerHTML=wsProps(c);
+  const parts=calcPartsFinal(c), cai=parts.reduce((a,p)=>a+p.sub,0), pcs=parts.reduce((a,p)=>a+p.qty,0);
+  document.getElementById('ws-bar').innerHTML=`<span>此櫃 <b style="font-family:'DM Mono',monospace;color:var(--accent);font-size:15px">${cai.toFixed(1)}</b> 才</span>
+    <span><b style="font-family:'DM Mono',monospace">${pcs}</b> 片</span>${vCountsHTML(c).replace('class="vcount"','class="vcount" style="margin:0"')}
+    <button class="vbtn" style="margin-left:auto" onclick="VW.showParts=!VW.showParts;wsRender()">${VW.showParts?'收起板材明細 ▴':'板材明細 ▾'}</button>`;
+  const pp=document.getElementById('ws-parts');
+  pp.style.display=VW.showParts?'block':'none';
+  if(VW.showParts)pp.innerHTML=`<table class="dt"><thead><tr><th>板材</th><th class="r">尺寸 (mm)</th><th class="r">數量</th><th class="r">才/片</th><th class="r">小計才</th></tr></thead><tbody>${
+    parts.map(p=>`<tr><td>${p.name}${p.badge?` <span class="tag8">${p.badge}</span>`:''}</td><td class="mono r">${p.w} × ${p.h}</td><td class="mono r">${p.qty}</td><td class="mono r">${p.cp.toFixed(2)}</td><td class="mono r">${p.sub.toFixed(2)}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+function wsMini(c){
+  const m=document.getElementById('ws-mini'); const b=VW.selBox; if(!m||!b){if(m)m.style.display='none';return;}
+  const [t,a,i]=(c._sel||'').split(':'); let btn='';
+  if(t==='s')btn=`<button onclick="vEvenGroup(${c.id},${a})">⇕ 整組均佈</button><button onclick="vDelSep(${c.id},${a},${i})">🗑 刪除</button>`;
+  else if(t==='r')btn=`<button onclick="vDelRod(${c.id},${a})">🗑 刪除</button>`;
+  else if(t==='d')btn=`<button onclick="vDelDr(${c.id},${a})">🗑 刪除抽屜</button>`;
+  else if(t==='n'){const it=vLayout(c).info[+a];if(it&&it.n.type==='leaf'&&(it.n.rod||it.n.dr||Object.values(it.n.acc||{}).some(v=>v>0)))btn=`<button onclick="vClear(${c.id},${a})">清空此空間</button>`;}
+  if(!btn){m.style.display='none';return;}
+  m.innerHTML=btn; m.style.display='flex';
+  const g=VW.geom; let left=b.x+b.w+8, top=b.y-4;
+  if(left+150>g.vw){left=Math.max(4,b.x+b.w-150);top=b.y-34;}
+  m.style.left=left+'px'; m.style.top=Math.max(2,top)+'px';
+}
+function wsPt(svg,e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse());}
+function wsBindCanvas(c){
+  const svg=document.getElementById('ws-svg'); if(!svg)return;
+  const g=VW.geom, toMMpt=p=>({mx:(p.x-g.ix)/g.s,my:(p.y-g.iy)/g.s});
+  svg.addEventListener('pointerdown',e=>{
+    const t=e.target, ds=t.dataset||{};
+    if(t.tagName==='INPUT')return;
+    if(VW.armed){
+      const {mx,my}=toMMpt(wsPt(svg,e)); const h=vHit(c,mx,my);
+      if(h){const k=VW.armed;VW.armed=null;wsBuildLib();vDropItem(c.id,h.id,k,h.lx,h.ly);}
+      return;
+    }
+    if(ds.sep||ds.rod){
+      e.preventDefault(); try{t.setPointerCapture(e.pointerId);}catch(_){}
+      const p0=wsPt(svg,e), isX=ds.dir==='v'; let moved=0;
+      const mv=ev=>{const p=wsPt(svg,ev);moved=isX?p.x-p0.x:p.y-p0.y;
+        const tgt=ds.sep?svg.querySelectorAll(`[data-sep="${ds.sep}"]`):[t];
+        tgt.forEach(el=>el.setAttribute('transform',isX?`translate(${moved},0)`:`translate(0,${moved})`));};
+      const up=()=>{t.removeEventListener('pointermove',mv);t.removeEventListener('pointerup',up);t.removeEventListener('pointercancel',up);
+        const mm=Math.round(moved/g.s);
+        if(Math.abs(moved)>=3){ if(ds.sep){c._sel='s:'+ds.sep;vDragSep(c,ds.sep,mm);} else {c._sel='r:'+ds.rod;vDragRod(c,+ds.rod,mm);} }
+        else vSelect(c.id,ds.sep?'s:'+ds.sep:'r:'+ds.rod);};
+      t.addEventListener('pointermove',mv);t.addEventListener('pointerup',up);t.addEventListener('pointercancel',up);
+      return;
+    }
+    if(ds.dr){vSelect(c.id,'d:'+ds.dr);return;}
+    if(ds.leaf){vSelect(c.id,'n:'+ds.leaf);return;}
+  });
+  const stage=svg.parentNode;
+  stage.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';
+    const {mx,my}=toMMpt(wsPt(svg,e)); const h=vHit(c,mx,my);
+    svg.querySelectorAll('[data-leaf]').forEach(el=>el.classList.toggle('drop-on',!!h&&+el.dataset.leaf===h.id));};
+  stage.ondragleave=()=>svg.querySelectorAll('.drop-on').forEach(el=>el.classList.remove('drop-on'));
+  stage.ondrop=e=>{e.preventDefault();const k=e.dataTransfer.getData('text/plain');if(!k)return;
+    const {mx,my}=toMMpt(wsPt(svg,e)); const h=vHit(c,mx,my);
+    if(!h){alert('請放進櫃子裡面的空間');wsRender();return;}
+    vDropItem(c.id,h.id,k,h.lx,h.ly);};
+}
+// 右側屬性
+function wsProps(c){
+  const {d,info}=vLayout(c), R=v=>Math.round(v), id=c.id;
+  if(!(d.W>0&&d.H>0&&d.D>0))return '<div class="wp-hd">屬性</div><div class="vhint">在上方填入 W / H / D</div>';
+  const [t,a,b]=(c._sel||'').split(':'); let h='';
+  const doorSec=(leafId)=>{
+    const ow=vDoorOwner(info,leafId);
+    if(!ow)return `<div class="wp-sec"><b>門片</b><div class="vhint">從左邊把門片拖進來；拖到哪個空間，門片就蓋那個範圍</div></div>`;
+    const op=info[ow.id].p, scope=ow.id===c.layout.id?'整櫃':ow.id===leafId?'此空間':'上層範圍';
+    return `<div class="wp-sec"><b>門片 · 蓋${scope}</b>
+      <div class="wp-row"><span>片數</span><input class="vin" type="number" min="0" value="${ow.door.n}" onchange="vDoorSet(${id},${ow.id},'n',Math.max(0,+this.value))"></div>
+      <div class="wp-row"><span>種類</span><select class="vin" onchange="vDoorSet(${id},${ow.id},'kind',this.value)">${V_DOOR.map(k=>`<option ${ow.door.kind===k?'selected':''}>${k}</option>`).join('')}</select></div>
+      <div class="vrow">${op?`<button class="vbtn" onclick="vDoorMove(${id},${ow.id},${op.id})">↑ 擴大範圍</button>`:''}
+        ${ow.id!==leafId?`<button class="vbtn" onclick="vDoorMove(${id},${ow.id},${leafId})">只蓋此空間</button>`:''}
+        <button class="vbtn" onclick="vDoorDel(${id},${ow.id})">刪除門片</button></div></div>`;
+  };
+  if(t==='s'){
+    const it=info[+a]; if(!it){c._sel='n:'+c.layout.id;return wsProps(c);}
+    const n=it.n, i=+b, sz=it.sz, r=it.r;
+    if(n.dir==='h'){
+      const st=(n.seps||[])[i]||'fix';
+      h+=`<div class="wp-hd">${icon(st,40,24)}${st==='adj'?'活動層板':'固定層板'}</div>
+        <div class="seg"><button class="${st==='fix'?'on':''}" onclick="vSepType(${id},${n.id},${i},'fix')">固定層板</button><button class="${st==='adj'?'on':''}" onclick="vSepType(${id},${n.id},${i},'adj')">活動層板</button></div>
+        <div class="wp-sec"><b>位置（淨空）</b>
+          <div class="wp-row"><span>上方淨空</span><input class="vin" type="number" value="${R(sz[i])}" onchange="vSetGap(${id},${n.id},${i},this.value)"></div>
+          <div class="wp-row"><span>下方淨空</span><input class="vin" type="number" value="${R(sz[i+1])}" onchange="vSetGap(${id},${n.id},${i+1},this.value)"></div></div>
+        <div class="wp-sec"><b>板件尺寸</b><div class="wp-info">${st==='adj'?`${R(r.w-1)} × ${R(d.D-38)}`:`${R(r.w)} × ${R(d.D-28)}`} mm · ${d.T}mm</div></div>`;
+    } else {
+      const ow=vDoorOwner(info,n.id);
+      h+=`<div class="wp-hd">${icon('mid',40,24)}中立板</div>
+        <div class="wp-sec"><b>位置（淨寬）</b>
+          <div class="wp-row"><span>左側淨寬</span><input class="vin" type="number" value="${R(sz[i])}" onchange="vSetGap(${id},${n.id},${i},this.value)"></div>
+          <div class="wp-row"><span>右側淨寬</span><input class="vin" type="number" value="${R(sz[i+1])}" onchange="vSetGap(${id},${n.id},${i+1},this.value)"></div></div>
+        <div class="wp-sec"><b>對齊門縫</b>
+          <div class="wp-row"><span>門片數</span><input id="wp-seam" class="vin" type="number" min="2" value="${ow?ow.door.n:3}"></div>
+          <button class="vbtn pri" onclick="vAlign(${id},${n.id})">對齊門縫</button>
+          <div class="vhint">例：W1200 三片門 → 左 373 / 右 773</div></div>
+        <div class="wp-sec"><b>板件尺寸</b><div class="wp-info">${R(r.h)} × ${R(d.D-28)} mm · ${d.T}mm</div></div>`;
+    }
+    h+=`<div class="vrow" style="margin-top:4px"><button class="vbtn" onclick="vEvenGroup(${id},${n.id})">${n.dir==='h'?'整組均佈':'整組均分'}</button><button class="vbtn" onclick="vDelSep(${id},${n.id},${i})">🗑 刪除這片</button></div>`;
+    return h;
+  }
+  if(t==='r'){
+    const it=info[+a]; if(!it||!it.n.rod){c._sel='n:'+c.layout.id;return wsProps(c);}
+    const top=parseFloat(it.n.rodTop)||0;
+    return `<div class="wp-hd">${icon('rod',40,24)}吊衣桿</div>
+      <div class="wp-sec"><b>尺寸</b><div class="wp-row"><span>長度</span><span class="wp-info">${R(it.r.w)} mm</span></div></div>
+      <div class="wp-sec"><b>位置</b>
+        <div class="wp-row"><span>距上方</span><input class="vin" type="number" value="${R(top)}" onchange="vRodSet(${id},${it.n.id},'top',this.value)"></div>
+        <div class="wp-row"><span>距下方</span><input class="vin" type="number" value="${R(it.r.h-top)}" onchange="vRodSet(${id},${it.n.id},'bot',this.value)"></div></div>
+      <button class="vbtn" onclick="vDelRod(${id},${it.n.id})">🗑 刪除吊衣桿</button>`;
+  }
+  if(t==='d'){
+    const it=info[+a]; if(!it||!it.n.dr){c._sel='n:'+c.layout.id;return wsProps(c);}
+    const dr=it.n.dr, di=vDrawer(info,d,it.n);
+    return `<div class="wp-hd">${icon('drawer',40,24)}抽屜</div>
+      <div class="wp-sec"><b>設定</b>
+        <div class="wp-row"><span>數量</span><input class="vin" type="number" min="1" value="${dr.n}" onchange="vDr(${id},${it.n.id},'n',Math.max(1,+this.value))"></div>
+        <div class="wp-row"><span>種類</span><select class="vin" onchange="vDr(${id},${it.n.id},'kind',this.value)">${V_DRK.map(k=>`<option ${dr.kind===k?'selected':''}>${k}</option>`).join('')}</select></div>
+        <div class="wp-row"><span>抽屜深</span><input class="vin" type="number" value="${dr.depth||''}" placeholder="${R(d.D-30)}" onchange="vDr(${id},${it.n.id},'depth',+this.value)"></div>
+        <div class="wp-row"><span><label><input type="checkbox" ${dr.fs?'checked':''} onchange="vDr(${id},${it.n.id},'fs',this.checked)"> 指縫擋板</label></span>
+          ${dr.fs?`<select class="vin" onchange="vDr(${id},${it.n.id},'fsH',+this.value)">${[25,40,60,80].map(v=>`<option value="${v}" ${+dr.fsH===v?'selected':''}>取手 ${v}</option>`).join('')}</select>`:''}</div></div>
+      ${di?`<div class="wp-sec"><b>自動計算</b><div class="wp-info">${di.internal?'內抽（在門片後）':'外抽'}<br>抽頭 ${R(di.fh)} × ${R(di.fw)}<br>側牆 ${R(di.depth)} × ${R(di.fh-18)}</div></div>`:''}
+      ${doorSec(it.n.id)}
+      <button class="vbtn" onclick="vDelDr(${id},${it.n.id})">🗑 刪除抽屜</button>`;
+  }
+  // 空間
+  let it=info[+a]; if(!it){it=info[c.layout.id];c._sel='n:'+c.layout.id;}
+  if(it.n.type!=='leaf'){const first=(function f(n){return n.type==='leaf'?n:f(n.children[0]);})(it.n);it=info[first.id];c._sel='n:'+first.id;}
+  const n=it.n, r=it.r;
+  const items=[];
+  if(n.rod)items.push(`<div class="wp-item" onclick="vSelect(${id},'r:${n.id}')">${icon('rod',34,20)}<span>吊衣桿</span><em>${R(r.w)}mm</em></div>`);
+  if(n.dr)items.push(`<div class="wp-item" onclick="vSelect(${id},'d:${n.id}')">${icon('drawer',34,20)}<span>抽屜</span><em>×${n.dr.n}</em></div>`);
+  V_ACC.forEach(x=>{const q=(n.acc||{})[x.k];if(q>0)items.push(`<div class="wp-item">${icon(x.k,34,20)}<span>${x.label}</span><input class="vin" style="width:46px" type="number" min="0" value="${q}" onchange="vAcc(${id},${n.id},'${x.k}',this.value)"></div>`);});
+  h+=`<div class="wp-hd">空間</div>
+    <div class="wp-info" style="font-size:13px">淨寬 <b>${R(r.w)}</b> × 淨高 <b>${R(r.h)}</b> mm</div>
+    <div class="wp-sec"><b>均佈層板</b>
+      <div class="wp-row"><span>片數</span><input id="wp-even-n" class="vin" type="number" min="1" value="3"></div>
+      <div class="wp-row"><span>種類</span><select id="wp-even-t" class="vin"><option value="adj">活動層板</option><option value="fix">固定層板</option></select></div>
+      <button class="vbtn pri" onclick="vEvenLeaf(${id},${n.id})">在這個空間均佈</button></div>
+    <div class="wp-sec"><b>這個空間裡的物件</b>${items.length?items.join(''):'<div class="vhint">從左邊拖物件進來</div>'}</div>
+    ${doorSec(n.id)}`;
+  return h;
+}
+
+// ── 其他板件 ──
+function xpCommit(c){c._overrides={};patchCabItem(c,'__v');renderSummary();}
+function xpAdd(cid){const c=vCab(cid);if(!c.extraParts)c.extraParts=[];c.extraParts.push({name:'',L:'',W:'',t:18,qty:1});xpCommit(c);}
+function xpSet(cid,i,k,v){const c=vCab(cid);c.extraParts[i][k]=v;xpCommit(c);}
+function xpDel(cid,i){const c=vCab(cid);c.extraParts.splice(i,1);xpCommit(c);}
+
+// ── 自動存檔（重新整理不會不見）──
+const SAVE_KEY='caiEditor_v2';
+let _saveT=null;
+function saveState(){
+  clearTimeout(_saveT);
+  _saveT=setTimeout(()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify({
+    unit,cabinets,nextId,
+    proj:{name:document.getElementById('proj-name').value,designer:document.getElementById('proj-designer').value,
+      date:document.getElementById('proj-date').value,level:document.getElementById('proj-level').value}}));}catch(e){}},400);
+}
+function loadState(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY); if(!raw)return false;
+    const s=JSON.parse(raw); if(!s||!Array.isArray(s.cabinets))return false;
+    cabinets=s.cabinets; nextId=s.nextId||(cabinets.reduce((m,c)=>Math.max(m,c.id),0)+1);
+    const p=s.proj||{};
+    document.getElementById('proj-name').value=p.name||'';
+    document.getElementById('proj-designer').value=p.designer||'';
+    if(p.date)document.getElementById('proj-date').value=p.date;
+    if(p.level!==undefined)document.getElementById('proj-level').value=p.level;
+    unit=s.unit||'mm';
+    document.getElementById('btn-mm').classList.toggle('active',unit==='mm');
+    document.getElementById('btn-cm').classList.toggle('active',unit==='cm');
+    return true;
+  }catch(e){return false;}
+}
+function clearAll(){
+  if(!confirm('清空所有櫃體與案場資料？'))return;
+  cabinets=[];nextId=1;
+  ['proj-name','proj-designer'].forEach(i=>document.getElementById(i).value='');
+  renderAll();
+}
+
+document.addEventListener('keydown',e=>{
+  if(!VW.cid)return;
+  const tag=(e.target.tagName||'').toLowerCase(); if(tag==='input'||tag==='select'||tag==='textarea')return;
+  if(e.key==='Escape'){ if(VW.armed){VW.armed=null;wsBuildLib();wsRender();} else wsClose(); }
+  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();vDeleteSel(VW.cid);}
+});
+let _wsRT=null; window.addEventListener('resize',()=>{if(!VW.cid)return;clearTimeout(_wsRT);_wsRT=setTimeout(wsRender,150);});
+// init
+loadState();
+renderAll();
+</script>
+</body>
+</html>
