@@ -213,14 +213,14 @@ select.vin{text-align:left;width:auto;font-family:'Noto Sans TC',sans-serif}
 .vthumb-img{background:#FBF8F2;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px;cursor:pointer;transition:border-color .15s}
 .vthumb-img:hover{border-color:var(--accent)}
 .vthumb-side{flex:1;min-width:180px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
-#ws{position:fixed;inset:0;z-index:400;background:var(--bg);display:none;flex-direction:column}
+#ws{position:fixed;inset:0;z-index:400;background:var(--bg);display:none;flex-direction:column;overflow:hidden;height:100vh;height:100dvh}
 #ws.open{display:flex}
 #ws-top{min-height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:8px 14px;flex-wrap:wrap}
 #ws-top .nm{font-weight:700;font-size:15px}
 #ws-top .dim{display:flex;gap:5px;align-items:center;font-size:12px;color:var(--text2)}
 #ws-top .dim input{width:66px;height:30px;padding:0 6px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:'DM Mono',monospace;font-size:12px;background:var(--surface)}
 #ws-top .dim label{font-weight:600;color:var(--text3);margin-left:4px}
-.ws-body{flex:1;display:grid;grid-template-columns:206px minmax(0,1fr) 270px;min-height:0}
+.ws-body{flex:1;display:grid;grid-template-columns:206px minmax(0,1fr) 270px;grid-template-rows:minmax(0,1fr);min-height:0;overflow:hidden}
 #ws-lib{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:10px 12px 20px}
 #ws-lib h4{font-size:11px;color:var(--text3);margin:12px 0 6px;font-weight:700;letter-spacing:.06em}
 #ws-lib h4:first-child{margin-top:2px}
@@ -258,6 +258,13 @@ select.vin{text-align:left;width:auto;font-family:'Noto Sans TC',sans-serif}
 .vlab:hover{border-color:#8A6D45}
 .vlab:focus{outline:none;border-color:#8A6D45;box-shadow:0 0 0 2px rgba(138,109,69,.25)}
 @media(max-width:980px){.ws-body{grid-template-columns:150px minmax(0,1fr)}#ws-props{grid-column:1/-1;max-height:38vh;border-left:none;border-top:1px solid var(--border)}.ws-grid{grid-template-columns:1fr}}
+.wp-ck{display:flex;align-items:center;gap:6px;color:var(--text2);cursor:pointer;font-size:12px}
+.wp-ck input{width:15px;height:15px;accent-color:var(--accent)}
+.wp-cks{display:flex;flex-direction:column;gap:6px}
+.door-dirs{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.door-dirs button{border:1px solid var(--border2);background:#FFFDF8;border-radius:6px;padding:3px 6px;font-size:12px;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;display:flex;flex-direction:column;align-items:center;line-height:1.1;min-width:34px}
+.door-dirs button small{font-size:9px;color:var(--text3)}
+.door-dirs button:hover{border-color:var(--accent)}
 .xp-row{display:grid;grid-template-columns:1.4fr 70px 12px 70px 70px 52px 26px;gap:5px;align-items:center;margin-bottom:5px;font-size:11px;color:var(--text3)}
 .xp-row input,.xp-row select{height:28px;padding:0 6px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);font-size:12px;font-family:'DM Mono',monospace;width:100%}
 </style>
@@ -1486,13 +1493,31 @@ function vMigrate(c,n){
   }
   delete n.adj; delete n.gaps;
 }
+function vNorm(n){
+  if(n.type==='split'){n.children.forEach(vNorm);}
+  else{
+    if(n.dr){const r=n.dr;if(r.grip===undefined){r.grip=20;r.fsB=60;}if(!r.face)r.face='外蓋';}
+    if(n.frontH===undefined)n.frontH=60;
+  }
+  if(n.door){const dd=n.door;if(dd.grip===undefined)dd.grip=0;if(!dd.gripPos)dd.gripPos='top';
+    if(!Array.isArray(dd.dirs)||dd.dirs.length!==dd.n)dd.dirs=vDefaultDirs(dd.n);}
+}
+function vDefaultDirs(n){
+  // 鉸鍊邊：L=鉸鍊在左、R=鉸鍊在右。成對：左右、左右；奇數時第一片單開
+  const a=[]; let i=0;
+  if(n%2===1){a.push('L');i=1;}
+  for(;i<n;i+=2){a.push('L');if(i+1<n)a.push('R');}
+  return a.slice(0,n);
+}
+function vHingePer(h){return h<=900?2:h<=1600?3:h<=2200?4:5;}
 function vEnsure(cab){
   if(!cab.layout){cab._nid=0;cab.layout=vNewLeaf(cab);}
   if(!cab._v2){vMigrate(cab,cab.layout);cab._v2=true;}
+  vNorm(cab.layout);
   if(!cab.extraParts)cab.extraParts=[];
   if(cab.hasTop===undefined)cab.hasTop=true;
   if(cab._showDoor===undefined)cab._showDoor=true;
-  if(typeof cab._sel!=='string')cab._sel='n:'+cab.layout.id;
+  if(typeof cab._sel!=='string')cab._sel='';
 }
 function vDims(cab){
   const T=parseInt(cab.boardThickness)||18;
@@ -1529,14 +1554,16 @@ function vDrawer(info,d,leaf){
   const dr=leaf.dr; if(!dr||!(dr.n>0))return null;
   const r=info[leaf.id].r;
   const internal=!!vDoorOwner(info,leaf.id);
-  const fs=dr.fs?(parseFloat(dr.fsH)||0):0;
-  let fw,avail;
-  if(internal){fw=r.w-6;avail=r.h-fs;}
-  else{const c=vCover(r,d);fw=c.w-3;avail=c.h-fs;}
-  const fh=avail/dr.n-4;
+  const fs=!!dr.fs, fsB=fs?(parseFloat(dr.fsB)||60):0, grip=fs?(parseFloat(dr.grip)||20):0;
+  const face=internal?'內抽':(dr.face||'外蓋');
+  let fw,fh,cov;
+  if(face==='內抽'){fw=r.w-6;fh=(r.h-fsB)/dr.n-4;}
+  else if(face==='內崁'){fw=r.w-3;fh=(r.h-grip)/dr.n-3;}
+  else{cov=vCover(r,d);fw=cov.w-3;fh=(cov.h-grip)/dr.n-4;}
   const depth=parseFloat(dr.depth)>0?parseFloat(dr.depth):d.D-30;
-  return {internal,fw,fh,fs,depth,n:dr.n,kind:dr.kind||'木抽屜'};
+  return {internal,face,fw,fh,fs:fsB,fsB,grip,depth,n:dr.n,kind:dr.kind||'木抽屜',cov};
 }
+
 // ── 板材（由 calcParts 呼叫）──
 function vParts(cab,add){
   const {d,info}=vLayout(cab); const T=d.T,D=d.D;
@@ -1548,8 +1575,8 @@ function vParts(cab,add){
     } else {
       const di=vDrawer(info,d,n);
       if(di){
-        if(di.fs)add('指縫擋板',r.w,di.fs,1);
-        add(di.internal?'抽頭（內抽）':'抽頭',di.fh,di.fw,di.n);
+        if(di.fsB)add('指縫擋板',r.w,di.fsB,1);
+        add(di.face==='內抽'?'抽頭（內抽）':di.face==='內崁'?'抽頭（內崁）':'抽頭（外蓋）',di.fh,di.fw,di.n);
         const wH=di.fh-18;
         add('左右抽牆',di.depth,wH,di.n*2);
         add('前後抽牆',di.fw-T*2,wH,di.n*2);
@@ -1559,13 +1586,13 @@ function vParts(cab,add){
       if(ac.peg>0)add('洞洞板',r.h,r.w,ac.peg,'8mm');
       if(ac.ledShelf>0)add('崁燈層板',r.w,D-28,ac.ledShelf);
       if(ac.hidShelf>0)add('隱藏層板',r.w,D-28,ac.hidShelf);
-      if(ac.front>0)add('前擋',r.w,60,ac.front);
+      if(ac.front>0)add('前擋',r.w,parseFloat(n.frontH)||60,ac.front);
     }
     if(n.door&&n.door.n>0){
-      const k=n.door.kind||'外蓋', c=vCover(r,d), q=n.door.n;
-      if(k==='入柱')add('門片（入柱）',r.h-4,r.w/q-3,q);
+      const k=n.door.kind||'外蓋', c=vCover(r,d), q=n.door.n, gp=parseFloat(n.door.grip)||0;
+      if(k==='入柱')add('門片（入柱）',r.h-4-gp,r.w/q-3,q);
       else if(k==='推拉')add('推拉門片',c.h-4,r.w/q+50,q);
-      else add(k==='假門'?'假門板':k==='上掀'?'上掀門片':'門片（外蓋）',c.h-4,c.w/q-3,q);
+      else add(k==='假門'?'假門板':k==='上掀'?'上掀門片':'門片（外蓋）',c.h-4-gp,c.w/q-3,q);
     }
   });
 }
@@ -1576,7 +1603,7 @@ function vHasKind(cab,k){
 }
 function vHasAdj(n){return n.type==='split'&&(((n.seps||[]).includes('adj'))||n.children.some(vHasAdj));}
 function vCounts(cab){
-  const out={adj:0,fix:0,mid:0,mid2:0,dr:0,doors:0,rods:[]};
+  const out={adj:0,fix:0,mid:0,mid2:0,dr:0,doors:0,hinges:0,rods:[]};
   if(cab.mode!=='visual'||!cab.layout||!(toMM(cab.W)>0&&toMM(cab.H)>0))return out;
   const {info}=vLayout(cab);
   Object.values(info).forEach(({n,r})=>{
@@ -1587,13 +1614,13 @@ function vCounts(cab){
       if(n.dr&&n.dr.n>0)out.dr+=n.dr.n;
       if(n.rod)out.rods.push(Math.round(r.w));
     }
-    if(n.door&&n.door.n>0)out.doors+=n.door.n;
+    if(n.door&&n.door.n>0){out.doors+=n.door.n;const g=vDoorGeom(cab,n.id);if(g)out.hinges+=g.hinges;}
   });
   return out;
 }
 function vCountsHTML(cab){
   const c=vCounts(cab);
-  const it=[['固定層板',c.fix,'片'],['活動層板',c.adj,'片'],['中立板',c.mid,'片'],['雙排孔',c.mid2,'片'],['抽屜',c.dr,'組'],['門片',c.doors,'片']]
+  const it=[['固定層板',c.fix,'片'],['活動層板',c.adj,'片'],['中立板',c.mid,'片'],['雙排孔',c.mid2,'片'],['抽屜',c.dr,'組'],['門片',c.doors,'片'],['鉸鍊',c.hinges,'個']]
     .filter(x=>x[1]>0).map(x=>`<span>${x[0]} <b>${x[1]}</b> ${x[2]}</span>`);
   c.rods.forEach(w=>it.push(`<span>吊衣桿 <b>${w}</b> mm</span>`));
   return it.length?`<div class="vcount">${it.join('')}</div>`:'';
@@ -1605,7 +1632,7 @@ function vDraw(cab,box,act){
   if(!(d.W>0&&d.H>0&&d.D>0))return `<div class="empty-table" style="width:${act?340:220}px;border-radius:8px">先填入 寬 W / 高 H / 深 D<br>就會出現空櫃</div>`;
   if(!(d.iw>0&&d.ih>0))return '<div class="empty-table">尺寸太小</div>';
   const kick=parseFloat(cab.kick)||0;
-  const mL=act?48:24, mT=act?30:16, mR=act?26:8, mB=act?20:8;
+  const mL=act?48:24, mT=act?52:16, mR=act?26:8, mB=act?20:8;
   const s=Math.max(0.02,Math.min((box.w-mL-mR)/d.W,(box.h-mT-mB)/(d.H+kick)));
   const Wp=d.W*s,Hp=d.H*s,Kp=kick*s,Tp=d.T*s, ox=mL, oy=mT;
   const vw=Math.ceil(Wp+mL+mR), vh=Math.ceil(Hp+Kp+mT+mB);
@@ -1628,7 +1655,7 @@ function vDraw(cab,box,act){
   }
   if(d.bot)g+=`<rect x="${P(ix)}" y="${P(oy+Hp-Tp)}" width="${P(d.iw*s)}" height="${P(Tp)}" ${PANEL}/>`;
   if(act){
-    g+=`<text x="${P(ox+Wp/2)}" y="16" text-anchor="middle" ${TX}>W ${R(d.W)}</text>`;
+    g+=`<text x="${P(ox+Wp/2)}" y="14" text-anchor="middle" ${TX}>W ${R(d.W)}</text>`;
     g+=`<text x="16" y="${P(oy+Hp/2)}" text-anchor="middle" ${TX} transform="rotate(-90 16 ${P(oy+Hp/2)})">H ${R(d.H)}${kick?' ＋ 踢腳 '+R(kick):''}</text>`;
   }
   const scr=r=>({X:ix+r.x*s,Y:iy+r.y*s,W:r.w*s,H:r.h*s});
@@ -1643,16 +1670,22 @@ function vDraw(cab,box,act){
     // 抽屜
     const di=vDrawer(info,d,n);
     if(di){
-      let yy=q.Y; const don=sel==='d:'+n.id;
-      if(di.fs){const fh=di.fs*s;g+=`<rect x="${P(q.X)}" y="${P(q.Y)}" width="${P(q.W)}" height="${P(fh)}" fill="#D9C7A7" pointer-events="none"/>`;yy+=fh;}
-      const each=(q.Y+q.H-yy)/di.n;
+      const don=sel==='d:'+n.id;
+      if(di.fsB){g+=`<rect x="${P(q.X)}" y="${P(q.Y)}" width="${P(q.W)}" height="${P(Math.max(di.fsB*s,2))}" fill="#C9B28C" stroke="#8A6D45" stroke-width=".4" pointer-events="none"/>`;}
+      let fx,fy,fwp,fhAll;
+      if(di.face==='外蓋'){const ex=vExt(r,d);fx=ix+(r.x-ex.l)*s+1.5;fy=iy+(r.y-ex.t+di.grip)*s;fwp=di.cov.w*s-3;fhAll=(di.cov.h-di.grip)*s;}
+      else if(di.face==='內崁'){fx=q.X+1.5;fy=q.Y+di.grip*s;fwp=q.W-3;fhAll=q.H-di.grip*s;}
+      else{fx=q.X+3;fy=q.Y+di.fsB*s;fwp=q.W-6;fhAll=q.H-di.fsB*s;}
+      const each=fhAll/di.n, layer=di.face==='外蓋'?'top':'g';
+      let out='';
       for(let i=0;i<di.n;i++){
-        const y0=yy+i*each;
-        g+=`<rect ${act?`data-dr="${n.id}"`:''} x="${P(q.X+1.5)}" y="${P(y0+1)}" width="${P(q.W-3)}" height="${P(Math.max(each-2,1))}" rx="1.5" fill="${don?'#E3D3B3':'#EFE5D3'}" stroke="${don?'#6E5535':'#B89B6B'}" stroke-width="${don?1.3:0.6}" style="cursor:pointer"/>`;
-        g+=`<line x1="${P(q.X+q.W/2-Math.min(14,q.W/5))}" y1="${P(y0+each/2)}" x2="${P(q.X+q.W/2+Math.min(14,q.W/5))}" y2="${P(y0+each/2)}" stroke="#8A6D45" stroke-width="1.4" stroke-linecap="round" pointer-events="none"/>`;
+        const y0=fy+i*each;
+        out+=`<rect ${act?`data-dr="${n.id}"`:''} x="${P(fx)}" y="${P(y0+1)}" width="${P(fwp)}" height="${P(Math.max(each-2,1))}" rx="1.5" fill="${don?'#E3D3B3':'#EFE5D3'}" stroke="${don?'#6E5535':'#B89B6B'}" stroke-width="${don?1.3:0.7}" style="cursor:pointer"/>`;
+        out+=`<line x1="${P(fx+fwp/2-Math.min(14,fwp/5))}" y1="${P(y0+each/2)}" x2="${P(fx+fwp/2+Math.min(14,fwp/5))}" y2="${P(y0+each/2)}" stroke="#8A6D45" stroke-width="1.4" stroke-linecap="round" pointer-events="none"/>`;
       }
-      if(act&&each>16)g+=`<text x="${P(q.X+4)}" y="${P(yy+12)}" ${TX} pointer-events="none">抽頭 ${R(di.fh)}</text>`;
-      if(don)VW.selBox={x:q.X,y:yy,w:q.W,h:q.Y+q.H-yy};
+      if(act&&each>16)out+=`<text x="${P(fx+5)}" y="${P(fy+13)}" ${TX} pointer-events="none">抽頭 ${R(di.fh)}${di.face==='外蓋'?'':' · '+di.face}</text>`;
+      if(layer==='top')gTop+=out; else g+=out;
+      if(don)VW.selBox={x:fx,y:fy,w:fwp,h:fhAll};
     }
     // 吊衣桿
     if(n.rod){
@@ -1673,7 +1706,7 @@ function vDraw(cab,box,act){
     // 其他物件
     const tags=V_ACC.filter(a=>(n.acc||{})[a.k]>0).map(a=>a.label+((n.acc[a.k]>1)?'×'+n.acc[a.k]:''));
     if(tags.length&&q.H>22)g+=`<text x="${P(q.X+q.W/2)}" y="${P(q.Y+q.H-7)}" text-anchor="middle" font-size="${act?11:9}" fill="#8A6D45" pointer-events="none">${tags.join('・')}</text>`;
-    if((n.acc||{}).front>0)g+=`<rect x="${P(q.X)}" y="${P(q.Y)}" width="${P(q.W)}" height="${P(Math.max(60*s,2))}" fill="#CDB896" opacity=".8" pointer-events="none"/>`;
+    if((n.acc||{}).front>0)g+=`<rect x="${P(q.X)}" y="${P(q.Y)}" width="${P(q.W)}" height="${P(Math.max((parseFloat(n.frontH)||60)*s,2))}" fill="#C9B28C" stroke="#8A6D45" stroke-width=".4" pointer-events="none"/>`;
   });
   // 2) 分隔板：中立板 / 固定層板 / 活動層板
   Object.values(info).forEach(({n,r,sz})=>{
@@ -1709,23 +1742,28 @@ function vDraw(cab,box,act){
           const cy=q.Y+(p2+v/2)*s, cx=ix+labelX(ch,info)*s;
           if(v*s>=18)lab+=input(cx,cy,v,fn);
         } else {
-          const cx=q.X+(p2+v/2)*s, cy=q.Y+14;
-          if(v*s>=34)lab+=input(cx,Math.min(cy,q.Y+q.H/2),v,fn,46);
+          const cx=q.X+(p2+v/2)*s, cy=(r.y<0.5)?oy-15:q.Y+q.H-14;
+          if(v*s>=34)lab+=input(cx,cy,v,fn,46);
         }
         p2+=v+d.T;
       });
     }
   });
-  // 3) 門片
-  if(cab._showDoor!==false)Object.values(info).forEach(({n,r})=>{
-    if(!n.door||!(n.door.n>0))return;
-    const k=n.door.kind||'外蓋', qn=n.door.n;
-    let x0,y0,w0,h0;
-    if(k==='入柱'){const q=scr(r);x0=q.X;y0=q.Y;w0=q.W;h0=q.H;}
-    else{const c=vCover(r,d);x0=ix+(r.x-c.x.l)*s;y0=iy+(r.y-c.x.t)*s;w0=c.w*s;h0=c.h*s;}
-    const pw=w0/qn;
-    for(let i=0;i<qn;i++)gTop+=`<rect x="${P(x0+i*pw+1)}" y="${P(y0+1)}" width="${P(pw-2)}" height="${P(h0-2)}" fill="none" stroke="#A88A5E" stroke-width="0.9" stroke-dasharray="6 3" pointer-events="none"/>`;
-    if(act)gTop+=`<text x="${P(x0+6)}" y="${P(y0+h0-6)}" font-size="10" fill="#A88A5E" pointer-events="none">${k}門 ×${qn}</text>`;
+  // 3) 門片（虛線；鉸鍊點＋開向線；取手外露）
+  if(cab._showDoor!==false)Object.values(info).forEach(({n})=>{
+    const G=vDoorGeom(cab,n.id); if(!G)return;
+    const x0=ix+G.x0*s, y0=iy+G.top*s, w0=G.w0*s, h0=G.dh*s, pw=w0/G.n;
+    for(let i=0;i<G.n;i++){
+      const dx=x0+i*pw;
+      gTop+=`<rect x="${P(dx+1)}" y="${P(y0+1)}" width="${P(pw-2)}" height="${P(h0-2)}" fill="none" stroke="#A88A5E" stroke-width="0.9" stroke-dasharray="6 3" pointer-events="none"/>`;
+      if(G.per&&(G.kind==='外蓋'||G.kind==='入柱')){
+        const hL=G.dirs[i]==='L', hx=hL?dx+4:dx+pw-4, ox2=hL?dx+pw-3:dx+3;
+        if(act)gTop+=`<path d="M${P(ox2)} ${P(y0+3)} L${P(hx)} ${P(y0+h0/2)} L${P(ox2)} ${P(y0+h0-3)}" fill="none" stroke="#C8B08A" stroke-width=".7" stroke-dasharray="3 3" pointer-events="none"/>`;
+        for(let k=0;k<G.per;k++){const yy=G.per===1?y0+h0/2:y0+Math.min(12,h0*.1)+(h0-2*Math.min(12,h0*.1))*k/(G.per-1);
+          gTop+=`<circle cx="${P(hx)}" cy="${P(yy)}" r="${act?2.4:1.4}" fill="#8A6D45" pointer-events="none"/>`;}
+      }
+    }
+    if(act)gTop+=`<text x="${P(x0+6)}" y="${P(y0+h0-7)}" font-size="10" fill="#A88A5E" pointer-events="none">${G.kind}門 ×${G.n}${G.per?` · 鉸鍊 ${G.hinges}`:''}${G.grip?` · 取手 ${G.grip}`:''}</text>`;
   });
   if(!act)return `<svg viewBox="0 0 ${vw} ${vh}" width="${vw}" height="${vh}">${g}${gTop}</svg>`;
   VW.geom={ix,iy,s,vw,vh};
@@ -1781,7 +1819,8 @@ function vDropItem(cid,leafId,kind,lx,ly){
     c._sel='n:'+leafId;
   } else if(kind==='mid'){
     if(r.w<T+80){alert('空間太窄，放不下中立板');return;}
-    let left=Math.round((lx==null?r.w/2:lx)-T/2); left=Math.max(40,Math.min(r.w-T-40,left));
+    const first=!(it.p&&it.p.dir==='v');
+    let left=Math.round((first||lx==null?r.w/2:lx)-T/2); left=Math.max(40,Math.min(r.w-T-40,left));
     const sp=vInsertInto(c,info,leafId,'v',[left,r.w-left-T],[]);
     const owner=vDoorOwner(vLayout(c).info,sp.id);
     if(owner&&owner.door.n>=2)vAlignCore(c,sp.id,owner.door.n,true);
@@ -1790,12 +1829,15 @@ function vDropItem(cid,leafId,kind,lx,ly){
     n.rod=true; n.rodTop=Math.max(30,Math.min(r.h-30,Math.round(ly==null?60:ly))); c._sel='r:'+leafId;
   } else if(kind==='drawer'){
     if(n.type!=='leaf')return;
-    if(n.dr)n.dr.n++; else n.dr={n:r.h>320?2:1,kind:'木抽屜',fs:false,fsH:60,depth:0};
+    if(n.dr)n.dr.n++; else n.dr={n:r.h>320?2:1,kind:'木抽屜',face:'外蓋',fs:false,grip:20,fsB:60,depth:0};
     c._sel='d:'+leafId;
   } else if(kind.startsWith('d')&&V_DOOR.includes(kind.slice(1))){
     const k=kind.slice(1), owner=vDoorOwner(info,leafId);
-    if(owner)owner.door.kind=k;
-    else{const cw=vCover(r,d).w; n.door={n:k==='推拉'?2:Math.max(1,Math.round(cw/420)),kind:k};}
+    let ownerId;
+    if(owner){owner.door.kind=k;ownerId=owner.id;}
+    else{const cw=vCover(r,d).w, q=k==='推拉'?2:Math.max(1,Math.round(cw/420));
+      n.door={n:q,kind:k,dirs:vDefaultDirs(q),grip:0,gripPos:'top'};ownerId=leafId;}
+    vDoorSync(c,ownerId);
     c._sel='n:'+leafId;
   } else {
     if(!n.acc)n.acc={}; n.acc[kind]=(n.acc[kind]||0)+1; c._sel='n:'+leafId;
@@ -1877,7 +1919,99 @@ function vDelRod(cid,leafId){const c=vCab(cid);const it=vLayout(c).info[leafId];
 function vDr(cid,leafId,key,val){const c=vCab(cid);const it=vLayout(c).info[leafId];if(!it||!it.n.dr)return;it.n.dr[key]=val;vCommit(c);}
 function vDelDr(cid,leafId){const c=vCab(cid);const it=vLayout(c).info[leafId];it.n.dr=null;c._sel='n:'+leafId;vCommit(c);}
 function vAcc(cid,leafId,k,val){const c=vCab(cid);const it=vLayout(c).info[leafId];if(!it)return;if(!it.n.acc)it.n.acc={};it.n.acc[k]=Math.max(0,parseInt(val)||0);vCommit(c);}
-function vDoorSet(cid,ownerId,key,val){const c=vCab(cid);const it=vLayout(c).info[ownerId];if(!it||!it.n.door)return;it.n.door[key]=val;if(!(it.n.door.n>0))it.n.door=null;vCommit(c);}
+// ── 門片幾何：位置、門高、鉸鍊 ──
+function vDoorGeom(cab,nodeId){
+  const {d,info}=vLayout(cab); const it=info[nodeId]; if(!it||!it.n.door||!(it.n.door.n>0))return null;
+  const door=it.n.door, k=door.kind||'外蓋', r=it.r, q=door.n, gp=(k==='推拉'||k==='假門')?0:(parseFloat(door.grip)||0);
+  let x0,y0,w0,h0;
+  if(k==='入柱'){x0=r.x;y0=r.y;w0=r.w;h0=r.h;}
+  else{const c=vCover(r,d);x0=r.x-c.x.l;y0=r.y-c.x.t;w0=c.w;h0=c.h;}
+  const dh=h0-4-gp, top=door.gripPos==='bottom'?y0:y0+gp;
+  const per=(k==='外蓋'||k==='入柱')?vHingePer(dh):k==='上掀'?2:0;
+  return {kind:k,x0,y0,w0,h0,top,dh,n:q,dirs:door.dirs||vDefaultDirs(q),per,hinges:per*q,grip:gp};
+}
+function vNeedSeams(door){
+  if(!door||!(door.n>=2)||!['外蓋','入柱'].includes(door.kind||'外蓋'))return [];
+  const dirs=(door.dirs&&door.dirs.length===door.n)?door.dirs:vDefaultDirs(door.n), S=[];
+  for(let k=1;k<door.n;k++)if(dirs[k-1]==='R'||dirs[k]==='L')S.push(k);
+  return S;
+}
+function vClone(c,n){const m=JSON.parse(JSON.stringify(n));(function re(q){c._nid=(c._nid||0)+1;q.id=c._nid;q.door=null;(q.children||[]).forEach(re);})(m);return m;}
+function vDivCenters(info,N,T){const it=info[N.id];const sz=it.sz;let pos=it.r.x;const out=[];for(let k=0;k<sz.length-1;k++){pos+=sz[k];out.push(pos+T/2);pos+=T;}return out;}
+// 門片的鉸鍊邊落在門縫上 → 那裡一定要有中立板（自動補、自動對齊）
+function vDoorSync(c,ownerId){
+  let {d,info}=vLayout(c); let it=info[ownerId]; if(!it||!it.n.door)return;
+  const door=it.n.door, S=vNeedSeams(door);
+  const r=it.r, T=d.T;
+  const x=(door.kind==='入柱')?{l:0,r:0}:vExt(r,d), start=r.x-x.l, unit=(r.w+x.l+x.r)/Math.max(1,door.n);
+  const targets=S.map(k=>start+k*unit);
+  let N=it.n;
+  // 先移除「系統自動加、現在用不到、兩邊都空」的中立板
+  if(N.type==='split'&&N.dir==='v'){
+    const empty=q=>q.type==='leaf'&&!q.rod&&!q.dr&&!Object.values(q.acc||{}).some(v=>v>0);
+    const cur=vDivCenters(info,N,T), sz=info[N.id].sz.map(v=>Math.round(v));
+    for(let i=cur.length-1;i>=0;i--){
+      const near=targets.some(t=>Math.abs(cur[i]-t)<unit/2);
+      if(!near&&N.children[i+1]._auto&&empty(N.children[i])&&empty(N.children[i+1])){
+        sz.splice(i,2,sz[i]+T+sz[i+1]); N.children.splice(i,2,N.children[i]);
+      }
+    }
+    if(N.children.length===1){const only=N.children[0];only.door=N.door;delete only._auto;vReplace(c,info,N.id,only);vNorm(only);if(targets.length)vDoorSync(c,only.id);return;}
+    N.sizes=vFixLast(sz); ({d,info}=vLayout(c));
+  }
+  if(!S.length)return;
+  if(!(N.type==='split'&&N.dir==='v')){
+    const cols=[N].concat(targets.map(()=>{const q=N.type==='leaf'?vNewLeaf(c):vClone(c,N);q._auto=true;return q;}));
+    c._nid=(c._nid||0)+1;
+    const sp={id:c._nid,type:'split',dir:'v',sizes:cols.map(()=>null),seps:null,children:cols,door:N.door};
+    N.door=null; vReplace(c,info,ownerId,sp); N=sp; ({d,info}=vLayout(c));
+  } else {
+    for(let guard=0;guard<12;guard++){
+      const cur=vDivCenters(info,N,T);
+      const miss=targets.filter(t=>!cur.some(cc=>Math.abs(cc-t)<unit/2));
+      if(!miss.length)break;
+      const t=miss[0], sz=info[N.id].sz; let pos=r.x, idx=0;
+      for(idx=0;idx<sz.length;idx++){if(t<=pos+sz[idx])break;pos+=sz[idx]+T;}
+      idx=Math.min(idx,sz.length-1);
+      const ch=N.children[idx], left=Math.round(t-T/2-pos), right=Math.round(sz[idx]-left-T);
+      if(left<20||right<20)break;
+      const sz2=sz.map(v=>Math.round(v)); sz2.splice(idx,1,left,right);
+      const nw=ch.type==='leaf'?vNewLeaf(c):vClone(c,ch); nw._auto=true;
+      N.children.splice(idx,1,ch,nw);
+      N.sizes=vFixLast(sz2); ({d,info}=vLayout(c));
+    }
+  }
+  ({d,info}=vLayout(c)); it=info[N.id];
+  const cur=vDivCenters(info,N,T), used=new Set(), want=cur.slice();
+  targets.forEach(t=>{let bi=-1;cur.forEach((cc,i)=>{if(used.has(i))return;if(bi<0||Math.abs(cc-t)<Math.abs(cur[bi]-t))bi=i;});if(bi>=0){used.add(bi);want[bi]=t;}});
+  const m=N.children.length, sizes=[];
+  for(let k=0;k<m;k++){const L=k===0?it.r.x:want[k-1]+T/2, R=k===m-1?it.r.x+it.r.w:want[k]-T/2;sizes.push(Math.round(R-L));}
+  if(sizes.every(v=>v>=20))N.sizes=vFixLast(sizes);
+}
+// 抽屜橫向分列：自動加中立板（每列左右都要有鎖滑軌的立板）
+function vDrawerCols(cid,leafId){
+  const c=vCab(cid); const {d,info}=vLayout(c); const it=info[leafId]; if(!it||!it.n.dr)return;
+  const M=parseInt((document.getElementById('wp-dr-cols')||{}).value)||1;
+  if(M<2){alert('列數至少 2');return;}
+  const each=(it.r.w-(M-1)*d.T)/M; if(each<150){alert('每列會小於 150mm，太窄了');return;}
+  const dr=JSON.stringify(it.n.dr);
+  vInsertInto(c,info,leafId,'v',Array(M).fill(each),[]);
+  const {info:i2}=vLayout(c); const p=i2[leafId].p; const idx=p.children.indexOf(it.n);
+  for(let k=1;k<M;k++)p.children[idx+k].dr=JSON.parse(dr);
+  c._sel='d:'+leafId; vCommit(c);
+}
+function vDoorDir(cid,ownerId,i){
+  const c=vCab(cid); const it=vLayout(c).info[ownerId]; if(!it||!it.n.door)return;
+  const dd=it.n.door; dd.dirs=(dd.dirs||vDefaultDirs(dd.n)).slice(); dd.dirs[i]=dd.dirs[i]==='L'?'R':'L';
+  vDoorSync(c,ownerId); vCommit(c);
+}
+function vFrontH(cid,leafId,val){const c=vCab(cid);const it=vLayout(c).info[leafId];if(!it)return;it.n.frontH=Math.max(10,parseFloat(val)||60);vCommit(c);}
+function wsCab(key,val){const c=vCab(VW.cid);if(!c)return;updateCab(c.id,key,val);c._overrides={};wsRender();}
+function vDoorSet(cid,ownerId,key,val){const c=vCab(cid);const it=vLayout(c).info[ownerId];if(!it||!it.n.door)return;
+  const dd=it.n.door; dd[key]=val; if(key==='n')dd.dirs=vDefaultDirs(+val||0);
+  if(!(dd.n>0)){it.n.door=null;vCommit(c);return;}
+  if(key==='n'||key==='kind')vDoorSync(c,ownerId);
+  vCommit(c);}
 function vDoorMove(cid,fromId,toId){const c=vCab(cid);const {info}=vLayout(c);const a=info[fromId],b=info[toId];if(!a||!b)return;
   const dd=a.n.door; a.n.door=null;
   (function clr(n){if(n!==b.n)n.door=null;if(n.children)n.children.forEach(clr);})(b.n);
@@ -1896,10 +2030,11 @@ function wsOpen(cid){
   const c=vCab(cid); if(!c)return;
   if(c.mode!=='visual'){c.mode='visual';patchCabItem(c,'mode');}
   vEnsure(c); VW.cid=cid; VW.armed=null;
+  VW.scrollY=window.scrollY; window.scrollTo(0,0);
   const ws=document.getElementById('ws'); ws.classList.add('open'); document.body.style.overflow='hidden';
   wsBuildLib(); wsRender();
 }
-function wsClose(){VW.cid=null;VW.armed=null;document.getElementById('ws').classList.remove('open');document.body.style.overflow='';}
+function wsClose(){VW.cid=null;VW.armed=null;document.getElementById('ws').classList.remove('open');document.body.style.overflow='';if(VW.scrollY)window.scrollTo(0,VW.scrollY);}
 function wsBuildLib(){
   document.getElementById('ws-lib').innerHTML=V_LIB.map(gp=>`<h4>${gp.g}</h4><div class="ws-grid">${gp.items.map(([k,l])=>
     `<div class="ws-item ${VW.armed===k?'on':''}" draggable="true" data-kind="${k}" ondragstart="event.dataTransfer.setData('text/plain','${k}');event.dataTransfer.effectAllowed='copy'" onclick="wsArm('${k}')">${icon(k)}<div>${l}</div></div>`).join('')}</div>`).join('')
@@ -1981,7 +2116,10 @@ function wsBindCanvas(c){
     }
     if(ds.dr){vSelect(c.id,'d:'+ds.dr);return;}
     if(ds.leaf){vSelect(c.id,'n:'+ds.leaf);return;}
+    if(c._sel)vSelect(c.id,'');
   });
+  const cvEl=document.getElementById('ws-canvas');
+  cvEl.onpointerdown=e=>{if((e.target===cvEl||e.target.classList.contains('ws-stage'))&&c._sel&&!VW.armed)vSelect(c.id,'');};
   const stage=svg.parentNode;
   stage.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';
     const {mx,my}=toMMpt(wsPt(svg,e)); const h=vHit(c,mx,my);
@@ -1997,19 +2135,41 @@ function wsProps(c){
   const {d,info}=vLayout(c), R=v=>Math.round(v), id=c.id;
   if(!(d.W>0&&d.H>0&&d.D>0))return '<div class="wp-hd">屬性</div><div class="vhint">在上方填入 W / H / D</div>';
   const [t,a,b]=(c._sel||'').split(':'); let h='';
+  if(!t){
+    const ck=(k,l,dflt)=>`<label class="wp-ck"><input type="checkbox" ${(c[k]===undefined?dflt:c[k])?'checked':''} onchange="wsCab('${k}',this.checked)"> ${l}</label>`;
+    return `<div class="wp-hd">櫃體設定</div>
+      <div class="wp-info">${R(d.W)} × ${R(d.H)} × ${R(d.D)} mm${parseFloat(c.kick)?` · 踢腳 ${R(c.kick)}`:''}</div>
+      <div class="wp-sec"><b>側板 / 踢腳</b>
+        <div class="wp-cks">${ck('leftDrop','左側落（含踢腳）')}${ck('rightDrop','右側落（含踢腳）')}${ck('kickBoard','踢腳板（正面）')}</div>
+        <div class="vhint">側落：側板往下延伸到地面（＝H＋踢腳）</div></div>
+      <div class="wp-sec"><b>頂板 / 底板 / 背板</b>
+        <div class="wp-cks">${ck('hasTop','有頂板',true)}${ck('topCover','頂板外蓋')}${ck('hasBottom','有底板')}${ck('noBack','無背板 / 背拉')}${ck('hasBeautyBack','美背')}</div></div>
+      <div class="wp-sec"><b>板厚</b>
+        <div class="wp-row"><span>櫃體</span><select class="vin" onchange="wsCab('boardThickness',+this.value)">${[18,25,36].map(v=>`<option value="${v}" ${+c.boardThickness===v?'selected':''}>${v} mm</option>`).join('')}</select></div>
+        <div class="wp-row"><span>背板</span><select class="vin" onchange="wsCab('backThickness',+this.value)">${[8,18].map(v=>`<option value="${v}" ${+c.backThickness===v?'selected':''}>${v} mm</option>`).join('')}</select></div></div>
+      <div class="vhint">點櫃子裡的空間、層板、抽屜就能編輯那個東西；點空白處回到這裡。</div>`;
+  }
   const doorSec=(leafId)=>{
     const ow=vDoorOwner(info,leafId);
     if(!ow)return `<div class="wp-sec"><b>門片</b><div class="vhint">從左邊把門片拖進來；拖到哪個空間，門片就蓋那個範圍</div></div>`;
     const op=info[ow.id].p, scope=ow.id===c.layout.id?'整櫃':ow.id===leafId?'此空間':'上層範圍';
+    const G=vDoorGeom(c,ow.id), dd=ow.door, hk=(dd.kind==='外蓋'||dd.kind==='入柱');
+    const dirs=G?G.dirs:[];
     return `<div class="wp-sec"><b>門片 · 蓋${scope}</b>
-      <div class="wp-row"><span>片數</span><input class="vin" type="number" min="0" value="${ow.door.n}" onchange="vDoorSet(${id},${ow.id},'n',Math.max(0,+this.value))"></div>
-      <div class="wp-row"><span>種類</span><select class="vin" onchange="vDoorSet(${id},${ow.id},'kind',this.value)">${V_DOOR.map(k=>`<option ${ow.door.kind===k?'selected':''}>${k}</option>`).join('')}</select></div>
+      <div class="wp-row"><span>片數</span><input class="vin" type="number" min="0" value="${dd.n}" onchange="vDoorSet(${id},${ow.id},'n',Math.max(0,+this.value))"></div>
+      <div class="wp-row"><span>種類</span><select class="vin" onchange="vDoorSet(${id},${ow.id},'kind',this.value)">${V_DOOR.map(k=>`<option ${dd.kind===k?'selected':''}>${k}</option>`).join('')}</select></div>
+      ${(dd.kind!=='推拉'&&dd.kind!=='假門')?`<div class="wp-row"><span>取手（露出前擋）</span><select class="vin" onchange="vDoorSet(${id},${ow.id},'grip',+this.value)">${[0,20,25,30].map(v=>`<option value="${v}" ${+dd.grip===v?'selected':''}>${v?v+' mm':'無'}</option>`).join('')}</select></div>
+      ${+dd.grip?`<div class="wp-row"><span>取手位置</span><div class="seg" style="width:120px"><button class="${dd.gripPos!=='bottom'?'on':''}" onclick="vDoorSet(${id},${ow.id},'gripPos','top')">上</button><button class="${dd.gripPos==='bottom'?'on':''}" onclick="vDoorSet(${id},${ow.id},'gripPos','bottom')">下</button></div></div>`:''}`:''}
+      ${hk?`<div class="wp-row" style="align-items:flex-start"><span>開向<br><em class="vhint">點一下換邊</em></span><div class="door-dirs">${dirs.map((x,i)=>`<button onclick="vDoorDir(${id},${ow.id},${i})" title="第${i+1}片">${x==='L'?'●│':'│●'}<small>${i+1}</small></button>`).join('')}</div></div>
+      <div class="wp-info">門高 ${G?R(G.dh):'-'} · 每片鉸鍊 ${G?G.per:0} 個 · 共 ${G?G.hinges:0} 個</div>
+      <div class="vhint">● = 鉸鍊邊。鉸鍊落在門縫的地方會自動補中立板</div>`:''}
       <div class="vrow">${op?`<button class="vbtn" onclick="vDoorMove(${id},${ow.id},${op.id})">↑ 擴大範圍</button>`:''}
         ${ow.id!==leafId?`<button class="vbtn" onclick="vDoorMove(${id},${ow.id},${leafId})">只蓋此空間</button>`:''}
         <button class="vbtn" onclick="vDoorDel(${id},${ow.id})">刪除門片</button></div></div>`;
   };
+
   if(t==='s'){
-    const it=info[+a]; if(!it){c._sel='n:'+c.layout.id;return wsProps(c);}
+    const it=info[+a]; if(!it||it.n.type!=='split'){c._sel='';return wsProps(c);}
     const n=it.n, i=+b, sz=it.sz, r=it.r;
     if(n.dir==='h'){
       const st=(n.seps||[])[i]||'fix';
@@ -2035,7 +2195,7 @@ function wsProps(c){
     return h;
   }
   if(t==='r'){
-    const it=info[+a]; if(!it||!it.n.rod){c._sel='n:'+c.layout.id;return wsProps(c);}
+    const it=info[+a]; if(!it||!it.n.rod){c._sel='';return wsProps(c);}
     const top=parseFloat(it.n.rodTop)||0;
     return `<div class="wp-hd">${icon('rod',40,24)}吊衣桿</div>
       <div class="wp-sec"><b>尺寸</b><div class="wp-row"><span>長度</span><span class="wp-info">${R(it.r.w)} mm</span></div></div>
@@ -2045,27 +2205,35 @@ function wsProps(c){
       <button class="vbtn" onclick="vDelRod(${id},${it.n.id})">🗑 刪除吊衣桿</button>`;
   }
   if(t==='d'){
-    const it=info[+a]; if(!it||!it.n.dr){c._sel='n:'+c.layout.id;return wsProps(c);}
-    const dr=it.n.dr, di=vDrawer(info,d,it.n);
+    const it=info[+a]; if(!it||!it.n.dr){c._sel='';return wsProps(c);}
+    const dr=it.n.dr, di=vDrawer(info,d,it.n), L=it.n.id;
     return `<div class="wp-hd">${icon('drawer',40,24)}抽屜</div>
-      <div class="wp-sec"><b>設定</b>
-        <div class="wp-row"><span>數量</span><input class="vin" type="number" min="1" value="${dr.n}" onchange="vDr(${id},${it.n.id},'n',Math.max(1,+this.value))"></div>
-        <div class="wp-row"><span>種類</span><select class="vin" onchange="vDr(${id},${it.n.id},'kind',this.value)">${V_DRK.map(k=>`<option ${dr.kind===k?'selected':''}>${k}</option>`).join('')}</select></div>
-        <div class="wp-row"><span>抽屜深</span><input class="vin" type="number" value="${dr.depth||''}" placeholder="${R(d.D-30)}" onchange="vDr(${id},${it.n.id},'depth',+this.value)"></div>
-        <div class="wp-row"><span><label><input type="checkbox" ${dr.fs?'checked':''} onchange="vDr(${id},${it.n.id},'fs',this.checked)"> 指縫擋板</label></span>
-          ${dr.fs?`<select class="vin" onchange="vDr(${id},${it.n.id},'fsH',+this.value)">${[25,40,60,80].map(v=>`<option value="${v}" ${+dr.fsH===v?'selected':''}>取手 ${v}</option>`).join('')}</select>`:''}</div></div>
-      ${di?`<div class="wp-sec"><b>自動計算</b><div class="wp-info">${di.internal?'內抽（在門片後）':'外抽'}<br>抽頭 ${R(di.fh)} × ${R(di.fw)}<br>側牆 ${R(di.depth)} × ${R(di.fh-18)}</div></div>`:''}
-      ${doorSec(it.n.id)}
-      <button class="vbtn" onclick="vDelDr(${id},${it.n.id})">🗑 刪除抽屜</button>`;
+      <div class="wp-sec"><b>抽頭</b>
+        ${di&&di.internal?`<div class="wp-info">在門片後面 → 內抽</div>`:`<div class="seg"><button class="${dr.face!=='內崁'?'on':''}" onclick="vDr(${id},${L},'face','外蓋')">外蓋</button><button class="${dr.face==='內崁'?'on':''}" onclick="vDr(${id},${L},'face','內崁')">內崁</button></div>`}</div>
+      <div class="wp-sec"><b>排列</b>
+        <div class="wp-row"><span>直向（層數）</span><input class="vin" type="number" min="1" value="${dr.n}" onchange="vDr(${id},${L},'n',Math.max(1,+this.value))"></div>
+        <div class="wp-row"><span>橫向（列數）</span><span style="display:flex;gap:4px"><input id="wp-dr-cols" class="vin" style="width:48px" type="number" min="2" value="2"><button class="vbtn" onclick="vDrawerCols(${id},${L})">分列</button></span></div>
+        <div class="vhint">橫向分列會自動加中立板（每列左右都要有鎖滑軌的立板）</div>
+        ${di&&di.fw>1000?`<div class="vhint" style="color:#B84D00">抽屜寬 ${R(di.fw)}，建議分 2 列</div>`:''}</div>
+      <div class="wp-sec"><b>指縫擋板 / 取手</b>
+        <label class="wp-ck"><input type="checkbox" ${dr.fs?'checked':''} onchange="vDr(${id},${L},'fs',this.checked)"> 有指縫擋板</label>
+        ${dr.fs?`<div class="wp-row"><span>取手（擋板露出）</span><select class="vin" onchange="vDr(${id},${L},'grip',+this.value)">${[20,25,30].map(v=>`<option value="${v}" ${+dr.grip===v?'selected':''}>${v} mm</option>`).join('')}</select></div>
+        <div class="wp-row"><span>擋板高</span><input class="vin" type="number" value="${dr.fsB||60}" onchange="vDr(${id},${L},'fsB',Math.max(10,+this.value))"></div>`:''}</div>
+      <div class="wp-sec"><b>其他</b>
+        <div class="wp-row"><span>種類</span><select class="vin" onchange="vDr(${id},${L},'kind',this.value)">${V_DRK.map(k=>`<option ${dr.kind===k?'selected':''}>${k}</option>`).join('')}</select></div>
+        <div class="wp-row"><span>抽屜深</span><input class="vin" type="number" value="${dr.depth||''}" placeholder="${R(d.D-30)}" onchange="vDr(${id},${L},'depth',+this.value)"></div></div>
+      ${di?`<div class="wp-sec"><b>自動計算</b><div class="wp-info">${di.face}<br>抽頭 ${R(di.fh)} × ${R(di.fw)} ×${di.n}<br>側牆 ${R(di.depth)} × ${R(di.fh-18)}</div></div>`:''}
+      ${doorSec(L)}
+      <button class="vbtn" onclick="vDelDr(${id},${L})">🗑 刪除抽屜</button>`;
   }
   // 空間
-  let it=info[+a]; if(!it){it=info[c.layout.id];c._sel='n:'+c.layout.id;}
+  let it=info[+a]; if(!it){c._sel='';return wsProps(c);}
   if(it.n.type!=='leaf'){const first=(function f(n){return n.type==='leaf'?n:f(n.children[0]);})(it.n);it=info[first.id];c._sel='n:'+first.id;}
   const n=it.n, r=it.r;
   const items=[];
   if(n.rod)items.push(`<div class="wp-item" onclick="vSelect(${id},'r:${n.id}')">${icon('rod',34,20)}<span>吊衣桿</span><em>${R(r.w)}mm</em></div>`);
   if(n.dr)items.push(`<div class="wp-item" onclick="vSelect(${id},'d:${n.id}')">${icon('drawer',34,20)}<span>抽屜</span><em>×${n.dr.n}</em></div>`);
-  V_ACC.forEach(x=>{const q=(n.acc||{})[x.k];if(q>0)items.push(`<div class="wp-item">${icon(x.k,34,20)}<span>${x.label}</span><input class="vin" style="width:46px" type="number" min="0" value="${q}" onchange="vAcc(${id},${n.id},'${x.k}',this.value)"></div>`);});
+  V_ACC.forEach(x=>{const q=(n.acc||{})[x.k];if(q>0)items.push(`<div class="wp-item">${icon(x.k,34,20)}<span>${x.label}</span>${x.k==='front'?`<label class="vhint">高</label><input class="vin" style="width:52px" type="number" value="${n.frontH||60}" onchange="vFrontH(${id},${n.id},this.value)">`:''}<label class="vhint">數量</label><input class="vin" style="width:42px" type="number" min="0" value="${q}" onchange="vAcc(${id},${n.id},'${x.k}',this.value)"></div>`);});
   h+=`<div class="wp-hd">空間</div>
     <div class="wp-info" style="font-size:13px">淨寬 <b>${R(r.w)}</b> × 淨高 <b>${R(r.h)}</b> mm</div>
     <div class="wp-sec"><b>均佈層板</b>
