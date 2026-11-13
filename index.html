@@ -261,6 +261,10 @@ select.vin{text-align:left;width:auto;font-family:'Noto Sans TC',sans-serif}
 .wp-ck{display:flex;align-items:center;gap:6px;color:var(--text2);cursor:pointer;font-size:12px}
 .wp-ck input{width:15px;height:15px;accent-color:var(--accent)}
 .wp-cks{display:flex;flex-direction:column;gap:6px}
+.door-grow{display:flex;flex-direction:column;gap:4px;align-items:stretch}
+.door-grow button{border:1px solid var(--border2);background:#FFFDF8;border-radius:6px;padding:5px 10px;font-size:12px;color:var(--accent);cursor:pointer;font-family:'Noto Sans TC',sans-serif}
+.door-grow button:hover:not([disabled]){border-color:var(--accent);background:var(--accent-light)}
+.door-grow button[disabled]{opacity:.35;cursor:default}
 .door-dirs{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
 .door-dirs button{border:1px solid var(--border2);background:#FFFDF8;border-radius:6px;padding:3px 6px;font-size:12px;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;display:flex;flex-direction:column;align-items:center;line-height:1.1;min-width:34px}
 .door-dirs button small{font-size:9px;color:var(--text3)}
@@ -1740,7 +1744,7 @@ function vDraw(cab,box,act){
         const fn=`vGapFn_${cab.id}_${n.id}_${i}`; window[fn]=val=>vSetGap(cab.id,n.id,i,val);
         if(n.dir==='h'){
           const cy=q.Y+(p2+v/2)*s, cx=ix+labelX(ch,info)*s;
-          if(v*s>=18)lab+=input(cx,cy,v,fn);
+          if(v*s>=18&&!(ch._grp&&ch.dir==='h'))lab+=input(cx,cy,v,fn);
         } else {
           const cx=q.X+(p2+v/2)*s, cy=(r.y<0.5)?oy-15:q.Y+q.H-14;
           if(v*s>=34)lab+=input(cx,cy,v,fn,46);
@@ -2012,11 +2016,54 @@ function vDoorSet(cid,ownerId,key,val){const c=vCab(cid);const it=vLayout(c).inf
   if(!(dd.n>0)){it.n.door=null;vCommit(c);return;}
   if(key==='n'||key==='kind')vDoorSync(c,ownerId);
   vCommit(c);}
+// 門片一格一格擴大：把相鄰空間包成一組（_grp），門片蓋這一組
+function vDoorGrow(cid,ownerId,way){
+  const c=vCab(cid); const {d,info}=vLayout(c); const it=info[ownerId]; if(!it||!it.n.door)return;
+  const P=it.p, need=(way==='up'||way==='down')?'h':'v';
+  if(!P||P.dir!==need){alert('這個方向沒有相鄰的空間可以擴大');return;}
+  const O=it.n, idx=P.children.indexOf(O), j=(way==='up'||way==='left')?idx-1:idx+1;
+  if(j<0||j>=P.children.length){alert('已經擴到邊了，要再大請按「擴大到上一層」');return;}
+  const T=d.T, sz=info[P.id].sz.map(v=>Math.round(v)), lo=Math.min(idx,j);
+  const isG=O.type==='split'&&O._grp&&O.dir===need;
+  const oKids=isG?O.children:[O], oSz=isG?info[O.id].sz.map(v=>Math.round(v)):[sz[idx]], oSeps=isG?(O.seps||[]):[];
+  const nb=P.children[j], between=need==='h'?((P.seps||[])[lo]||'fix'):null;
+  let kids,ksz,kseps;
+  if(j<idx){kids=[nb,...oKids];ksz=[sz[j],...oSz];kseps=need==='h'?[between,...oSeps]:null;}
+  else{kids=[...oKids,nb];ksz=[...oSz,sz[j]];kseps=need==='h'?[...oSeps,between]:null;}
+  const door=O.door; O.door=null; if(nb.door&&!isG)nb.door=null;
+  if(P.children.length===2){
+    P.children=kids;P.sizes=vFixLast(ksz);if(need==='h')P.seps=kseps;P.door=door;
+    vDoorSync(c,P.id); vCommit(c); return;
+  }
+  let G=O;
+  if(!isG){c._nid=(c._nid||0)+1;G={id:c._nid,type:'split',dir:need,_grp:true};}
+  G.children=kids;G.sizes=vFixLast(ksz.slice());G.seps=kseps;G.door=door;
+  P.children.splice(lo,2,G); sz.splice(lo,2,ksz.reduce((a,b)=>a+b,0)+T*(kids.length-1));
+  if(need==='h'&&P.seps)P.seps.splice(lo,1);
+  P.sizes=vFixLast(sz);
+  vDoorSync(c,G.id); vCommit(c);
+}
+// 沒有門片的「組」拆回原本的層級
+function vUngroupAll(c){
+  for(let guard=0;guard<30;guard++){
+    const {info}=vLayout(c); let done=true;
+    for(const {n:P} of Object.values(info)){
+      if(P.type!=='split')continue;
+      const i=P.children.findIndex(G=>G.type==='split'&&G._grp&&!(G.door&&G.door.n>0)&&G.dir===P.dir);
+      if(i<0)continue;
+      const G=P.children[i], psz=info[P.id].sz.map(v=>Math.round(v)), gsz=info[G.id].sz.map(v=>Math.round(v));
+      P.children.splice(i,1,...G.children); psz.splice(i,1,...gsz);
+      if(P.dir==='h'){P.seps=P.seps||[];P.seps.splice(i,0,...(G.seps||[]));}
+      P.sizes=vFixLast(psz); done=false; break;
+    }
+    if(done)return;
+  }
+}
 function vDoorMove(cid,fromId,toId){const c=vCab(cid);const {info}=vLayout(c);const a=info[fromId],b=info[toId];if(!a||!b)return;
   const dd=a.n.door; a.n.door=null;
   (function clr(n){if(n!==b.n)n.door=null;if(n.children)n.children.forEach(clr);})(b.n);
-  b.n.door=dd; vCommit(c);}
-function vDoorDel(cid,ownerId){const c=vCab(cid);const it=vLayout(c).info[ownerId];if(it)it.n.door=null;vCommit(c);}
+  b.n.door=dd; vUngroupAll(c); vDoorSync(c,b.n.id); vCommit(c);}
+function vDoorDel(cid,ownerId){const c=vCab(cid);const it=vLayout(c).info[ownerId];if(it)it.n.door=null;vUngroupAll(c);vCommit(c);}
 function vClear(cid,leafId){const c=vCab(cid);const it=vLayout(c).info[leafId];if(!it)return;Object.assign(it.n,{rod:false,dr:null,acc:{}});vCommit(c);}
 function vReset(cid){const c=vCab(cid);if(!confirm('清空整個櫃內配置？'))return;c.layout=null;c._v2=false;c._sel=null;vEnsure(c);vCommit(c);}
 function vDeleteSel(cid){
@@ -2152,7 +2199,8 @@ function wsProps(c){
   const doorSec=(leafId)=>{
     const ow=vDoorOwner(info,leafId);
     if(!ow)return `<div class="wp-sec"><b>門片</b><div class="vhint">從左邊把門片拖進來；拖到哪個空間，門片就蓋那個範圍</div></div>`;
-    const op=info[ow.id].p, scope=ow.id===c.layout.id?'整櫃':ow.id===leafId?'此空間':'上層範圍';
+    const op=info[ow.id].p, scope=ow.id===c.layout.id?'整櫃':ow.id===leafId?'此空間':ow._grp?(ow.children.length+' 格'):'上層範圍';
+    const oi=op?op.children.indexOf(ow):-1, om=op?op.children.length:0;
     const G=vDoorGeom(c,ow.id), dd=ow.door, hk=(dd.kind==='外蓋'||dd.kind==='入柱');
     const dirs=G?G.dirs:[];
     return `<div class="wp-sec"><b>門片 · 蓋${scope}</b>
@@ -2163,7 +2211,11 @@ function wsProps(c){
       ${hk?`<div class="wp-row" style="align-items:flex-start"><span>開向<br><em class="vhint">點一下換邊</em></span><div class="door-dirs">${dirs.map((x,i)=>`<button onclick="vDoorDir(${id},${ow.id},${i})" title="第${i+1}片">${x==='L'?'●│':'│●'}<small>${i+1}</small></button>`).join('')}</div></div>
       <div class="wp-info">門高 ${G?R(G.dh):'-'} · 每片鉸鍊 ${G?G.per:0} 個 · 共 ${G?G.hinges:0} 個</div>
       <div class="vhint">● = 鉸鍊邊。鉸鍊落在門縫的地方會自動補中立板</div>`:''}
-      <div class="vrow">${op?`<button class="vbtn" onclick="vDoorMove(${id},${ow.id},${op.id})">↑ 擴大範圍</button>`:''}
+      <div class="wp-row" style="align-items:flex-start"><span>範圍</span><div class="door-grow">
+        ${op&&op.dir==='h'?`<button ${oi>0?'':'disabled'} onclick="vDoorGrow(${id},${ow.id},'up')">↑ 往上一格</button><button ${oi<om-1?'':'disabled'} onclick="vDoorGrow(${id},${ow.id},'down')">↓ 往下一格</button>`:''}
+        ${op&&op.dir==='v'?`<button ${oi>0?'':'disabled'} onclick="vDoorGrow(${id},${ow.id},'left')">← 往左一格</button><button ${oi<om-1?'':'disabled'} onclick="vDoorGrow(${id},${ow.id},'right')">往右一格 →</button>`:''}
+      </div></div>
+      <div class="vrow">${op?`<button class="vbtn" onclick="vDoorMove(${id},${ow.id},${op.id})">⤢ 擴大到上一層</button>`:''}
         ${ow.id!==leafId?`<button class="vbtn" onclick="vDoorMove(${id},${ow.id},${leafId})">只蓋此空間</button>`:''}
         <button class="vbtn" onclick="vDoorDel(${id},${ow.id})">刪除門片</button></div></div>`;
   };
