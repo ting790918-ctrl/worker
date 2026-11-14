@@ -1563,7 +1563,7 @@ function vDrawer(info,d,leaf){
   let fw,fh,cov;
   if(face==='內抽'){fw=r.w-6;fh=(r.h-fsB)/dr.n-4;}
   else if(face==='內崁'){fw=r.w-3;fh=(r.h-grip)/dr.n-3;}
-  else{cov=vCover(r,d);fw=cov.w-3;fh=(cov.h-grip)/dr.n-4;}
+  else{cov=vCover(r,d);fw=cov.w-3;fh=(fs?(r.h+cov.x.b-grip):(cov.h))/dr.n-4;}
   const depth=parseFloat(dr.depth)>0?parseFloat(dr.depth):d.D-30;
   return {internal,face,fw,fh,fs:fsB,fsB,grip,depth,n:dr.n,kind:dr.kind||'木抽屜',cov};
 }
@@ -1593,10 +1593,8 @@ function vParts(cab,add){
       if(ac.front>0)add('前擋',r.w,parseFloat(n.frontH)||60,ac.front);
     }
     if(n.door&&n.door.n>0){
-      const k=n.door.kind||'外蓋', c=vCover(r,d), q=n.door.n, gp=parseFloat(n.door.grip)||0;
-      if(k==='入柱')add('門片（入柱）',r.h-4-gp,r.w/q-3,q);
-      else if(k==='推拉')add('推拉門片',c.h-4,r.w/q+50,q);
-      else add(k==='假門'?'假門板':k==='上掀'?'上掀門片':'門片（外蓋）',c.h-4-gp,c.w/q-3,q);
+      const k=n.door.kind||'外蓋', G=vDoorGeom(cab,n.id), q=n.door.n;
+      if(G)add(k==='入柱'?'門片（入柱）':k==='推拉'?'推拉門片':k==='假門'?'假門板':k==='上掀'?'上掀門片':'門片（外蓋）',G.dh,G.dw,q);
     }
   });
 }
@@ -1677,7 +1675,7 @@ function vDraw(cab,box,act){
       const don=sel==='d:'+n.id;
       if(di.fsB){g+=`<rect x="${P(q.X)}" y="${P(q.Y)}" width="${P(q.W)}" height="${P(Math.max(di.fsB*s,2))}" fill="#C9B28C" stroke="#8A6D45" stroke-width=".4" pointer-events="none"/>`;}
       let fx,fy,fwp,fhAll;
-      if(di.face==='外蓋'){const ex=vExt(r,d);fx=ix+(r.x-ex.l)*s+1.5;fy=iy+(r.y-ex.t+di.grip)*s;fwp=di.cov.w*s-3;fhAll=(di.cov.h-di.grip)*s;}
+      if(di.face==='外蓋'){const ex=vExt(r,d);fx=ix+(r.x-ex.l)*s+1.5;fy=di.grip?q.Y+di.grip*s:iy+(r.y-ex.t)*s;fwp=di.cov.w*s-3;fhAll=(di.grip?(r.h+ex.b-di.grip):di.cov.h)*s;}
       else if(di.face==='內崁'){fx=q.X+1.5;fy=q.Y+di.grip*s;fwp=q.W-3;fhAll=q.H-di.grip*s;}
       else{fx=q.X+3;fy=q.Y+di.fsB*s;fwp=q.W-6;fhAll=q.H-di.fsB*s;}
       const each=fhAll/di.n, layer=di.face==='外蓋'?'top':'g';
@@ -1924,15 +1922,39 @@ function vDr(cid,leafId,key,val){const c=vCab(cid);const it=vLayout(c).info[leaf
 function vDelDr(cid,leafId){const c=vCab(cid);const it=vLayout(c).info[leafId];it.n.dr=null;c._sel='n:'+leafId;vCommit(c);}
 function vAcc(cid,leafId,k,val){const c=vCab(cid);const it=vLayout(c).info[leafId];if(!it)return;if(!it.n.acc)it.n.acc={};it.n.acc[k]=Math.max(0,parseInt(val)||0);vCommit(c);}
 // ── 門片幾何：位置、門高、鉸鍊 ──
+function vDoorEdges(cab,d,info,node){
+  const r=info[node.id].r, e=.5, T=d.T;
+  const outer={l:r.x<e,r:Math.abs(r.x+r.w-d.iw)<e,t:r.y<e,b:Math.abs(r.y+r.h-d.ih)<e};
+  const others=Object.values(info).filter(x=>x.n!==node&&x.n.door&&x.n.door.n>0).map(x=>x.r);
+  const ov=(a0,a1,b0,b1)=>Math.min(a1,b1)-Math.max(a0,b0)>1;
+  const nb={
+    t:others.some(o=>Math.abs(o.y+o.h+T-r.y)<1.5&&ov(o.x,o.x+o.w,r.x,r.x+r.w)),
+    b:others.some(o=>Math.abs(r.y+r.h+T-o.y)<1.5&&ov(o.x,o.x+o.w,r.x,r.x+r.w)),
+    l:others.some(o=>Math.abs(o.x+o.w+T-r.x)<1.5&&ov(o.y,o.y+o.h,r.y,r.y+r.h)),
+    r:others.some(o=>Math.abs(r.x+r.w+T-o.x)<1.5&&ov(o.y,o.y+o.h,r.y,r.y+r.h))};
+  const cov=(node.door&&node.door.cov)||{}, res={};
+  ['l','r','t','b'].forEach(k=>{
+    if(outer[k]){res[k]={mode:'全蓋',outer:true,ext:k==='t'?d.top:k==='b'?d.bot:T};return;}
+    let m=cov[k]&&cov[k]!=='auto'?cov[k]:(nb[k]?'半蓋':'全蓋');
+    res[k]={mode:m,outer:false,auto:!(cov[k]&&cov[k]!=='auto'),ext:m==='全蓋'?T:m==='半蓋'?T/2:0};
+  });
+  return res;
+}
+// ── 門片幾何：位置、門高、鉸鍊 ──
 function vDoorGeom(cab,nodeId){
   const {d,info}=vLayout(cab); const it=info[nodeId]; if(!it||!it.n.door||!(it.n.door.n>0))return null;
-  const door=it.n.door, k=door.kind||'外蓋', r=it.r, q=door.n, gp=(k==='推拉'||k==='假門')?0:(parseFloat(door.grip)||0);
-  let x0,y0,w0,h0;
-  if(k==='入柱'){x0=r.x;y0=r.y;w0=r.w;h0=r.h;}
-  else{const c=vCover(r,d);x0=r.x-c.x.l;y0=r.y-c.x.t;w0=c.w;h0=c.h;}
-  const dh=h0-4-gp, top=door.gripPos==='bottom'?y0:y0+gp;
+  const door=it.n.door, k=door.kind||'外蓋', r=it.r, q=door.n;
+  const gp=(k==='推拉'||k==='假門')?0:(parseFloat(door.grip)||0), gBot=door.gripPos==='bottom';
+  let ex={l:0,r:0,t:0,b:0}, edges=null;
+  if(k!=='入柱'){edges=vDoorEdges(cab,d,info,it.n);ex={l:edges.l.ext,r:edges.r.ext,t:edges.t.ext,b:edges.b.ext};}
+  // 取手邊：門片從前擋上緣（空間頂/底）往內退 gp
+  let gt=2, gb=2;
+  if(gp){ if(gBot){ex.b=-gp;gb=0;} else {ex.t=-gp;gt=0;} }
+  const x0=r.x-ex.l, y0=r.y-ex.t, w0=r.w+ex.l+ex.r, h0=r.h+ex.t+ex.b;
+  const dh=h0-gt-gb, top=y0+gt;
   const per=(k==='外蓋'||k==='入柱')?vHingePer(dh):k==='上掀'?2:0;
-  return {kind:k,x0,y0,w0,h0,top,dh,n:q,dirs:door.dirs||vDefaultDirs(q),per,hinges:per*q,grip:gp};
+  const dw=k==='入柱'?r.w/q-3:k==='推拉'?r.w/q+50:w0/q-3;
+  return {kind:k,x0,y0,w0,h0,top,dh,dw,n:q,dirs:door.dirs||vDefaultDirs(q),per,hinges:per*q,grip:gp,edges};
 }
 function vNeedSeams(door){
   if(!door||!(door.n>=2)||!['外蓋','入柱'].includes(door.kind||'外蓋'))return [];
@@ -2015,7 +2037,13 @@ function vDoorSet(cid,ownerId,key,val){const c=vCab(cid);const it=vLayout(c).inf
   const dd=it.n.door; dd[key]=val; if(key==='n')dd.dirs=vDefaultDirs(+val||0);
   if(!(dd.n>0)){it.n.door=null;vCommit(c);return;}
   if(key==='n'||key==='kind')vDoorSync(c,ownerId);
+  if((key==='grip'&&+val>0&&dd.gripPos!=='bottom')||(key==='gripPos'&&val==='top'&&+dd.grip>0)){
+    (function tops(n){if(n.type==='leaf'){if(!n.acc)n.acc={};if(!(n.acc.front>0)){n.acc.front=1;n.frontH=n.frontH||60;}return;}
+      if(n.dir==='h')tops(n.children[0]); else n.children.forEach(tops);})(it.n);
+  }
   vCommit(c);}
+function vDoorCov(cid,ownerId,side,mode){const c=vCab(cid);const it=vLayout(c).info[ownerId];if(!it||!it.n.door)return;
+  if(!it.n.door.cov)it.n.door.cov={}; it.n.door.cov[side]=mode; vCommit(c);}
 // 門片一格一格擴大：把相鄰空間包成一組（_grp），門片蓋這一組
 function vDoorGrow(cid,ownerId,way){
   const c=vCab(cid); const {d,info}=vLayout(c); const it=info[ownerId]; if(!it||!it.n.door)return;
@@ -2206,11 +2234,16 @@ function wsProps(c){
     return `<div class="wp-sec"><b>門片 · 蓋${scope}</b>
       <div class="wp-row"><span>片數</span><input class="vin" type="number" min="0" value="${dd.n}" onchange="vDoorSet(${id},${ow.id},'n',Math.max(0,+this.value))"></div>
       <div class="wp-row"><span>種類</span><select class="vin" onchange="vDoorSet(${id},${ow.id},'kind',this.value)">${V_DOOR.map(k=>`<option ${dd.kind===k?'selected':''}>${k}</option>`).join('')}</select></div>
-      ${(dd.kind!=='推拉'&&dd.kind!=='假門')?`<div class="wp-row"><span>取手（露出前擋）</span><select class="vin" onchange="vDoorSet(${id},${ow.id},'grip',+this.value)">${[0,20,25,30].map(v=>`<option value="${v}" ${+dd.grip===v?'selected':''}>${v?v+' mm':'無'}</option>`).join('')}</select></div>
+      ${(dd.kind!=='推拉'&&dd.kind!=='假門')?`<div class="wp-row"><span>取手（前擋露出）</span><select class="vin" onchange="vDoorSet(${id},${ow.id},'grip',+this.value)">${[0,20,25,30].map(v=>`<option value="${v}" ${+dd.grip===v?'selected':''}>${v?v+' mm':'無'}</option>`).join('')}</select></div>
       ${+dd.grip?`<div class="wp-row"><span>取手位置</span><div class="seg" style="width:120px"><button class="${dd.gripPos!=='bottom'?'on':''}" onclick="vDoorSet(${id},${ow.id},'gripPos','top')">上</button><button class="${dd.gripPos==='bottom'?'on':''}" onclick="vDoorSet(${id},${ow.id},'gripPos','bottom')">下</button></div></div>`:''}`:''}
       ${hk?`<div class="wp-row" style="align-items:flex-start"><span>開向<br><em class="vhint">點一下換邊</em></span><div class="door-dirs">${dirs.map((x,i)=>`<button onclick="vDoorDir(${id},${ow.id},${i})" title="第${i+1}片">${x==='L'?'●│':'│●'}<small>${i+1}</small></button>`).join('')}</div></div>
       <div class="wp-info">門高 ${G?R(G.dh):'-'} · 每片鉸鍊 ${G?G.per:0} 個 · 共 ${G?G.hinges:0} 個</div>
       <div class="vhint">● = 鉸鍊邊。鉸鍊落在門縫的地方會自動補中立板</div>`:''}
+      ${G&&G.edges?(()=>{const nm={t:'上緣',b:'下緣',l:'左緣',r:'右緣'};
+        const rows=['t','b','l','r'].filter(k=>!G.edges[k].outer&&!(G.grip&&((k==='t'&&dd.gripPos!=='bottom')||(k==='b'&&dd.gripPos==='bottom'))));
+        return rows.length?`<div class="wp-sec" style="border-top:none;padding-top:0"><b>碰到層板 / 中立板的邊</b>${rows.map(k=>{const m=G.edges[k].mode;
+          return `<div class="wp-row"><span>${nm[k]}</span><div class="seg" style="width:150px">${['全蓋','半蓋','不蓋'].map(x=>`<button class="${m===x?'on':''}" onclick="vDoorCov(${id},${ow.id},'${k}','${x}')">${x}</button>`).join('')}</div></div>`;}).join('')}
+          <div class="vhint">預設：另一邊也有門片 → 半蓋，沒有 → 全蓋</div></div>`:'';})():''}
       <div class="wp-row" style="align-items:flex-start"><span>範圍</span><div class="door-grow">
         ${op&&op.dir==='h'?`<button ${oi>0?'':'disabled'} onclick="vDoorGrow(${id},${ow.id},'up')">↑ 往上一格</button><button ${oi<om-1?'':'disabled'} onclick="vDoorGrow(${id},${ow.id},'down')">↓ 往下一格</button>`:''}
         ${op&&op.dir==='v'?`<button ${oi>0?'':'disabled'} onclick="vDoorGrow(${id},${ow.id},'left')">← 往左一格</button><button ${oi<om-1?'':'disabled'} onclick="vDoorGrow(${id},${ow.id},'right')">往右一格 →</button>`:''}
