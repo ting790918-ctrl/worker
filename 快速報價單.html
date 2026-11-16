@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#B58A58">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="快速報價">
+<title>象藝快速報價</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600&display=swap">
+<style>
+/* Layout: one phone column. Sticky total bar on top, customer card, 13 trade sections, fees, actions. */
+:root{
+  --bg:#FBF7F0; --surface:#FFFDFC; --milk:#F4E9D8; --tea:#E8D4B5; --line:#EADDCB;
+  --caramel:#B58A58; --coffee:#8A6540; --ink:#4B392B; --muted:#7A6A5D; --onacc:#FFFFFF;
+  --danger:#B5542E; --focus:#B58A58;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-brand:"Noto Serif TC","Songti TC",serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#1C1612; --surface:#261E18; --milk:#30261E; --tea:#3D3026; --line:#3A2F26;
+  --caramel:#C89A66; --coffee:#E0BE92; --ink:#F1E6D8; --muted:#B5A595; --onacc:#1C1612;
+  --danger:#E58B66; --focus:#E0BE92; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#1C1612; --surface:#261E18; --milk:#30261E; --tea:#3D3026; --line:#3A2F26;
+  --caramel:#C89A66; --coffee:#E0BE92; --ink:#F1E6D8; --muted:#B5A595; --onacc:#1C1612;
+  --danger:#E58B66; --focus:#E0BE92; color-scheme:dark }
+
+*{box-sizing:border-box}
+html{color-scheme:light}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--caramel)}
+.wrap{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px;display:flex;flex-direction:column;gap:14px}
+.num{font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* ---- sticky total bar ---- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));background:var(--caramel);color:var(--onacc);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));box-shadow:0 6px 18px -12px rgba(60,40,20,.6)}
+.top-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.brand{font-family:var(--f-brand);font-size:15px;letter-spacing:.12em;opacity:.95}
+.grand-label{font-size:12px;letter-spacing:.08em;opacity:.85}
+.grand{font-size:30px;font-weight:700;line-height:1.1}
+.grand small{font-size:15px;font-weight:500;margin-right:2px}
+.mini{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font-size:12.5px;opacity:.92}
+.mini b{font-weight:700}
+.toggle-sum{margin-top:8px;width:100%;border:1px solid color-mix(in srgb,var(--onacc) 45%,transparent);background:transparent;color:var(--onacc);border-radius:999px;padding:5px 10px;font-size:13px}
+.sumlist{margin-top:8px;display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-size:13.5px;max-height:46vh;overflow:auto}
+.sumlist button{all:unset;cursor:pointer;display:contents}
+.sumlist .k{display:flex;gap:8px;align-items:center;padding:3px 0}
+.sumlist .k i{font-style:normal;font-weight:700;width:18px;text-align:center;opacity:.8}
+.sumlist .v{text-align:right;padding:3px 0}
+.sumlist .zero{opacity:.55}
+
+/* ---- cards ---- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.info{padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info .full{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:3px;min-width:0}
+label.f span{font-size:12px;color:var(--coffee);font-weight:700;letter-spacing:.06em}
+input,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0;font-size:16px}
+input::placeholder{color:var(--muted);opacity:.7}
+input:focus{border-color:var(--caramel);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--caramel) 25%,transparent)}
+.sample{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--milk);border:1px dashed var(--caramel);border-radius:var(--r);font-size:13.5px;color:var(--coffee)}
+.sample button{flex:none;border:0;background:var(--caramel);color:var(--onacc);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700}
+
+/* ---- sections ---- */
+.sec{overflow:hidden}
+.sec-h{display:flex;align-items:center;gap:10px;width:100%;border:0;background:var(--tea);padding:11px 12px;text-align:left}
+.badge{flex:none;width:28px;height:28px;border-radius:7px;background:var(--caramel);color:var(--onacc);display:grid;place-items:center;font-weight:700;font-size:14px}
+.sec-name{flex:1;min-width:0;font-weight:700;color:var(--ink)}
+.sec-count{font-size:12px;color:var(--muted);font-weight:500;margin-left:4px}
+.sec-sub{font-weight:700;color:var(--ink)}
+.chev{flex:none;width:18px;text-align:center;color:var(--coffee);transition:transform .2s}
+.sec[data-open="1"] .chev{transform:rotate(90deg)}
+.sec-b{padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px}
+.sec[data-open="0"] .sec-b{display:none}
+
+.item{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.r1{display:flex;gap:8px;align-items:center}
+.r1 input{flex:1}
+.del{flex:none;width:38px;height:38px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:18px;line-height:1}
+.del:active{color:var(--danger);border-color:var(--danger)}
+.r2{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:8px}
+.r2 label span,.r3 label span{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.04em}
+.r2 input{text-align:center}
+.r2 .price{text-align:right}
+.r3{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.amt{text-align:right;min-width:96px}
+.amt span{display:block;font-size:11px;color:var(--muted)}
+.amt b{font-size:17px;color:var(--coffee)}
+.units{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.units::-webkit-scrollbar{display:none}
+.units button{flex:none;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:3px 11px;font-size:13px;color:var(--muted)}
+.units button[aria-pressed="true"]{background:var(--caramel);border-color:var(--caramel);color:var(--onacc)}
+.add{border:1.5px dashed var(--caramel);background:transparent;color:var(--coffee);border-radius:10px;padding:10px;font-weight:700}
+.cat-edit{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+.delcat{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:9px 12px;font-size:13px;white-space:nowrap}
+.delcat[data-armed]{border-color:var(--danger);color:var(--onacc);background:var(--danger)}
+.addcat{background:var(--surface)}
+.empty{font-size:13px;color:var(--muted);text-align:center;padding:4px 0}
+
+/* ---- fees ---- */
+.fees{padding:12px;display:flex;flex-direction:column;gap:10px}
+.fees h2,.acts h2{margin:0;font-size:14px;color:var(--coffee);letter-spacing:.08em}
+.fee{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center}
+.fee > span{font-weight:500}
+.fee input{text-align:right}
+.taxrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.switch{position:relative;width:52px;height:30px;flex:none;border-radius:999px;border:0;background:var(--line);padding:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s}
+.switch[aria-checked="true"]{background:var(--caramel)}
+.switch[aria-checked="true"]::after{left:25px}
+.line-total{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;font-size:14px;color:var(--muted)}
+.line-total.big{font-size:18px;color:var(--ink);font-weight:700}
+
+/* ---- actions ---- */
+.acts{padding:12px;display:flex;flex-direction:column;gap:10px}
+.btn{border:0;border-radius:10px;padding:12px;font-weight:700;font-size:15px}
+.btn.primary{background:var(--caramel);color:var(--onacc)}
+.btn.ghost{background:var(--milk);color:var(--coffee)}
+.btn.warn{background:transparent;color:var(--danger);border:1px solid var(--line)}
+.confirm{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--danger);border-radius:10px;font-size:14px}
+.confirm div{display:flex;gap:8px}
+.confirm .btn{flex:1;padding:10px}
+.confirm .yes{background:var(--danger);color:var(--onacc)}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+.imgprev{display:flex;flex-direction:column;gap:6px}
+.imgprev img{width:100%;border:1px solid var(--line);border-radius:8px;-webkit-touch-callout:default}
+textarea{font-size:13px;min-height:120px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;z-index:20;max-width:calc(100% - 32px);text-align:center}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top" id="top">
+    <div class="top-row">
+      <div>
+        <div class="brand">象藝創意．報價</div>
+        <div class="grand-label" id="grandLabel">總計（未稅）</div>
+      </div>
+      <div class="grand num" id="grand"><small>NT$</small>0</div>
+    </div>
+    <div class="mini num" id="mini"></div>
+    <button class="toggle-sum" id="toggleSum" aria-expanded="false" aria-controls="sumlist">看各工種小計 ▾</button>
+    <div class="sumlist num" id="sumlist" hidden></div>
+  </header>
+
+  <div class="sample" id="sampleBar" hidden>
+    <span>目前放的是範例項目，可以直接改，或清空重新填。</span>
+    <button id="clearSample">清空範例</button>
+  </div>
+
+  <section class="card info" aria-label="客戶資料">
+    <label class="f full"><span>客戶名稱</span><input id="i-name" data-info="name" placeholder="例：汐止王宅裝修案"></label>
+    <label class="f"><span>電話</span><input id="i-phone" data-info="phone" inputmode="tel" placeholder="09xx-xxxxxx"></label>
+    <label class="f"><span>日期</span><input id="i-date" data-info="date" type="date"></label>
+    <label class="f full"><span>施工地點</span><input id="i-addr" data-info="addr" placeholder="施工地址"></label>
+    <label class="f"><span>設計師</span><input id="i-designer" data-info="designer"></label>
+    <label class="f"><span>編號</span><input id="i-no" data-info="no"></label>
+  </section>
+
+  <div id="sections" style="display:flex;flex-direction:column;gap:12px"></div>
+  <button type="button" class="add addcat" id="addCat">＋ 新增工種</button>
+
+  <section class="card fees" aria-label="其他費用">
+    <h2>其他費用</h2>
+    <div class="line-total"><span>工程合計</span><span class="num" id="f-sub">0</span></div>
+    <label class="fee"><span>設計費</span><input id="fee-design" data-fee="design" inputmode="numeric" placeholder="0"></label>
+    <label class="fee"><span>監工費</span><input id="fee-super" data-fee="supervise" inputmode="numeric" placeholder="0"></label>
+    <label class="fee"><span>優惠折讓</span><input id="fee-disc" data-fee="discount" inputmode="numeric" placeholder="0"></label>
+    <div class="taxrow"><span>加 5% 營業稅</span><button class="switch" id="taxSwitch" role="switch" aria-checked="false" aria-label="加 5% 營業稅"></button></div>
+    <div class="line-total" id="taxLine" hidden><span>稅金 5%</span><span class="num" id="f-tax">0</span></div>
+    <div class="line-total big"><span id="f-grand-label">總計</span><span class="num" id="f-grand">0</span></div>
+  </section>
+
+  <section class="card acts" aria-label="匯出">
+    <h2>匯出</h2>
+    <button class="btn primary" id="btnImg">存成圖片（傳 LINE、存相簿）</button>
+    <div class="imgprev" id="imgPrev" hidden>
+      <p class="note" id="imgTip">長按圖片可以存到相簿或分享。</p>
+      <img id="imgOut" alt="報價單圖片">
+    </div>
+    <button class="btn ghost" id="btnCopy">複製文字（貼到 LINE）</button>
+    <button class="btn ghost" id="btnXlsx">下載 Excel 報價單</button>
+    <textarea id="copyBox" readonly hidden aria-label="報價文字"></textarea>
+    <button class="btn warn" id="btnReset">開新報價（清空全部）</button>
+    <div class="confirm" id="confirmBox" hidden>
+      <span>確定要清空所有客戶資料和項目嗎？清空後無法復原。</span>
+      <div><button class="btn ghost" id="noReset">取消</button><button class="btn yes" id="yesReset">清空</button></div>
+    </div>
+    <p class="note">內容會自動存在這支手機的瀏覽器裡，下次打開還在。換手機或清除瀏覽資料就不會保留，重要的報價請下載 Excel。</p>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+const CATS = ['拆除、保護工程','鋼鋁門窗、玻璃工程','水電工程','泥作及修復工程','燈具、設備採購','木作、隔間工程','系統櫃工程','油漆工程','地板工程','人造石工程','空調工程','清潔工程','廢棄物清運'];
+const LET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const MAXCAT = 26;
+const UNITS = ['式','坪','尺','才','組','樘','米','口','處','台','車','cm'];
+const KEY = 'xiangyi-quick-quote-v1';
+let uid = Date.now();
+const nid = () => (uid++).toString(36);
+
+function today(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+function item(name='',unit='式',qty='',price='',note=''){ return {id:nid(),name,unit,qty:String(qty),price:String(price),note}; }
+function blank(){
+  return {sample:false, info:{name:'',phone:'',date:today(),addr:'',designer:'',no:''},
+    cats:CATS.map((n,i)=>({name:n,open:i===0,items:[]})),
+    fees:{design:'',supervise:'',discount:'',tax:false}};
+}
+function sample(){
+  const s = blank(); s.sample = true;
+  s.cats[0].items=[item('保護工程（依管委會規定）','式',1,10000), item('全室天花板／隔間／衛浴拆除','式',1,250000,'含清運')];
+  s.cats[2].items=[item('全室電線抽換','式',1,18000), item('插座配管線','組',44,1100), item('星光開關面板','組',18,650)];
+  s.cats[7].items=[item('全室透批（得利乳膠漆）','坪',70,1800)];
+  s.cats[0].open = true; s.cats[2].open = true;
+  return s;
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch(e) { S = null; }
+if (!S || !Array.isArray(S.cats) || !S.info || !S.fees) S = sample();
+
+let saveT;
+function saveNow(){ clearTimeout(saveT); try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function save(){ clearTimeout(saveT); saveT=setTimeout(saveNow,300); }
+addEventListener('pagehide', saveNow);
+document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='hidden') saveNow(); });
+
+const num = v => { const n = parseFloat(String(v ?? '').replace(/[,，\s]/g,'')); return isFinite(n) ? n : 0; };
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const cn = c => c.name || '未命名工種';
+const amt = it => num(it.qty) * num(it.price);
+const catSub = c => c.items.reduce((a,it)=>a+amt(it),0);
+function totals(){
+  const subs = S.cats.map(catSub);
+  const sub = subs.reduce((a,b)=>a+b,0);
+  const design=num(S.fees.design), sup=num(S.fees.supervise), disc=num(S.fees.discount);
+  const pre = sub + design + sup - disc;
+  const tax = S.fees.tax ? Math.round(pre*0.05) : 0;
+  return {subs, sub, design, sup, disc, pre, tax, grand: pre + tax};
+}
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- render sections (structure only) ---------- */
+function itemHTML(ci, it){
+  const units = UNITS.map(u=>`<button type="button" data-unit="${u}" aria-pressed="${it.unit===u}">${u}</button>`).join('');
+  return `<div class="item" data-ci="${ci}" data-id="${it.id}">
+    <div class="r1"><input id="n-${it.id}" data-k="name" value="${esc(it.name)}" placeholder="項目內容" aria-label="項目內容"><button type="button" class="del" data-del aria-label="刪除這個項目">×</button></div>
+    <div class="units" role="group" aria-label="常用單位">${units}</div>
+    <div class="r2">
+      <label class="f"><span>單位</span><input id="u-${it.id}" data-k="unit" value="${esc(it.unit)}"></label>
+      <label class="f"><span>數量</span><input id="q-${it.id}" data-k="qty" inputmode="decimal" value="${esc(it.qty)}" placeholder="0"></label>
+      <label class="f"><span>單價</span><input id="p-${it.id}" class="price num" data-k="price" inputmode="numeric" value="${esc(it.price)}" placeholder="0"></label>
+    </div>
+    <div class="r3">
+      <label class="f"><span>備註</span><input id="m-${it.id}" data-k="note" value="${esc(it.note)}" placeholder="例：實報實銷、待挑"></label>
+      <div class="amt"><span>複價</span><b class="num" data-amt>${fmt(amt(it))}</b></div>
+    </div>
+  </div>`;
+}
+function renderSections(){
+  $('sections').innerHTML = S.cats.map((c,ci)=>`
+    <section class="card sec" data-ci="${ci}" data-open="${c.open?1:0}" id="sec-${ci}">
+      <button type="button" class="sec-h" data-tog aria-expanded="${c.open}">
+        <span class="badge">${LET[ci]}</span>
+        <span class="sec-name"><span data-name>${esc(c.name||'（未命名工種）')}</span><span class="sec-count" data-count>${c.items.length? c.items.length+' 項':''}</span></span>
+        <span class="sec-sub num" data-sub>${fmt(catSub(c))}</span>
+        <span class="chev" aria-hidden="true">›</span>
+      </button>
+      <div class="sec-b">
+        <div class="cat-edit">
+          <label class="f"><span>工種名稱</span><input id="c-${ci}" data-cname value="${esc(c.name)}" placeholder="例：窗簾工程"></label>
+          <button type="button" class="delcat" data-delcat>刪除工種</button>
+        </div>
+        ${c.items.length? c.items.map(it=>itemHTML(ci,it)).join('') : '<div class="empty">還沒有項目</div>'}
+        <button type="button" class="add" data-add>＋ 新增項目</button>
+      </div>
+    </section>`).join('');
+}
+
+/* ---------- live numbers ---------- */
+function refresh(){
+  const t = totals();
+  S.cats.forEach((c,ci)=>{
+    const sec = $('sec-'+ci); if(!sec) return;
+    sec.querySelector('[data-sub]').textContent = fmt(t.subs[ci]);
+    sec.querySelector('[data-count]').textContent = c.items.length ? c.items.length+' 項' : '';
+    sec.querySelector('[data-name]').textContent = c.name || '（未命名工種）';
+  });
+  $('grand').innerHTML = '<small>NT$</small>' + fmt(t.grand);
+  $('grandLabel').textContent = S.fees.tax ? '總計（含稅）' : '總計（未稅）';
+  $('f-grand-label').textContent = S.fees.tax ? '總計（含稅）' : '總計（未稅）';
+  const parts = [`工程 <b>${fmt(t.sub)}</b>`];
+  if (t.design) parts.push(`設計 <b>${fmt(t.design)}</b>`);
+  if (t.sup) parts.push(`監工 <b>${fmt(t.sup)}</b>`);
+  if (t.disc) parts.push(`折讓 <b>−${fmt(t.disc)}</b>`);
+  if (S.fees.tax) parts.push(`稅 <b>${fmt(t.tax)}</b>`);
+  $('mini').innerHTML = parts.join('<span aria-hidden="true">·</span>');
+  $('sumlist').innerHTML = S.cats.map((c,ci)=>`<button type="button" data-jump="${ci}"><span class="k ${t.subs[ci]?'':'zero'}"><i>${LET[ci]}</i>${esc(cn(c))}</span><span class="v ${t.subs[ci]?'':'zero'}">${fmt(t.subs[ci])}</span></button>`).join('');
+  $('f-sub').textContent = fmt(t.sub);
+  $('f-tax').textContent = fmt(t.tax);
+  $('taxLine').hidden = !S.fees.tax;
+  $('f-grand').textContent = fmt(t.grand);
+  $('taxSwitch').setAttribute('aria-checked', S.fees.tax);
+  $('sampleBar').hidden = !S.sample;
+}
+function fillStatic(){
+  document.querySelectorAll('[data-info]').forEach(el=>{ el.value = S.info[el.dataset.info] ?? ''; });
+  $('fee-design').value=S.fees.design; $('fee-super').value=S.fees.supervise; $('fee-disc').value=S.fees.discount;
+}
+
+/* ---------- events ---------- */
+const findItem = el => { const box = el.closest('.item'); if(!box) return null; const c = S.cats[+box.dataset.ci]; return {box, c, it: c.items.find(i=>i.id===box.dataset.id)}; };
+
+document.addEventListener('input', e=>{
+  const el = e.target;
+  if (el.dataset.info){ S.info[el.dataset.info] = el.value; S.sample=false; save(); refresh(); return; }
+  if (el.dataset.fee){ S.fees[el.dataset.fee] = el.value; save(); refresh(); return; }
+  if (el.hasAttribute('data-cname')){ S.cats[+el.closest('.sec').dataset.ci].name = el.value; S.sample=false; save(); refresh(); return; }
+  if (el.dataset.k){
+    const f = findItem(el); if(!f) return;
+    f.it[el.dataset.k] = el.value; S.sample = false;
+    if (el.dataset.k==='unit') f.box.querySelectorAll('[data-unit]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.unit===el.value));
+    f.box.querySelector('[data-amt]').textContent = fmt(amt(f.it));
+    save(); refresh();
+  }
+});
+
+document.addEventListener('click', e=>{
+  const t = e.target.closest('button'); if(!t) return;
+  if (t.hasAttribute('data-tog')){
+    const sec = t.closest('.sec'); const c = S.cats[+sec.dataset.ci];
+    c.open = !c.open; sec.dataset.open = c.open?1:0; t.setAttribute('aria-expanded', c.open); save(); return;
+  }
+  if (t.hasAttribute('data-add')){
+    const ci = +t.closest('.sec').dataset.ci; const it = item();
+    S.cats[ci].items.push(it); S.sample=false; save(); renderSections(); refresh();
+    const inp = $('n-'+it.id); inp && (inp.focus(), inp.scrollIntoView({block:'center',behavior:'smooth'}));
+    return;
+  }
+  if (t.hasAttribute('data-delcat')){
+    const ci = +t.closest('.sec').dataset.ci, c = S.cats[ci];
+    if (c.items.length && !t.hasAttribute('data-armed')){
+      t.setAttribute('data-armed',''); t.textContent = `連同 ${c.items.length} 項刪除？`;
+      setTimeout(()=>{ if (t.isConnected){ t.removeAttribute('data-armed'); t.textContent='刪除工種'; } },3500);
+      return;
+    }
+    S.cats.splice(ci,1); save(); renderSections(); refresh(); toast(`已刪除「${c.name||'未命名工種'}」`); return;
+  }
+  if (t.id === 'addCat'){
+    if (S.cats.length >= MAXCAT){ toast(`最多 ${MAXCAT} 個工種`); return; }
+    S.cats.push({name:'',open:true,items:[]}); S.sample=false; save(); renderSections(); refresh();
+    const inp = $('c-'+(S.cats.length-1)); inp && (inp.focus(), inp.scrollIntoView({block:'center',behavior:'smooth'}));
+    return;
+  }
+  if (t.hasAttribute('data-del')){
+    const f = findItem(t); f.c.items = f.c.items.filter(i=>i!==f.it); save(); renderSections(); refresh(); return;
+  }
+  if (t.dataset.unit){
+    const f = findItem(t); f.it.unit = t.dataset.unit;
+    f.box.querySelector('[data-k="unit"]').value = t.dataset.unit;
+    f.box.querySelectorAll('[data-unit]').forEach(b=>b.setAttribute('aria-pressed', b===t)); save(); return;
+  }
+  if (t.dataset.jump !== undefined){
+    const ci = +t.dataset.jump; S.cats[ci].open = true; renderSections(); refresh(); toggleSum(false);
+    const sec = $('sec-'+ci); const y = sec.getBoundingClientRect().top + scrollY - $('top').offsetHeight - 8;
+    scrollTo({top:y, behavior:'smooth'}); save(); return;
+  }
+});
+
+function toggleSum(force){
+  const open = force ?? $('sumlist').hidden;
+  $('sumlist').hidden = !open; $('toggleSum').setAttribute('aria-expanded', open);
+  $('toggleSum').textContent = open ? '收起各工種小計 ▴' : '看各工種小計 ▾';
+}
+$('toggleSum').onclick = () => toggleSum();
+$('taxSwitch').onclick = () => { S.fees.tax = !S.fees.tax; save(); refresh(); };
+$('clearSample').onclick = () => { S = blank(); save(); fillStatic(); renderSections(); refresh(); toast('已清空，可以開始填了'); };
+$('btnReset').onclick = () => { $('confirmBox').hidden = false; $('btnReset').hidden = true; };
+$('noReset').onclick = () => { $('confirmBox').hidden = true; $('btnReset').hidden = false; };
+$('yesReset').onclick = () => { S = blank(); save(); fillStatic(); renderSections(); refresh(); $('confirmBox').hidden = true; $('btnReset').hidden = false; scrollTo({top:0,behavior:'smooth'}); toast('已開新報價'); };
+
+let toastT;
+function toast(msg){ const el=$('toast'); el.textContent=msg; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true,2400); }
+
+/* ---------- copy text ---------- */
+function quoteText(){
+  const t = totals(), i = S.info, L=[];
+  L.push('【象藝創意 報價單】');
+  if (i.name) L.push('客戶：'+i.name);
+  if (i.addr) L.push('地點：'+i.addr);
+  if (i.date) L.push('日期：'+i.date.replace(/-/g,'/'));
+  L.push('');
+  S.cats.forEach((c,ci)=>{
+    const rows = c.items.filter(it=>it.name||amt(it));
+    if (!rows.length) return;
+    L.push(`${LET[ci]}. ${cn(c)}　小計 ${fmt(t.subs[ci])}`);
+    rows.forEach(it=>L.push(`・${it.name||'（未命名）'} ${it.qty||0}${it.unit} × ${fmt(num(it.price))} = ${fmt(amt(it))}${it.note?'（'+it.note+'）':''}`));
+    L.push('');
+  });
+  L.push('工程合計：'+fmt(t.sub));
+  if (t.design) L.push('設計費：'+fmt(t.design));
+  if (t.sup) L.push('監工費：'+fmt(t.sup));
+  if (t.disc) L.push('優惠折讓：−'+fmt(t.disc));
+  if (S.fees.tax) L.push('稅金 5%：'+fmt(t.tax));
+  L.push((S.fees.tax?'總計（含稅）：':'總計（未稅）：')+'NT$ '+fmt(t.grand));
+  return L.join('\n');
+}
+$('btnCopy').onclick = () => {
+  const txt = quoteText(); const box = $('copyBox');
+  const fallback = () => { box.hidden=false; box.value=txt; box.focus(); box.select(); toast('請長按文字框複製'); };
+  try { navigator.clipboard.writeText(txt).then(()=>{ box.hidden=true; toast('已複製，可以貼到 LINE'); }, fallback); } catch(e){ fallback(); }
+};
+
+/* ---------- save a file (share sheet on phones, download elsewhere) ---------- */
+async function saveFile(blob, name, mime){
+  const file = new File([blob], name, {type: mime});
+  if (navigator.canShare && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && navigator.canShare({files:[file]})){
+    try { await navigator.share({files:[file], title:name}); return 'shared'; }
+    catch(e){ if (e && e.name==='AbortError') return 'cancel'; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  return 'saved';
+}
+
+/* ---------- Image export (long PNG for phones / LINE) ---------- */
+function drawQuote(ctx, draw){
+  const P = {dark:'#B58A58',deep:'#8A6540',head:'#E8D4B5',room:'#F4E9D8',sub:'#F7EEE4',cell:'#FFFDFC',bg:'#FBF7F0',txt:'#4B392B',note:'#7A6A5D',line:'#EADDCB'};
+  const FF = '"Noto Sans TC","PingFang TC","Heiti TC","Microsoft JhengHei",sans-serif';
+  const W = 540, M = 20, IW = W - M*2;
+  const font = (sz,b) => { ctx.font = `${b?700:400} ${sz}px ${FF}`; };
+  const rect = (x,y,w,h,c) => { if(draw){ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); } };
+  const text = (s,x,y,c,align='left') => { if(draw){ ctx.fillStyle=c; ctx.textAlign=align; ctx.textBaseline='middle'; ctx.fillText(s,x,y); } };
+  const wrap = (s,maxW) => { const out=[]; let line=''; for (const ch of String(s)) { if (ctx.measureText(line+ch).width > maxW && line){ out.push(line); line=ch; } else line+=ch; } if(line||!out.length) out.push(line); return out; };
+  const hr = (y) => rect(M,y,IW,1,P.line);
+  const t = totals(), i = S.info;
+  let y = 0;
+  rect(0,0,W,99999,P.bg);
+  // header band
+  rect(0,0,W,84,P.dark);
+  font(13,false); text('象藝創意',M,26,'#FFFFFF');
+  font(22,true); text('工程報價單',M,56,'#FFFFFF');
+  font(12,false); text((i.date||'').replace(/-/g,'/'),W-M,26,'#FFFFFF','right');
+  if (i.no){ text('編號 '+i.no,W-M,56,'#FFFFFF','right'); }
+  y = 84 + 14;
+  // info card
+  const infos = [['客戶',i.name],['電話',i.phone],['地點',i.addr],['設計師',i.designer]].filter(r=>r[1]);
+  if (infos.length){
+    font(14,false);
+    const lines = infos.map(([k,v])=>[k,wrap(v,IW-84)]);
+    const h = lines.reduce((a,[,ls])=>a+ls.length*22+8,12);
+    rect(M,y,IW,h,P.cell);
+    let yy = y+10;
+    lines.forEach(([k,ls])=>{ font(12,true); text(k,M+12,yy+11,P.deep); font(14,false); ls.forEach((l,j)=>text(l,M+72,yy+11+j*22,P.txt)); yy += ls.length*22+8; });
+    y += h + 14;
+  }
+  // summary box
+  font(12,true); text('總覽',M,y+8,P.deep); y += 20;
+  const active = S.cats.map((c,ci)=>({c,ci,rows:c.items.filter(it=>it.name||amt(it))})).filter(o=>o.rows.length);
+  const sumH = active.length*26 + 12;
+  rect(M,y,IW,sumH,P.cell);
+  let yy = y+6;
+  active.forEach(({c,ci})=>{ font(13,true); text(LET[ci],M+14,yy+13,P.dark,'center'); font(14,false); text(cn(c),M+32,yy+13,P.txt); font(14,true); text(fmt(t.subs[ci]),W-M-12,yy+13,P.txt,'right'); yy+=26; });
+  y += sumH + 8;
+  const feeLine = (k,v,bold) => { font(14,!!bold); text(k,M+12,y+13,P.note); text(v,W-M-12,y+13,P.txt,'right'); y += 26; };
+  feeLine('工程合計',fmt(t.sub),true);
+  if (t.design) feeLine('設計費',fmt(t.design));
+  if (t.sup) feeLine('監工費',fmt(t.sup));
+  if (t.disc) feeLine('優惠折讓','−'+fmt(t.disc));
+  if (S.fees.tax) feeLine('稅金 5%',fmt(t.tax));
+  y += 4;
+  rect(M,y,IW,56,P.dark);
+  font(14,true); text(S.fees.tax?'總計（含稅）':'總計（未稅）',M+14,y+28,'#FFFFFF');
+  font(24,true); text('NT$ '+fmt(t.grand),W-M-14,y+29,'#FFFFFF','right');
+  y += 56 + 22;
+  // details
+  font(12,true); text('明細',M,y+8,P.deep); y += 22;
+  active.forEach(({c,ci,rows})=>{
+    rect(M,y,IW,34,P.head);
+    rect(M+8,y+6,22,22,P.dark); font(13,true); text(LET[ci],M+19,y+17,'#FFFFFF','center');
+    font(14,true); text(cn(c),M+40,y+17,P.txt);
+    y += 34;
+    rows.forEach(it=>{
+      font(14,false);
+      const nl = wrap(it.name||'（未命名）', IW-24);
+      const noteL = it.note ? (font(12,false), wrap(it.note, IW-24)) : [];
+      const h = 10 + nl.length*21 + 22 + noteL.length*18 + 8;
+      rect(M,y,IW,h,P.cell);
+      let ty = y+10;
+      font(14,false); nl.forEach(l=>{ text(l,M+12,ty+10,P.txt); ty+=21; });
+      font(12,false); text(`${it.qty||0} ${it.unit||''} × ${fmt(num(it.price))}`,M+12,ty+10,P.note);
+      font(15,true); text(fmt(amt(it)),W-M-12,ty+10,P.deep,'right'); ty+=22;
+      font(12,false); noteL.forEach(l=>{ text(l,M+12,ty+8,P.note); ty+=18; });
+      y += h; hr(y-1);
+    });
+    rect(M,y,IW,30,P.sub);
+    font(13,true); text('小計',M+12,y+15,P.deep); text(fmt(t.subs[ci]),W-M-12,y+15,P.deep,'right');
+    y += 30 + 12;
+  });
+  font(11,false); text('本報價依明細施作，未列示之項目不包含在內。',M,y+8,P.note);
+  y += 28;
+  return {W, H: y};
+}
+async function makeImage(){
+  const txt = quoteText() + '象藝創意工程報價單總覽明細小計未命名NT$0123456789×−（）未含稅總計本報價依施作列示之項目不包在內編號電話地點設計師客戶';
+  try { await Promise.race([Promise.all([document.fonts.load('400 14px "Noto Sans TC"', txt), document.fonts.load('700 14px "Noto Sans TC"', txt)]), new Promise(r=>setTimeout(r,2500))]); } catch(e){}
+  const probe = document.createElement('canvas').getContext('2d');
+  const {W,H} = drawQuote(probe,false);
+  let scale = 2; while (W*scale*H*scale > 15e6 && scale > 1) scale -= 0.25;
+  const cv = document.createElement('canvas'); cv.width = Math.round(W*scale); cv.height = Math.round(H*scale);
+  const ctx = cv.getContext('2d'); ctx.scale(scale,scale);
+  drawQuote(ctx,true);
+  return await new Promise(res=>cv.toBlob(res,'image/png'));
+}
+let imgURL;
+$('btnImg').onclick = async () => {
+  const btn = $('btnImg'); btn.disabled = true; btn.textContent = '產生圖片中…';
+  try {
+    const blob = await makeImage();
+    if (imgURL) URL.revokeObjectURL(imgURL);
+    imgURL = URL.createObjectURL(blob);
+    $('imgOut').src = imgURL; $('imgPrev').hidden = false;
+    const d = (S.info.date||today()).replace(/-/g,'').slice(4);
+    const name = `${d}${S.info.name||'報價單'}.png`.replace(/[\\/:*?"<>|]/g,'');
+    const r = await saveFile(blob, name, 'image/png');
+    toast(r==='cancel' ? '已取消，可以長按下面的圖片另存' : r==='shared' ? '已開啟分享' : '圖片已下載，也可以長按下面的圖片存到相簿');
+    $('imgPrev').scrollIntoView({block:'start',behavior:'smooth'});
+  } catch(e){ toast('圖片產生失敗，請再試一次'); }
+  finally { btn.disabled = false; btn.textContent = '存成圖片（傳 LINE、存相簿）'; }
+};
+
+/* ---------- Excel export (奶茶風, live formulas) ---------- */
+let xlsxP;
+function loadXLSX(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return xlsxP ||= new Promise((res,rej)=>{
+    const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+    s.onload=()=>res(window.XLSX); s.onerror=()=>{ xlsxP=null; rej(new Error('load')); }; document.head.appendChild(s);
+  });
+}
+function buildWorkbook(X){
+  const C = {dark:'B58A58',deep:'8A6540',deeper:'694A30',head:'E8D4B5',room:'F4E9D8',sub:'F7EEE4',cell:'FFFDFC',bg:'FBF7F0',txt:'4B392B',note:'7A6A5D',line:'EADDCB',line2:'D9C4A7'};
+  const FONT = 'Microsoft JhengHei';
+  const side = (c,s='thin') => ({style:s,color:{rgb:c}});
+  const bd = (c=C.line) => ({top:side(c),bottom:side(c),left:side(c),right:side(c)});
+  const sty = (fill,o={}) => ({fill:{patternType:'solid',fgColor:{rgb:fill}},
+    font:{name:FONT,sz:o.sz||10,bold:!!o.b,color:{rgb:o.c||C.txt}},
+    border:o.bd||bd(), alignment:{horizontal:o.h||'left',vertical:'center',wrapText:!!o.wrap}});
+  const ws = {}; const merges=[]; const rowsH=[]; let r=0;
+  const A = (col,row) => X.utils.encode_cell({c:col,r:row});
+  const put = (col,row,v,s,extra={}) => { const cell = {s}; if (extra.f){cell.f=extra.f; cell.t='n'; cell.v=extra.v??0;} else if (typeof v==='number'){cell.t='n';cell.v=v;} else {cell.t='s';cell.v=v??'';} if(extra.z) cell.z=extra.z; ws[A(col,row)] = cell; };
+  const fillRow = (row,s) => { for(let c=0;c<8;c++) if(!ws[A(c,row)]) put(c,row,'',s); };
+  const merge = (c1,r1,c2,r2) => merges.push({s:{c:c1,r:r1},e:{c:c2,r:r2}});
+  const NUMZ = '#,##0;-#,##0;""';
+  const t = totals(), info = S.info;
+
+  // title
+  put(0,r,'象藝創意',sty(C.dark,{sz:18,b:true,c:'FFFFFF',h:'center',bd:bd(C.dark)})); fillRow(r,sty(C.dark,{bd:bd(C.dark)})); merge(0,r,7,r); rowsH[r]={hpt:38}; r++;
+  fillRow(r,sty(C.bg,{bd:{}})); rowsH[r]={hpt:8}; r++;
+  // info
+  const infoRows=[['客戶名稱',info.name,'日期',(info.date||'').replace(/-/g,'/')],['連絡電話',info.phone,'設計師',info.designer],['施工地點',info.addr,'編號',info.no]];
+  infoRows.forEach(([l1,v1,l2,v2])=>{
+    const lab=sty(C.cell,{sz:9,b:true,c:C.deep,h:'center'}), val=sty(C.cell);
+    put(0,r,l1,lab); put(1,r,v1||'',val); put(2,r,'',val); put(3,r,'',val); put(4,r,l2,lab); put(5,r,v2||'',val); put(6,r,'',val); put(7,r,'',val);
+    merge(1,r,3,r); merge(5,r,7,r); rowsH[r]={hpt:25}; r++;
+  });
+  const header = (row, dark) => {
+    const s = dark ? (h)=>sty(C.deep,{b:true,c:'FFFFFF',h,bd:{...bd(C.deeper),bottom:side(C.deeper,'medium')}})
+                   : (h)=>sty(C.head,{b:true,c:C.deeper,h,bd:{...bd(),bottom:side(C.dark,'medium')}});
+    ['編號','項   目   內   容','','單位','數量','單價','複價','備註'].forEach((v,c)=>put(c,row,v,s(c===5||c===6?'right':'center')));
+    merge(1,row,2,row); rowsH[row]={hpt:24};
+  };
+  // summary
+  header(r,false); r++;
+  const sumRow = {}; // ci -> row index
+  S.cats.forEach((c,ci)=>{ sumRow[ci]=r;
+    put(0,r,LET[ci],sty(C.room,{b:true,c:C.deep,h:'center'})); put(1,r,cn(c),sty(C.cell)); put(2,r,'',sty(C.cell));
+    for (let k=3;k<6;k++) put(k,r,'',sty(C.cell));
+    put(6,r,t.subs[ci],{...sty(C.cell,{b:true,h:'right'})},{z:NUMZ}); put(7,r,'',sty(C.cell,{c:C.note,sz:9}));
+    merge(1,r,2,r); rowsH[r]={hpt:22}; r++;
+  });
+  const firstSum = sumRow[0], lastSum = r-1;
+  const barS = (h,sz=11) => sty(C.dark,{b:true,c:'FFFFFF',h,sz,bd:{top:side(C.deep,'medium'),bottom:side(C.deep,'medium'),left:side(C.deep,'medium'),right:side(C.deep,'medium')}});
+  const feeS = (h) => sty(C.sub,{b:true,c:C.deep,h,bd:bd(C.line2)});
+  const rSub = r;
+  fillRow(r,barS('left')); put(5,r,'工程合計',barS('right')); put(6,r,0,barS('right',13),{f:`SUM(G${firstSum+1}:G${lastSum+1})`,v:t.sub,z:NUMZ}); merge(1,r,2,r); rowsH[r]={hpt:28}; r++;
+  const feeRows = [['設計費',t.design],['監工費',t.sup],['優惠折讓',-t.disc]];
+  const rFee0 = r;
+  feeRows.forEach(([lab,v])=>{ for(let c=0;c<8;c++) put(c,r,'',sty(C.cell)); put(5,r,lab,feeS('right')); put(6,r,v,sty(C.cell,{b:true,h:'right'}),{z:NUMZ}); merge(1,r,2,r); rowsH[r]={hpt:22}; r++; });
+  const rTax = r;
+  for(let c=0;c<8;c++) put(c,r,'',sty(C.cell)); put(5,r,'稅金 5%',feeS('right'));
+  put(6,r,0,sty(C.cell,{b:true,h:'right'}),{f: S.fees.tax ? `ROUND((G${rSub+1}+G${rFee0+1}+G${rFee0+2}+G${rFee0+3})*0.05,0)` : '0', v:t.tax, z:NUMZ});
+  put(7,r,S.fees.tax?'':'未稅',sty(C.cell,{c:C.note,sz:9})); merge(1,r,2,r); rowsH[r]={hpt:22}; r++;
+  fillRow(r,barS('left')); put(5,r,'總計',barS('right')); put(6,r,0,barS('right',15),{f:`SUM(G${rSub+1}:G${rTax+1})`,v:t.grand,z:NUMZ}); merge(1,r,2,r); rowsH[r]={hpt:32}; r++;
+  fillRow(r,sty(C.bg,{bd:{}})); rowsH[r]={hpt:14}; r++;
+
+  // details
+  header(r,true); ws[A(0,r)].v=''; r++;
+  const subCellRow = {};
+  S.cats.forEach((c,ci)=>{
+    const rows = c.items.filter(it=>it.name||amt(it)||it.qty||it.price);
+    if (!rows.length) return;
+    const topBd = {...bd(C.line2), top:side(C.line2,'medium')};
+    put(0,r,LET[ci],sty(C.dark,{b:true,c:'FFFFFF',h:'center',bd:topBd}));
+    put(1,r,cn(c),sty(C.head,{b:true,c:C.deeper,bd:topBd})); for(let k=2;k<8;k++) put(k,r,'',sty(C.head,{bd:topBd}));
+    merge(1,r,2,r); rowsH[r]={hpt:25}; r++;
+    const first = r;
+    rows.forEach(it=>{
+      put(0,r,'',sty(C.cell)); put(1,r,it.name,sty(C.cell,{wrap:true})); put(2,r,'',sty(C.cell));
+      put(3,r,it.unit,sty(C.cell,{h:'center'}));
+      const q = num(it.qty), p = num(it.price);
+      put(4,r,it.qty===''?'':q,sty(C.cell,{h:'right'}));
+      put(5,r,it.price===''?'':p,sty(C.cell,{h:'right'}),{z:'#,##0'});
+      put(6,r,0,sty(C.cell,{h:'right'}),{f:`E${r+1}*F${r+1}`,v:q*p,z:NUMZ});
+      put(7,r,it.note,sty(C.cell,{c:C.note,sz:9,wrap:true}));
+      merge(1,r,2,r); rowsH[r]={hpt:22}; r++;
+    });
+    for(let k=0;k<8;k++) put(k,r,'',feeS(k===5||k===6?'right':'left'));
+    put(5,r,'小計',feeS('right')); put(6,r,0,feeS('right'),{f:`SUM(G${first+1}:G${r})`,v:t.subs[ci],z:NUMZ});
+    merge(1,r,2,r); rowsH[r]={hpt:22}; subCellRow[ci]=r; r++;
+  });
+  // link summary to detail subtotals
+  Object.entries(subCellRow).forEach(([ci,row])=>{ const cell = ws[A(6,sumRow[ci])]; cell.f = `G${row+1}`; cell.t='n'; });
+
+  ws['!ref'] = X.utils.encode_range({s:{c:0,r:0},e:{c:7,r:r-1}});
+  ws['!merges'] = merges; ws['!rows'] = rowsH;
+  ws['!cols'] = [10,27,8,7.5,8,11,13,15].map(w=>({wch:w}));
+  const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, '報價單');
+  return X.write(wb,{type:'array',bookType:'xlsx'});
+}
+$('btnXlsx').onclick = async () => {
+  const btn = $('btnXlsx'); btn.disabled = true; btn.textContent = '產生中…';
+  try {
+    const X = await loadXLSX();
+    const buf = buildWorkbook(X);
+    const d = (S.info.date||today()).replace(/-/g,'').slice(4);
+    const name = `${d}${S.info.name||'報價單'}.xlsx`.replace(/[\\/:*?"<>|]/g,'');
+    const r = await saveFile(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), name, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    if (r!=='cancel') toast(r==='shared' ? '已開啟分享' : 'Excel 已下載');
+  } catch(e){
+    toast(e && e.message==='load' ? 'Excel 元件載入失敗，請檢查網路後再試' : '下載失敗，請改用「複製文字」');
+  } finally { btn.disabled = false; btn.textContent = '下載 Excel 報價單'; }
+};
+
+fillStatic(); renderSections(); refresh();
+})();
+</script>
+</body>
+</html>
