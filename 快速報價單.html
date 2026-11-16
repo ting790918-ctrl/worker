@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#B58A58">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="快速報價">
-<title>象藝快速報價</title>
+<title>快速報價單</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600&display=swap">
@@ -146,7 +146,7 @@ textarea{font-size:13px;min-height:120px}
   <header class="top" id="top">
     <div class="top-row">
       <div>
-        <div class="brand">象藝創意．報價</div>
+        <div class="brand" id="brand">快速報價單</div>
         <div class="grand-label" id="grandLabel">總計（未稅）</div>
       </div>
       <div class="grand num" id="grand"><small>NT$</small>0</div>
@@ -162,6 +162,7 @@ textarea{font-size:13px;min-height:120px}
   </div>
 
   <section class="card info" aria-label="客戶資料">
+    <label class="f full"><span>公司名稱</span><input id="i-company" data-company placeholder="你的公司名稱（會印在報價單上）" autocomplete="organization"></label>
     <label class="f full"><span>客戶名稱</span><input id="i-name" data-info="name" placeholder="例：汐止王宅裝修案"></label>
     <label class="f"><span>電話</span><input id="i-phone" data-info="phone" inputmode="tel" placeholder="09xx-xxxxxx"></label>
     <label class="f"><span>日期</span><input id="i-date" data-info="date" type="date"></label>
@@ -216,6 +217,10 @@ const nid = () => (uid++).toString(36);
 
 function today(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
 function item(name='',unit='式',qty='',price='',note=''){ return {id:nid(),name,unit,qty:String(qty),price:String(price),note}; }
+const CKEY = 'quick-quote-company';
+let COMPANY = '';
+try { COMPANY = localStorage.getItem(CKEY) || ''; } catch(e) {}
+const co = () => COMPANY.trim();
 function blank(){
   return {sample:false, info:{name:'',phone:'',date:today(),addr:'',designer:'',no:''},
     cats:CATS.map((n,i)=>({name:n,open:i===0,items:[]})),
@@ -301,6 +306,7 @@ function refresh(){
     sec.querySelector('[data-count]').textContent = c.items.length ? c.items.length+' 項' : '';
     sec.querySelector('[data-name]').textContent = c.name || '（未命名工種）';
   });
+  $('brand').textContent = co() ? co()+'．報價' : '快速報價單';
   $('grand').innerHTML = '<small>NT$</small>' + fmt(t.grand);
   $('grandLabel').textContent = S.fees.tax ? '總計（含稅）' : '總計（未稅）';
   $('f-grand-label').textContent = S.fees.tax ? '總計（含稅）' : '總計（未稅）';
@@ -319,6 +325,7 @@ function refresh(){
   $('sampleBar').hidden = !S.sample;
 }
 function fillStatic(){
+  $('i-company').value = COMPANY;
   document.querySelectorAll('[data-info]').forEach(el=>{ el.value = S.info[el.dataset.info] ?? ''; });
   $('fee-design').value=S.fees.design; $('fee-super').value=S.fees.supervise; $('fee-disc').value=S.fees.discount;
 }
@@ -329,6 +336,7 @@ const findItem = el => { const box = el.closest('.item'); if(!box) return null; 
 document.addEventListener('input', e=>{
   const el = e.target;
   if (el.dataset.info){ S.info[el.dataset.info] = el.value; S.sample=false; save(); refresh(); return; }
+  if (el.hasAttribute('data-company')){ COMPANY = el.value; try{ localStorage.setItem(CKEY, COMPANY); }catch(e){} refresh(); return; }
   if (el.dataset.fee){ S.fees[el.dataset.fee] = el.value; save(); refresh(); return; }
   if (el.hasAttribute('data-cname')){ S.cats[+el.closest('.sec').dataset.ci].name = el.value; S.sample=false; save(); refresh(); return; }
   if (el.dataset.k){
@@ -400,7 +408,7 @@ function toast(msg){ const el=$('toast'); el.textContent=msg; el.hidden=false; c
 /* ---------- copy text ---------- */
 function quoteText(){
   const t = totals(), i = S.info, L=[];
-  L.push('【象藝創意 報價單】');
+  L.push(co() ? `【${co()} 報價單】` : '【報價單】');
   if (i.name) L.push('客戶：'+i.name);
   if (i.addr) L.push('地點：'+i.addr);
   if (i.date) L.push('日期：'+i.date.replace(/-/g,'/'));
@@ -455,7 +463,7 @@ function drawQuote(ctx, draw){
   rect(0,0,W,99999,P.bg);
   // header band
   rect(0,0,W,84,P.dark);
-  font(13,false); text('象藝創意',M,26,'#FFFFFF');
+  font(13,false); if (co()) text(co(),M,26,'#FFFFFF');
   font(22,true); text('工程報價單',M,56,'#FFFFFF');
   font(12,false); text((i.date||'').replace(/-/g,'/'),W-M,26,'#FFFFFF','right');
   if (i.no){ text('編號 '+i.no,W-M,56,'#FFFFFF','right'); }
@@ -519,7 +527,7 @@ function drawQuote(ctx, draw){
   return {W, H: y};
 }
 async function makeImage(){
-  const txt = quoteText() + '象藝創意工程報價單總覽明細小計未命名NT$0123456789×−（）未含稅總計本報價依施作列示之項目不包在內編號電話地點設計師客戶';
+  const txt = quoteText() + '工程報價單總覽明細小計未命名NT$0123456789×−（）未含稅總計本報價依施作列示之項目不包在內編號電話地點設計師客戶';
   try { await Promise.race([Promise.all([document.fonts.load('400 14px "Noto Sans TC"', txt), document.fonts.load('700 14px "Noto Sans TC"', txt)]), new Promise(r=>setTimeout(r,2500))]); } catch(e){}
   const probe = document.createElement('canvas').getContext('2d');
   const {W,H} = drawQuote(probe,false);
@@ -572,7 +580,7 @@ function buildWorkbook(X){
   const t = totals(), info = S.info;
 
   // title
-  put(0,r,'象藝創意',sty(C.dark,{sz:18,b:true,c:'FFFFFF',h:'center',bd:bd(C.dark)})); fillRow(r,sty(C.dark,{bd:bd(C.dark)})); merge(0,r,7,r); rowsH[r]={hpt:38}; r++;
+  put(0,r,co()||'工程報價單',sty(C.dark,{sz:18,b:true,c:'FFFFFF',h:'center',bd:bd(C.dark)})); fillRow(r,sty(C.dark,{bd:bd(C.dark)})); merge(0,r,7,r); rowsH[r]={hpt:38}; r++;
   fillRow(r,sty(C.bg,{bd:{}})); rowsH[r]={hpt:8}; r++;
   // info
   const infoRows=[['客戶名稱',info.name,'日期',(info.date||'').replace(/-/g,'/')],['連絡電話',info.phone,'設計師',info.designer],['施工地點',info.addr,'編號',info.no]];
