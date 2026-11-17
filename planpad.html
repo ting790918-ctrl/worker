@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b127</title>
+<title>PlanPad · 平面圖工具 b129</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -353,6 +353,11 @@
   .proj-row button{flex:0 0 auto; height:30px; padding:0 10px; font-size:12px; border:1px solid var(--line); background:#fff; border-radius:8px; color:var(--text);}
   .proj-row button.go{background:#275C7A; border-color:#275C7A; color:#fff;}
   .proj-row button.del{color:var(--danger); border-color:#F0D6D2;}
+  .cloud-bar{display:flex; align-items:center; gap:8px; margin:10px 0 2px; padding:8px 10px; border-radius:9px; background:#EEF5F8; font-size:12px; line-height:1.5; color:var(--text);}
+  .cloud-bar span{flex:1 1 auto; min-width:0;}
+  .cloud-bar.off{background:#F6F4EF;}
+  .cloud-bar.err{background:#FBEDEA; color:var(--danger);}
+  .cloud-bar button{flex:0 0 auto; height:28px; padding:0 10px; font-size:12px; border:1px solid var(--line); background:#fff; border-radius:8px; color:var(--text);}
   .proj-empty{padding:22px 4px; text-align:center; font-size:13px; color:var(--muted); line-height:1.7;}
   @media (max-width:880px){
     #panel{position:absolute; right:0; top:0; bottom:0; transform:translateX(100%); transition:transform .2s; box-shadow:-4px 0 20px rgba(0,0,0,.08);}
@@ -410,7 +415,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b127</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b129</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -773,6 +778,7 @@
       <input type="text" id="projName" placeholder="專案名稱" style="flex:1 1 auto;min-width:0;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:9px;font-size:14px;">
       <button class="tbtn primary" id="projSave" style="flex:0 0 auto">儲存</button>
     </div>
+    <div id="cloudBar" class="cloud-bar off"></div>
     <div id="projList" class="proj-list"></div>
     <div class="modal-btns"><button class="tbtn" id="projClose">關閉</button></div>
   </div>
@@ -6918,6 +6924,7 @@
     }
     acctMenuUI();
     if(acctModal.classList.contains('open')) acctRender();
+    cloudOnAuth(u, now!==was);
   }
   function acctMenuUI(){
     const tag=document.getElementById('acctMenuTag'); if(!tag) return;
@@ -6936,6 +6943,8 @@
       msg='直接打開檔案（file://）沒辦法登入。請用網址打開（例如 GitHub 試用版），或在 iPad App 裡登入。';
     else if(code==='auth/unauthorized-domain')
       msg='這個網址還沒有加進 Firebase 的「授權網域」，所以不能登入：\n'+location.hostname+'\n\n到 Firebase →「Authentication」→「設定」→「授權網域」加上它就可以了。';
+    else if(err && err.appleCode)
+      msg='Apple 登入沒有完成。\n\n如果 Apple 的視窗出現「invalid_request」或網址錯誤，代表這個網址還沒加到 Apple 的 Services ID（'+APPLE_SERVICE_ID+'）：\n'+location.origin+location.pathname;
     else if(code==='auth/popup-blocked')
       msg='登入視窗被瀏覽器擋住了。請允許這個網站開啟彈出式視窗，再按一次登入。';
     else if(code==='auth/network-request-failed' || (!FB && /fetch|import|load|network/i.test(String(err && err.message))))
@@ -6957,18 +6966,69 @@
     if(kind==='apple'){ const p=new A.OAuthProvider('apple.com'); p.addScope('email'); p.addScope('name'); p.setCustomParameters({locale:'zh_TW'}); return p; }
     const p=new A.GoogleAuthProvider(); p.setCustomParameters({prompt:'select_account'}); return p;
   }
+  // ---- Sign in with Apple on the web, without Firebase's hand-off page ----
+  // Firebase's own Apple popup goes through planpad-tw.firebaseapp.com, and Safari
+  // stops there on a bare "CONTINUE TO THE APP" page before Apple's sheet opens.
+  // Apple's JS opens the Apple sheet directly; its token is then handed to
+  // Firebase. Needs this page's domain + exact URL registered on the Services ID.
+  const APPLE_JS='https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/zh_TW/appleid.auth.js';
+  const APPLE_SERVICE_ID='tw.planpad.app.web';
+  let appleLoading=null;
+  function appleLoad(){
+    if(window.AppleID && window.AppleID.auth) return Promise.resolve(window.AppleID);
+    if(appleLoading) return appleLoading;
+    appleLoading=new Promise((res,rej)=>{
+      const sc=document.createElement('script'); sc.src=APPLE_JS; sc.async=true;
+      sc.onload=()=>{ if(window.AppleID && window.AppleID.auth) res(window.AppleID); else { appleLoading=null; rej(new Error('Apple 登入元件沒有載入')); } };
+      sc.onerror=()=>{ appleLoading=null; rej(new Error('Apple 登入元件沒有載入')); };
+      document.head.appendChild(sc);
+    });
+    return appleLoading;
+  }
+  const hex=(buf)=>[...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,'0')).join('');
+  async function sha256hex(t){ return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t))); }
+  function randNonce(){ const a=new Uint8Array(24); crypto.getRandomValues(a); return hex(a.buffer); }
+  async function appleWebSignIn(){
+    const AID=await appleLoad();
+    const raw=randNonce();
+    AID.auth.init({clientId:APPLE_SERVICE_ID, scope:'name email', redirectURI:location.origin+location.pathname,
+                   usePopup:true, nonce:await sha256hex(raw), state:raw.slice(0,12)});
+    let r;
+    try{ r=await AID.auth.signIn(); }
+    catch(e){
+      const code=(e && e.error) || '';
+      if(/popup_closed_by_user|user_cancelled_authorize|user_trigger_new_signin_flow/.test(code)) throw {userCancelled:true};
+      throw Object.assign(new Error('Apple 登入沒有完成（'+(code||'unknown')+'）'), {appleCode:code});
+    }
+    const nm=r && r.user && r.user.name;
+    return {idToken:r.authorization.id_token, rawNonce:raw, authorizationCode:r.authorization.code,
+            name: nm ? [nm.lastName, nm.firstName].filter(Boolean).join('') : ''};
+  }
+  // Apple hands over the person's name only on the very first sign-in; keep it
+  async function acctKeepName(A, name){
+    try{ const u=FB && FB.auth.currentUser; if(u && name && !u.displayName){ await A.updateProfile(u,{displayName:name}); acctSet(FB.auth.currentUser); } }catch(_){ }
+  }
+  // the credential for 'apple' / 'google': native sheet in the App, Apple JS or the
+  // Firebase popup on the web. Returns {cred} or {popup:true} when Firebase's popup should be used.
+  async function acctObtain(A, kind){
+    const n=planBridge();
+    if(n && typeof n.signIn==='function'){ const c=await n.signIn(kind); if(!c) throw {userCancelled:true}; return {c, cred:acctCredential(A,kind,c)}; }
+    if(kind==='apple'){
+      let c=null;
+      try{ c=await appleWebSignIn(); }
+      catch(e){ if(acctIsCancel(e)) throw e; if(e && e.appleCode) throw e; try{ dbg('Apple JS 無法使用，改用 Firebase 視窗：'+(e&&e.message)); }catch(_){ } }
+      if(c) return {c, cred:acctCredential(A,'apple',c)};
+    }
+    return {popup:true};
+  }
   async function acctSignIn(kind){
     if(acctBusy) return;
     acctBusy='signin'; acctRender();
     try{
       const {auth,A}=await fbLoad();
-      const n=planBridge();
-      if(n && typeof n.signIn==='function'){
-        const c=await n.signIn(kind); if(!c) return;
-        await A.signInWithCredential(auth, acctCredential(A,kind,c));
-      } else {
-        await A.signInWithPopup(auth, acctPopupProvider(A,kind));
-      }
+      const got=await acctObtain(A,kind);
+      if(got.popup) await A.signInWithPopup(auth, acctPopupProvider(A,kind));
+      else { await A.signInWithCredential(auth, got.cred); if(got.c && got.c.name) await acctKeepName(A, got.c.name); }
       flashHint('已登入');
     }catch(err){ acctErr(err,'登入'); }
     finally{ acctBusy=''; acctRender(); }
@@ -6992,12 +7052,13 @@
       // Firebase wants a fresh sign-in before deleting. For Apple it is also where
       // the token to revoke comes from: App Store rule 5.1.1(v) requires the Sign in
       // with Apple token to be revoked when the account is deleted.
-      if(n && typeof n.signIn==='function'){
-        const c=await n.signIn(kind); if(!c) return;
-        await A.reauthenticateWithCredential(u, acctCredential(A,kind,c));
+      const got=await acctObtain(A,kind);
+      if(!got.popup){
+        const c=got.c;
+        await A.reauthenticateWithCredential(u, got.cred);
         if(kind==='apple'){
           try{
-            if(typeof n.revokeApple==='function') await n.revokeApple(c.authorizationCode);
+            if(n && typeof n.revokeApple==='function') await n.revokeApple(c.authorizationCode);
             else if(c.authorizationCode && typeof A.revokeAccessToken==='function') await A.revokeAccessToken(auth, c.authorizationCode);
           }catch(e){ try{ dbg('Apple revoke failed: '+(e&&e.message)); }catch(_){ } }
         }
@@ -7008,8 +7069,10 @@
           catch(e){ try{ dbg('Apple revoke failed: '+(e&&e.message)); }catch(_){ } }
         }
       }
+      await cloudWipe(u.uid);      // cloud data first: if this fails the account stays, so it can be retried
       if(n && typeof n.onAccountDeleted==='function'){ try{ await n.onAccountDeleted(u.uid); }catch(_){ } }
       await A.deleteUser(u);
+      cloudForget(u.uid);
       await uiAlert('帳號已刪除。','刪除帳號');
     }catch(err){ acctErr(err,'刪除帳號'); }
     finally{ acctBusy=''; acctRender(); }
@@ -7063,6 +7126,299 @@
   }
   document.getElementById('acctClose').onclick=closeAcctModal;
   acctModal.addEventListener('click',e=>{ if(e.target===acctModal) closeAcctModal(); });
+  // ================= 雲端同步（b129） =================
+  // When the user is signed in, the project library is mirrored to Firestore so
+  // the iPad and the web build open the same plans. The library on the device
+  // stays the master copy: drawing, saving and opening never wait on the network,
+  // and sync runs afterwards in the background. Rules:
+  //  · newer `t` wins; if BOTH sides changed since the last sync, the loser is
+  //    kept as a 「衝突副本」 instead of being thrown away
+  //  · a delete is recorded (tombstone) so it reaches the other devices too
+  //  · plan JSON and photos are cut into chunks (Firestore caps a document at 1 MiB)
+  //    under users/{uid}/blobs; users/{uid}/projects holds only small metadata,
+  //    so listing the library downloads almost nothing
+  //  · projects saved while signed out are adopted by the next account that signs
+  //    in; a project that belongs to another account is never uploaded
+  // Everything goes through Firestore, not Storage: a browser can only download
+  // from Storage after a CORS setup on the bucket, which would be one more thing
+  // to break. Storage is ready for later (very large files).
+  const CLOUD_TOMB_KEY='planpad.projGone.v1';
+  const CLOUD_CHUNK=250000;            // chars; ≤750KB as UTF-8, under the 1 MiB document cap
+  const cloud={busy:false, again:false, last:0, err:''};
+  let CS=null, csLoading=null, cloudTimer=null, cloudWiping=false;
+  function cloudLoad(){
+    if(CS) return Promise.resolve(CS);
+    if(csLoading) return csLoading;
+    csLoading=(async()=>{
+      const {app}=await fbLoad();
+      const F=await import(fbBase()+'firebase-firestore.js');
+      CS={F, db:F.getFirestore(app)};
+      return CS;
+    })().catch(err=>{ csLoading=null; throw err; });
+    return csLoading;
+  }
+  function tombRead(){ try{ const o=JSON.parse(localStorage.getItem(CLOUD_TOMB_KEY)||'{}'); return (o&&typeof o==='object')?o:{}; }catch(_){ return {}; } }
+  function tombWrite(o){ try{ localStorage.setItem(CLOUD_TOMB_KEY, JSON.stringify(o)); }catch(_){ } }
+  // called by projDelete before the project leaves the library
+  function cloudTomb(id,p){
+    const uid=(p && p.uid) || (acctUser && acctUser.uid) || '';
+    if(!uid) return;
+    const g=tombRead(); g[id]={t:Date.now(), uid}; tombWrite(g);
+  }
+  function cloudPhotoIds(data){
+    const ids=[];
+    for(const n of ((data && data.notes) || [])) for(const id of (n.photos || [])) if(id && !ids.includes(id)) ids.push(id);
+    return ids;
+  }
+  function cloudNewId(){ return 'p'+Date.now()+Math.floor(Math.random()*1000); }
+  function b64FromBlob(b){
+    return new Promise((res,rej)=>{ const fr=new FileReader();
+      fr.onload=()=>res(String(fr.result).split(',')[1]||''); fr.onerror=()=>rej(fr.error||new Error('照片讀取失敗'));
+      fr.readAsDataURL(b); });
+  }
+  function blobFromB64(s,type){
+    const bin=atob(s), u=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+    return new Blob([u],{type:type||'image/jpeg'});
+  }
+  // never cut between the two halves of an emoji: a lone surrogate does not survive UTF-8
+  function cloudSplit(str){
+    const out=[]; let i=0;
+    while(i<str.length){
+      let j=Math.min(str.length, i+CLOUD_CHUNK);
+      if(j<str.length){ const c=str.charCodeAt(j-1); if(c>=0xD800 && c<=0xDBFF) j--; }
+      out.push(str.slice(i,j)); i=j;
+    }
+    return out.length ? out : [''];
+  }
+  const cloudBlobRef=(C,uid,key,i)=>C.F.doc(C.db,'users',uid,'blobs',key+'_'+i);
+  async function cloudPutStr(C,uid,key,str,extra){
+    const parts=cloudSplit(str);
+    for(let i=0;i<parts.length;i++)
+      await C.F.setDoc(cloudBlobRef(C,uid,key,i), Object.assign({d:parts[i], i, n:parts.length}, i===0?(extra||{}):{}));
+    return parts.length;
+  }
+  async function cloudGetStr(C,uid,key,n){
+    let s='', ty='';
+    for(let i=0;i<n;i++){
+      const d=await C.F.getDoc(cloudBlobRef(C,uid,key,i));
+      if(!d.exists()) throw new Error('雲端資料不完整（'+key+'）');
+      const v=d.data(); s+=v.d||''; if(i===0) ty=v.ty||'';
+    }
+    return {s, ty};
+  }
+  async function cloudDelStr(C,uid,key,n,from){
+    for(let i=from||0;i<(n||0);i++){ try{ await C.F.deleteDoc(cloudBlobRef(C,uid,key,i)); }catch(_){ } }
+  }
+  // chunk count of a photo already on the cloud under any live project, or 0
+  function cloudPhotoKnown(remote,pid){
+    for(const k of Object.keys(remote)){ const r=remote[k]; if(r && !r.deleted && r.photos && r.photos[pid]) return r.photos[pid]; }
+    return 0;
+  }
+  async function cloudPull(C,uid,id,r){
+    const {s}=await cloudGetStr(C,uid,'p_'+id,r.n||1);
+    const data=JSON.parse(s||'{}');
+    for(const pid of Object.keys(r.photos||{})){
+      let have=null; try{ have=await photoGet(pid); }catch(_){ }
+      if(have) continue;
+      try{
+        const g=await cloudGetStr(C,uid,'ph_'+pid,r.photos[pid]);
+        const b=blobFromB64(g.s,g.ty);
+        try{ await photoPut(pid,b); }catch(_){ memPhotos.set(pid,b); }
+        thumbs.delete(pid);
+      }catch(e){ try{ dbg('雲端：照片 '+pid+' 下載失敗 '+(e&&e.message)); }catch(_){ } }
+    }
+    return {name:r.name||'未命名', t:r.t||0, data, uid, cs:r.t||0};
+  }
+  async function cloudPush(C,uid,id,l,remote){
+    const r=remote[id];
+    const photos={};
+    for(const pid of cloudPhotoIds(l.data)){
+      let n=cloudPhotoKnown(remote,pid);
+      if(!n){
+        let b=null; try{ b=await photoGet(pid); }catch(_){ }
+        if(!b) continue;              // the photo is gone on this device too
+        n=await cloudPutStr(C,uid,'ph_'+pid, await b64FromBlob(b), {ty:b.type||'image/jpeg'});
+      }
+      photos[pid]=n;
+    }
+    const n=await cloudPutStr(C,uid,'p_'+id, JSON.stringify(l.data||{}));
+    if(r && !r.deleted && (r.n||0)>n) await cloudDelStr(C,uid,'p_'+id,r.n,n);
+    // the metadata goes last, so it never points at data that is not there yet
+    const meta={name:l.name||'未命名', t:l.t||Date.now(), deleted:false, n, photos, v:1};
+    await C.F.setDoc(C.F.doc(C.db,'users',uid,'projects',id), meta);
+    const old=(r && !r.deleted && r.photos) || {};
+    remote[id]=meta;
+    for(const pid of Object.keys(old)) if(!photos[pid] && !cloudPhotoKnown(remote,pid)) await cloudDelStr(C,uid,'ph_'+pid,old[pid],0);
+  }
+  async function cloudRemove(C,uid,id,remote,t){
+    const r=remote[id]||{};
+    const tomb={name:r.name||'', t:t||Date.now(), deleted:true};
+    await C.F.setDoc(C.F.doc(C.db,'users',uid,'projects',id), tomb);
+    remote[id]=tomb;
+    await cloudDelStr(C,uid,'p_'+id,r.n||0,0);
+    for(const pid of Object.keys(r.photos||{})) if(!cloudPhotoKnown(remote,pid)) await cloudDelStr(C,uid,'ph_'+pid,r.photos[pid],0);
+  }
+  async function cloudSyncRun(){
+    const uid=acctUser.uid;
+    const still=()=>!!(acctUser && acctUser.uid===uid) && !cloudWiping;
+    const C=await cloudLoad(); const F=C.F;
+    const snap=await F.getDocs(F.collection(C.db,'users',uid,'projects'));
+    const remote={}; snap.forEach(d=>{ remote[d.id]=d.data(); });
+    let changed=false;
+    // 1 · deletes made on this device
+    const gone=tombRead();
+    for(const id of Object.keys(gone)){
+      const g=gone[id]; if(!g || g.uid!==uid) continue;
+      if(!still()) return changed;
+      const r=remote[id];
+      if(r && !r.deleted && (r.t||0)<=g.t) await cloudRemove(C,uid,id,remote,g.t);
+      const now=tombRead(); delete now[id]; tombWrite(now);
+    }
+    // 2 · cloud → device
+    const local=projRead();
+    const put={}, del=[];
+    for(const id of Object.keys(remote)){
+      if(!still()) return changed;
+      const r=remote[id], l=local[id];
+      if(l && l.uid && l.uid!==uid) continue;
+      if(r.deleted){ if(l && l.uid===uid && (l.t||0)<=(r.t||0)) del.push(id); continue; }
+      if(!l){ put[id]=await cloudPull(C,uid,id,r); continue; }
+      const rChanged=(r.t||0)!==(l.cs||0), lChanged=(l.t||0)!==(l.cs||0);
+      if(!rChanged) continue;
+      if(lChanged && l.cs && (r.t||0)!==(l.t||0)){
+        // edited on both sides since the last sync: keep both
+        const copy=cloudNewId();
+        if((r.t||0)>(l.t||0)){
+          put[copy]={name:l.name+'（衝突副本）', t:l.t, data:l.data};
+          put[id]=await cloudPull(C,uid,id,r);
+        } else {
+          const p=await cloudPull(C,uid,id,r);
+          put[copy]={name:p.name+'（衝突副本）', t:p.t, data:p.data};
+        }
+      } else if((r.t||0)>(l.t||0)) put[id]=await cloudPull(C,uid,id,r);
+    }
+    // 3 · device → cloud
+    const merged=Object.assign({}, local, put); for(const id of del) delete merged[id];
+    for(const id of Object.keys(merged)){
+      if(!still()) break;
+      const l=merged[id]; if(l.uid && l.uid!==uid) continue;
+      const r=remote[id];
+      if(!r || (l.t||0)>(r.t||0)){
+        await cloudPush(C,uid,id,l,remote);
+        put[id]=Object.assign({}, l, {uid, cs:l.t});
+      } else if(!r.deleted && (r.t||0)===(l.t||0) && (l.uid!==uid || l.cs!==l.t)){
+        put[id]=Object.assign({}, l, {uid, cs:l.t});
+      }
+    }
+    // 4 · the free-plan count follows the account, not the device
+    try{
+      const ud=F.doc(C.db,'users',uid), us=await F.getDoc(ud);
+      const cu=(us.exists() && Array.isArray(us.data().planUsed)) ? us.data().planUsed : [];
+      const lu=planUsedRead(), un=[...new Set([...cu, ...lu])];
+      if(un.length!==lu.length) planUsedWrite(un);
+      if(un.length!==cu.length) await F.setDoc(ud, {planUsed:un, t:Date.now()}, {merge:true});
+    }catch(e){ try{ dbg('雲端：方案計數同步失敗 '+(e&&e.message)); }catch(_){ } }
+    if(!still()) return changed;
+    // 5 · apply to the library as it is NOW: the user may have saved during the sync
+    const fresh=projRead();
+    for(const id of Object.keys(put)){
+      const f=fresh[id], p=put[id];
+      if(f && (f.t||0)>(p.t||0)) continue;
+      if(f && (f.t||0)===(p.t||0) && f.uid===p.uid && f.cs===p.cs) continue;
+      fresh[id]=p; changed=true;
+    }
+    for(const id of del){ const f=fresh[id]; if(f && (f.t||0)<=((remote[id]||{}).t||0)){ delete fresh[id]; changed=true; } }
+    if(changed) projWrite(fresh);
+    return changed;
+  }
+  function cloudErrText(err){
+    const code=String((err && err.code) || ''), msg=String((err && err.message) || err || '');
+    if(/permission-denied/.test(code)) return '雲端拒絕存取（Firestore 規則可能還沒設定好）';
+    if(/unavailable|deadline-exceeded/.test(code) || /network|offline|Failed to fetch|Load failed|importing a module/i.test(msg))
+      return '沒有連上網路，連上之後會再同步';
+    if(/resource-exhausted/.test(code)) return '雲端用量暫時達到上限，請稍後再試';
+    if(/unauthenticated/.test(code)) return '登入已過期，請重新登入';
+    return msg || '未知錯誤';
+  }
+  function cloudModalOpen(){ const m=document.getElementById('projModal'); return !!(m && m.classList.contains('open')); }
+  async function cloudSync(opt){
+    opt=opt||{};
+    if(!acctUser || cloudWiping) return;
+    if(opt.ifOlder && !cloud.err && Date.now()-cloud.last<opt.ifOlder) return;
+    if(cloud.busy){ cloud.again=true; return; }
+    cloud.busy=true; cloud.err=''; cloudBarRender();
+    try{
+      const ch=await cloudSyncRun();
+      cloud.last=Date.now();
+      if(ch) projCountRefresh();
+      try{ dbg('雲端：同步完成'+(ch?'（有更新）':'')); }catch(_){ }
+    }catch(err){
+      cloud.err=cloudErrText(err);
+      try{ dbg('雲端：同步失敗 '+(err&&(err.code||''))+' '+(err&&err.message)); }catch(_){ }
+    }finally{
+      cloud.busy=false;
+      cloudBarRender(); if(cloudModalOpen()) projRenderList();
+      if(cloud.again){ cloud.again=false; setTimeout(()=>cloudSync(),300); }
+    }
+  }
+  // after a save / rename / delete: wait a moment so quick successive edits go up together
+  function cloudSoon(){ if(!acctUser) return; clearTimeout(cloudTimer); cloudTimer=setTimeout(()=>cloudSync(),1500); }
+  function cloudOnAuth(u,changed){
+    if(changed){ cloud.last=0; cloud.err=''; if(u) cloudSync(); }
+    cloudBarRender(); if(cloudModalOpen()) projRenderList();
+  }
+  // a project row's sync mark
+  function cloudMark(p){
+    if(!acctUser) return '';
+    if(p.uid && p.uid!==acctUser.uid) return ' · 其他帳號的';
+    return (p.uid && p.cs && p.cs===p.t) ? ' · ☁️' : ' · 待同步';
+  }
+  function cloudBarRender(){
+    const el=document.getElementById('cloudBar'); if(!el) return;
+    el.innerHTML='';
+    const txt=document.createElement('span'); let btn=null;
+    if(!acctUser){
+      el.className='cloud-bar off';
+      txt.textContent='專案目前只存在這台裝置。登入後會自動備份到雲端，iPad 和電腦都能打開。';
+      btn=['登入',()=>{ closeProjModal(); openAcctModal(); }];
+    } else if(cloud.busy){
+      el.className='cloud-bar'; txt.textContent='☁️ 同步中…';
+    } else if(cloud.err){
+      el.className='cloud-bar err'; txt.textContent='⚠️ 同步失敗：'+cloud.err;
+      btn=['重試',()=>cloudSync()];
+    } else {
+      el.className='cloud-bar';
+      txt.textContent='☁️ 已同步到「'+acctLabel(acctUser)+'」'+(cloud.last?('　'+projStamp(cloud.last)):'');
+      btn=['立即同步',()=>cloudSync()];
+    }
+    el.appendChild(txt);
+    if(btn){ const b=document.createElement('button'); b.textContent=btn[0]; b.onclick=btn[1]; el.appendChild(b); }
+  }
+  // account deletion: everything under users/{uid} goes, before the account itself
+  async function cloudWipe(uid){
+    cloudWiping=true;
+    try{
+      const C=await cloudLoad(), F=C.F;
+      const snap=await F.getDocs(F.collection(C.db,'users',uid,'projects'));
+      const rows=[]; snap.forEach(d=>rows.push([d.id, d.data()]));
+      for(const [id,r] of rows){
+        await cloudDelStr(C,uid,'p_'+id,r.n||0,0);
+        for(const pid of Object.keys(r.photos||{})) await cloudDelStr(C,uid,'ph_'+pid,r.photos[pid],0);
+        await F.deleteDoc(F.doc(C.db,'users',uid,'projects',id));
+      }
+      await F.deleteDoc(F.doc(C.db,'users',uid));
+    } finally { cloudWiping=false; }
+  }
+  // after the account is gone its projects on this device become plain local ones
+  function cloudForget(uid){
+    const all=projRead(); let ch=false;
+    for(const id of Object.keys(all)) if(all[id].uid===uid){ delete all[id].uid; delete all[id].cs; ch=true; }
+    if(ch) projWrite(all);
+    const g=tombRead(); for(const id of Object.keys(g)) if(g[id].uid===uid) delete g[id]; tombWrite(g);
+  }
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') cloudSync({ifOlder:60000}); });
+
   function syncLayerUI(){
     const box=document.getElementById('layerList'); if(!box) return;
     // b126 — a plan opened on a layer this subscription does not include starts on 結構
@@ -8098,7 +8454,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b127';
+  const BUILD='b129';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -14550,8 +14906,9 @@
       return false;
     }
     const id=existing || ('p'+Date.now()+Math.floor(Math.random()*1000));
-    all[id]={name, t:Date.now(), data:JSON.parse(JSON.stringify(currentPlan()))};
+    all[id]=Object.assign({}, all[id]||{}, {name, t:Date.now(), data:JSON.parse(JSON.stringify(currentPlan()))});
     if(!projWrite(all)) return false;
+    cloudSoon();
     planNoteCreated(id);
     document.getElementById('fname').value=name;
     markSaved();
@@ -14585,14 +14942,16 @@
   }
   async function projDelete(id){
     const all=projRead(), p=all[id]; if(!p) return;
-    if(!await uiConfirm('確定刪除「'+p.name+'」？\n此動作無法復原。',{okText:'刪除',danger:true})) return;
-    delete all[id]; projWrite(all); projCountRefresh(); projRenderList();
+    const onCloud=!!(acctUser && p.uid===acctUser.uid);
+    if(!await uiConfirm('確定刪除「'+p.name+'」？\n此動作無法復原。'+(onCloud?'\n雲端和其他裝置上的這份也會一起刪除。':''),{okText:'刪除',danger:true})) return;
+    cloudTomb(id,p);
+    delete all[id]; projWrite(all); projCountRefresh(); projRenderList(); cloudSoon();
   }
   async function projRename(id){
     const all=projRead(), p=all[id]; if(!p) return;
     const nn=await uiPrompt('新的專案名稱：', p.name, '重新命名'); if(nn===null) return;
     const name=nn.trim(); if(!name) return;
-    p.name=name; projWrite(all); projCountRefresh(); projRenderList();
+    p.name=name; p.t=Date.now(); projWrite(all); projCountRefresh(); projRenderList(); cloudSoon();
   }
   function projRenderList(){
     const box=document.getElementById('projList');
@@ -14612,7 +14971,7 @@
       const row=document.createElement('div'); row.className='proj-row';
       const meta=document.createElement('div'); meta.className='proj-meta';
       const b=document.createElement('b'); b.textContent=p.name;
-      const s=document.createElement('span'); s.textContent=projStamp(p.t)+' · '+bits.join(' · ');
+      const s=document.createElement('span'); s.textContent=projStamp(p.t)+' · '+bits.join(' · ')+cloudMark(p);
       meta.appendChild(b); meta.appendChild(s); row.appendChild(meta);
       const mk=(txt,cls,fn)=>{ const el=document.createElement('button'); el.textContent=txt; if(cls)el.className=cls; el.onclick=fn; row.appendChild(el); };
       mk('開啟','go',()=>projLoad(id));
@@ -14673,8 +15032,9 @@
   function openProjModal(mode){
     document.getElementById('projTitle').textContent = mode==='save' ? '儲存專案' : '開啟專案';
     document.getElementById('projName').value = (document.getElementById('fname').value||'').trim();
-    projRenderList();
+    projRenderList(); cloudBarRender();
     projModal.classList.add('open');
+    cloudSync({ifOlder:20000});
   }
   function closeProjModal(){ projModal.classList.remove('open'); }
   document.getElementById('projClose').onclick=closeProjModal;
