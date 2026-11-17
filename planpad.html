@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b129</title>
+<title>PlanPad · 平面圖工具 b130</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -415,7 +415,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b129</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b130</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -7091,7 +7091,7 @@
         +'<button class="sso sso-apple" id="acctApple"'+(acctBusy?' disabled':'')+'>'+(apple?'<span class="sso-ic"></span>':'')+'透過 Apple 登入</button>'
         +'<button class="sso sso-google" id="acctGoogle"'+(acctBusy?' disabled':'')+'><span class="sso-ic g">G</span>使用 Google 帳戶登入</button>'
         +(acctBusy?'<div class="acct-wait">連線中…</div>':'')
-        +'<div class="acct-fine">不登入也可以照常畫圖，專案會存在這台裝置。雲端同步會在之後的版本加入。'
+        +'<div class="acct-fine"><b>iPad 和電腦請用同一種方式登入</b>（都用 Apple，或都用同一個 Google 帳戶），才會是同一個帳號、看到同一批專案和訂閱。<br>不登入也可以照常畫圖，專案會存在這台裝置。'
         +((PLAN_URL.terms||PLAN_URL.privacy)?'<br>登入即表示你同意 PlanPad 的'
           +(PLAN_URL.terms?'<button class="lnk" id="acctTerms">使用條款</button>':'')
           +(PLAN_URL.terms&&PLAN_URL.privacy?'與':'')
@@ -7113,7 +7113,7 @@
       +(acctBusy?'<div class="acct-wait">處理中…</div>':'')
       +'<div class="acct-btns"><button class="tbtn" id="acctOut"'+(acctBusy?' disabled':'')+'>登出</button>'
       +'<button class="tbtn danger" id="acctDel"'+(acctBusy?' disabled':'')+'>刪除帳號</button></div>'
-      +'<div class="acct-fine">登出或刪除帳號都不會刪掉這台裝置上的專案。</div>';
+      +'<div class="acct-fine">登出或刪除帳號都不會刪掉這台裝置上的專案。<br>Apple 和 Google 是兩個不同的帳號，專案和訂閱不會互通。</div>';
     document.getElementById('acctOut').onclick=acctSignOut;
     document.getElementById('acctDel').onclick=acctDelete;
     document.getElementById('acctPlan').onclick=()=>{ closeAcctModal(); openPlanModal(); };
@@ -7366,7 +7366,7 @@
   function cloudSoon(){ if(!acctUser) return; clearTimeout(cloudTimer); cloudTimer=setTimeout(()=>cloudSync(),1500); }
   function cloudOnAuth(u,changed){
     if(changed){ cloud.last=0; cloud.err=''; if(u) cloudSync(); }
-    cloudBarRender(); if(cloudModalOpen()) projRenderList();
+    cloudBarRender(); projCountRefresh(); if(cloudModalOpen()) projRenderList();
   }
   // a project row's sync mark
   function cloudMark(p){
@@ -8454,7 +8454,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b129';
+  const BUILD='b130';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -14853,9 +14853,12 @@
     return same ? ('今天 '+p(d.getHours())+':'+p(d.getMinutes()))
                 : ((d.getMonth()+1)+'/'+d.getDate()+' '+p(d.getHours())+':'+p(d.getMinutes()));
   }
+  // signed in, the library shows only this account's plans plus plans never synced;
+  // another account's plans stay on the device but out of sight (and cannot be overwritten)
+  function projMine(p){ return !(acctUser && p && p.uid && p.uid!==acctUser.uid); }
   function projCountRefresh(){
     const el=document.getElementById('projCount'); if(!el) return;
-    const n=Object.keys(projRead()).length;
+    const all=projRead(); const n=Object.keys(all).filter(k=>projMine(all[k])).length;
     el.textContent = n ? (n+' 份') : '';
   }
   function currentPlan(){
@@ -14898,7 +14901,7 @@
     }
     const all=projRead();
     // same name = overwrite, so re-saving a plan you are working on just updates it
-    const existing=Object.keys(all).find(k=>all[k].name===name);
+    const existing=Object.keys(all).find(k=>all[k].name===name && projMine(all[k]));
     if(existing && !await uiConfirm('「'+name+'」已經存在，要覆蓋掉舊的那份嗎？',{okText:'覆蓋',danger:true})) return false;
     if(!existing && !planCanCreate(null)){
       closeProjModal();
@@ -14956,7 +14959,7 @@
   function projRenderList(){
     const box=document.getElementById('projList');
     const all=projRead();
-    const ids=Object.keys(all).sort((a,b)=>(all[b].t||0)-(all[a].t||0));
+    const ids=Object.keys(all).filter(k=>projMine(all[k])).sort((a,b)=>(all[b].t||0)-(all[a].t||0));
     if(!ids.length){
       box.innerHTML='<div class="proj-empty">還沒有任何專案。<br>在上面輸入名稱後按「儲存」，目前的平面圖就會存進來。</div>';
       return;
