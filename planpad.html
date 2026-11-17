@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b130</title>
+<title>PlanPad · 平面圖工具 b131</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -415,7 +415,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b130</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b131</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -6943,8 +6943,10 @@
       msg='直接打開檔案（file://）沒辦法登入。請用網址打開（例如 GitHub 試用版），或在 iPad App 裡登入。';
     else if(code==='auth/unauthorized-domain')
       msg='這個網址還沒有加進 Firebase 的「授權網域」，所以不能登入：\n'+location.hostname+'\n\n到 Firebase →「Authentication」→「設定」→「授權網域」加上它就可以了。';
+    else if(err && /popup_blocked/.test(err.appleCode||''))
+      msg='Safari 擋住了 Apple 的登入視窗。\n請再按一次「透過 Apple 登入」。\n\n如果還是不行：iPad「設定」→「App」→「Safari」→ 關掉「阻擋彈出式視窗」。';
     else if(err && err.appleCode)
-      msg='Apple 登入沒有完成。\n\n如果 Apple 的視窗出現「invalid_request」或網址錯誤，代表這個網址還沒加到 Apple 的 Services ID（'+APPLE_SERVICE_ID+'）：\n'+location.origin+location.pathname;
+      msg='Apple 登入沒有完成（錯誤代碼：'+err.appleCode+'）。\n\n如果 Apple 的視窗出現「invalid_request」或網址錯誤，代表這個網址還沒加到 Apple 的 Services ID（'+APPLE_SERVICE_ID+'）：\n'+location.origin+location.pathname;
     else if(code==='auth/popup-blocked')
       msg='登入視窗被瀏覽器擋住了。請允許這個網站開啟彈出式視窗，再按一次登入。';
     else if(code==='auth/network-request-failed' || (!FB && /fetch|import|load|network/i.test(String(err && err.message))))
@@ -6988,21 +6990,39 @@
   const hex=(buf)=>[...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,'0')).join('');
   async function sha256hex(t){ return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t))); }
   function randNonce(){ const a=new Uint8Array(24); crypto.getRandomValues(a); return hex(a.buffer); }
-  async function appleWebSignIn(){
-    const AID=await appleLoad();
-    const raw=randNonce();
-    AID.auth.init({clientId:APPLE_SERVICE_ID, scope:'name email', redirectURI:location.origin+location.pathname,
-                   usePopup:true, nonce:await sha256hex(raw), state:raw.slice(0,12)});
-    let r;
-    try{ r=await AID.auth.signIn(); }
-    catch(e){
+  // Safari (above all on iPad) only lets a click open a window if nothing is awaited
+  // between the tap and window.open. Loading Apple's script and hashing the nonce
+  // after the tap got the popup blocked, so both happen in advance (when the account
+  // window opens), and the tap goes straight to AppleID.auth.signIn().
+  let applePrep=null, applePreparing=null;
+  function applePrepare(){
+    if(applePrep) return Promise.resolve(applePrep);
+    if(applePreparing) return applePreparing;
+    applePreparing=(async()=>{
+      const AID=await appleLoad();
+      const raw=randNonce();
+      AID.auth.init({clientId:APPLE_SERVICE_ID, scope:'name email', redirectURI:location.origin+location.pathname,
+                     usePopup:true, nonce:await sha256hex(raw), state:raw.slice(0,12)});
+      applePrep={AID, raw}; return applePrep;
+    })().finally(()=>{ applePreparing=null; });
+    return applePreparing;
+  }
+  // deliberately not async: when prepared, signIn() runs in the same tick as the tap
+  function appleWebSignIn(){
+    const prep=applePrep; applePrep=null;          // a nonce is good for one attempt
+    const go=(p)=>p.AID.auth.signIn().then(r=>({r, raw:p.raw}), e=>{
       const code=(e && e.error) || '';
       if(/popup_closed_by_user|user_cancelled_authorize|user_trigger_new_signin_flow/.test(code)) throw {userCancelled:true};
-      throw Object.assign(new Error('Apple 登入沒有完成（'+(code||'unknown')+'）'), {appleCode:code});
-    }
-    const nm=r && r.user && r.user.name;
-    return {idToken:r.authorization.id_token, rawNonce:raw, authorizationCode:r.authorization.code,
-            name: nm ? [nm.lastName, nm.firstName].filter(Boolean).join('') : ''};
+      throw Object.assign(new Error('Apple 登入沒有完成（'+(code||'unknown')+'）'), {appleCode:code||'unknown'});
+    });
+    const run = prep ? go(prep) : applePrepare().then(p=>{ applePrep=null; return go(p); });
+    const done=run.then(({r,raw})=>{
+      const nm=r && r.user && r.user.name;
+      return {idToken:r.authorization.id_token, rawNonce:raw, authorizationCode:r.authorization.code,
+              name: nm ? [nm.lastName, nm.firstName].filter(Boolean).join('') : ''};
+    });
+    done.finally(()=>{ applePrepare().catch(()=>{}); }).catch(()=>{});   // ready for the next tap
+    return done;
   }
   // Apple hands over the person's name only on the very first sign-in; keep it
   async function acctKeepName(A, name){
@@ -7010,12 +7030,12 @@
   }
   // the credential for 'apple' / 'google': native sheet in the App, Apple JS or the
   // Firebase popup on the web. Returns {cred} or {popup:true} when Firebase's popup should be used.
-  async function acctObtain(A, kind){
+  async function acctObtain(A, kind, early){
     const n=planBridge();
     if(n && typeof n.signIn==='function'){ const c=await n.signIn(kind); if(!c) throw {userCancelled:true}; return {c, cred:acctCredential(A,kind,c)}; }
     if(kind==='apple'){
       let c=null;
-      try{ c=await appleWebSignIn(); }
+      try{ c=await (early || appleWebSignIn()); }
       catch(e){ if(acctIsCancel(e)) throw e; if(e && e.appleCode) throw e; try{ dbg('Apple JS 無法使用，改用 Firebase 視窗：'+(e&&e.message)); }catch(_){ } }
       if(c) return {c, cred:acctCredential(A,'apple',c)};
     }
@@ -7023,10 +7043,13 @@
   }
   async function acctSignIn(kind){
     if(acctBusy) return;
+    const nb=planBridge();
+    const early=(kind==='apple' && !(nb && typeof nb.signIn==='function')) ? appleWebSignIn() : null;
+    if(early) early.catch(()=>{});
     acctBusy='signin'; acctRender();
     try{
       const {auth,A}=await fbLoad();
-      const got=await acctObtain(A,kind);
+      const got=await acctObtain(A,kind,early);
       if(got.popup) await A.signInWithPopup(auth, acctPopupProvider(A,kind));
       else { await A.signInWithCredential(auth, got.cred); if(got.c && got.c.name) await acctKeepName(A, got.c.name); }
       flashHint('已登入');
@@ -7044,6 +7067,9 @@
     const ok=await uiConfirm('刪除帳號之後，這個帳號和存在雲端的資料都會一起刪除，沒辦法復原。\n這台裝置上的專案不會被刪。\n\n如果你有訂閱，刪除帳號「不會」自動取消。請另外到 iPad 的「設定」→ 你的名字 →「訂閱項目」取消。',
                             {okText:'刪除帳號',danger:true});
     if(!ok) return;
+    const nb=planBridge();
+    const early=(acctProvider(acctUser)==='Apple' && !(nb && typeof nb.signIn==='function')) ? appleWebSignIn() : null;
+    if(early) early.catch(()=>{});
     acctBusy='delete'; acctRender();
     try{
       const {auth,A}=await fbLoad(); const u=auth.currentUser; if(!u) return;
@@ -7052,7 +7078,7 @@
       // Firebase wants a fresh sign-in before deleting. For Apple it is also where
       // the token to revoke comes from: App Store rule 5.1.1(v) requires the Sign in
       // with Apple token to be revoked when the account is deleted.
-      const got=await acctObtain(A,kind);
+      const got=await acctObtain(A,kind,early);
       if(!got.popup){
         const c=got.c;
         await A.reauthenticateWithCredential(u, got.cred);
@@ -7078,7 +7104,12 @@
     finally{ acctBusy=''; acctRender(); }
   }
   const acctModal=document.getElementById('acctModal');
-  function openAcctModal(){ acctRender(); acctModal.classList.add('open'); }
+  function openAcctModal(){
+    acctRender(); acctModal.classList.add('open');
+    // warm up now, so the tap on a sign-in button can open its window at once
+    fbLoad().catch(()=>{});
+    const nb=planBridge(); if(!(nb && typeof nb.signIn==='function') && location.protocol!=='file:') applePrepare().catch(()=>{});
+  }
   function closeAcctModal(){ acctModal.classList.remove('open'); }
   function acctRender(){
     const body=document.getElementById('acctBody'); if(!body) return;
@@ -8454,7 +8485,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b130';
+  const BUILD='b131';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
