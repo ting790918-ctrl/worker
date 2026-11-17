@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b131</title>
+<title>PlanPad · 平面圖工具 b132</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -48,6 +48,13 @@
   .zoomwrap .tbtn{border:none; border-radius:0;}
   .zoomwrap .zval{font-size:12px; color:var(--muted); min-width:46px; text-align:center; user-select:none;}
   .menu{position:relative;}
+  #projBtn .pcount{font-size:11px; color:var(--muted); font-weight:500;}
+  #projBtn .pcount:empty{display:none;}
+  .acct-btn{font-weight:600;}
+  .acct-btn.on{width:34px; padding:0; border-radius:50%; background:var(--accent-soft,#E8F1F6); border-color:#CDE0EA; color:#275C7A; font-size:14px;}
+  #topbar .tbtn, #topbar .zoomwrap{white-space:nowrap; flex:0 0 auto;}
+  #topbar #fname{min-width:60px; flex:0 1 auto;}
+  @media (max-width:900px){ #topbar .brand .sub{display:none;} #topbar{gap:6px;} }
   .menu-pop{position:absolute; right:0; top:40px; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); padding:6px; min-width:180px; display:none; z-index:30;}
   .menu-pop.open{display:block;}
   .menu-item{display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:7px; cursor:pointer; font-size:13px;}
@@ -415,7 +422,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b131</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b132</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -427,16 +434,12 @@
       <button class="tbtn" id="zin">＋</button>
     </div>
     <button class="tbtn" id="fit" title="縮放至全圖">全圖</button>
+    <button class="tbtn" id="projBtn" title="開啟／儲存專案"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>專案<span class="pcount" id="projCount"></span></button>
     <div class="menu">
       <button class="tbtn primary" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>檔案</button>
       <div class="menu-pop" id="exportMenu">
         <div class="menu-label">專案</div>
-        <div class="menu-item" data-act="account">帳號<span class="k" id="acctMenuTag">未登入</span></div>
         <div class="menu-item" data-act="newproj">新增專案<span class="k">換一個案場</span></div>
-        <div class="menu-item" data-act="saveproj">儲存專案<span class="k">存到這台裝置</span></div>
-        <div class="menu-item" data-act="tour">使用教學<span class="k">整體操作技巧</span></div>
-        <div class="menu-item" data-act="videos">教學影片<span class="k">12 集，每集 1 分鐘內</span></div>
-        <div class="menu-item" data-act="openproj">開啟專案<span class="k" id="projCount"></span></div>
         <div class="menu-item" data-act="plan">方案與訂閱<span class="k" id="planMenuTag"></span></div>
         <div class="menu-item" data-act="copytest">匯入測試版畫的專案<span class="k">把以前在測試版存的圖搬過來</span></div>
         <div class="menu-sep"></div>
@@ -452,6 +455,7 @@
 
       </div>
     </div>
+    <button class="tbtn acct-btn" id="acctBtn" title="帳號">登入</button>
     <button class="tbtn panel-toggle" id="panelToggle" title="屬性面板"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
     <button class="tbtn" id="dbgBtn" title="除錯記錄(回報問題用)">🐞</button>
   </div>
@@ -6927,9 +6931,11 @@
     cloudOnAuth(u, now!==was);
   }
   function acctMenuUI(){
-    const tag=document.getElementById('acctMenuTag'); if(!tag) return;
-    const s=acctUser ? acctLabel(acctUser) : '未登入';
-    tag.textContent = s.length>16 ? s.slice(0,15)+'…' : s;
+    const b=document.getElementById('acctBtn'); if(!b) return;
+    if(acctUser){
+      const s=acctLabel(acctUser);
+      b.textContent=(s.trim()[0]||'帳').toUpperCase(); b.classList.add('on'); b.title='帳號：'+s;
+    } else { b.textContent='登入'; b.classList.remove('on'); b.title='登入 PlanPad'; }
   }
   function acctIsCancel(err){
     const code=String((err && err.code) || '');
@@ -8485,7 +8491,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b131';
+  const BUILD='b132';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -13242,7 +13248,7 @@
     ['Apple Pencil 和手指','Pencil 用來畫和點選。\n一根手指拖動畫布，兩根手指縮放。\n用過 Pencil 之後，手指就不會畫到東西，手掌可以放心靠在螢幕上。\n圖跑出畫面時，按上面「全圖」。'],
     ['數字都可以直接點來改','畫面上的數字——牆長、離牆距離、天花板高度——點一下就能輸入，按 ✓ 完成。\n空間的尺寸一律是室內淨尺寸（內線）。'],
     ['圖層＝一張一張施工圖','右邊「圖層」：在哪一層就畫在哪一層，其他層會變淡、不會被選到。\n「結構」是所有施工圖的底圖；畫好後按旁邊的鎖，就不會誤拖到牆。'],
-    ['存檔與出圖','畫的東西會自動存在這台平板。\n「檔案」可以儲存、開啟不同專案，也能匯出 PDF（含圖框和數量圖例）、PNG、DXF。\n不會用的時候，按畫面右上角的「?」看這個功能的說明。'],
+    ['存檔與出圖','畫的東西會自動存在這台平板。\n上方「專案」可以儲存、開啟不同專案（登入後會同步到雲端）；「檔案」可以匯出 PDF（含圖框和數量圖例）、PNG、DXF。\n右上角的圓圈是帳號。\n不會用的時候，按畫面右上角的「?」看這個功能的說明。'],
   ];
   let tourI=0;
   function openTour(){ tourI=0; renderTour(); document.getElementById('tourModal').classList.add('open'); }
@@ -14890,7 +14896,7 @@
   function projCountRefresh(){
     const el=document.getElementById('projCount'); if(!el) return;
     const all=projRead(); const n=Object.keys(all).filter(k=>projMine(all[k])).length;
-    el.textContent = n ? (n+' 份') : '';
+    el.textContent = n ? String(n) : '';
   }
   function currentPlan(){
     // the display unit is saved WITH the plan: reopening a drawing you made in mm
@@ -15064,7 +15070,7 @@
 
   const projModal=document.getElementById('projModal');
   function openProjModal(mode){
-    document.getElementById('projTitle').textContent = mode==='save' ? '儲存專案' : '開啟專案';
+    document.getElementById('projTitle').textContent = mode==='save' ? '儲存專案' : '專案';
     document.getElementById('projName').value = (document.getElementById('fname').value||'').trim();
     projRenderList(); cloudBarRender();
     projModal.classList.add('open');
@@ -15072,6 +15078,8 @@
   }
   function closeProjModal(){ projModal.classList.remove('open'); }
   document.getElementById('projClose').onclick=closeProjModal;
+  document.getElementById('projBtn').onclick=()=>openProjModal('open');
+  document.getElementById('acctBtn').onclick=()=>openAcctModal();
   document.getElementById('projSave').onclick=()=>projSaveAs(document.getElementById('projName').value);
   document.getElementById('projName').addEventListener('keydown',e=>{ if(e.key==='Enter') projSaveAs(e.target.value); });
   projModal.addEventListener('click',e=>{ if(e.target===projModal) closeProjModal(); });
