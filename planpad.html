@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b118</title>
+<title>PlanPad · 平面圖工具 b126</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -237,6 +237,10 @@
   #evTextIn{position:fixed; display:none; z-index:130; height:32px; min-width:180px; padding:0 8px; border:1.5px solid #275C7A; border-radius:8px; font-size:15px; font-family:inherit;}
   .modal{background:#fff; border-radius:14px; padding:20px; width:340px; max-width:92vw; box-shadow:0 10px 40px rgba(0,0,0,.25);
          display:flex; flex-direction:column; max-height:calc(100dvh - 32px); max-height:calc(100vh - 32px);}
+  /* b123 — a modal with no .modal-body (專案資訊) ran past the bottom of an iPad
+     screen with no way to scroll: 事務所資料 and 完成 were out of reach */
+  .modal{overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
+  .modal:has(> .modal-body){overflow-y:visible;}
   .modal-title{font-size:16px; font-weight:600; margin-bottom:16px; color:var(--ink); flex:0 0 auto;}
   /* everything between the title and the buttons scrolls; the negative margin
      plus matching padding keeps focus rings and the scrollbar off the content */
@@ -274,6 +278,25 @@
   .tour-dots i{width:8px; height:8px; border-radius:50%; background:#D5DADF;} .tour-dots i.on{background:#275C7A; width:20px; border-radius:4px;}
   .tour-btns{display:flex; gap:8px; align-items:center; margin-top:14px;}
   .tour-btns .chip{padding:10px 16px; font-size:14px;}
+  /* b121 教學影片 */
+  .hc-vid{display:flex;align-items:center;gap:10px;width:100%;margin:0 0 12px;padding:10px 12px;border:1px solid #CFE0EA;background:#EEF5F9;border-radius:10px;color:var(--text);font-size:13px;font-weight:600;text-align:left;cursor:pointer;line-height:1.35}
+  .hc-vid small{font-weight:400;color:var(--muted);font-size:11.5px}
+  .hc-play{flex:0 0 32px;height:32px;border-radius:50%;background:#275C7A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;padding-left:2px}
+  .hc-btns{display:flex;gap:8px;flex-wrap:wrap}
+  .tour-vid{display:block;margin:14px auto 0;padding:10px 16px;font-size:14px;background:#EEF5F9;border-color:#CFE0EA}
+  .vid-mask{position:fixed;inset:0;background:rgba(15,18,22,.62);z-index:900;display:none;align-items:center;justify-content:center;padding:16px}
+  .vid-mask.open{display:flex}
+  .vid-box{background:#fff;border-radius:14px;width:min(980px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.3)}
+  .vid-head{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 14px 8px}
+  .vid-stage{position:relative;background:#1C2026;aspect-ratio:16/9;max-height:62vh}
+  .vid-stage video{width:100%;height:100%;display:block;background:#1C2026}
+  .vid-err{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#fff;font-size:14px;padding:20px;text-align:center}
+  .vid-list{display:flex;gap:6px;padding:10px 12px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .vid-item{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:1px solid var(--line-strong);background:#fff;border-radius:9px;padding:7px 10px;font-size:12.5px;color:var(--text);cursor:pointer;white-space:nowrap}
+  .vid-item b{display:inline-flex;width:20px;height:20px;border-radius:50%;background:#E8EEF2;align-items:center;justify-content:center;font-size:11px}
+  .vid-item i{font-style:normal;color:var(--muted);font-size:11px}
+  .vid-item.on{border-color:#275C7A;background:#EEF5F9}
+  .vid-item.on b{background:#275C7A;color:#fff}
   .tour-next{background:#275C7A !important; color:#fff !important; border-color:#275C7A !important;}
 
   .mrow{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;}
@@ -336,13 +359,40 @@
     #panel.open{transform:translateX(0);}
     .panel-toggle{display:inline-flex;}
   }
+  /* b126 — 方案（免費／基本／專業）：鎖住的圖層、選單和升級視窗 */
+  .lay-row .pick.locked{color:#9AA3AC; background:#F7F8FA;}
+  .lockTag{margin-left:auto; font-size:10.5px; font-weight:600; color:#B07C34; background:#FDF3E7; border:1px solid #EBD5B4; border-radius:6px; padding:1px 6px; white-space:nowrap; flex:0 0 auto;}
+  .menu-item .lockTag{margin-left:auto;}
+  .menu-item.locked .k{display:none;}
+  .menu-item.locked{color:#8A9199;}
+  #mLayers button.locked{color:#9AA3AC; border-style:dashed;}
+  .plan-cards{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px;}
+  @media (max-width:680px){ .plan-cards{grid-template-columns:1fr;} }
+  .plan-card{border:1px solid var(--line); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:5px; font-size:12.5px; min-width:0;}
+  .plan-card.rec{border-color:#E0B36A; background:#FFFCF6;}
+  .plan-card.cur{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft);}
+  .plan-card h4{margin:0; font-size:15px; display:flex; align-items:center; gap:6px;}
+  .plan-card h4 .curTag{font-size:10.5px; font-weight:600; color:var(--accent); background:var(--accent-soft); border-radius:6px; padding:1px 6px;}
+  .plan-card .price{font-size:19px; font-weight:700; color:var(--ink);}
+  .plan-card .price small{font-size:11px; font-weight:500; color:var(--muted);}
+  .plan-card .trial{font-size:11.5px; color:#2E7D5B; font-weight:600;}
+  .plan-card ul{margin:2px 0 8px; padding-left:16px; line-height:1.65;}
+  .plan-card .buy{margin-top:auto; height:38px; border-radius:9px; border:0; background:var(--accent); color:#fff; font-size:14px; font-weight:600; font-family:inherit;}
+  .plan-card .buy[disabled]{background:#EEF1F4; color:#8A9199;}
+  .plan-why{background:#FDF6EA; border:1px solid #F0D9B5; color:#7A5B2E; border-radius:9px; padding:8px 10px; font-size:13px; line-height:1.6; margin-bottom:12px;}
+  .plan-fine{font-size:11px; color:var(--muted); line-height:1.65; margin-top:12px;}
+  .plan-links{display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; font-size:12.5px;}
+  .plan-links button{color:var(--accent); background:none; border:0; padding:0; font:inherit; cursor:pointer; text-decoration:underline;}
+  .plan-test{margin-top:14px; padding:10px; border:1px dashed #C9CFD5; border-radius:9px; font-size:12px; color:var(--muted);}
+  .planHide{display:none !important;}
+  #mWmNote{display:none; background:#FDF6EA; border:1px solid #F0D9B5; color:#7A5B2E; border-radius:9px; padding:7px 10px; font-size:12.5px; margin-bottom:10px;}
 </style>
 </head>
 <body>
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b118</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b126</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -361,7 +411,9 @@
         <div class="menu-item" data-act="newproj">新增專案<span class="k">換一個案場</span></div>
         <div class="menu-item" data-act="saveproj">儲存專案<span class="k">存到這台裝置</span></div>
         <div class="menu-item" data-act="tour">使用教學<span class="k">整體操作技巧</span></div>
+        <div class="menu-item" data-act="videos">教學影片<span class="k">12 集，每集 1 分鐘內</span></div>
         <div class="menu-item" data-act="openproj">開啟專案<span class="k" id="projCount"></span></div>
+        <div class="menu-item" data-act="plan">方案與訂閱<span class="k" id="planMenuTag"></span></div>
         <div class="menu-item" data-act="copytest">匯入測試版畫的專案<span class="k">把以前在測試版存的圖搬過來</span></div>
         <div class="menu-sep"></div>
         <div class="menu-label">底圖描繪</div>
@@ -707,10 +759,26 @@
   </div>
 </div>
 
+<div id="planModal" class="modal-mask">
+  <div class="modal" style="width:720px">
+    <div class="modal-title">PlanPad 方案</div>
+    <div class="modal-body">
+      <div class="plan-why" id="planWhy" style="display:none"></div>
+      <div class="mrow"><span>付款方式</span><div class="seg" id="planPeriod"><button data-v="month" class="on">月繳</button><button data-v="year">年繳</button></div></div>
+      <div class="plan-cards" id="planCards"></div>
+      <div class="plan-fine" id="planFine"></div>
+      <div class="plan-links" id="planLinks"></div>
+      <div class="plan-test" id="planTest" style="display:none"></div>
+    </div>
+    <div class="modal-btns"><span style="flex:1"></span><button class="tbtn" id="planClose">關閉</button></div>
+  </div>
+</div>
+
 <div id="pdfModal" class="modal-mask">
   <div class="modal">
     <div class="modal-title" id="mTitle">匯出</div>
     <div class="modal-body">
+    <div id="mWmNote">免費版匯出的 PNG 會加上「PlanPad 免費版」浮水印，也不能加圖框。升級基本方案就沒有浮水印。</div>
     <div class="mrow pdfonly"><span>紙張</span><div class="seg" id="mPaper"><button data-v="a4">A4</button><button data-v="a3" class="on">A3</button></div></div>
     <div class="mrow pdfonly"><span>方向</span><div class="seg" id="mOrient"><button data-v="l" class="on">橫式</button><button data-v="p">直式</button></div></div>
     <div class="mrow pdfonly"><span>圖框</span>
@@ -1239,6 +1307,9 @@
     if(history.length>80) history.shift();
     hi=history.length-1;
     recomputeRooms();
+    // b123 — a room's 各邊長度 / wall's 牆長 in the panel went stale when the size
+    // was changed by tapping a number on the canvas
+    try{ const k=ui.selected&&ui.selected.kind; if((k==='room'||k==='wall') && !(document.activeElement&&document.getElementById('propBody').contains(document.activeElement))) refreshProp(); }catch(_){}
     updateUndo();
     autosave();
   }
@@ -2521,6 +2592,7 @@
       if(!state.roomNames) state.roomNames={};
       state.roomNames[r.key]=val.trim();      // keep legacy key in sync for old exports
       recomputeRooms(); syncFocusBar(); pushHistory(); draw();
+      refreshProp();                           // b121 — the 名稱 field showed the old name
     });
   }
 
@@ -4073,6 +4145,7 @@
     drawCalibMark();
     drawNotes();
     drawInk();
+    drawRoomNames();
     drawFocusVeil();
     drawGuides();
     drawSplitPreview();
@@ -4520,18 +4593,29 @@
           }
         }
       }
-      // name + area at centroid
-      if(!showOpt.rooms) continue;
+    }
+  }
+  // b120 — name + 坪數 are painted LAST (after furniture, fixtures, text and ink), so
+  // nothing ever covers a room's name; a white halo keeps it legible over a sofa.
+  // Their spot was already claimed in drawRoomsInfo, so every other label still
+  // steers around it.
+  function drawRoomNames(){
+    if(!showOpt.rooms) return;
+    ctx.save();
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.lineJoin='round'; ctx.setLineDash([]);
+    ctx.strokeStyle='rgba(255,255,255,0.92)'; ctx.lineWidth=4*TS;
+    for(const r of roomsCache){ if(r.V.length<3) continue;
       const [cx,cy]=roomLabelPos(r);
-      ctx.textAlign='center'; ctx.textBaseline='middle';
       const nm=r.name||'未命名';
       ctx.font=`600 ${fpx(13)}px -apple-system,system-ui,sans-serif`; ctx.fillStyle=r.name?'#2A2E33':'#8A9199';
-      ctx.fillText(nm, cx, cy-9*TS);
+      ctx.strokeText(nm, cx, cy-9*TS); ctx.fillText(nm, cx, cy-9*TS);
       const nmw=ctx.measureText(nm).width;
       hitLabels.push({kind:'name', rect:[cx-nmw/2-6,cy-9-10,nmw+12,20], room:r});
       ctx.font=`600 ${fpx(12)}px -apple-system,system-ui,sans-serif`; ctx.fillStyle='#5B646E';
-      ctx.fillText(fmtArea(r.area), cx, cy+9*TS);
+      const at=fmtArea(r.area);
+      ctx.strokeText(at, cx, cy+9*TS); ctx.fillText(at, cx, cy+9*TS);
     }
+    ctx.restore();
   }
   function hitLabel(px,py){ for(let i=hitLabels.length-1;i>=0;i--){ const l=hitLabels[i], r=l.rect; if(px>=r[0]&&px<=r[0]+r[2]&&py>=r[1]&&py<=r[1]+r[3]) return l; } return null; }
 
@@ -6131,6 +6215,9 @@
             + `<button class="btn" id="pMtoDim" style="margin:2px 0 12px">把間距轉成正式尺寸</button>`
           : '<div class="row"><label style="color:var(--muted);font-size:11px">四周沒有東西，無法量距離</label></div>';
       })()}
+      ${isOutletKind(m.kind)?`<div class="row"><label style="white-space:nowrap;flex:0 0 auto">用途</label><div class="field" style="flex:0 1 150px"><input type="text" id="pMnote" value="${String(m.note||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" placeholder="例：油煙機、220專" maxlength="20" style="text-align:left"></div></div>
+        <div class="row"><label></label><div class="chips" id="pMnoteChips">${['油煙機','冰箱','微波爐','烤箱','洗衣機','電視','免治馬桶','220專'].map(t=>`<button class="chip" data-t="${t}">${t}</button>`).join('')}</div></div>
+        <div class="row"><label style="font-size:11px;color:var(--muted)">用途只列在圖例表，不印在圖面上</label></div>`:''}
       ${wallDev?`<div class="row"><label>標註離牆</label><div class="seg" id="pMdimSeg"><button data-v="1"${m.showDim!==false?' class="on"':''}>顯示</button><button data-v="0"${m.showDim===false?' class="on"':''}>隱藏</button></div></div>`:''}
       <div class="row"><label>角度</label><div class="seg" id="pMrotSeg"><button data-r="0">0°</button><button data-r="90">90°</button><button data-r="180">180°</button><button data-r="270">270°</button></div></div>
       <div class="row"><label></label><div class="field"><input type="number" id="pMrot" value="${Math.round(m.rot||0)}" step="5"><span class="unit">°</span></div></div>
@@ -6154,6 +6241,8 @@
         if(setMepGap(m,ev.target.dataset.dir,want)){ pushHistory(); refreshProp(); draw(); }
       }; });
       const td=document.getElementById('pMtoDim'); if(td) td.onclick=()=>gapsToDims(m);
+      on('pMnote',ev=>{ const v=String(ev.target.value||'').trim(); if(v) m.note=v; else delete m.note; pushHistory(); draw(); });
+      document.querySelectorAll('#pMnoteChips button').forEach(b=>b.onclick=()=>{ m.note=b.dataset.t; pushHistory(); refreshProp(); draw(); });
       document.querySelectorAll('#pMdimSeg button').forEach(b=>b.onclick=()=>{ m.showDim=b.dataset.v==='1'; pushHistory(); refreshProp(); draw(); });
       document.querySelectorAll('#pMrotSeg button').forEach(b=>b.onclick=()=>{ m.rot=+b.dataset.r; pushHistory(); refreshProp(); draw(); });
       document.getElementById('pDel').onclick=deleteSelected;
@@ -6507,15 +6596,256 @@
     window.addEventListener('resize',()=>{ if(EV) evDraw(); }); }
   document.getElementById('metaModal').addEventListener('click',e=>{
     if(e.target.id==='metaModal') e.target.classList.remove('open'); });
+
+  // ================= 方案（b126） =================
+  // 免費 / 基本 / 專業. The subscription itself lives in the App Store; the app
+  // only asks the native layer (window.PlanPadNative, backed by RevenueCat) which
+  // tier this account has. What each tier opens:
+  //   免費：建立 2 個專案（刪掉的也算）、結構＋平面配置、PNG（有浮水印、沒有圖框）
+  //   基本：專案不限、沒有浮水印、PDF／DXF、圖框
+  //   專業：再加上水電、燈具、迴路、天花、地板、油漆
+  // Content already drawn on a layer the tier does not include stays on the plan
+  // and stays visible (dimmed, as any other layer); it just cannot be edited or
+  // exported. Nothing is ever deleted because a subscription lapsed.
+  const PLAN_RANK={free:0,basic:1,pro:2};
+  const PLAN_NAME={free:'免費版',basic:'基本方案',pro:'專業方案'};
+  // App Store Connect product IDs (subscription group "PlanPad")
+  const PLAN_PRODUCTS={'basic.month':'tw.planpad.app.basic.monthly','basic.year':'tw.planpad.app.basic.yearly',
+                       'pro.month':'tw.planpad.app.pro.monthly','pro.year':'tw.planpad.app.pro.yearly'};
+  // shown only until the App Store's own localized prices arrive from the native layer
+  const PLAN_PRICE_FALLBACK={'basic.month':'NT$149','basic.year':'NT$1,490','pro.month':'NT$590','pro.year':'NT$5,900'};
+  const PLAN_FREE_PROJECTS=2;
+  // filled in once the App Store page and the policy pages exist
+  const PLAN_URL={appStore:'', privacy:'', terms:''};
+  const PLAN_USED_KEY='planpad.planUsed.v1', PLAN_TEST_KEY='planpad.tierTest', PLAN_LAST_KEY='planpad.tierLast';
+  const planBridge=()=>window.PlanPadNative||null;
+  const planNative=()=>{ const n=planBridge(); return !!(n && typeof n.getTier==='function'); };
+  let planCur='pro';                 // the web preview runs unlocked until sign-in lands
+  let planPrices=Object.assign({}, PLAN_PRICE_FALLBACK);
+  let planTrial={pro:'7 天'};        // which tier's products carry an introductory free trial
+  let planPeriod='month';
+  function planTier(){ return planCur; }
+  function planAtLeast(t){ return (PLAN_RANK[planCur]||0) >= PLAN_RANK[t]; }
+  function layerAllowed(id){ return id==='base'||id==='plan'||id==='orig'||id==='__all__'||planAtLeast('pro'); }
+  function planWatermark(){ return !planAtLeast('basic'); }
+  // projects ever created on this device/account — deleting one does not hand the slot back
+  function planUsedRead(){ try{ const a=JSON.parse(localStorage.getItem(PLAN_USED_KEY)||'[]'); return Array.isArray(a)?a:[]; }catch(_){ return []; } }
+  function planUsedWrite(a){
+    try{ localStorage.setItem(PLAN_USED_KEY, JSON.stringify(a)); }catch(_){}
+    // mirrored into the iOS Keychain by the native layer, so deleting and
+    // reinstalling the app does not reset the count
+    const n=planBridge(); if(n && typeof n.kvSet==='function'){ try{ n.kvSet(PLAN_USED_KEY, JSON.stringify(a)); }catch(_){ } }
+  }
+  function planCanCreate(id){
+    if(planAtLeast('basic')) return true;
+    const u=planUsedRead(); return (id && u.includes(id)) || u.length<PLAN_FREE_PROJECTS;
+  }
+  function planNoteCreated(id){ const u=planUsedRead(); if(!u.includes(id)){ u.push(id); planUsedWrite(u); } }
+  function planApply(t, why){
+    if(!Object.prototype.hasOwnProperty.call(PLAN_RANK,t)) t='free';
+    const was=planCur; planCur=t;
+    try{ localStorage.setItem(PLAN_LAST_KEY, t); }catch(_){}
+    if(!layerAllowed(state.layer)){ state.layer='base'; ui.selected=null; }
+    if(pdfOpt && pdfOpt.layers) for(const L of LAYERS) if(!layerAllowed(L.id)) pdfOpt.layers[L.id]=false;
+    try{ syncLayerUI(); syncToolSections(); refreshProp(); draw(); }catch(_){ }
+    planMenuUI();
+    const m=document.getElementById('planModal'); if(m && m.classList.contains('open')) planRender();
+    if(was!==t){ try{ dbg('方案 '+was+' → '+t+(why?(' ('+why+')'):'')); }catch(_){ } }
+  }
+  function planMenuUI(){
+    const tag=document.getElementById('planMenuTag');
+    if(tag) tag.textContent=PLAN_NAME[planCur];
+    for(const act of ['pdf','dxf']){
+      const el=document.querySelector('#exportMenu [data-act="'+act+'"]'); if(!el) continue;
+      const lock=!planAtLeast('basic'); el.classList.toggle('locked',lock);
+      let t=el.querySelector('.lockTag');
+      if(lock && !t){ t=document.createElement('span'); t.className='lockTag'; t.textContent='🔒 升級'; el.appendChild(t); }
+      if(!lock && t) t.remove();
+    }
+  }
+  async function planLoadPrices(){
+    const n=planBridge(); if(!n || typeof n.getOfferings!=='function') return;
+    try{
+      const list=(await n.getOfferings())||[]; if(!list.length) return;
+      const trial={};
+      for(const o of list){
+        const k=Object.keys(PLAN_PRODUCTS).find(k=>PLAN_PRODUCTS[k]===o.id); if(!k) continue;
+        if(o.price) planPrices[k]=o.price;
+        if(o.trial) trial[k.split('.')[0]]=o.trial;
+      }
+      planTrial=trial;
+      const m=document.getElementById('planModal'); if(m && m.classList.contains('open')) planRender();
+    }catch(err){ try{ dbg('getOfferings failed: '+(err&&err.message)); }catch(_){ } }
+  }
+  async function planBoot(){
+    const n=planBridge();
+    if(planNative()){
+      if(typeof n.kvGet==='function'){
+        try{ const v=await n.kvGet(PLAN_USED_KEY); const a=v?JSON.parse(v):[];
+          if(Array.isArray(a) && a.length){ const u=planUsedRead(); let add=false; for(const x of a) if(!u.includes(x)){ u.push(x); add=true; }
+            if(add) try{ localStorage.setItem(PLAN_USED_KEY, JSON.stringify(u)); }catch(_){ } } }catch(_){ }
+      }
+      // offline or the store not answering: fall back to the last tier this
+      // device was told about, not to 免費 — a paying user on a building site
+      // with no signal must not find their drawings locked
+      let last='free'; try{ last=localStorage.getItem(PLAN_LAST_KEY)||'free'; }catch(_){ }
+      planApply(last,'上次的方案');
+      try{ planApply(await n.getTier(),'App'); }
+      catch(err){ try{ dbg('getTier failed: '+(err&&err.message)); }catch(_){ } }
+      if(typeof n.onTierChange==='function'){ try{ n.onTierChange(t=>planApply(t,'訂閱變更')); }catch(_){ } }
+      planLoadPrices();
+    } else {
+      // Web build: subscriptions are bought in the iPad app. Until sign-in lands
+      // the web build runs as a full preview; a test switch in 方案與訂閱 lets the
+      // three plans be tried out here.
+      let t='pro'; try{ const v=localStorage.getItem(PLAN_TEST_KEY); if(v && PLAN_RANK.hasOwnProperty(v)) t=v; }catch(_){ }
+      planApply(t,'網頁預覽');
+    }
+  }
+  const PLAN_FEAT={
+    free:['建立 '+PLAN_FREE_PROJECTS+' 個專案','結構、平面配置','匯出 PNG 圖片（有浮水印）'],
+    basic:['專案數量不限','結構、平面配置','匯出 PNG，沒有浮水印','匯出 PDF、DXF','事務所圖框、圖例表'],
+    pro:['基本方案的全部功能','水電插座、燈具配置、燈具迴路','天花板、地板、油漆施工圖','每層一頁，一次出整套施工圖'],
+  };
+  function openPlanModal(why){
+    const w=document.getElementById('planWhy');
+    if(w){ w.style.display=why?'':'none'; w.textContent=why||''; }
+    planRender();
+    document.getElementById('planModal').classList.add('open');
+  }
+  function closePlanModal(){ document.getElementById('planModal').classList.remove('open'); }
+  function planRender(){
+    document.querySelectorAll('#planPeriod button').forEach(b=>b.classList.toggle('on', b.dataset.v===planPeriod));
+    const box=document.getElementById('planCards'); if(!box) return;
+    box.innerHTML='';
+    for(const t of ['free','basic','pro']){
+      const card=document.createElement('div');
+      card.className='plan-card'+(t==='pro'?' rec':'')+(t===planCur?' cur':'');
+      const h=document.createElement('h4'); h.textContent=PLAN_NAME[t];
+      if(t===planCur){ const c=document.createElement('span'); c.className='curTag'; c.textContent='目前'; h.appendChild(c); }
+      card.appendChild(h);
+      const pr=document.createElement('div'); pr.className='price';
+      if(t==='free') pr.innerHTML='NT$0';
+      else { pr.textContent=planPrices[t+'.'+planPeriod]; const sm=document.createElement('small'); sm.textContent=planPeriod==='month'?' / 月':' / 年（省 2 個月）'; pr.appendChild(sm); }
+      card.appendChild(pr);
+      const tri=planTrial[t];
+      if(tri && t!=='free' && !planAtLeast(t)){ const d=document.createElement('div'); d.className='trial'; d.textContent='第一次訂閱，免費試用 '+tri; card.appendChild(d); }
+      const ul=document.createElement('ul');
+      for(const f of PLAN_FEAT[t]){ const li=document.createElement('li'); li.textContent=f; ul.appendChild(li); }
+      card.appendChild(ul);
+      if(t!=='free'){
+        const b=document.createElement('button'); b.className='buy';
+        if(planAtLeast(t)){ b.disabled=true; b.textContent = t===planCur ? '使用中' : '已包含'; }
+        else { b.textContent = tri ? ('免費試用 '+tri) : ('訂閱'+PLAN_NAME[t]); b.onclick=()=>planBuy(t); }
+        card.appendChild(b);
+      }
+      box.appendChild(card);
+    }
+    const fine=document.getElementById('planFine');
+    if(fine) fine.textContent='訂閱會自動續訂：目前這一期結束前 24 小時內沒有取消，就會從你的 Apple 帳號扣下一期的費用。'
+      +'隨時可以到 iPad 的「設定」→ 你的名字 →「訂閱項目」取消。免費試用結束前取消，不會扣款。'
+      +'價格以 App Store 結帳時顯示的為準（含稅）。基本方案和專業方案之間可以隨時升級或降級。';
+    const links=document.getElementById('planLinks');
+    if(links){
+      links.innerHTML='';
+      const mk=(txt,fn)=>{ const b=document.createElement('button'); b.textContent=txt; b.onclick=fn; links.appendChild(b); };
+      mk('恢復購買',planRestore);
+      if(planAtLeast('basic')) mk('管理訂閱',planManage);
+      if(PLAN_URL.privacy) mk('隱私權政策',()=>planOpenUrl(PLAN_URL.privacy));
+      if(PLAN_URL.terms) mk('使用條款',()=>planOpenUrl(PLAN_URL.terms));
+    }
+    const test=document.getElementById('planTest');
+    if(test){
+      if(planBridge()){ test.style.display='none'; }
+      else {
+        test.style.display='';
+        test.innerHTML='<div style="margin-bottom:6px">網頁預覽：在這裡切換方案，看看每個方案會鎖住哪些功能（只有網頁版有這個開關，App 裡沒有）。</div>';
+        const seg=document.createElement('div'); seg.className='seg';
+        for(const t of ['free','basic','pro']){
+          const b=document.createElement('button'); b.textContent=PLAN_NAME[t]; if(t===planCur) b.className='on';
+          b.onclick=()=>{ try{ localStorage.setItem(PLAN_TEST_KEY,t); }catch(_){ } planApply(t,'網頁預覽切換'); flashHint('網頁預覽：現在是「'+PLAN_NAME[t]+'」'); };
+          seg.appendChild(b);
+        }
+        test.appendChild(seg);
+        const rs=document.createElement('button'); rs.className='chip'; rs.style.marginTop='8px'; rs.textContent='清除專案計數';
+        rs.title='免費版「已建立 2 個專案」的計數歸零（測試用）';
+        rs.onclick=()=>{ try{ localStorage.removeItem(PLAN_USED_KEY); }catch(_){ } flashHint('已清除專案計數'); };
+        test.appendChild(rs);
+      }
+    }
+  }
+  function planOpenUrl(u){
+    const n=planBridge();
+    if(n && typeof n.openUrl==='function'){ try{ n.openUrl(u); return; }catch(_){ } }
+    try{ window.open(u,'_blank','noopener'); }catch(_){ location.href=u; }
+  }
+  function planIsCancel(err){ return !!(err && (err.cancelled || err.userCancelled || /cancel/i.test(String(err.code||err.message||'')))); }
+  async function planBuy(t){
+    const n=planBridge();
+    if(!planNative() || typeof n.purchase!=='function'){
+      await uiAlert('網頁版不能直接訂閱。\n請在 iPad 下載 PlanPad，在 App 裡訂閱；之後用同一個帳號登入網頁版，就會套用你的方案。'
+        +(PLAN_URL.appStore ? '\n\n'+PLAN_URL.appStore : '\n\n（App 上架之後，這裡會放 App Store 的連結）'),'請到 App 訂閱');
+      return;
+    }
+    try{
+      const r=await n.purchase(PLAN_PRODUCTS[t+'.'+planPeriod]);
+      if(r) planApply(r,'購買');
+      if(planAtLeast(t)){ closePlanModal(); flashHint('已開通「'+PLAN_NAME[planCur]+'」，謝謝支持！'); }
+    }catch(err){
+      if(planIsCancel(err)) return;
+      uiAlert('訂閱沒有完成：'+((err&&err.message)||err)+'\n\n沒有扣款。可以稍後再試一次。','訂閱沒有完成');
+    }
+  }
+  async function planRestore(){
+    const n=planBridge();
+    if(!planNative() || typeof n.restore!=='function'){ uiAlert('恢復購買要在 iPad 的 PlanPad App 裡操作。'); return; }
+    try{
+      const r=await n.restore(); if(r) planApply(r,'恢復購買');
+      uiAlert(planAtLeast('basic') ? '已恢復：'+PLAN_NAME[planCur]+'。' : '這個 Apple 帳號沒有找到 PlanPad 的訂閱。','恢復購買');
+    }catch(err){ uiAlert('恢復購買沒有成功：'+((err&&err.message)||err)); }
+  }
+  function planManage(){
+    const n=planBridge();
+    if(n && typeof n.manageSubscriptions==='function'){ try{ n.manageSubscriptions(); return; }catch(_){ } }
+    uiAlert('請到 iPad 的「設定」→ 你的名字 →「訂閱項目」→ PlanPad 管理或取消訂閱。','管理訂閱');
+  }
+  // 免費版 PNG: a faint diagonal "PlanPad 免費版" across the sheet plus a badge in the
+  // corner. Faint enough to check a layout with, visible enough not to hand to a client.
+  function planStampWatermark(cv){
+    const g=cv.getContext('2d'); if(!g) return;
+    const W=cv.width, H=cv.height, s=Math.max(1,Math.min(W,H)/900);
+    const font=(px)=>'600 '+Math.round(px)+'px -apple-system,"PingFang TC","Noto Sans TC",sans-serif';
+    g.save(); g.setTransform(1,0,0,1,0,0);
+    g.globalAlpha=0.09; g.fillStyle='#275C7A'; g.font=font(34*s); g.textAlign='center'; g.textBaseline='middle';
+    g.translate(W/2,H/2); g.rotate(-Math.PI/7);
+    const sx=Math.round(360*s), sy=Math.round(170*s), R=Math.hypot(W,H)/2;
+    for(let y=-R, row=0; y<R; y+=sy, row++) for(let x=-R+(row%2?sx/2:0); x<R; x+=sx) g.fillText('PlanPad 免費版',x,y);
+    g.restore(); g.save(); g.setTransform(1,0,0,1,0,0);
+    const fs=Math.round(17*s), pad=Math.round(9*s), txt='PlanPad 繪製 · 免費版';
+    g.font=font(fs); g.textBaseline='middle';
+    const tw=g.measureText(txt).width, bw=tw+pad*2, bh=fs+pad*1.6, bx=W-bw-pad, by=H-bh-pad;
+    g.globalAlpha=0.92; g.fillStyle='#FFFFFF'; g.fillRect(bx,by,bw,bh);
+    g.globalAlpha=1; g.strokeStyle='#275C7A'; g.lineWidth=Math.max(1,s); g.strokeRect(bx+0.5,by+0.5,bw-1,bh-1);
+    g.fillStyle='#275C7A'; g.fillText(txt,bx+pad,by+bh/2);
+    g.restore();
+  }
+  document.getElementById('planClose').onclick=closePlanModal;
+  document.getElementById('planModal').addEventListener('click',e=>{ if(e.target.id==='planModal') closePlanModal(); });
+  document.querySelectorAll('#planPeriod button').forEach(b=>b.onclick=()=>{ planPeriod=b.dataset.v; planRender(); });
   function syncLayerUI(){
     const box=document.getElementById('layerList'); if(!box) return;
+    // b126 — a plan opened on a layer this subscription does not include starts on 結構
+    if(!layerAllowed(state.layer)){ state.layer='base'; setTimeout(()=>{ try{ syncToolSections(); refreshProp(); draw(); }catch(_){ } },0); }
     box.innerHTML='';
     for(const L of LAYERS){
       const row=document.createElement('div'); row.className='lay-row';
       const pick=document.createElement('button');
-      pick.className='pick'+(state.layer===L.id?' on':'');
-      pick.innerHTML='<span class="dot"></span>'+L.name+(L.fixed?'<span style="font-size:10px;color:var(--muted);margin-left:auto">底圖</span>':'');
-      pick.onclick=()=>{
+      const locked=!layerAllowed(L.id);
+      pick.className='pick'+(state.layer===L.id?' on':'')+(locked?' locked':'');
+      pick.innerHTML='<span class="dot"></span>'+L.name+(L.fixed?'<span style="font-size:10px;color:var(--muted);margin-left:auto">底圖</span>':'')
+        +(locked?'<span class="lockTag">🔒 升級解鎖</span>':'');
+      if(locked) pick.onclick=()=>openPlanModal('「'+L.name+'」是專業方案的功能。之前畫在這層的內容一樣看得到，升級之後就能繼續編輯和匯出。');
+      else pick.onclick=()=>{
         state.layer=L.id; ui.selected=null;
         if(ui.tool==='circuit'||ui.tool==='ceil') setTool('select');
         state.layerVis[L.id]=true;      // switching to a hidden layer un-hides it
@@ -7537,7 +7867,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b118';
+  const BUILD='b126';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -7551,6 +7881,12 @@
     uiAlert(what+'失敗。\n\n'+msg+'\n\n如果一直發生，請按右上角 🐞 開啟記錄，再按面板上的「複製」傳給開發者。','匯出沒有成功');
   }
   function download(name,blob){
+    // in the App Store / Play app, native-bridge.js supplies the save + share sheet
+    if(window.PlanPadNative && window.PlanPadNative.saveFile){
+      window.PlanPadNative.saveFile(name,blob).then(ok=>{ if(ok) flashHint('已送出「'+name+'」'); })
+        .catch(err=>{ dbg('native save failed: '+(err&&err.message)); showSaveFallback(name,blob); });
+      return;
+    }
     const type=blob.type||'application/octet-stream';
     let file=null;
     try{ file=new File([blob],name,{type}); }catch(_){}
@@ -7677,10 +8013,17 @@
   function fname(){ return (document.getElementById('fname').value||'平面圖').trim(); }
 
   function doExport(act){
+    if(act==='plan'){ openPlanModal(); return; }
+    if((act==='pdf'||act==='dxf') && !planAtLeast('basic')){
+      openPlanModal(act==='pdf' ? '匯出 PDF（含圖框）是基本方案的功能。免費版可以匯出 PNG 圖片（有浮水印）。'
+                                : '匯出 DXF（CAD）是基本方案的功能。免費版可以匯出 PNG 圖片（有浮水印）。');
+      return;
+    }
     if(act==='png'||act==='pdf'||act==='dxf'){ runExport('開啟匯出設定', ()=>openExportModal(act)); }
     else if(act==='newproj'){ newProject(); }
     else if(act==='saveproj'){ openProjModal('save'); }
     else if(act==='tour'){ openTour(); }
+    else if(act==='videos'){ openVideo(1); }
     else if(act==='openproj'){ openProjModal('open'); }
     else if(act==='copytest'){
       // the test build is retired: bring over what was saved there (projects, and
@@ -7713,6 +8056,7 @@
     }
     // toBlob is async, which drops us out of the user gesture and makes iOS
     // refuse the share sheet — build the blob synchronously instead.
+    if(planWatermark()) planStampWatermark(canvas);
     download(fname()+'.png', dataURLtoBlob(canvas.toDataURL('image/png')));
   }
 
@@ -7723,6 +8067,12 @@
   let exportKind='pdf';
   function openExportModal(kind){
     exportKind=kind;
+    // b126 — free: PNG only, no frame, watermarked
+    if(!planAtLeast('basic')) pdfOpt.pngFrame=false;
+    { const wm=document.getElementById('mWmNote'); if(wm) wm.style.display = (kind==='png' && planWatermark()) ? 'block' : 'none';
+      const fr=document.getElementById('mPngFrame'); const row=fr && fr.closest('.mrow');
+      if(row) row.classList.toggle('planHide', !planAtLeast('basic'));
+      document.querySelectorAll('#mPngFrame button').forEach(x=>x.classList.toggle('on', (x.dataset.v==='1')===!!pdfOpt.pngFrame)); }
     document.getElementById('mTitle').textContent =
       kind==='png' ? '匯出 PNG 圖片' : kind==='dxf' ? '匯出 DXF（CAD）' : '匯出 PDF';
     const framedPng = (kind==='png' && pdfOpt.pngFrame);
@@ -7854,6 +8204,11 @@
     for(const L of LAYERS){
       const b=document.createElement('button');
       b.textContent=L.name;
+      if(!layerAllowed(L.id)){
+        pdfOpt.layers[L.id]=false; b.textContent=L.name+' 🔒'; b.className='locked';
+        b.onclick=()=>openPlanModal('「'+L.name+'」的施工圖是專業方案的功能。');
+        box.appendChild(b); continue;
+      }
       if(pdfOpt.layers[L.id]) b.className='on';
       b.onclick=()=>{ pdfOpt.layers[L.id]=!pdfOpt.layers[L.id];
         // one sheet is one drawing: picking a trade layer takes it off 原始結構圖
@@ -7946,6 +8301,10 @@
   });
   document.getElementById('mCancel').onclick=closePdfModal;
   document.getElementById('mExport').onclick=()=>{
+    // b126 — nothing outside the subscription leaves the app, whatever the dialog held
+    if(exportKind!=='png' && !planAtLeast('basic')){ closePdfModal(); openPlanModal('匯出 PDF／DXF 是基本方案的功能。'); return; }
+    if(pdfOpt.layers) for(const L of LAYERS) if(!layerAllowed(L.id)) pdfOpt.layers[L.id]=false;
+    if(!planAtLeast('basic')) pdfOpt.pngFrame=false;
     closePdfModal();
     if(exportKind==='png')      runExport('PNG 匯出', ()=>exportPNG());
     else if(exportKind==='dxf') runExport('DXF 匯出', ()=>exportDXF(pdfOpt));
@@ -8394,7 +8753,8 @@
     const groups=Math.min(3, Math.max(1, Math.ceil(n/8))), rows=Math.ceil(n/groups);
     const rowMM=4.6*k, titleMM=5.4*k, headMM=4.6*k, noteMM=note?4.2*k:0;
     const wide=items.some(it=>typeof it.n!=='number' && String(it.n).length>6);   // 坪・片 needs room
-    const gw=wide?[9*k, 40*k, 28*k]:[9*k, 40*k, 16*k], grpW=gw[0]+gw[1]+gw[2];
+    const nmW=items.some(it=>it.note)?52*k:40*k;                  // 插座用途 makes names longer
+    const gw=wide?[9*k, nmW, 28*k]:[9*k, nmW, 16*k], grpW=gw[0]+gw[1]+gw[2];
     const maxW=area ? area.w : pwMM-2*mMM-9, wMM=Math.min(maxW, groups*grpW), sc=wMM/(groups*grpW);
     const G=gw.map(v=>v*sc), GW=grpW*sc;
     const hMM=titleMM+headMM+rows*rowMM+noteMM;
@@ -8529,6 +8889,7 @@
     drawPaint();
     drawTexts();
     drawNotes(); drawInk();
+    drawRoomNames();
     } finally {
     // restore in a finally: a throw part-way through used to leave the app running
     // with the export's layer visibility, and no way back except a reload
@@ -9205,6 +9566,108 @@
     run(xs('b'), B.y1, true,   1);
     run(ys('r'), B.x1, false,  1);
     planNoGo=null;
+    drawInnerWallDims(B);
+  }
+  // b120 — a partition that reaches NONE of the four edges (both of its ends stop on
+  // other partitions) is on no outer chain, so the sheet never said where it is.
+  // Rather than project it outward (which quotes numbers with no visible joint —
+  // see sideStations), it gets one interior dimension: clear distance from its face
+  // to the nearest parallel face (wall or column), drawn inside the room on the
+  // shorter side, clear of names, areas and every other number.
+  function innerWallDimList(B){
+    const tol=2;
+    const walls=state.walls.filter(w=>wallLen(w)>=1);
+    const isVert=(w)=>Math.abs(w.y2-w.y1) >= Math.abs(w.x2-w.x1);
+    const isAxis=(w)=>Math.abs(w.x2-w.x1)<0.5 || Math.abs(w.y2-w.y1)<0.5;
+    const inT=planInnerFace(B,'t'), inB=planInnerFace(B,'b'), inL=planInnerFace(B,'l'), inR=planInnerFace(B,'r');
+    const obst=walls.map(w=>Object.assign(wallRect(w),{wid:w.id}));
+    for(const c of state.columns){ const p=colPoly(c);
+      obst.push({x0:Math.min(...p.map(q=>q.x)), x1:Math.max(...p.map(q=>q.x)), y0:Math.min(...p.map(q=>q.y)), y1:Math.max(...p.map(q=>q.y))}); }
+    const out=[];
+    for(const w of walls){
+      if(!isAxis(w)) continue;
+      const R=wallRect(w), v=isVert(w);
+      if(v){ if(R.x0<=B.x0+tol || R.x1>=B.x1-tol) continue;          // perimeter
+             if(R.y0<=inT+tol || R.y1>=inB-tol) continue; }           // already on the top/bottom chain
+      else { if(R.y0<=B.y0+tol || R.y1>=B.y1-tol) continue;
+             if(R.x0<=inL+tol || R.x1>=inR-tol) continue; }
+      // a: the axis we measure along (y for a horizontal wall); s: the axis we slide along
+      const a0=v?R.x0:R.y0, a1=v?R.x1:R.y1, s0=v?R.y0:R.x0, s1=v?R.y1:R.x1;
+      const cands=[];
+      for(const dir of [-1,1]){
+        const face = dir<0 ? a0 : a1;
+        for(let k=1;k<=9;k++){
+          const s=s0+(s1-s0)*k/10;
+          let hit=Infinity, ok=true;
+          for(const o of obst){
+            if(o.wid===w.id) continue;
+            const os0=v?o.y0:o.x0, os1=v?o.y1:o.x1, oa0=v?o.x0:o.y0, oa1=v?o.x1:o.y1;
+            if(!(s>os0+0.5 && s<os1-0.5)) continue;                     // not on this line of sight
+            if(dir<0){ if(oa1<=face+0.5){ hit=Math.min(hit, face-oa1); } else if(oa0<face) ok=false; }
+            else     { if(oa0>=face-0.5){ hit=Math.min(hit, oa0-face); } else if(oa1>face) ok=false; }
+          }
+          if(!ok || !isFinite(hit) || hit<1) continue;
+          cands.push({w, v, dir, face, d:hit, s, mid:(s0+s1)/2});
+        }
+      }
+      // shortest first; among equals, nearest the wall's ends (the middle is where
+      // a room name tends to sit)
+      cands.sort((p,q)=> (p.d-q.d) || (Math.abs(q.s-q.mid)-Math.abs(p.s-p.mid)));
+      if(cands.length) out.push(cands);
+    }
+    return out;
+  }
+  function drawInnerWallDims(B){
+    if(!showOpt.dims || !EXPORT_MODE) return;
+    const list=innerWallDimList(B); if(!list.length) return;
+    const blocked=[];                                          // names / areas: lines must not cross them
+    if(showOpt.rooms) for(const r of roomsCache){ if(r.V.length>=3) blocked.push(roomLabelBox(r)); }
+    const hits=(r,arr)=>arr.some(p=>r[0]<p[0]+p[2] && r[0]+r[2]>p[0] && r[1]<p[1]+p[3] && r[1]+r[3]>p[1]);
+    // and a number must not sit on a wall or column
+    const solid=[];
+    const scr=(o)=>{ const p=toScreen(o.x0,o.y0), q=toScreen(o.x1,o.y1); return [Math.min(p[0],q[0]),Math.min(p[1],q[1]),Math.abs(q[0]-p[0]),Math.abs(q[1]-p[1])]; };
+    for(const w of state.walls){ if(wallLen(w)>=1) solid.push(scr(wallRect(w))); }
+    for(const c of state.columns){ const p=colPoly(c); solid.push(scr({x0:Math.min(...p.map(q=>q.x)), x1:Math.max(...p.map(q=>q.x)), y0:Math.min(...p.map(q=>q.y)), y1:Math.max(...p.map(q=>q.y))})); }
+    const col='#5B646E', t=fpx(DIM_TICK);
+    for(const C of list){
+      let pick=null, D=C[0];
+      const geo=(c)=>{ const a0=c.face, a1=c.face+c.dir*c.d;
+        const pA=c.v?toScreen(a0,c.s):toScreen(c.s,a0), pB=c.v?toScreen(a1,c.s):toScreen(c.s,a1);
+        const txt=fmtLen(c.d);
+        ctx.save(); ctx.font=`700 ${fpx(12)}px -apple-system,system-ui,sans-serif`; const tw=ctx.measureText(txt).width; ctx.restore();
+        return {pA,pB,txt,tw,ang:c.v?0:Math.PI/2}; };
+      for(const c of C){
+        const g=geo(c), {pA,pB}=g;
+        const line=[Math.min(pA[0],pB[0])-2, Math.min(pA[1],pB[1])-2, Math.abs(pB[0]-pA[0])+4, Math.abs(pB[1]-pA[1])+4];
+        if(hits(line,blocked)) continue;
+        const mx=(pA[0]+pB[0])/2, my=(pA[1]+pB[1])/2, off=fpx(10);
+        for(const sg of [-1,1]){
+          const lx=c.v?mx:mx+sg*off, ly=c.v?my+sg*off:my;
+          const lr=labelRect(lx,ly,g.tw,g.ang);
+          if(labelFree(lr) && !hits(lr,solid) && !hits(lr,blocked)){ pick=Object.assign(g,{lx,ly,lr}); D=c; break; }
+        }
+        if(pick) break;
+      }
+      if(!pick){                                             // crowded: still print it, never drop a dimension
+        const g=geo(D), mx=(g.pA[0]+g.pB[0])/2, my=(g.pA[1]+g.pB[1])/2;
+        const lx=D.v?mx:mx-fpx(10), ly=D.v?my-fpx(10):my;
+        pick=Object.assign(g,{lx,ly,lr:labelRect(lx,ly,g.tw,g.ang)});
+      }
+      const txt=pick.txt, ang=pick.ang;
+      const {pA,pB}=pick;
+      ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=1.1; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(pA[0],pA[1]); ctx.lineTo(pB[0],pB[1]); ctx.stroke();
+      for(const p of [pA,pB]){
+        ctx.beginPath();
+        if(D.v){ ctx.moveTo(p[0],p[1]-fpx(3)); ctx.lineTo(p[0],p[1]+fpx(3)); ctx.moveTo(p[0]-t,p[1]+t); ctx.lineTo(p[0]+t,p[1]-t); }
+        else   { ctx.moveTo(p[0]-fpx(3),p[1]); ctx.lineTo(p[0]+fpx(3),p[1]); ctx.moveTo(p[0]+t,p[1]-t); ctx.lineTo(p[0]-t,p[1]+t); }
+        ctx.stroke();
+      }
+      ctx.restore();
+      plainLabel(txt, pick.lx, pick.ly, ang, '#3A4148', 12);
+      placedLabels.push(pick.lr);
+      placedLabels.push([Math.min(pA[0],pB[0])-3, Math.min(pA[1],pB[1])-3, Math.abs(pB[0]-pA[0])+6, Math.abs(pB[1]-pA[1])+6]);
+    }
   }
 
   // ================= 水電符號庫 =================
@@ -10236,13 +10699,17 @@
   // never drift from the drawing. Lights are counted per size — a contractor
   // orders Ø9.5 and Ø15 downlights separately — and a light strip is quoted by
   // its total length, not a count.
+  const isOutletKind=(k)=>MEP_LIST.some(e=>e[0]==='插座' && e[1]===k);
   function mepTally(layersOpt){
     const vis=(id)=> layersOpt ? layersOpt[id]!==false : layerVisible(id);
     const by=new Map();
     for(const m of state.mep){
       if(!vis(m.layer||'elec') && !(isCircItem(m) && vis('circuit') && (layersOpt || circMode()))) continue;
-      const key=m.kind+'|'+devLabel(m);
-      const e=by.get(key)||{kind:m.kind, name:devLabel(m), n:0, len:0};
+      // b120 — a socket's 用途 (油煙機、220專…) is never printed on the plan; it
+      // splits the legend row instead: 一般插座（油煙機）, 一般插座（冰箱）…
+      const nt=isOutletKind(m.kind) ? String(m.note||'').trim() : '';
+      const key=m.kind+'|'+devLabel(m)+'|'+nt;
+      const e=by.get(key)||{kind:m.kind, name:devLabel(m)+(nt?'（'+nt+'）':''), note:nt, n:0, len:0};
       e.n++; e.len+=isStrip(m)?devLen(m):0;
       by.set(key,e);
     }
@@ -10262,7 +10729,7 @@
       g.beginPath(); g.rect(-sp*0.6,-sp*0.1,sp*1.2,sp*0.2); g.fill(); g.stroke(); };
     return [...by.values()]
       .sort((a,b)=>order.indexOf(a.kind)-order.indexOf(b.kind) || a.name.localeCompare(b.name,undefined,{numeric:true}))
-      .map(e=>({kind:e.kind, name:e.name, sw: LIGHT_SPEC[e.kind]&&LIGHT_SPEC[e.kind].heads ? rail(e.kind) : undefined,
+      .map(e=>({kind:e.kind, name:e.name, note:e.note||'', sw: LIGHT_SPEC[e.kind]&&LIGHT_SPEC[e.kind].heads ? rail(e.kind) : undefined,
                 n: LIGHT_SPEC[e.kind]&&LIGHT_SPEC[e.kind].strip ? (Math.round(e.len)/100).toFixed(1)+' m' : e.n}))
       .concat(headRows);
   }
@@ -11104,6 +11571,50 @@
   function clipR(R,W){ const x0=Math.max(R.x,W.x), y0=Math.max(R.y,W.y), x1=Math.min(R.x+R.w,W.x+W.w), y1=Math.min(R.y+R.h,W.y+W.h);
     return (x1>x0&&y1>y0)?{x:x0,y:y0,w:x1-x0,h:y1-y0}:null; }
   function rOver(a,b){ const c=clipR(a,b); return c?c.w*c.h:0; }
+  // b125 — 油漆範圍的形狀. A region is a plain rectangle unless:
+  //  · R.rad > 0  → 圓角 (R角): the corners listed in R.rc (tl/tr/bl/br, all four
+  //    when absent) are rounded with that radius. The radius is capped so two
+  //    rounded corners on one side never overlap.
+  //  · R.arch > 0 → 拱形 (b124, kept for drawings made with it): an arc of that rise
+  //    across the top.
+  function archRise(R){ if(+R.rad>0) return 0; const a=+R.arch||0; return a>0 ? Math.max(0, Math.min(a, R.w/2, R.h)) : 0; }
+  function rcOf(R){ const c=R.rc||{tl:1,tr:1,bl:1,br:1}; return {tl:!!c.tl,tr:!!c.tr,bl:!!c.bl,br:!!c.br}; }
+  function radEff(R){ const r=+R.rad||0; if(!(r>0)) return 0; const c=rcOf(R); if(!(c.tl||c.tr||c.bl||c.br)) return 0;
+    const wl=((c.tl&&c.tr)||(c.bl&&c.br))?R.w/2:R.w, hl=((c.tl&&c.bl)||(c.tr&&c.br))?R.h/2:R.h;
+    return Math.max(0, Math.min(r, wl, hl)); }
+  function regionShaped(R){ return radEff(R)>0 || archRise(R)>0; }
+  // how far a rounded corner eats into the region at distance d from its side
+  function cornerCut(r,d){ if(d>=r) return 0; const t=r-d; return r-Math.sqrt(Math.max(0,r*r-t*t)); }
+  function regionTop(R,x){ const a=archRise(R);
+    if(a){ const w=R.w, r=(w*w/4+a*a)/(2*a), dx=x-(R.x+w/2); return R.y+R.h-a + Math.sqrt(Math.max(0,r*r-dx*dx)) - (r-a); }
+    const r=radEff(R); if(!r) return R.y+R.h; const c=rcOf(R);
+    return R.y+R.h - Math.max(c.tl?cornerCut(r,x-R.x):0, c.tr?cornerCut(r,R.x+R.w-x):0); }
+  function regionBot(R,x){ const r=radEff(R); if(!r) return R.y; const c=rcOf(R);
+    return R.y + Math.max(c.bl?cornerCut(r,x-R.x):0, c.br?cornerCut(r,R.x+R.w-x):0); }
+  function regionArea(R){ const a=archRise(R);
+    if(a){ const w=R.w, r=(w*w/4+a*a)/(2*a), th=2*Math.asin(Math.min(1,w/(2*r))); return w*(R.h-a) + r*r/2*(th-Math.sin(th)); }
+    const r=radEff(R); if(!r) return R.w*R.h; const c=rcOf(R), n=(c.tl?1:0)+(c.tr?1:0)+(c.bl?1:0)+(c.br?1:0);
+    return R.w*R.h - n*(1-Math.PI/4)*r*r; }
+  // overlap of a shaped region with a rectangle, e.g. a window
+  function regionOver(R,o){ if(!regionShaped(R)) return rOver(R,o);
+    const x0=Math.max(R.x,o.x), x1=Math.min(R.x+R.w,o.x+o.w); if(x1<=x0) return 0;
+    const n=160, dx=(x1-x0)/n; let s=0;
+    for(let i=0;i<n;i++){ const x=x0+(i+0.5)*dx; s+=Math.max(0, Math.min(regionTop(R,x), o.y+o.h) - Math.max(regionBot(R,x),o.y)); }
+    return s*dx; }
+  function regionPath(g,R,X,Y){ g.beginPath();
+    const a=archRise(R), r=radEff(R);
+    if(a){ g.moveTo(X(R.x),Y(R.y)); g.lineTo(X(R.x),Y(R.y+R.h-a));
+      const n=64; for(let i=1;i<=n;i++){ const x=R.x+R.w*i/n; g.lineTo(X(x),Y(regionTop(R,x))); }
+      g.lineTo(X(R.x+R.w),Y(R.y)); g.closePath(); return; }
+    const x0=X(R.x), x1=X(R.x+R.w), yt=Y(R.y+R.h), yb=Y(R.y);
+    if(!r){ g.rect(x0,yt,x1-x0,yb-yt); return; }
+    const c=rcOf(R), k=Math.abs(X(r)-X(0));
+    const tl=c.tl?k:0, tr=c.tr?k:0, br=c.br?k:0, bl=c.bl?k:0;
+    g.moveTo(x0+tl,yt); g.lineTo(x1-tr,yt); if(tr) g.arcTo(x1,yt,x1,yt+tr,tr); else g.lineTo(x1,yt);
+    g.lineTo(x1,yb-br); if(br) g.arcTo(x1,yb,x1-br,yb,br); else g.lineTo(x1,yb);
+    g.lineTo(x0+bl,yb); if(bl) g.arcTo(x0,yb,x0,yb-bl,bl); else g.lineTo(x0,yb);
+    g.lineTo(x0,yt+tl); if(tl) g.arcTo(x0,yt,x0+tl,yt,tl); else g.lineTo(x0,yt);
+    g.closePath(); }
   // a face: the whole wall less its doors and windows; a drawn area takes its own
   // colour, and is taken out of the face's main colour
   function faceAreas(f,g){
@@ -11111,7 +11622,11 @@
     const add=(id,v)=>{ if(!paintSpec(id)||!(v>0)) return; out.set(id,(out.get(id)||0)+v); };
     const ops=g.open.map(o=>({x:o.x0,y:o.y0,w:o.x1-o.x0,h:o.y1-o.y0})), W={x:0,y:0,w:g.L,h:g.H};
     let reg=0;
-    for(const R of (f.elev&&f.elev.regions)||[]){ const c=clipR(R,W); if(!c) continue; let a=c.w*c.h; for(const o of ops) a-=rOver(c,o); a=Math.max(0,a); reg+=a; add(R.spec,a); }
+    for(const R of (f.elev&&f.elev.regions)||[]){ const c=clipR(R,W); if(!c) continue;
+      let a, ar=regionShaped(R) && c.w===R.w && c.h===R.h;
+      if(ar){ a=regionArea(R); for(const o of ops) a-=regionOver(R,o); }
+      else { a=c.w*c.h; for(const o of ops) a-=rOver(c,o); }
+      a=Math.max(0,a); reg+=a; add(R.spec,a); }
     if(f.spec){ let a=g.L*g.H; for(const o of ops) a-=rOver(o,W); add(f.spec, Math.max(0,a-reg)); }
     return out;
   }
@@ -11358,9 +11873,15 @@
     g.save();
     g.fillStyle=base?base.hex:'#fff'; g.globalAlpha=base?0.9:1; g.fillRect(X(0),Y(H),L*sc,H*sc); g.globalAlpha=1;
     for(const R of E.regions){ const s=paintSpec(R.spec), c=clipR(R,{x:0,y:0,w:L,h:H}); if(!c) continue;
-      g.fillStyle=s?s.hex:'#ddd'; g.globalAlpha=0.92; g.fillRect(X(c.x),Y(c.y+c.h),c.w*sc,c.h*sc); g.globalAlpha=1;
-      g.strokeStyle='#2B3137'; g.lineWidth=u(0.7); g.setLineDash([u(3),u(2)]); g.strokeRect(X(c.x),Y(c.y+c.h),c.w*sc,c.h*sc); g.setLineDash([]);
-      if(opt.sel===R.id){ g.strokeStyle='#275C7A'; g.lineWidth=u(2); g.strokeRect(X(c.x),Y(c.y+c.h),c.w*sc,c.h*sc);
+      const shp=regionShaped(R)?R:c;
+      g.fillStyle=s?s.hex:'#ddd'; g.globalAlpha=0.92; regionPath(g,shp,X,Y); g.fill(); g.globalAlpha=1;
+      g.strokeStyle='#2B3137'; g.lineWidth=u(0.7); g.setLineDash([u(3),u(2)]); regionPath(g,shp,X,Y); g.stroke(); g.setLineDash([]);
+      { const rr=radEff(R); if(rr){ const cc=rcOf(R), k=['tl','tr','bl','br'].find(q=>cc[q]);   // R角 label at the first rounded corner
+          const cx=(k==='tl'||k==='bl')?R.x+rr:R.x+R.w-rr, cy=(k==='tl'||k==='tr')?R.y+R.h-rr:R.y+rr;
+          g.fillStyle='#2B3137'; g.font='600 '+Math.round(u(8))+'px '+SHEET_FONT; g.textAlign='center'; g.textBaseline='middle';
+          g.fillText('R'+fmtLen(rr), X(cx), Y(cy)); } }
+      if(opt.sel===R.id){ g.strokeStyle='#275C7A'; g.lineWidth=u(2); regionPath(g,shp,X,Y); g.stroke();
+        if(regionShaped(R)){ g.lineWidth=u(0.8); g.setLineDash([u(2),u(2)]); g.strokeRect(X(c.x),Y(c.y+c.h),c.w*sc,c.h*sc); g.setLineDash([]); g.lineWidth=u(2); }
         for(const [hx,hy] of [[c.x,c.y],[c.x+c.w,c.y],[c.x,c.y+c.h],[c.x+c.w,c.y+c.h]]){ g.fillStyle='#fff'; g.fillRect(X(hx)-u(6),Y(hy)-u(6),u(12),u(12)); g.strokeRect(X(hx)-u(6),Y(hy)-u(6),u(12),u(12)); } } }
     for(const o of G.open){ g.fillStyle='#fff'; g.fillRect(X(o.x0),Y(o.y1),(o.x1-o.x0)*sc,(o.y1-o.y0)*sc);
       g.strokeStyle='#2B3137'; g.lineWidth=u(1); g.strokeRect(X(o.x0),Y(o.y1),(o.x1-o.x0)*sc,(o.y1-o.y0)*sc);
@@ -11385,7 +11906,7 @@
       for(const y of [y0,y1]){ g.moveTo(x-u(3),Y(y)+u(3)); g.lineTo(x+u(3),Y(y)-u(3)); g.moveTo(x-u(5),Y(y)); g.lineTo(x+u(5),Y(y)); } g.stroke();
       if(Y(y0)-Y(y1)>u(14)){ g.save(); g.translate(x-u(1.5),(Y(y0)+Y(y1))/2); g.rotate(-Math.PI/2); g.fillStyle='#111'; g.font='500 '+Math.round(u(8.5))+'px '+SHEET_FONT; g.textAlign='center'; g.textBaseline='bottom'; g.fillText(txt,0,0); g.restore(); } };
     const xs=new Set([0,L]), ys=new Set([0,H]);
-    for(const R of E.regions){ const c=clipR(R,{x:0,y:0,w:L,h:H}); if(!c) continue; xs.add(Math.round(c.x)); xs.add(Math.round(c.x+c.w)); ys.add(Math.round(c.y)); ys.add(Math.round(c.y+c.h)); }
+    for(const R of E.regions){ const c=clipR(R,{x:0,y:0,w:L,h:H}); if(!c) continue; xs.add(Math.round(c.x)); xs.add(Math.round(c.x+c.w)); ys.add(Math.round(c.y)); ys.add(Math.round(c.y+c.h)); const a=archRise(R); if(a) ys.add(Math.round(R.y+R.h-a)); }
     const XS=[...xs].sort((a,b)=>a-b), YS=[...ys].sort((a,b)=>a-b);
     const yb=Y(0)+u(16), xl=X(0)-u(16);
     if(XS.length>2) for(let i=0;i<XS.length-1;i++) dimH(XS[i],XS[i+1],yb,fmtLen(XS[i+1]-XS[i]));
@@ -11537,7 +12058,10 @@
     const num=(id,label,v)=>`<div class="row"><label>${label}</label><div class="field"><input type="number" id="${id}" value="${Math.round(toDisp(v))}" step="1"><span class="unit">${U}</span></div></div>`;
     let h='';
     if(R){ h+=`<div class="ptitle">油漆範圍</div><div class="row"><label>顏色</label><select id="evRs" class="tin">${opt(R.spec)}</select></div>
-        ${num('evRx','離左',R.x)}${num('evRy','離地',R.y)}${num('evRw','寬',R.w)}${num('evRh','高',R.h)}
+        <div class="row"><label>形狀</label><div class="seg" id="evRshape"><button data-v="rect"${(+R.rad>0||archRise(R))?'':' class="on"'}>矩形</button><button data-v="rad"${(+R.rad>0)?' class="on"':''}>R 角</button>${archRise(R)?'<button data-v="arch" class="on">拱形</button>':''}</div></div>
+        ${num('evRx','離左',R.x)}${num('evRy','離地',R.y)}${num('evRw','寬',R.w)}${num('evRh',archRise(R)?'高（到拱頂）':'高',R.h)}
+        ${(+R.rad>0)?num('evRr','R',+R.rad)+`<div class="row" style="flex-wrap:wrap;gap:6px"><label style="white-space:nowrap">圓角位置</label><div class="seg" id="evRrc" style="white-space:nowrap">${[['tl','左上'],['tr','右上'],['bl','左下'],['br','右下']].map(([k,n])=>`<button data-v="${k}"${rcOf(R)[k]?' class="on"':''}>${n}</button>`).join('')}</div></div><div class="lay-note">R＝圓角半徑。R 超過寬或高的一半時，會自動用最大可以的值（${fmtLenU(radEff(R))}）。坪數會扣掉圓角。</div>`:''}
+        ${archRise(R)?num('evRa','拱高',archRise(R)):''}
         <button class="btn warn" id="evRdel" style="margin-top:8px">刪除這個範圍</button>`; }
     else if(T){ h+=`<div class="ptitle">文字</div><div class="row"><label>內容</label><input type="text" class="tin" id="evTs" value="${pEsc(T.s)}"></div>
         <div class="row"><label>字級</label><div class="seg" id="evTz">${[9,11,14,18].map(z=>`<button data-v="${z}"${(T.size||11)===z?' class="on"':''}>${z}</button>`).join('')}</div></div>
@@ -11553,6 +12077,13 @@
     const $=(id)=>document.getElementById(id), redraw=()=>{ evDraw(); evSide(); };
     if(R){ $('evRs').onchange=ev=>{ R.spec=ev.target.value; ui.paintSpec=R.spec; evTools(); redraw(); };
       for(const [id,k] of [['evRx','x'],['evRy','y'],['evRw','w'],['evRh','h']]) $(id).onchange=ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(Number.isFinite(v)){ R[k]=Math.max(k==='w'||k==='h'?1:0,v); } redraw(); };
+      $('evRshape').querySelectorAll('button').forEach(b=>b.onclick=()=>{ const v=b.dataset.v;
+        if(v==='rad'){ delete R.arch; if(!(+R.rad>0)) R.rad=Math.round(Math.min(R.w,R.h)/4); if(!R.rc) R.rc={tl:1,tr:1,bl:1,br:1}; }
+        else if(v==='rect'){ delete R.arch; delete R.rad; }
+        redraw(); });
+      if($('evRr')) $('evRr').onchange=ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(Number.isFinite(v)&&v>0){ R.rad=v; } redraw(); };
+      if($('evRrc')) $('evRrc').querySelectorAll('button').forEach(b=>b.onclick=()=>{ const c=rcOf(R); c[b.dataset.v]=!c[b.dataset.v]; R.rc={tl:c.tl?1:0,tr:c.tr?1:0,bl:c.bl?1:0,br:c.br?1:0}; redraw(); });
+      if($('evRa')) $('evRa').onchange=ev=>{ const v=fromDisp(parseFloat(ev.target.value)); if(Number.isFinite(v)&&v>0){ R.arch=Math.min(v,R.w/2,R.h); } redraw(); };
       $('evRdel').onclick=()=>{ E.regions=E.regions.filter(x=>x!==R); EV.sel=null; redraw(); }; }
     else if(T){ $('evTs').onchange=ev=>{ T.s=ev.target.value; redraw(); };
       $('evTz').querySelectorAll('button').forEach(b=>b.onclick=()=>{ T.size=+b.dataset.v; redraw(); });
@@ -12018,19 +12549,71 @@
     const k=helpKey(); b.classList.toggle('new', !helpSeen[k]);
     b.title='使用說明：'+((HELP[k]||{}).t||'');
   }
+  // ---- b121 教學影片: short clips bundled with the app (tutorials/NN.mp4) ----
+  const TUTORIALS=[
+    {n:1,  t:'畫房間、改尺寸',       f:'planpad-01.mp4', d:'0:47', k:['room','select']},
+    {n:2,  t:'用牆畫空間、牆厚與樓高', f:'planpad-02.mp4', d:'0:40', k:['wall','base']},
+    {n:3,  t:'隔間、門窗、柱、樑',    f:'planpad-03.mp4', d:'0:38', k:['part','door','window','column','beam','shaft','split']},
+    {n:4,  t:'平面配置：家具',        f:'planpad-04.mp4', d:'0:37', k:['plan']},
+    {n:5,  t:'水電插座與開關',        f:'planpad-05.mp4', d:'0:27', k:['elec']},
+    {n:6,  t:'燈具與迴路',            f:'planpad-06.mp4', d:'0:37', k:['light','circuit']},
+    {n:7,  t:'天花板、地板',          f:'planpad-07.mp4', d:'0:24', k:['ceil','floor']},
+    {n:8,  t:'油漆與立面',            f:'planpad-08.mp4', d:'0:52', k:['paint']},
+    {n:9,  t:'尺寸、手寫、照片、註記、文字', f:'planpad-09.mp4', d:'0:35', k:['dim','ink','photo','note','text']},
+    {n:10, t:'專案資訊與公司資料',    f:'planpad-10.mp4', d:'0:28', k:['meta']},
+    {n:11, t:'匯出 PDF 與圖框',       f:'planpad-11.mp4', d:'0:41', k:['export']},
+    {n:12, t:'存檔、開專案、匯入底圖', f:'planpad-12.mp4', d:'0:38', k:['underlay','ulcalib','file']},
+  ];
+  function tutorialFor(k){
+    const base=String(k||'').split('.')[0];
+    return TUTORIALS.find(v=>v.k.includes(k)||v.k.includes(base)) || null;
+  }
+  function openVideo(n){
+    const v=TUTORIALS.find(x=>x.n===n) || TUTORIALS[0];
+    let m=document.getElementById('vidModal');
+    if(!m){
+      m=document.createElement('div'); m.id='vidModal'; m.className='vid-mask';
+      m.innerHTML=`<div class="vid-box"><div class="vid-head"><div><div class="hc-k">教學影片</div><div class="hc-t" id="vidTitle"></div></div><button class="hc-x" id="vidX" aria-label="關閉">✕</button></div>
+        <div class="vid-stage"><video id="vidEl" controls playsinline preload="metadata"></video><div class="vid-err" id="vidErr">影片載入失敗。請確認 App 已更新到最新版。</div></div>
+        <div class="vid-list" id="vidList"></div></div>`;
+      document.body.appendChild(m);
+      for(const ev of ['pointerdown','pointerup','pointermove','touchstart','wheel','keydown']) m.addEventListener(ev,e=>e.stopPropagation());
+      m.addEventListener('click',e=>{ if(e.target===m) closeVideo(); });
+      document.getElementById('vidX').onclick=closeVideo;
+      const el=document.getElementById('vidEl');
+      el.addEventListener('error',()=>{ document.getElementById('vidErr').style.display='flex'; });
+      el.addEventListener('loadeddata',()=>{ document.getElementById('vidErr').style.display='none'; });
+    }
+    document.getElementById('vidTitle').textContent=`第 ${v.n} 集｜${v.t}`;
+    document.getElementById('vidList').innerHTML=TUTORIALS.map(x=>`<button class="vid-item${x.n===v.n?' on':''}" data-n="${x.n}"><b>${x.n}</b><span>${esc(x.t)}</span><i>${x.d}</i></button>`).join('');
+    document.querySelectorAll('#vidList .vid-item').forEach(b=>b.onclick=()=>openVideo(+b.dataset.n));
+    const el=document.getElementById('vidEl');
+    document.getElementById('vidErr').style.display='none';
+    if(el.getAttribute('src')!==v.f){ el.setAttribute('src',v.f); el.load(); }
+    m.classList.add('open');
+    try{ const p=el.play(); if(p&&p.catch) p.catch(()=>{}); }catch(_){}
+    helpSeen['video'+v.n]=1; helpStore.set('planpad.helpSeen.v1',helpSeen);
+  }
+  function closeVideo(){
+    const m=document.getElementById('vidModal'); if(!m) return;
+    const el=document.getElementById('vidEl'); try{ el.pause(); }catch(_){}
+    m.classList.remove('open');
+  }
   function openHelp(k){
     k=k||helpKey(); const h=HELP[k]; if(!h) return;
     helpSeen[k]=1; helpStore.set('planpad.helpSeen.v1',helpSeen);
     const box=document.getElementById('helpCard');
     box.innerHTML=`<div class="hc-head"><div><div class="hc-k">使用說明</div><div class="hc-t">${esc(h.t)}</div></div><button class="hc-x" id="hcX" aria-label="關閉">✕</button></div>
-      <div class="hc-body"><p class="hc-d">${esc(h.d)}</p>
+      <div class="hc-body">${(()=>{ const v=tutorialFor(k); return v?`<button class="hc-vid" id="hcVid" data-n="${v.n}"><span class="hc-play">▶</span><span>看教學影片<br><small>第 ${v.n} 集｜${esc(v.t)}（${v.d}）</small></span></button>`:''; })()}<p class="hc-d">${esc(h.d)}</p>
       <div class="hc-h">怎麼用</div><ol>${h.s.map(x=>'<li>'+esc(x)+'</li>').join('')}</ol>
       <div class="hc-h">手勢</div><ul><li>Apple Pencil：畫圖、點選</li><li>一根手指：移動畫布；兩根手指：縮放</li><li>按上面「全圖」：整張圖回到畫面中間</li></ul>
       ${h.q&&h.q.length?'<div class="hc-h">常見問題</div>'+h.q.map(([a,b])=>'<div class="hc-q"><b>'+esc(a)+'</b><span>'+esc(b)+'</span></div>').join(''):''}
-      <button class="chip hc-tour" id="hcTour">看整體教學</button></div>`;
+      <div class="hc-btns"><button class="chip hc-tour" id="hcTour">看整體教學</button><button class="chip hc-tour" id="hcAllVid">全部教學影片</button></div></div>`;
     box.classList.add('open');
     document.getElementById('hcX').onclick=()=>{ box.classList.remove('open'); };
     document.getElementById('hcTour').onclick=()=>{ box.classList.remove('open'); openTour(); };
+    const hv=document.getElementById('hcVid'); if(hv) hv.onclick=()=>{ box.classList.remove('open'); openVideo(+hv.dataset.n); };
+    document.getElementById('hcAllVid').onclick=()=>{ box.classList.remove('open'); const v=tutorialFor(k); openVideo(v?v.n:1); };
     syncHelpBtn();
   }
   // ---- 整體教學: the first time the app opens, skippable ----
@@ -12053,6 +12636,8 @@
     document.getElementById('tourPrev').style.visibility=tourI?'visible':'hidden';
     document.getElementById('tourNext').textContent=last?'開始畫圖':'下一步';
     document.getElementById('tourSkip').style.visibility=last?'hidden':'visible';
+    if(last) document.getElementById('tourBody').insertAdjacentHTML('beforeend','<button class="chip tour-vid" id="tourVid">▶ 先看第 1 集：畫房間（0:47）</button>');
+    const tv=document.getElementById('tourVid'); if(tv) tv.onclick=()=>{ closeTour(); openVideo(1); };
   }
   (function wireHelp(){
     const b=document.getElementById('helpBtn');
@@ -12459,14 +13044,48 @@
       ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=3*TS; ctx.setLineDash([]); ctx.strokeText(txt,x,y);
       ctx.fillStyle=col; ctx.fillText(txt,x,y);
     };
+    // b120 — circuit letters used to be stamped at one fixed spot, so they landed on
+    // the switch's H1200 tag, a neighbour's symbol or a dimension. Each letter (or a
+    // switch's row of letters) now tries a ring of spots round its symbol and takes
+    // the first that is clear of every placed label and every symbol, then claims it.
+    const lh=fpx(12)+2*TS;
+    const boxAt=(cx,cy,w)=>[cx-w/2-2*TS, cy-lh/2, w+4*TS, lh];
+    // the letter belongs ON its own symbol's corner, so that one box doesn't count
+    const same=(a,b)=>b && Math.abs(a[0]-b[0])<0.5 && Math.abs(a[1]-b[1])<0.5 && Math.abs(a[2]-b[2])<0.5 && Math.abs(a[3]-b[3])<0.5;
+    const ov=(r,g)=>r[0]<g[0]+g[2] && r[0]+r[2]>g[0] && r[1]<g[1]+g[3] && r[1]+r[3]>g[1];
+    // walls too: a letter printed on the wall it hangs from is unreadable
+    const wallBoxes=[];
+    for(const w of state.walls){ if(wallLen(w)<1 || (Math.abs(w.x2-w.x1)>0.5 && Math.abs(w.y2-w.y1)>0.5)) continue;
+      const R=wallRect(w), a=toScreen(R.x0,R.y0), b=toScreen(R.x1,R.y1);
+      wallBoxes.push([Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1])]); }
+    const clear=(r,own)=>!placedLabels.some(g=>!same(g,own) && ov(r,g)) && !glyphBoxes.some(g=>!same(g,own) && ov(r,g)) && !wallBoxes.some(g=>ov(r,g));
+    const ownBox=(m)=>devScreenBox(m);
+    const spot=(sx,sy,rx,ry,w,first,own)=>{
+      const dirs=[first,[1,-1],[1,1],[-1,-1],[-1,1],[0,1],[0,-1],[1,0],[-1,0]];
+      for(const k of [1,1.7,2.5]) for(const d of dirs){
+        const cx=sx+d[0]*(rx*k+(d[0]?w/2:0)), cy=sy+d[1]*(ry*k+(d[1]&&!d[0]?lh/2:0));
+        const r=boxAt(cx,cy,w); if(clear(r,own)) return [cx,cy,r];
+      }
+      const cx=sx+first[0]*(rx+(first[0]?w/2:0)), cy=sy+first[1]*(ry+(first[1]&&!first[0]?lh/2:0));
+      return [cx,cy,boxAt(cx,cy,w)];
+    };
     for(const c of state.circuits){
       for(const id of c.lights){
         const m=mepById(id); if(!m) continue;
         const [sx,sy]=toScreen(m.x,m.y);
+        const w=ctx.measureText(c.name).width;
         if(isLinear(m)){
           const a=(m.rot||0)*Math.PI/180, off=fpx(11);
-          put(c.name, sx+Math.sin(a)*off, sy-Math.cos(a)*off, c.color);
-        } else { const p=devPx(m); put(c.name, sx+p*0.42, sy-p*0.42, c.color); }
+          let best=null;
+          for(const k of [1,1.8,2.6]) for(const sg of [1,-1]){ if(best) break;
+            const cx=sx+Math.sin(a)*off*k*sg, cy=sy-Math.cos(a)*off*k*sg, r=boxAt(cx,cy,w);
+            if(clear(r,ownBox(m))) best=[cx,cy,r]; }
+          if(!best){ const cx=sx+Math.sin(a)*off, cy=sy-Math.cos(a)*off; best=[cx,cy,boxAt(cx,cy,w)]; }
+          put(c.name, best[0], best[1], c.color); placedLabels.push(best[2]);
+        } else {
+          const p=devPx(m), [cx,cy,r]=spot(sx,sy,p*0.42,p*0.42,w,[1,-1],ownBox(m));
+          put(c.name, cx, cy, c.color); placedLabels.push(r);
+        }
       }
     }
     // a switch lists every circuit it controls, each in that circuit's colour
@@ -12476,9 +13095,12 @@
       const [sx,sy]=toScreen(m.x,m.y), p=devPx(m);
       // a key with no circuit on it yet shows as a grey dot, so a spare key is visible
       const g=swGang(m), spare=(g<=4 && active && !EXPORT_MODE) ? Math.max(0,g-cs.length) : 0;
-      const step=fpx(9); let x=sx-(cs.length+spare-1)*step/2;
-      for(const c of cs){ put(c.name, x, sy+p*0.62, c.color); x+=step; }
-      for(let i=0;i<spare;i++){ put('•', x, sy+p*0.62, '#9AA1A8'); x+=step; }
+      const step=fpx(9), n=cs.length+spare, w=(n-1)*step+fpx(8);
+      const [cx,cy,r]=spot(sx,sy,p*0.5,p*0.5,w,[0,1],ownBox(m));
+      let x=cx-(n-1)*step/2;
+      for(const c of cs){ put(c.name, x, cy, c.color); x+=step; }
+      for(let i=0;i<spare;i++){ put('•', x, cy, '#9AA1A8'); x+=step; }
+      placedLabels.push(r);
     }
     // while a circuit is being built, show what has been picked so far
     const d=ui.cdraft;
@@ -12690,7 +13312,27 @@
       // name and size ride on top, unrotated, so they stay readable
       const px=Math.min(f.w,f.h)*view.scale;
       if(px>26){
-        const [lx,ly]=toScreen(f.x,f.y);
+        let [lx,ly]=toScreen(f.x,f.y);
+        // b120 — the room's name sits on top of everything; when it lands on this
+        // piece, the piece's own name/size steps clear of it (or stays hidden)
+        let hide=false;
+        if(showOpt.rooms){
+          const sz=Math.round(toDisp(f.w))+'×'+Math.round(toDisp(f.h));
+          ctx.save(); ctx.font=`600 ${fpx(10)}px -apple-system,system-ui,sans-serif`;
+          const bw=Math.max(ctx.measureText(f.name).width, ctx.measureText(sz).width)+fpx(4); ctx.restore();
+          const bh=fpx(24);
+          const fb=furnBox(f), A=toScreen(fb.x0,fb.y0), Bq=toScreen(fb.x1,fb.y1);
+          const top=Math.min(A[1],Bq[1]), bot=Math.max(A[1],Bq[1]);
+          const ov=(y,r)=>lx-bw/2<r[0]+r[2] && lx+bw/2>r[0] && y-bh/2<r[1]+r[3] && y+bh/2>r[1];
+          const rbs=roomsCache.filter(r=>r.V.length>=3).map(roomLabelBox);
+          const hit=rbs.filter(r=>ov(ly,r));
+          if(hit.length){
+            const tries=[]; for(const r of hit){ tries.push(r[1]+r[3]+bh/2+fpx(2), r[1]-bh/2-fpx(2)); }
+            const ok=tries.find(y=>y-bh/2>=top && y+bh/2<=bot && !rbs.some(r=>ov(y,r)));
+            if(ok!==undefined) ly=ok; else hide=!sel;
+          }
+        }
+        if(!hide){
         ctx.save(); ctx.globalAlpha=layerAlpha(f.layer||'plan');
         ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.font=`600 ${fpx(10)}px -apple-system,system-ui,sans-serif`;
@@ -12700,6 +13342,7 @@
         ctx.fillStyle='#8A9199';
         ctx.fillText(Math.round(toDisp(f.w))+'×'+Math.round(toDisp(f.h)), lx, ly+fpx(6));
         ctx.restore();
+        }
       }
       if(sel){
         const c=furnCorners(f);
@@ -13403,7 +14046,7 @@
       + Object.keys(all).sort((a,b)=>all[b].t-all[a].t)
           .map(id=>`<option value="${id}">${all[id].name}</option>`).join('');
     if(!all[pdfOpt.frame] && pdfOpt.frame!=='studio') pdfOpt.frame='builtin';
-    const so=document.getElementById('mStudioRow'); if(so) so.style.display = pdfOpt.frame==='studio' ? '' : 'none';
+    const so=document.getElementById('mStudioRow'); if(so) so.style.display = (pdfOpt.frame==='studio' && (exportKind==='pdf' || (exportKind==='png' && pdfOpt.pngFrame))) ? '' : 'none';
     sel.value=pdfOpt.frame;
     const f=frameCurrent();
     document.getElementById('mFrameEdit').style.display = f ? '' : 'none';
@@ -13669,9 +14312,15 @@
     // same name = overwrite, so re-saving a plan you are working on just updates it
     const existing=Object.keys(all).find(k=>all[k].name===name);
     if(existing && !await uiConfirm('「'+name+'」已經存在，要覆蓋掉舊的那份嗎？',{okText:'覆蓋',danger:true})) return false;
+    if(!existing && !planCanCreate(null)){
+      closeProjModal();
+      openPlanModal('免費版可以建立 '+PLAN_FREE_PROJECTS+' 個專案（刪掉的也算在內）。要另存成新專案，請升級基本方案；也可以覆蓋原本的專案。');
+      return false;
+    }
     const id=existing || ('p'+Date.now()+Math.floor(Math.random()*1000));
     all[id]={name, t:Date.now(), data:JSON.parse(JSON.stringify(currentPlan()))};
     if(!projWrite(all)) return false;
+    planNoteCreated(id);
     document.getElementById('fname').value=name;
     markSaved();
     projCountRefresh(); projRenderList();
@@ -13756,7 +14405,7 @@
   function blankPlan(){
     state.walls=[]; state.openings=[]; state.dims=[]; state.texts=[];
     state.columns=[]; state.beams=[]; state.ink=[]; state.notes=[]; state.furniture=[]; state.mep=[]; state.circuits=[]; state.ceil=[]; state.floor=[]; state.paint={specs:[],faces:[],ceils:[]}; state.ceilLabel='ch';
-    state.layer='base'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.underlay=null; underlayImg=null;
+    state.layer='base'; state.layerVis={}; state.baseLock=false; state.roomNames={}; state.roomLabelOff={}; state.rooms=[]; state.underlay=null; underlayImg=null;   // b123 — rooms too: a new plan inherited the last plan's room names
     // the studio name survives a new project; the client and sheet number do not
     state.meta={firm:(state.meta&&state.meta.firm)||'', designer:(state.meta&&state.meta.designer)||''};
     syncMetaUI();
@@ -13769,6 +14418,10 @@
     draw();
   }
   async function newProject(){
+    if(!planCanCreate(null)){
+      openPlanModal('免費版可以建立 '+PLAN_FREE_PROJECTS+' 個專案（刪掉的也算在內）。升級基本方案，專案數量就沒有限制。');
+      return;
+    }
     if(isDirty()){
       const name=(document.getElementById('fname').value||'目前的平面圖').trim();
       const ans=await uiDialog({
@@ -13823,6 +14476,7 @@
   syncToolSections(); syncLayerUI(); syncFurnUI(); syncMepUI(); syncMetaUI();
   projCountRefresh(); markSaved();
   loadAutosave();
+  planBoot();
   flashHint('選「牆」→ 按住拖曳畫牆（放開即完成）。兩指縮放平移，點物件可編輯尺寸');
 })();
 </script>
