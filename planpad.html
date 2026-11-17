@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b132</title>
+<title>PlanPad · 平面圖工具 b133</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -422,7 +422,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b132</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b133</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -434,6 +434,7 @@
       <button class="tbtn" id="zin">＋</button>
     </div>
     <button class="tbtn" id="fit" title="縮放至全圖">全圖</button>
+    <button class="tbtn" id="vidBtn" title="教學影片（12 集）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>教學</button>
     <button class="tbtn" id="projBtn" title="開啟／儲存專案"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>專案<span class="pcount" id="projCount"></span></button>
     <div class="menu">
       <button class="tbtn primary" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>檔案</button>
@@ -441,7 +442,7 @@
         <div class="menu-label">專案</div>
         <div class="menu-item" data-act="newproj">新增專案<span class="k">換一個案場</span></div>
         <div class="menu-item" data-act="plan">方案與訂閱<span class="k" id="planMenuTag"></span></div>
-        <div class="menu-item" data-act="copytest">匯入測試版畫的專案<span class="k">把以前在測試版存的圖搬過來</span></div>
+        <div class="menu-item" data-act="copytest" id="copyTestItem" style="display:none">匯入測試版畫的專案<span class="k">把以前在測試版存的圖搬過來</span></div>
         <div class="menu-sep"></div>
         <div class="menu-label">底圖描繪</div>
         <label class="menu-item filepick" id="ulImportMenu">匯入圖紙<span class="k">PDF / 圖片</span>
@@ -8491,7 +8492,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b132';
+  const BUILD='b133';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -13199,7 +13200,7 @@
     if(!m){
       m=document.createElement('div'); m.id='vidModal'; m.className='vid-mask';
       m.innerHTML=`<div class="vid-box"><div class="vid-head"><div><div class="hc-k">教學影片</div><div class="hc-t" id="vidTitle"></div></div><button class="hc-x" id="vidX" aria-label="關閉">✕</button></div>
-        <div class="vid-stage"><video id="vidEl" controls playsinline preload="metadata"></video><div class="vid-err" id="vidErr">影片載入失敗。請確認 App 已更新到最新版。</div></div>
+        <div class="vid-stage"><video id="vidEl" controls playsinline preload="metadata"></video><div class="vid-err" id="vidErr">影片載入失敗。<br>網頁試用版沒有放影片檔，請在 PlanPad App 裡觀看；<br>如果是在 App 裡看到這個訊息，請更新到最新版。</div></div>
         <div class="vid-list" id="vidList"></div></div>`;
       document.body.appendChild(m);
       for(const ev of ['pointerdown','pointerup','pointermove','touchstart','wheel','keydown']) m.addEventListener(ev,e=>e.stopPropagation());
@@ -15079,6 +15080,10 @@
   function closeProjModal(){ projModal.classList.remove('open'); }
   document.getElementById('projClose').onclick=closeProjModal;
   document.getElementById('projBtn').onclick=()=>openProjModal('open');
+  document.getElementById('vidBtn').onclick=()=>openVideo(1);
+  // 「匯入測試版畫的專案」only matters on a device that still has drawings from the retired test build
+  try{ const tp=JSON.parse(localStorage.getItem('planpad.test.projects.v1')||'{}')||{}; const ta=JSON.parse(localStorage.getItem('planpad.test.autosave.v1')||'null');
+    if(Object.keys(tp).length || (ta && ta.data && (ta.data.walls||[]).length)) document.getElementById('copyTestItem').style.display=''; }catch(_){ }
   document.getElementById('acctBtn').onclick=()=>openAcctModal();
   document.getElementById('projSave').onclick=()=>projSaveAs(document.getElementById('projName').value);
   document.getElementById('projName').addEventListener('keydown',e=>{ if(e.key==='Enter') projSaveAs(e.target.value); });
