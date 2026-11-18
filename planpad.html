@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b134</title>
+<title>PlanPad · 平面圖工具 b135</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -422,7 +422,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b134</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b135</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -8492,7 +8492,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b134';
+  const BUILD='b135';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -15118,6 +15118,19 @@
   planBoot();
   acctBoot();
   flashHint('選「牆」→ 按住拖曳畫牆（放開即完成）。兩指縮放平移，點物件可編輯尺寸');
+})();
+</script>
+<script>
+/* 網頁版瀏覽統計（GoatCounter，planpad.goatcounter.com）：不用 Cookie、不記個人資料。
+   只在網頁上跑；打包成 App（有 PlanPadNative）或從本機檔案打開時不載入。 */
+(function(){
+  try{
+    if(window.PlanPadNative || location.protocol!=='https:') return;
+    if(!/(\.github\.io|\.web\.app|\.firebaseapp\.com)$/.test(location.hostname)) return;
+    var s=document.createElement('script'); s.async=true;
+    s.setAttribute('data-goatcounter','https://planpad.goatcounter.com/count');
+    s.src='https://gc.zgo.at/count.js'; document.body.appendChild(s);
+  }catch(_){}
 })();
 </script>
 </body>
