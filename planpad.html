@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b133</title>
+<title>PlanPad · 平面圖工具 b134</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -422,7 +422,7 @@
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b133</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b134</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -8492,7 +8492,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b133';
+  const BUILD='b134';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -13177,7 +13177,7 @@
   }
   // ---- b121 教學影片: short clips bundled with the app (tutorials/NN.mp4) ----
   const TUTORIALS=[
-    {n:1,  t:'畫房間、改尺寸',       f:'planpad-01.mp4', d:'0:47', k:['room','select']},
+    {n:1,  t:'畫房間、改尺寸',       f:'planpad-01.mp4', d:'0:51', k:['room','select']},
     {n:2,  t:'用牆畫空間、牆厚與樓高', f:'planpad-02.mp4', d:'0:40', k:['wall','base']},
     {n:3,  t:'隔間、門窗、柱、樑',    f:'planpad-03.mp4', d:'0:38', k:['part','door','window','column','beam','shaft','split']},
     {n:4,  t:'平面配置：家具',        f:'planpad-04.mp4', d:'0:37', k:['plan']},
@@ -13188,7 +13188,7 @@
     {n:9,  t:'尺寸、手寫、照片、註記、文字', f:'planpad-09.mp4', d:'0:35', k:['dim','ink','photo','note','text']},
     {n:10, t:'專案資訊與公司資料',    f:'planpad-10.mp4', d:'0:28', k:['meta']},
     {n:11, t:'匯出 PDF 與圖框',       f:'planpad-11.mp4', d:'0:41', k:['export']},
-    {n:12, t:'存檔、開專案、匯入底圖', f:'planpad-12.mp4', d:'0:38', k:['underlay','ulcalib','file']},
+    {n:12, t:'專案存檔、匯入底圖',   f:'planpad-12.mp4', d:'0:40', k:['underlay','ulcalib','file']},
   ];
   function tutorialFor(k){
     const base=String(k||'').split('.')[0];
@@ -13262,7 +13262,7 @@
     document.getElementById('tourPrev').style.visibility=tourI?'visible':'hidden';
     document.getElementById('tourNext').textContent=last?'開始畫圖':'下一步';
     document.getElementById('tourSkip').style.visibility=last?'hidden':'visible';
-    if(last) document.getElementById('tourBody').insertAdjacentHTML('beforeend','<button class="chip tour-vid" id="tourVid">▶ 先看第 1 集：畫房間（0:47）</button>');
+    if(last) document.getElementById('tourBody').insertAdjacentHTML('beforeend','<button class="chip tour-vid" id="tourVid">▶ 先看第 1 集：畫房間（0:51）</button>');
     const tv=document.getElementById('tourVid'); if(tv) tv.onclick=()=>{ closeTour(); openVideo(1); };
   }
   (function wireHelp(){
