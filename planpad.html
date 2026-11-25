@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta id="vp" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>PlanPad · 平面圖工具 b135</title>
+<title>PlanPad · 平面圖工具 b143</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -29,7 +29,6 @@
   html,body{touch-action:manipulation; overscroll-behavior:none;}
   html,body{margin:0; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC",system-ui,sans-serif; color:var(--text); background:var(--canvas-bg);}
   #app{display:flex; flex-direction:column; height:100%; touch-action:manipulation;}
-
   /* ---- Top bar ---- */
   #topbar{display:flex; align-items:center; gap:10px; height:52px; padding:0 12px; background:var(--panel); border-bottom:1px solid var(--line); flex:0 0 auto; z-index:20;}
   .brand{display:flex; align-items:baseline; gap:8px; user-select:none;}
@@ -259,6 +258,7 @@
   #selBar.on{display:flex;}
   #selBar button{border:0; background:#F1F4F6; color:#24282E; font-size:14px; font-weight:600; padding:9px 13px; border-radius:9px; font-family:inherit; min-height:40px;}
   #selBar button.del{background:#FDECEC; color:#C0362C;}
+  #selBar button.ok{background:#275C7A; color:#fff;}
   #selBar button:active{filter:brightness(.92);}
   .help-btn{position:absolute; top:12px; right:12px; z-index:8; width:40px; height:40px; border-radius:50%; border:1px solid var(--line-strong,#C9CFD5); background:#fff; color:#275C7A; font-size:20px; font-weight:800; box-shadow:0 2px 8px rgba(0,0,0,.12); font-family:inherit; touch-action:manipulation;}
   .help-btn.new::after{content:''; position:absolute; top:2px; right:2px; width:10px; height:10px; border-radius:50%; background:#E5484D; border:2px solid #fff;}
@@ -416,13 +416,17 @@
   .acct-btns .tbtn{flex:1; justify-content:center;}
   .tbtn.danger{color:#C0362C; border-color:#F0C9C4;}
   #mWmNote{display:none; background:#FDF6EA; border:1px solid #F0D9B5; color:#7A5B2E; border-radius:9px; padding:7px 10px; font-size:12.5px; margin-bottom:10px;}
+  /* b143: App（Capacitor）畫面延伸到狀態列和底部橫條底下，讓開這兩塊；網頁版 env() 是 0，不受影響 */
+  #topbar{padding-top:env(safe-area-inset-top,0px); height:calc(52px + env(safe-area-inset-top,0px));}
+  #status{padding-bottom:env(safe-area-inset-bottom,0px); height:calc(26px + env(safe-area-inset-bottom,0px));}
+  #app{padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px);}
 </style>
 </head>
 <body>
 <div id="app">
   <!-- TOP BAR -->
   <div id="topbar">
-    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b135</span></span></div>
+    <div class="brand"><span class="mark">PlanPad</span><span class="sub">平面圖工具 · <span id="buildTag">b143</span></span></div>
     <input id="fname" value="未命名平面圖" spellcheck="false">
     <button class="tbtn" id="metaBtn" title="專案資訊（會印在圖框上）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".9" fill="currentColor" stroke="none"/></svg></button>
     <div class="spacer"></div>
@@ -442,6 +446,7 @@
         <div class="menu-label">專案</div>
         <div class="menu-item" data-act="newproj">新增專案<span class="k">換一個案場</span></div>
         <div class="menu-item" data-act="plan">方案與訂閱<span class="k" id="planMenuTag"></span></div>
+        <div class="menu-item" data-act="lang" id="langMenuItem">English<span class="k">Language / 語言</span></div>
         <div class="menu-item" data-act="copytest" id="copyTestItem" style="display:none">匯入測試版畫的專案<span class="k">把以前在測試版存的圖搬過來</span></div>
         <div class="menu-sep"></div>
         <div class="menu-label">底圖描繪</div>
@@ -1061,9 +1066,9 @@
     // click to whatever is now under the finger — the pad sits over the settings
     // column, so lifting off ✓ quietly pressed 外線 underneath it. That ghost
     // click is thrown away.
-    let swallowUntil=0;
+    let swallowUntil=0, kDownAt=null;   // only a click where the finger left the pad is a ghost
     document.addEventListener('click',e=>{
-      if(performance.now()<swallowUntil && !el.contains(e.target)){ e.preventDefault(); e.stopPropagation(); swallowUntil=0; dbg('  (ghost click after keypad swallowed: '+(e.target.id||e.target.textContent||e.target.tagName).toString().slice(0,12)+')'); }
+      if(performance.now()<swallowUntil && !el.contains(e.target) && kDownAt && Math.hypot(e.clientX-kDownAt[0],e.clientY-kDownAt[1])<40){ e.preventDefault(); e.stopPropagation(); swallowUntil=0; dbg('  (ghost click after keypad swallowed: '+(e.target.id||e.target.textContent||e.target.tagName).toString().slice(0,12)+')'); }
     }, true);
 
     function shown(f){ return f.typed ? f.val : (f.live==null?'':String(f.live)); }
@@ -1111,6 +1116,7 @@
     }
     el.addEventListener('pointerdown',e=>{
       e.stopPropagation(); e.preventDefault();
+      kDownAt=[e.clientX,e.clientY];
       const fld=e.target.closest('.kfield');
       if(fld){ act=+fld.dataset.i; render(); return; }
       const b=e.target.closest('.kb');
@@ -1156,8 +1162,8 @@
       if(e.key==='Backspace'){ press('bs'); return true; }
       if(e.key==='-'){ press('neg'); return true; }
       if(e.key==='Tab'){ press('tab'); return true; }
-      if(e.key==='Enter'){ press('ok'); return true; }
-      if(e.key==='Escape'){ press('esc'); return true; }
+      if(e.key==='Enter'){ kDownAt=null; press('ok'); return true; }
+      if(e.key==='Escape'){ kDownAt=null; press('esc'); return true; }
       return false;
     }
     return {open,close,closeIf,ownerOf,live,set,isOpen,key,vals:()=>cfg?vals():{}};
@@ -1332,10 +1338,16 @@
   }
   function pushHistory(){
     unlockAllWalls();
+    // a room still floating (b137) is kept out of the clean-up: it may sit right on
+    // top of a neighbour's wall, and must not be folded into it until 放下
+    const floating=(ui.floatR && ui.floatR.ids) ? state.walls.filter(w=>ui.floatR.ids.includes(w.id)) : [];
+    if(floating.length) state.walls=state.walls.filter(w=>!floating.includes(w));
+    try{
     cleanupStrayWalls();
     mergeCoincidentWalls();   // two walls sitting on each other are one party wall
     healJunctions();
     cleanupStrayWalls();   // healing can collapse a stub to zero length
+    } finally { if(floating.length) state.walls.push(...floating); }
     try{
       if(fitTypedRooms()) flashHint(fitTypedRooms.left ? ('空間已依輸入的淨尺寸調整；有 '+fitTypedRooms.left+' 道尺寸彼此對不起來，維持圖面位置') : '空間已依你輸入的室內淨尺寸調整');
     }catch(_){}
@@ -1486,12 +1498,12 @@
     state.ceilingH=o.ceilingH||280;
     state._seq=o._seq||1000;
     ui.selected=null; draft=null; inkDraft=null; eraser=null; typedNum=''; hideLenBox();
-    ui.chain=null; ui.rect=null; cgest=null;
+    ui.chain=null; ui.rect=null; cgest=null; ui.floatR=null;
     kpad.close();
     if(ui.focusRoom && !state.rooms.some(r=>r.id===ui.focusRoom)) ui.focusRoom=null;
     recomputeRooms(); syncFocusBar(); refreshProp(); draw();
   }
-  function undo(){ if(ui.chain){ chainBack(); return; } if(ui.rect){ ui.rect=null; kpad.closeIf('rect'); draw(); return; } if(hi>0){ hi--; restore(history[hi]); updateUndo(); } }
+  function undo(){ if(ui.chain){ chainBack(); return; } if(ui.floatR && ui.floatR.lifted){ restore(history[hi]); updateUndo(); flashHint('已取消抬起'); return; } if(ui.rect){ ui.rect=null; kpad.closeIf('rect'); draw(); return; } if(hi>0){ hi--; restore(history[hi]); updateUndo(); } }
   function redo(){ if(ui.chain||ui.rect) return; if(hi<history.length-1){ hi++; restore(history[hi]); updateUndo(); } }
   function updateUndo(){ document.getElementById('undo').style.opacity=(hi>0||ui.chain||ui.rect)?1:.4; document.getElementById('redo').style.opacity=hi<history.length-1?1:.4; }
 
@@ -4190,6 +4202,7 @@
     if(ui.tool==='dim') drawDimAnchors(draft&&draft.T ? draft.T : buildDimTargets());
     drawDraft();
     drawChain();
+    drawFloat();
     drawSelection();
     try{ syncSelBar(); }catch(_){}
   }
@@ -4954,8 +4967,16 @@
     dbgOn=!dbgOn;
     dbgPanel.classList.toggle('show',dbgOn);
     dbgBtn.classList.toggle('on',dbgOn);
-    if(dbgOn){ dbgLog.length=0; dbg('— 除錯記錄開啟 —'); }
+    if(dbgOn){ dbgLog.length=0; dbg('— 除錯記錄開啟 —'); for(const m of nativeLogBuf.slice(-150)) dbg(m); }
   }
+  // b141: App 外殼（RevenueCat 等）的記錄也收進來，開除錯記錄時補上最近 40 行
+  const nativeLogBuf=[];
+  window.addEventListener('planpad-native-log',e=>{
+    const m='原生 '+String(e.detail||'').slice(0,600);
+    nativeLogBuf.push(m); if(nativeLogBuf.length>200) nativeLogBuf.shift();
+    dbg(m);
+  });
+  try{ for(const m of (window.__ppNativeLog||[])) window.dispatchEvent(new CustomEvent('planpad-native-log',{detail:m})); }catch(_){ }
   dbgBtn.addEventListener('click',toggleDebug);
   document.getElementById('dbgCopy').addEventListener('click',e=>{ e.stopPropagation(); dbgCopy(); });
   document.getElementById('dbgClear').addEventListener('click',e=>{ e.stopPropagation(); dbgLog.length=0; dbg('— 已清除 —'); });
@@ -5028,6 +5049,7 @@
       if(ui.tool==='paint') ui._paintTap={px,py,wx,wy};
       return;
     }
+    if(ui.floatR && (ui.tool==='room'||ui.tool==='select') && !cgest && floatHit(wx,wy)){ floatDown(e,px,py,wx,wy); return; }
     if(ui.tool==='wall'||ui.tool==='room'||ui.tool==='part'){ chainDown(e,px,py,wx,wy); return; }
 
 
@@ -5141,6 +5163,7 @@
         // inside the focused room, an empty tap keeps the room selected rather
         // than dumping you back to "nothing selected" mid-edit
         if(ui.focusRoom) ui.selected={kind:'room', id:ui.focusRoom};
+        else if(state.layer==='base' && !state.baseLock && (()=>{ const r=roomAt(wx,wy); return r && r.rid!=null; })()) ui.selected={kind:'room', id:roomAt(wx,wy).rid};   // b137: tap inside a room → 抬起
         else ui.selected=null;
         refreshProp(); panStart={px,py,ox:view.ox,oy:view.oy};
         if(state.layer==='ceil'||state.layer==='floor') ui._ceilTap={px,py,wx,wy};
@@ -6496,6 +6519,7 @@
       A.push(['複製',duplicateSelected]); A.push(['刪除',deleteSelected,'del']); }
     else if(s.kind==='mep'||s.kind==='column'||s.kind==='beam'){ A.push(['複製',duplicateSelected]); A.push(['刪除',deleteSelected,'del']); }
     else if(['dim','note','ceil'].includes(s.kind)) A.push(['刪除',deleteSelected,'del']);
+    else if(s.kind==='room' && !state.baseLock) A.push(['抬起',()=>liftRoom(s.id)]);
     return A;
   }
   // the selected thing's footprint on screen — the bar goes outside it, never over it
@@ -6509,6 +6533,7 @@
     else if(s.kind==='text'){ const t=state.texts.find(v=>v.id===s.id); if(!t) return null; const b=textBox(t); add(b.x0,b.y0); add(b.x1,b.y1); }
     else if(s.kind==='mep'){ const m=state.mep.find(v=>v.id===s.id); if(!m) return null; const b=mepBox(m); add(b.x0,b.y0); add(b.x1,b.y1); }
     else if(s.kind==='beam'){ const b=state.beams.find(v=>v.id===s.id); if(!b) return null; for(const q of beamCorners(b)) add(q.x,q.y); }
+    else if(s.kind==='room'){ const r=roomsCache.find(v=>v.rid===s.id); if(!r||!r.V) return null; for(const q of r.V) add(q.x!=null?q.x:q[0], q.y!=null?q.y:q[1]); }
     else if(s.kind==='ceil'){ const z=ceilById(s.id); if(!z) return null; const b=ceilBBox(z); add(b.x0,b.y0); add(b.x1,b.y1); }
     else if(s.kind==='paintFace'||s.kind==='paintCeil'){ const h=paintHits.find(v=>v.kind===s.kind&&v.id===s.id); if(!h) return null; pts.push([h.x0,h.y0],[h.x1,h.y1]); }
     else { const c=objCenter(s.kind,s.id); if(!c) return null; add(c.x,c.y); }
@@ -6517,6 +6542,18 @@
   }
   function syncSelBar(){
     const bar=document.getElementById('selBar'); if(!bar) return;
+    if(ui.floatR && !EXPORT_MODE && !(cgest&&cgest.kind==='float')){
+      const b=floatBBox(); if(b){
+        if(selBarKey!=='float'){ selBarKey='float'; bar.innerHTML='';
+          for(const [label,fn,cls] of [['刪除',floatDelete,'del'],['放下',floatDrop,'ok']]){ const bt=document.createElement('button'); bt.textContent=label; if(cls) bt.className=cls; bt.onclick=(e)=>{ e.stopPropagation(); fn(); syncSelBar(); }; bar.appendChild(bt); } }
+        bar.classList.add('on');
+        const [x0,y0]=toScreen(b.x0,b.y0), [x1,y1]=toScreen(b.x1,b.y1), bw=bar.offsetWidth, bh=bar.offsetHeight, W0=stage.clientWidth, H0=stage.clientHeight;
+        let x=(x0+x1)/2-bw/2, y=y0-18-bh; if(y<8) y=y1+18;
+        bar.style.left=Math.max(8,Math.min(W0-bw-8,x))+'px'; bar.style.top=Math.max(8,Math.min(H0-bh-8,y))+'px';
+        return;
+      }
+    }
+    if(selBarKey==='float') selBarKey='';
     const s=ui.selected;
     const show = s && ui.tool==='select' && !(dragging&&dragging.moved) && !EXPORT_MODE && !(state.baseLock && ['wall','opening','column','beam'].includes(s.kind));
     const acts = show ? selBarActions(s) : [];
@@ -6654,7 +6691,7 @@
   const PLAN_PRICE_FALLBACK={'basic.month':'NT$149','basic.year':'NT$1,490','pro.month':'NT$590','pro.year':'NT$5,900'};
   const PLAN_FREE_PROJECTS=2;
   // filled in once the App Store page and the policy pages exist
-  const PLAN_URL={appStore:'', privacy:'', terms:''};
+  const PLAN_URL={appStore:'', privacy:'https://ting790918-ctrl.github.io/worker/privacy.html', terms:'https://ting790918-ctrl.github.io/worker/terms.html'};   // b139
   const PLAN_USED_KEY='planpad.planUsed.v1', PLAN_TEST_KEY='planpad.tierTest', PLAN_LAST_KEY='planpad.tierLast';
   const planBridge=()=>window.PlanPadNative||null;
   const planNative=()=>{ const n=planBridge(); return !!(n && typeof n.getTier==='function'); };
@@ -6774,7 +6811,7 @@
       if(t!=='free'){
         const b=document.createElement('button'); b.className='buy';
         if(planAtLeast(t)){ b.disabled=true; b.textContent = t===planCur ? '使用中' : '已包含'; }
-        else { b.textContent = tri ? ('免費試用 '+tri) : ('訂閱'+PLAN_NAME[t]); b.onclick=()=>planBuy(t); }
+        else { b.dataset.tier=t; b.textContent = tri ? ('免費試用 '+tri) : ('訂閱'+PLAN_NAME[t]); b.onclick=()=>planBuy(t); }
         card.appendChild(b);
       }
       box.appendChild(card);
@@ -6825,20 +6862,40 @@
         +(PLAN_URL.appStore ? '\n\n'+PLAN_URL.appStore : '\n\n（App 上架之後，這裡會放 App Store 的連結）'),'請到 App 訂閱');
       return;
     }
+    // b140: 按下去要有回應、不能連按；Apple 視窗一直沒回來時要告訴使用者，不要卡住
+    if(planBusy){ flashHint('正在等 Apple 的購買視窗…'); return; }
+    planBusy=true;
+    const pid=PLAN_PRODUCTS[t+'.'+planPeriod];
+    const btns=[...document.querySelectorAll('#planModal button.buy')];
+    const keep=btns.map(b=>[b,b.textContent,b.disabled]);
+    btns.forEach(b=>{ b.disabled=true; }); const me=btns.find(b=>b.dataset.tier===t); if(me) me.textContent='處理中…';
+    dbg('購買 開始 '+pid);
+    let timer=null;
     try{
-      const r=await n.purchase(PLAN_PRODUCTS[t+'.'+planPeriod]);
+      const r=await Promise.race([
+        n.purchase(pid),
+        new Promise((_,rej)=>{ timer=setTimeout(()=>rej({planTimeout:true}),90000); })
+      ]);
+      dbg('購買 完成 → '+r);
       if(r) planApply(r,'購買');
       if(planAtLeast(t)){ closePlanModal(); flashHint('已開通「'+PLAN_NAME[planCur]+'」，謝謝支持！'); }
+      else uiAlert('Apple 回覆購買完成，但還沒查到方案。請按「恢復購買」再試一次。','訂閱');
     }catch(err){
+      dbg('購買 錯誤 '+(err&&err.planTimeout?'逾時':JSON.stringify(err&&(err.code||err.message||err))));
+      if(err && err.planTimeout){ uiAlert('Apple 的購買視窗一直沒有回應。\n\n請把 PlanPad 完全關掉再打開，先按「恢復購買」。如果還是不行，請打開右上角 🐞 除錯記錄截圖給開發者。','訂閱沒有回應'); return; }
       if(planIsCancel(err)) return;
       uiAlert('訂閱沒有完成：'+((err&&err.message)||err)+'\n\n沒有扣款。可以稍後再試一次。','訂閱沒有完成');
+    }finally{
+      clearTimeout(timer); planBusy=false;
+      keep.forEach(([b,tx,d])=>{ if(b.isConnected){ b.textContent=tx; b.disabled=d; } });
     }
   }
+  let planBusy=false;
   async function planRestore(){
     const n=planBridge();
     if(!planNative() || typeof n.restore!=='function'){ uiAlert('恢復購買要在 iPad 的 PlanPad App 裡操作。'); return; }
     try{
-      const r=await n.restore(); if(r) planApply(r,'恢復購買');
+      dbg('恢復購買 開始'); const r=await n.restore(); dbg('恢復購買 → '+r); if(r) planApply(r,'恢復購買');
       uiAlert(planAtLeast('basic') ? '已恢復：'+PLAN_NAME[planCur]+'。' : '這個 Apple 帳號沒有找到 PlanPad 的訂閱。','恢復購買');
     }catch(err){ uiAlert('恢復購買沒有成功：'+((err&&err.message)||err)); }
   }
@@ -7457,6 +7514,101 @@
   }
   document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') cloudSync({ifOlder:60000}); });
 
+  // ================= 中英切換（b136） =================
+  // The app is written in Chinese. In English mode every text node, title,
+  // placeholder and aria-label whose whole (trimmed) text is in I18N_EN is
+  // swapped for the English one — on boot and, through a MutationObserver, for
+  // anything the app renders later. Strings glued together from pieces, and text
+  // drawn on the canvas, are not covered yet (later versions).
+  // Switching back to Chinese restores the originals, so no reload is needed.
+  const I18N_EN={"DXF 為 CAD 通用交換格式，AutoCAD／BricsCAD／SketchUp 皆可直接開啟，開啟後另存即為 .dwg。牆、柱、樑、門窗、標註各自分層。": "DXF is the common CAD exchange format. AutoCAD, BricsCAD and SketchUp open it directly; save it again as .dwg if you need one. Walls, columns, beams, doors/windows and dimensions are on separate layers.", "PDF / 圖片": "PDF / image", "PlanPad 方案": "PlanPad plans", "上": "Top", "上一步": "Back", "上一步 (Ctrl+Z)": "Undo (Ctrl+Z)", "上傳…": "Upload…", "下": "Bottom", "下一步": "Next", "下一步 (Ctrl+Y)": "Redo (Ctrl+Y)", "下降": "Lowered", "中": "Middle", "中線": "Center line", "也決定橡皮擦大小": "Also sets the eraser size", "事務所資料（存在這台平板，每個專案自動帶入）": "Studio details (saved on this device, filled into every project)", "付款方式": "Payment", "代號": "Code", "使用說明": "How to use", "例：A986、5B-1": "e.g. A986, 5B-1", "例：E-01": "e.g. E-01", "例：平光、一底二度": "e.g. matte, 1 primer + 2 coats", "例：得利、虹牌、ICI": "e.g. Dulux, Nippon, ICI", "例：水電": "e.g. Electrical", "例：王宅 大安路二段": "e.g. Wang residence, 2F", "例：象藝創意": "e.g. Studio Name", "例：黃鈺涵": "e.g. Jane Doe", "修改校正值…": "Change calibration…", "備註": "Notes", "備註（印在圖框最下面）": "Notes (printed at the bottom of the title block)", "儲存": "Save", "先點開關，再依序點要接的燈，最後按「完成」。兩個地方都要能開關的燈，兩處都用「雙切開關」，兩顆都點進來。": "Tap a switch, then tap the lights it controls in order, then press \"Done\". For lights switched from two places, use a \"2-way switch\" at both places and include both.", "免費版匯出的 PNG 會加上「PlanPad 免費版」浮水印，也不能加圖框。升級基本方案就沒有浮水印。": "PNG exports on the free plan carry a \"PlanPad Free\" watermark and cannot have a title block. Upgrade to Basic to remove the watermark.", "內線": "Inner line", "內縮距離": "Inset distance", "全圖": "Fit", "兩端同時延伸，中心不動": "Extend both ends, keep the center", "兩者": "Both", "刪除這個圖框": "Delete this title block", "刪除這個顏色": "Delete this color", "加上圖框": "Add title block", "匯入…": "Import…", "匯入圖紙": "Import drawing", "匯入圖紙…": "Import drawing…", "匯入測試版畫的專案": "Import projects from the test version", "匯出": "Export", "匯出 DXF": "Export DXF", "匯出 PDF（含圖框）": "Export PDF (with title block)", "匯出 PNG 圖片": "Export PNG image", "印在「業主」，例：王先生": "Printed as \"Client\", e.g. Mr. Wang", "印在「設計」；空白＝用事務所資料": "Printed as \"Design\"; blank = use studio details", "印在「項目負責」；空白＝用事務所資料": "Printed as \"Project lead\"; blank = use studio details", "厚度": "Thickness", "取消": "Cancel", "叫料數量": "Order quantity", "可移動": "Movable", "右": "Right", "各空間平釘完成面高": "Finished ceiling height per room", "否": "No", "吸附格線": "Snap to grid", "品牌": "Brand", "品牌・色號的文字標籤。隱藏時看圖例表對顏色；立面索引照常顯示。": "Brand / color-code labels. When hidden, match colors with the legend; elevation markers still show.", "單位顯示": "Units", "回到整層": "Back to the whole floor", "固定右/下端，往左/上延伸": "Keep right/bottom end, extend left/up", "固定左/上端，往右/下延伸": "Keep left/top end, extend right/down", "圖別": "Drawing type", "圖別、圖號每一種圖各自記住。人員、Logo、注意事項到「專案資訊」設定一次就好。": "Each drawing type remembers its own type and sheet number. Set people, logo and notes once in \"Project info\".", "圖層": "Layers", "圖框": "Title block", "圖號": "Sheet no.", "圖號前綴": "Sheet no. prefix", "圖面比例": "Drawing scale", "在哪一層就畫在哪一層。其他層變淡且不能選取，結構永遠當底圖。": "You draw on the layer you are in. Other layers fade and can't be selected; Structure is always the base.", "地板": "Flooring", "坪": "ping", "外凸窗": "Bay window", "外線": "Outer line", "大": "Large", "天花板": "Ceiling", "存好，做下一個": "Save and start the next", "完成": "Done", "定位線": "Guide lines", "家具庫": "Furniture", "審核": "Checked", "寬度": "Width", "專案": "Projects", "專案名稱": "Project name", "專案資訊": "Project info", "專案資訊（會印在圖框上）": "Project info (printed on the title block)", "小": "Small", "尺寸": "Dimension", "尺寸標註": "Dimensions", "屬性": "Properties", "屬性面板": "Properties panel", "左": "Left", "帳號": "Account", "平面圖工具 ·": "Floor plan tool ·", "平面標示": "Plan labels", "年繳": "Yearly", "序號": "No.", "底圖描繪": "Trace a drawing", "引線註記 (A)": "Leader note (A)", "復原": "Undo", "戶型設定": "Floor settings", "房間": "Room", "手寫": "Draw", "手寫 (I)": "Draw (I)", "手寫設定": "Drawing settings", "把以前在測試版存的圖搬過來": "Move drawings saved in the old test version here", "指北針": "North arrow", "指北針角度": "North arrow angle", "推拉門": "Sliding door", "換一個案場": "Start a new site", "支援 PDF、PNG、JPG。匯入後先做兩點校正，再直接描。": "Supports PDF, PNG, JPG. Calibrate with two points after importing, then trace.", "教學": "Tutorials", "教學影片（12 集）": "Tutorial videos (12)", "數量": "Qty", "文字": "Text", "文字 (T)": "Text (T)", "文字大小": "Text size", "文字與註記": "Text & notes", "新增專案": "New project", "方向": "Direction", "方案與訂閱": "Plans & subscription", "日期": "Date", "是": "Yes", "書寫": "Writing", "月繳": "Monthly", "柱": "Column", "柱 (C)": "Column (C)", "校對": "Reviewed", "校正後就可以直接用牆工具描圖。": "After calibrating, trace directly with the wall tool.", "校正線": "Calibration line", "格線與吸附": "Grid & snapping", "格線間距": "Grid spacing", "業主": "Client", "樑": "Beam", "樑 (B)": "Beam (B)", "樑寬": "Beam width", "樑高": "Beam depth", "樓高 CH": "Ceiling height CH", "標尺寸 (M)": "Dimension (M)", "模式": "Mode", "橡皮擦": "Eraser", "橫式": "Landscape", "檔名": "File name", "檔案": "File", "正交": "Ortho", "每層一頁": "One page per layer", "比例": "Scale", "水電圖示庫": "Electrical symbols", "油漆": "Paint", "油漆坪數": "Paint area", "油漆顏色": "Paint colors", "注意事項（中文）": "Notes (Chinese)", "注意事項（英文）": "Notes (English)", "淡化": "Fade", "清除": "Clear", "清除所有手寫": "Clear all drawing", "灰色＝這次不匯出": "Gray = not exported this time", "照片": "Photo", "燈具圖示庫": "Light symbols", "牆": "Wall", "牆厚": "Wall thickness", "現場照片": "Site photo", "現場照片 (O)": "Site photo (O)", "產生中…": "Generating…", "略過教學": "Skip tour", "畫房間": "Draw room", "畫柱設定": "Column settings", "畫樑設定": "Beam settings", "畫法跟畫牆一樣。已經畫好的牆，也可以點選後在屬性欄改成隔間或拆除牆。": "Draw it like a wall. Walls you already drew can also be selected and changed to a partition or demolished wall in Properties.", "畫牆 (W)": "Wall (W)", "畫牆設定": "Wall settings", "畫窗設定": "Window settings", "畫管道間設定": "Shaft settings", "畫門設定": "Door settings", "畫隔間": "Draw partition", "畫隔間設定": "Partition settings", "畫面上的顏色（圖上標示的是品牌・色號・備註，不是 RGB）": "On-screen color (the drawing shows brand, color code and note, not RGB)", "登入": "Sign in", "目前在其他 App 的內嵌瀏覽器中，iOS 不允許網頁存檔或叫出分享選單。PNG 可以長按預覽圖存到相簿，PDF／DXF 則要在 Safari 開啟才存得下來。": "You're in another app's built-in browser. iOS doesn't let web pages save files or open the share sheet here. Long-press the PNG preview to save it to Photos; open in Safari to save PDF/DXF.", "直式": "Portrait", "移除": "Remove", "移除底圖": "Remove drawing", "種類": "Type", "空白＝今天": "Blank = today", "空白＝這間不做天花。用上面的「整間平釘」點一下空間，或直接在這裡打高度。": "Blank = no ceiling in this room. Tap a room with \"Flat ceiling\" above, or type a height here.", "空間名稱 / 坪數": "Room name / area", "窗": "Window", "窗 (N)": "Window (N)", "立面": "Elevation", "管道間": "Shaft", "管道間 (P)": "Shaft (P)", "粗": "Thick", "粗細": "Line weight", "紅": "Red", "紙張": "Paper", "細": "Thin", "綠": "Green", "縮放至全圖": "Zoom to fit", "繪圖區邊界（mm）— 平面圖會畫在圖框內的這塊範圍裡，底部通常留多一點給標題欄。": "Drawing margins (mm) — the plan is drawn inside this area of the title block; leave more at the bottom for the title strip.", "自動置中": "Auto center", "自由": "Free", "自訂牆厚": "Custom wall thickness", "色號": "Color code", "落地窗": "Floor-to-ceiling window", "藍": "Blue", "製圖": "Drawn by", "複製": "Duplicate", "角度鎖定": "Angle lock", "設計": "Design", "設計單位": "Design firm", "設計師": "Designer", "設計負責": "Design lead", "註記": "Note", "輸入文字…": "Type text…", "輸入文字，按 Enter": "Type text, press Enter", "輸出圖面": "Export drawings", "迴路": "Circuits", "這些會印在匯出的事務所圖框上。圖名會自動帶入那張圖的種類。": "These are printed on the exported title block. The drawing name follows the drawing type.", "這就是實際輸出，含標註避讓結果": "This is the actual output, including label placement", "適應": "Fit", "選一個物件來編輯它的尺寸與屬性，或從左邊工具列選一個工具開始畫。": "Select an object to edit its size and properties, or pick a tool on the left to start drawing.", "選取": "Select", "選取工具": "Select tool", "選取／移動 (V)": "Select / move (V)", "選填": "Optional", "重新兩點校正…": "Recalibrate with two points…", "鎖": "Lock", "鎖住這道尺寸，之後別的編輯不會動到它": "Lock this dimension so other edits don't move it", "鎖定": "Lock", "鎖定位置": "Lock position", "長度": "Length", "長度單位": "Length unit", "門": "Door", "門 (D)": "Door (D)", "門洞": "Opening", "開啟／儲存專案": "Open / save projects", "開關": "Switch", "關閉": "Close", "除錯記錄": "Debug log", "除錯記錄(回報問題用)": "Debug log (for reporting problems)", "隔間": "Partition", "隱藏": "Hide", "面積單位": "Area unit", "項目負責": "Project lead", "預覽": "Preview", "顏色": "Color", "類型": "Type", "顯示": "Show", "顯示格線": "Show grid", "高度標示": "Height labels", "黑": "Black", "＋ 建立迴路": "+ New circuit", "%・拖動預覽圖可以移動戶型": "% · drag the preview to move the plan", "110V 專用迴路": "110V dedicated circuit", "110專": "110 ded.", "220V 專用迴路": "220V dedicated circuit", "220V 插座": "220V outlet", "220專": "220 ded.", "7 天": "7 days", "Apple 帳號": "Apple account", "Apple 登入元件沒有載入": "Apple sign-in didn't load", "DXF 匯出": "DXF export", "L型沙發": "L-shaped sofa", "PDF 元件載入了但無法使用": "The PDF component loaded but can't be used", "PDF 匯出": "PDF export", "PDF 處理中…": "Processing PDF…", "PDF 轉圖失敗": "Couldn't convert the PDF to an image", "PNG 匯出": "PNG export", "PlanPad 免費版": "PlanPad Free", "SPC 石塑地板": "SPC flooring", "T5 層板燈": "T5 shelf light", "USB 插座": "USB outlet", "s 各邊長度 / wall": "s side lengths / wall", "① 尺寸 mm": "① Size (mm)", "① 點圖上一段已知尺寸的起點": "① Tap the start of a known length on the drawing", "② 厚度": "② Thickness", "☁️ 同步中…": "☁️ Syncing…", "一個開關": "One switch", "一個雙切開關": "One 2-way switch", "一整間做平釘天花。": "Flat ceiling for the whole room.", "一般插座": "Standard outlet", "一起改": "Edit together", "三人沙發": "3-seat sofa", "三個開關": "Three switches", "三個雙切開關": "Three 2-way switches", "上凹造型": "Recessed ceiling", "上櫃": "Wall cabinet", "上次的方案": "Previous plan", "下櫃": "Base cabinet", "下降造型": "Dropped ceiling", "不儲存，直接開啟": "Open without saving", "不儲存，直接開新的": "Start new without saving", "不可用": "Not available", "不整面刷": "Not the whole wall", "不計料": "Not counted", "中島": "Kitchen island", "中心": "Center", "主燈 / 水晶燈": "Main light / chandelier", "事務所圖框、圖例表": "Studio title block, legend", "你畫的線是牆中心。": "The line you draw is the wall center.", "使用中": "In use", "使用條款": "Terms of Use", "保留原地坪": "Keep existing floor", "修改校正值": "Change calibration", "備　　註": "Notes", "儲存 / 分享": "Save / share", "儲存專案": "Save project", "儲藏室層板": "Storage shelves", "先儲存": "Save first", "先在下面選一種地板材料": "Pick a floor material below first", "先在右邊的家具庫點一件家具": "First tap a piece in the furniture library on the right", "先放一顆開關，才能建立迴路": "Place a switch first to create a circuit", "先點開關，再依序點要接的燈": "Tap a switch, then tap the lights in order", "免治馬桶": "Bidet toilet", "免膠": "Glue-free", "免費版": "Free", "內外翻轉": "Flip in/out", "內外開": "Swing in/out", "內容: 牆": "Content: walls", "內縮一圈": "Inset all around", "兩個開關": "Two switches", "兩個開關不能接同一組燈？": "Two switches can't control the same lights?", "兩個雙切開關": "Two 2-way switches", "兩點太近，請重新點": "The two points are too close, tap again", "八人餐桌": "8-seat dining table", "六人餐桌": "6-seat dining table", "其他": "Other", "再按一次鎖就解開。": "Tap the lock again to unlock.", "冰箱": "Fridge", "冰箱專用 REF": "Fridge dedicated REF", "冰箱（對開）": "Fridge (side-by-side)", "冰箱（雙門）": "Fridge (two-door)", "冷氣專用 AC": "A/C dedicated AC", "冷水": "Cold water", "出口指示燈": "Exit sign", "出圖時會統計窗簾盒長度": "Curtain box length is counted on export", "出圖的數量哪裡看？": "Where do I see quantities?", "出風口": "Supply vent", "分享 / 儲存": "Share / save", "切一邊": "Cut one side", "刪除": "Delete", "刪除帳號": "Delete account", "刪除這張照片？": "Delete this photo?", "剛剛": "just now", "加大單人 3.5尺": "Super single bed 3.5 ft", "加大雙人 6尺": "King bed 6 ft", "包樑": "Beam boxing", "化妝台": "Vanity", "匯出 DXF（CAD）": "Export DXF (CAD)", "匯出 PDF": "Export PDF", "匯出 PDF 與圖框": "Export PDF with title block", "匯出 PDF、DXF": "Export PDF, DXF", "匯出 PNG，沒有浮水印": "Export PNG without watermark", "匯出沒有成功": "Export failed", "區域": "Zone", "區域拖不動？": "Zone won't drag?", "半硬底": "Semi-rigid base", "卡扣直鋪": "Click-lock, straight", "厚度怎麼改？": "How do I change the thickness?", "原始結構圖": "Original structure plan", "原有牆": "Existing wall", "可以拖動，也可以補文字": "Drag it, or add text", "可以連續點下一間": "Keep tapping the next room", "可用": "Available", "右上": "Top right", "右下": "Bottom right", "右邊可以換顏色、粗細": "Change color and weight on the right", "右邊設定內縮距離": "Set the inset distance on the right", "吊扇燈": "Ceiling fan light", "吊燈": "Pendant", "名 稱": "Name", "吸頂 / 吊燈": "Ceiling / pendant light", "吸頂燈": "Ceiling light", "和室桌": "Tatami table", "單人床 3尺": "Single bed 3 ft", "單人沙發": "Armchair", "單槽水槽": "Single sink", "四人餐桌": "4-seat dining table", "四個開關": "Four switches", "四個雙切開關": "Four 2-way switches", "回風口": "Return vent", "固定是 0。": "Always 0.", "圓形區域": "Circular zone", "圓心": "Center", "圓桌 4人": "Round table 4", "圓桌 6人": "Round table 6", "圓桌 8人": "Round table 8", "圖 例": "Legend", "圖 例 表  LEGEND": "LEGEND", "圖　　別": "Type", "圖　　號": "Sheet", "圖名 DRAWING": "DRAWING", "圖層＝一張一張施工圖": "Layers = one construction drawing each", "圖檔處理失敗": "Couldn't process the image", "圖檔讀取失敗": "Couldn't read the image", "圖紙": "Drawing", "圖紙處理": "Processing drawing", "圖紙處理中…": "Processing drawing…", "圖號 SHEET": "SHEET", "在下方選分類，再點一個符號": "Pick a category below, then tap a symbol", "在下方選分類，再點一種燈具": "Pick a category below, then tap a light", "在圖上放一段文字。": "Put a text label on the drawing.", "在圖上的位置釘一張現場照片。": "Pin a site photo at its spot on the drawing.", "在圖上直接手寫、畫記號。": "Draw and mark up directly on the plan.", "在牆上點一下放置": "Tap on a wall to place", "在牆上點一下要切開的位置": "Tap the wall where you want to split it", "在要放的位置點一下": "Tap where you want to place it", "在要放的位置點一下，輸入文字": "Tap where you want it, then type", "在造型區域的邊加上間照燈槽。": "Add cove lighting along the edge of a ceiling zone.", "地板插座 FL": "Floor outlet FL", "地板施工": "Flooring", "地板施工圖": "Flooring plan", "地腳燈": "Step light", "基本方案": "Basic", "基本方案的全部功能": "Everything in Basic", "塑膠地板（方塊）": "Vinyl tiles", "塑膠地板（長條）": "Vinyl planks", "塑膠方塊": "Vinyl tile", "塑膠長條": "Vinyl plank", "塗膠": "Glued", "壁掛面盆": "Wall-hung basin", "壁燈": "Wall light", "壁燈 / 地腳": "Wall / step light", "多邊形區域": "Polygon zone", "多邊形至少要 3 個點": "A polygon needs at least 3 points", "大浴缸": "Large bathtub", "大理石／石材": "Marble / stone", "天花": "Ceiling", "天花上色": "Ceiling paint", "天花板、地板": "Ceiling, flooring", "天花板、地板、油漆施工圖": "Ceiling, flooring and painting plans", "天花板工具": "Ceiling tools", "天花板施工": "Ceiling", "天花板施工圖": "Ceiling plan", "天花板的邊線": "Ceiling edge", "天花線": "Ceiling line", "套用": "Apply", "存檔與出圖": "Saving & exporting", "完成面高 CH": "Finished height CH", "定時 / 延遲開關": "Timer / delay switch", "客廳": "Living room", "室外": "Outdoor", "家具": "Furniture", "實木": "Solid wood", "實木地板": "Solid wood flooring", "審　　核": "Checked", "專案名稱 PROJECT": "PROJECT", "專案存檔、匯入底圖": "Saving projects, importing drawings", "專案數量不限": "Unlimited projects", "專案資訊與公司資料": "Project info & studio details", "專業方案": "Pro", "對準定位點": "Snap to anchor", "對講機": "Intercom", "對齊": "Align", "對齊起點": "Align to start", "尚未儲存": "Not saved", "尚未加入": "Not added", "尚未接迴路": "Not on a circuit", "尺寸、手寫、照片、註記、文字": "Dimensions, drawing, photos, notes, text", "尺寸端點": "Dimension end", "局部換材料？": "Change material in part of a room?", "崁燈": "Downlight", "崁燈類": "Downlights", "工 程 名 稱": "Project", "左上": "Top left", "左下": "Bottom left", "左右翻轉": "Flip horizontally", "已包含": "Included", "已取消這一串牆": "Cancelled this run of walls", "已圍成空間": "Room closed", "已復原上次的平面圖": "Restored your last plan", "已更新": "Updated", "已清除專案計數": "Project count cleared", "已登入": "Signed in", "已登出": "Signed out", "已複製內容到剪貼簿": "Copied to clipboard", "已解除鎖定": "Unlocked", "已送出，選「儲存到檔案」即可": "Sent — choose \"Save to Files\"", "已鎖": "Locked", "已鎖住，點一下解鎖": "Locked — tap to unlock", "已開新專案，可以開始畫了": "New project ready — start drawing", "已關聯，移動會自動更新": "Linked — moves update automatically", "帳號已刪除。": "Account deleted.", "平板燈": "Panel light", "平釘造型": "Flat ceiling zone", "平鋪": "Straight lay", "平面圖": "Floor plan", "平面配置": "Layout", "平面配置圖": "Furniture layout plan", "平面配置：家具": "Layout: furniture", "床頭櫃": "Nightstand", "序　　號": "No.", "底圖校正": "Drawing calibration", "廚房": "Kitchen", "建立迴路": "New circuit", "引線註記": "Leader note", "弱電": "Low voltage", "弱電箱": "Low-voltage panel", "形狀不是矩形？": "Not a rectangle?", "從一面牆按住拉到另一面牆": "Press on one wall and drag to another", "從圓心拖出": "Drag out from the center", "從圓心按住往外拖": "Press at the center and drag outward", "從牆邊": "From the wall", "從空白開始": "Start blank", "從空間中心": "From room center", "微波爐": "Microwave", "微波爐專用 MW": "Microwave dedicated MW", "怎麼刪除？": "How do I delete?", "恢復購買": "Restore purchases", "情境 / 智慧面板": "Scene / smart panel", "感應燈": "Sensor light", "感應開關": "Motion switch", "房間太小了": "The room is too small", "手掌會畫到嗎？": "Will my palm draw?", "打字": "Type", "打的是室內淨尺寸": "You type the interior clear size", "找不到要的家具？": "Can't find the furniture?", "找不到這件家具": "Can't find this furniture", "找不到這個符號": "Can't find this symbol", "找不到這個門窗": "Can't find this door/window", "找不到這根柱子": "Can't find this column", "找不到這根樑": "Can't find this beam", "把一道牆切成兩段。": "Split one wall into two.", "把開關和燈連成迴路。": "Connect switches and lights into circuits.", "投射崁燈": "Spot downlight", "抽油煙機": "Range hood", "抽風機 EF": "Exhaust fan EF", "拆分": "Split", "拆分牆": "Split wall", "拆除牆": "Demolished wall", "拉菱形移動一邊、拉圓點導圓角": "Drag the diamond to move a side, the dot to round a corner", "拖出一個矩形的天花造型。": "Drag out a rectangular ceiling zone.", "拖出窗簾盒的位置。": "Drag out where the curtain box goes.", "拖到另一個定位點放開": "Drag to another anchor and release", "拖曳畫出": "Drag to draw", "拖曳畫線": "Drag to draw a line", "拱高": "Arch rise", "按 ✓ 套用": "Press ✓ to apply", "按住拖出一個矩形": "Press and drag a rectangle", "按住拖出一個矩形，再打寬和深": "Press and drag a rectangle, then type width and depth", "按住拖曳畫出範圍": "Press and drag the area", "按住沿著窗邊拖出": "Press and drag along the window", "按建立迴路沒反應？": "\"New circuit\" does nothing?", "排水": "Drain", "接在牆的端點": "Join at the wall end", "接在牆角": "Join at the corner", "接在牆面": "Join on the wall face", "接續牆端": "Continue from wall end", "控制燈具": "Controls lights", "提示": "Tip", "插卡取電": "Key-card switch", "插座": "Outlets", "插座配置圖": "Outlet plan", "換材料": "Change material", "換邊": "Switch side", "改名": "Rename", "改文字": "Edit text", "放家具": "Place furniture", "放家具。": "Place furniture.", "放柱子": "Place column", "放水電符號": "Place electrical symbol", "放燈具": "Place light", "放窗": "Place window", "放管道間": "Place shaft", "放門": "Place door", "放開後可以拉圓點改半徑": "After releasing, drag the dot to change the radius", "整圈": "All around", "整間平釘": "Flat ceiling (whole room)", "整間鋪設": "Whole room", "整面": "Whole wall", "數 量": "Qty", "數值": "Value", "數字是內線還是外線？": "Are the numbers inner or outer lines?", "數字都可以直接點來改": "Tap any number to edit it", "數量怎麼算？": "How are quantities counted?", "文字：點一下放置文字": "Text: tap to place text", "斗櫃": "Chest of drawers", "旋轉 90°": "Rotate 90°", "日　　期": "Date", "日期 DATE": "DATE", "明裝筒燈": "Surface downlight", "暖風": "Heater", "暖風機": "Bathroom heater", "書桌": "Desk", "書櫃": "Bookcase", "木作隔間": "Wood partition", "未命名": "Untitled", "未命名平面圖": "Untitled plan", "未命名空間": "Untitled room", "未命名顏色": "Untitled color", "未校正": "Not calibrated", "未知": "Unknown", "未知錯誤": "Unknown error", "未鋪設": "Not laid", "未關聯": "Not linked", "材料的分界線": "Material boundary", "架高": "Raised", "柱子": "Column", "校　　對": "Reviewed", "格柵燈": "Grille light", "框油漆範圍": "Mark paint area", "業　　主": "Client", "業主 CLIENT": "CLIENT", "樑角": "Beam corner", "樑邊": "Beam edge", "標尺寸": "Dimension", "標準雙人 5尺": "Queen bed 5 ft", "橫向 ↔": "Horizontal ↔", "檔案讀取失敗": "Couldn't read the file", "檯面盆": "Countertop basin", "歡迎使用 PlanPad": "Welcome to PlanPad", "每層一頁，一次出整套施工圖": "One page per layer — the full drawing set in one go", "比　　例": "Scale", "比例 SCALE": "SCALE", "比例已校正": "Scale calibrated", "比例已設定，可以直接描圖。": "Scale is set — you can trace now.", "比樓板下降": "Below the slab", "水電插座": "Electrical", "水電插座、燈具配置、燈具迴路": "Electrical, lighting, circuits", "水電插座與開關": "Outlets & switches", "沒有可以轉換的間距": "No gaps to convert", "沒有成功": "Failed", "沒有擦到筆畫": "No strokes erased", "沒有選到檔案": "No file selected", "沒有點到筆畫": "No stroke tapped", "油漆施工": "Painting", "油漆施工圖": "Painting plan", "油漆與立面": "Painting & elevations", "油煙機": "Range hood", "法規 / 其他": "Code / other", "泡澡缸（方）": "Soaking tub (square)", "注　意": "Notes", "洗碗機": "Dishwasher", "洗衣槽": "Utility sink", "洗衣機": "Washing machine", "洗衣機專用 WH": "Washer dedicated WH", "浴缸": "Bathtub", "海島型": "Engineered", "海島型木地板": "Engineered wood flooring", "淋浴間 120×80": "Shower 120×80", "淋浴間 80×80": "Shower 80×80", "淋浴間 90×90": "Shower 90×90", "清除專案計數": "Clear project count", "測試版最後一張圖": "Last drawing from the test version", "為什麼不能再接？": "Why can't I connect more?", "為什麼沒有建立？": "Why wasn't it created?", "為什麼牆拖不動？": "Why won't the wall drag?", "為什麼牆的尺寸變了？": "Why did the wall size change?", "為什麼空間沒有天花板？": "Why is there no ceiling in the room?", "烤箱": "Oven", "烤箱／微波爐": "Oven / microwave", "無法開啟照片資料庫": "Couldn't open the photo store", "無縫地坪": "Seamless floor", "照片 x": "Photo x", "照片壓縮失敗": "Couldn't compress the photo", "照片寫入": "Saving photo", "照片無法永久儲存": "Photos can't be stored permanently", "照片處理": "Processing photo", "照片處理中…": "Processing photo…", "照片讀取失敗": "Couldn't read the photo", "照片資料庫": "Photo store", "熱水": "Hot water", "熱水器": "Water heater", "燈具": "Lights", "燈具與迴路": "Lights & circuits", "燈具迴路": "Lighting circuits", "燈具迴路圖": "Lighting circuit plan", "燈具配置": "Lighting", "燈具配置圖": "Lighting plan", "牆端": "Wall end", "牆角": "Corner", "牆長": "Wall length", "牆長（內線）": "Wall length (inner)", "牆長（外線）": "Wall length (outer)", "牆面": "Wall face", "牆面上色": "Wall paint", "特大": "Extra large", "特大雙人 7尺": "Super king bed 7 ft", "玄關收納": "Entry storage", "玄關櫃": "Entry cabinet", "玻璃隔間": "Glass partition", "現場照片.jpg": "site-photo.jpg", "環氧樹脂": "Epoxy", "瓦斯爐（三口）": "Gas hob (3 burners)", "瓦斯爐（雙口）": "Gas hob (2 burners)", "用牆畫空間、牆厚與樓高": "Rooms with walls, wall thickness and ceiling height", "用選取工具按住文字可以拖動": "Press and hold text with the select tool to drag it", "畫圓形天花造型。": "Draw a circular ceiling zone.", "畫房間、改尺寸": "Draw rooms, edit sizes", "畫樑": "Draw beam", "畫歪了？": "Drew it crooked?", "畫牆": "Draw wall", "畫立面（局部油漆）": "Draw elevation (partial paint)", "畫線切出一邊": "Draw a line to cut one side", "畫錯一段？": "Drew one segment wrong?", "畫面怎麼看": "Reading the screen", "登入 PlanPad": "Sign in to PlanPad", "登入已過期，請重新登入": "Sign-in expired, please sign in again", "登出": "Sign out", "的距離，可直接改數字後按 ✓": "— edit the number and press ✓", "目前": "Current", "目前沒有手寫內容": "No drawing yet", "目前的平面圖": "Current plan", "直向 ↕": "Vertical ↕", "直鋪": "Straight", "知道了": "Got it", "矩形區域": "Rectangular zone", "短版馬桶": "Short toilet", "石材": "Stone", "硬底": "Rigid base", "確定": "OK", "確認": "Confirm", "磁吸燈頭": "Magnetic spot", "磁吸軌道": "Magnetic track", "磁磚": "Tile", "磐多魔": "Pandomo", "磐多魔／環氧樹脂": "Pandomo / epoxy", "磚牆": "Brick wall", "神明桌": "Altar table", "穿鞋椅": "Shoe bench", "窗框": "Window frame", "窗簾盒": "Curtain box", "窗簾盒 深": "Curtain box depth", "窗邊": "Window side", "立即同步": "Sync now", "立面高度": "Elevation height", "立面（局部）": "Elevation (partial)", "端角": "End corner", "符號": "Symbols", "管理訂閱": "Manage subscription", "糞管": "Soil pipe", "系統衣櫃": "System wardrobe", "紅色空心圈是什麼？": "What is the red hollow circle?", "結構": "Structure", "結構、平面配置": "Structure, layout", "結構已解鎖": "Structure unlocked", "結構已鎖住": "Structure locked", "結構平面圖": "Structure plan", "結構（底圖）": "Structure (base)", "給排水": "Plumbing", "給水（冷）": "Water supply (cold)", "給水（熱）": "Water supply (hot)", "維修孔": "Access panel", "網路出線口": "Network outlet", "網頁預覽": "Web preview", "網頁預覽切換": "Web preview switch", "緊急照明燈": "Emergency light", "線型": "Line type", "線型燈": "Linear light", "編輯迴路": "Edit circuit", "置中": "Center", "背膠": "Self-adhesive", "臥室": "Bedroom", "自己加一條尺寸標註。": "Add a dimension yourself.", "自訂圓形": "Custom circle", "自訂矩形": "Custom rectangle", "至少要兩道牆才能圍起來": "At least two walls are needed to enclose a room", "花灑": "Shower head", "茶几": "Coffee table", "落地燈": "Floor lamp", "落地窗的離地高度？": "Sill height of a floor-to-ceiling window?", "落水頭": "Floor drain", "處理中…": "Processing…", "衛浴": "Bathroom", "衣櫃（拉門）": "Wardrobe (sliding)", "衣櫃（開門）": "Wardrobe (hinged)", "製　　圖": "Drawn by", "要先有至少一顆開關和一盞燈。": "You need at least one switch and one light first.", "要改高度，再點一下高度數字": "To change the height, tap the height number again", "覆蓋": "Cover", "訂閱": "Subscribe", "訂閱沒有完成": "Subscription not completed", "訂閱變更": "Subscription changed", "設 計 負 責": "Design lead", "設　　計": "Design", "設備": "Equipment", "設定比例": "Set scale", "設計 DESIGNER": "DESIGNER", "調光開關": "Dimmer switch", "請先輸入專案名稱。": "Please enter a project name first.", "請到 App 訂閱": "Please subscribe in the App", "請輸入數字": "Please enter a number", "請長按下方內容全選複製": "Long-press the text below to select all and copy", "請點在一個圍起來的空間裡面": "Tap inside an enclosed room", "請點在牆上": "Tap on a wall", "請點在空間裡面": "Tap inside a room", "請點在空間裡面，線的其中一邊": "Tap inside a room, on one side of the line", "請點在要拆分的那道牆上": "Tap the wall you want to split", "請點開關或燈具": "Tap a switch or a light", "貴妃椅": "Chaise longue", "購買": "Buy", "起鋪": "Start edge", "起鋪改成": "Change start edge to", "起點": "Start", "起點已定，點下一個轉角": "Start set — tap the next corner", "起點：沒有接到牆": "Start: not joined to a wall", "超耐磨": "Laminate", "超耐磨木地板": "Laminate flooring", "距上方": "From top", "距下方": "From bottom", "距右邊": "From right", "距左邊": "From left", "跨房間畫：兩端會停在牆內面": "Across rooms: both ends stop at the wall faces", "軌道": "Track", "軌道燈": "Track light", "軌道燈頭": "Track spot", "軟底": "Soft base", "輕隔間": "Drywall partition", "輸入": "Input", "轉角": "Corner", "轉角櫃": "Corner cabinet", "轉角衣櫃": "Corner wardrobe", "辦公桌": "Office desk", "退回上一個轉角": "Back to the previous corner", "逐點點出": "Point by point", "這一串牆畫好了": "This run of walls is done", "這不是能辨識的圖片檔": "This isn't an image file we can read", "這些間距都已經有正式尺寸了": "These gaps already have dimensions", "這個區域已取消間照": "Cove lighting removed from this zone", "這個方向沒有東西可以量": "Nothing to measure in this direction", "這裡放不下": "It doesn't fit here", "這道尺寸已經標過了": "This dimension already exists", "這間": "This room", "這間的天花已取消油漆": "Ceiling paint removed for this room", "這面牆已取消油漆": "Paint removed for this wall", "這面牆已經不在了": "This wall no longer exists", "造型": "Feature", "造型區域": "Ceiling zone", "進入房間編輯": "Edit room", "選「手寫」工具在框裡寫": "Use the \"Draw\" tool to write in the box", "選中的顏色再點一次＝編輯": "Tap the selected color again to edit", "選取後可以改尺寸": "Select it to change the size", "選取後可以改尺寸、離牆距離": "Select it to change the size and distance from walls", "選取後可以改長寬": "Select it to change length and width", "選取後可改長寬與旋轉": "Select it to change size and rotation", "選取後右邊可改長寬、旋轉": "Select it, then change size and rotation on the right", "選擇頁面": "Choose page", "還沒選開關和燈具": "No switch or light selected yet", "邊几": "Side table", "配電": "Power", "配電箱": "Distribution board", "酒櫃": "Wine cabinet", "重新命名": "Rename", "重試": "Retry", "鋪設方向": "Laying direction", "鋼琴": "Piano", "錯位方向": "Stagger direction", "鎖住後還能改嗎？": "Can I still edit after locking?", "鎖住結構，避免誤拖牆": "Lock the structure so walls aren't dragged by accident", "長邊方向": "Long-side direction", "門框": "Door frame", "門邊": "Door side", "門鈴": "Doorbell", "開啟": "Open", "開啟匯出設定": "Open export settings", "開始畫圖": "Start drawing", "間接照明": "Indirect lighting", "間接燈帶": "LED strip", "間照燈槽": "Cove", "防水崁燈": "Waterproof downlight", "防水插座 WP": "Waterproof outlet WP", "隔間、門窗、柱、樑": "Partitions, doors, windows, columns, beams", "隱私權政策": "Privacy Policy", "隱藏這層": "Hide this layer", "雙人沙發": "2-seat sofa", "雙槽水槽": "Double sink", "雙面盆浴櫃": "Double-basin vanity", "離地": "Height above floor", "離左": "From left", "離開房間編輯": "Leave room editing", "雲端：同步完成": "Cloud: sync complete", "電箱": "Electrical box", "電視": "TV", "電視出線口": "TV outlet", "電視櫃": "TV cabinet", "電話出線口": "Phone outlet", "需重新匯入": "Needs re-importing", "靠牆": "Against wall", "面板": "Panel", "鞋櫃": "Shoe cabinet", "項 目 負 責": "Project lead", "項　　目": "Item", "顯示這層": "Show this layer", "餐廳": "Dining room", "餐椅": "Dining chair", "餐邊櫃": "Sideboard", "馬桶": "Toilet", "高櫃／電器櫃": "Tall cabinet / appliance tower", "高鞋櫃": "Tall shoe cabinet", "高（到拱頂）": "Height (to arch top)", "點一下放出風口。": "Tap to place a supply vent.", "點一下放回風口。": "Tap to place a return vent.", "點一下放維修孔。": "Tap to place an access panel.", "點一下放置": "Tap to place", "點一下空間": "Tap a room", "點一個空間或造型區域": "Tap a room or ceiling zone", "點一個空間（變綠色）": "Tap a room (turns green)", "點了沒反應？": "Nothing happens when I tap?", "點了沒有門？": "Tapped but no door?", "點到牆面會自動量垂直距離": "Tapping a wall measures the perpendicular distance", "點區域中間＝整圈都加": "Tap the middle of a zone = add all around", "點區域的邊": "Tap a zone edge", "點四邊的離牆距離數字直接輸入": "Tap the distance numbers on each side to type them", "點回第一點，或按下方「完成」": "Tap the first point again, or press \"Done\" below", "點在牆上放一扇窗。": "Tap a wall to place a window.", "點在牆上放一扇門。": "Tap a wall to place a door.", "點畫面放下，可以連續放好幾件": "Tap to place; you can place several in a row", "點畫面放下，靠近牆會自動貼牆": "Tap to place; it snaps to walls nearby", "點畫面放下；間接燈帶用拖的": "Tap to place; drag for LED strips", "點空間或區域": "Tap a room or zone", "＋ 新增顏色": "+ New color", "；可以繼續點下一間": "; keep tapping the next room", "🔒 升級": "🔒 Upgrade", "底圖": "Base", "還沒有圍起來的空間。": "No enclosed rooms yet.", "畫了區域之後，這裡會列出面積與長度。": "Once you draw zones, their areas and lengths are listed here.", "還沒有迴路。": "No circuits yet.", "選「牆」→ 按住拖曳畫牆（放開即完成）。兩指縮放平移，點物件可編輯尺寸": "Pick \"Wall\" → press and drag to draw (release to finish). Pinch to zoom and pan; tap an object to edit its size", "你畫的線是室內牆面，打的長度＝室內淨尺寸，牆厚往外長。請順時針沿著牆畫。": "The line you draw is the interior wall face; the length you type is the clear interior size and the wall grows outward. Draw clockwise along the walls.", "/ 年（省 2 個月）": "/ yr (2 months free)", "/ 月": "/ mo", "Apple JS 無法使用，改用 Firebase 視窗：": "Apple JS isn't available, falling back to the Firebase window:", "Apple 登入沒有完成。\n\n如果 Apple 的視窗出現「invalid_request」或網址錯誤，代表這個網址還沒加到 Apple 的 Services ID（": "Apple sign-in didn't finish.\n\nIf Apple's window shows \"invalid_request\" or a wrong address, this address hasn't been added to Apple's Services ID (", "Apple 登入沒有完成（": "Apple sign-in didn't finish (", "Firebase 載入失敗（離線？）：": "Firebase failed to load (offline?):", "PlanPad 繪製 · 免費版": "Drawn with PlanPad · Free", "到 Firebase →「Authentication」→「設定」→「授權網域」加上它就可以了。": "Add it in Firebase → \"Authentication\" → \"Settings\" → \"Authorized domains\".", "沒有扣款。可以稍後再試一次。": "You were not charged. You can try again later.", "（App 上架之後，這裡會放 App Store 的連結）": "(The App Store link will be here once the app is published)", "· 其他帳號的": "· other account", "· 待同步": "· not synced", "☁️ 已同步到「": "☁️ Synced to \"", "⚠️ 同步失敗：": "⚠️ Sync failed:", "」，謝謝支持！": "\" — thank you for your support!", "下載失敗": "Download failed", "不登入也可以照常畫圖，專案會存在這台裝置。雲端同步會在之後的版本加入。": "You can draw without signing in; projects are saved on this device.", "使用 Google 帳戶登入": "Sign in with Google", "個專案": "projects", "價格以 App Store 結帳時顯示的為準（含稅）。基本方案和專業方案之間可以隨時升級或降級。": "Prices are as shown at App Store checkout (tax included). You can switch between Basic and Pro at any time.", "免費版「已建立 2 個專案」的計數歸零（測試用）": "Reset the free plan's \"2 projects created\" count (for testing)", "免費試用": "Free trial", "刪除帳號之後，這個帳號和存在雲端的資料都會一起刪除，沒辦法復原。\n這台裝置上的專案不會被刪。\n\n如果你有訂閱，刪除帳號「不會」自動取消。請另外到 iPad 的「設定」→ 你的名字 →「訂閱項目」取消。": "Deleting your account also deletes everything stored in the cloud for it. This can't be undone.\nProjects on this device are kept.\n\nDeleting the account does NOT cancel a subscription. Cancel it in iPad Settings → your name → Subscriptions.", "匯出 PNG 圖片（有浮水印）": "Export PNG image (with watermark)", "專案目前只存在這台裝置。登入後會自動備份到雲端，iPad 和電腦都能打開。": "Projects are only on this device. Sign in to back them up to the cloud and open them on iPad and computer.", "已恢復：": "Restored:", "已開通「": "Activated \"", "帳號：": "Account:", "建立": "Create", "恢復購買沒有成功：": "Restore purchases failed:", "恢復購買要在 iPad 的 PlanPad App 裡操作。": "Restore purchases from the PlanPad app on iPad.", "方案": "Plan", "未登入": "Not signed in", "查看方案": "See plans", "沒有連上網路，連上之後會再同步": "No connection — it will sync once you're online", "為了安全，請先登出再重新登入一次，然後再試。": "For security, sign out and sign in again, then try again.", "用": "via", "登入之後，同一個帳號可以在 iPad 和電腦上使用，也會套用你的訂閱方案。": "Once signed in, the same account works on iPad and computer, with your subscription.", "登入即表示你同意 PlanPad 的": "By signing in you agree to PlanPad's", "登入視窗被瀏覽器擋住了。請允許這個網站開啟彈出式視窗，再按一次登入。": "The browser blocked the sign-in window. Allow pop-ups for this site and tap sign in again.", "登出或刪除帳號都不會刪掉這台裝置上的專案。": "Signing out or deleting the account doesn't remove projects on this device.", "直接打開檔案（file://）沒辦法登入。請用網址打開（例如 GitHub 試用版），或在 iPad App 裡登入。": "Sign-in doesn't work when the file is opened directly (file://). Open it from a web address (e.g. the GitHub trial) or sign in in the iPad app.", "第一次訂閱，免費試用": "First subscription: free trial", "網頁版不能直接訂閱。\n請在 iPad 下載 PlanPad，在 App 裡訂閱；之後用同一個帳號登入網頁版，就會套用你的方案。": "You can't subscribe on the web.\nDownload PlanPad on iPad and subscribe in the app; then sign in on the web with the same account to use your plan.", "網頁預覽：在這裡切換方案，看看每個方案會鎖住哪些功能（只有網頁版有這個開關，App 裡沒有）。": "Web preview: switch plans here to see which features each plan locks (web only, not in the app).", "網頁預覽：現在是「": "Web preview: currently \"", "與": "and", "要登出嗎？\n這台裝置上的專案會留著，不會被刪除。": "Sign out?\nProjects on this device are kept, not deleted.", "訂閱會自動續訂：目前這一期結束前 24 小時內沒有取消，就會從你的 Apple 帳號扣下一期的費用。": "Subscriptions renew automatically: unless cancelled at least 24 hours before the current period ends, the next period is charged to your Apple account.", "訂閱沒有完成：": "Subscription not completed:", "請到 iPad 的「設定」→ 你的名字 →「訂閱項目」→ PlanPad 管理或取消訂閱。": "Manage or cancel in iPad Settings → your name → Subscriptions → PlanPad.", "透過 Apple 登入": "Sign in with Apple", "這個 Apple 帳號沒有找到 PlanPad 的訂閱。": "No PlanPad subscription was found for this Apple account.", "這個 Email 之前用另一種方式登入過。請改用原本的方式（Apple 或 Google）登入。": "This email was used with another sign-in method before. Please sign in the original way (Apple or Google).", "這個網址還沒有加進 Firebase 的「授權網域」，所以不能登入：": "This address isn't in Firebase's \"Authorized domains\" yet, so sign-in won't work:", "連不上網路，請確認有網路之後再試一次。\n（不登入也可以照常畫圖）": "No internet connection. Check your connection and try again.\n(You can still draw without signing in)", "連線中…": "Connecting…", "隨時可以到 iPad 的「設定」→ 你的名字 →「訂閱項目」取消。免費試用結束前取消，不會扣款。": "Cancel any time in iPad Settings → your name → Subscriptions. Cancel before the free trial ends and you won't be charged.", "雲端拒絕存取（Firestore 規則可能還沒設定好）": "Cloud access denied (Firestore rules may not be set up yet)", "雲端用量暫時達到上限，請稍後再試": "Cloud usage limit reached for now, please try later", "雲端資料不完整（": "Cloud data incomplete (", "雲端：同步失敗": "Cloud: sync failed", "雲端：方案計數同步失敗": "Cloud: plan count sync failed", "雲端：照片": "Cloud: photo", "（有更新）": "(updated)", "（衝突副本）": "(conflict copy)", "建立 2 個專案": "Up to 2 projects", "月": "mo", "年": "yr", "這是給平板用的平面圖與施工圖工具。先畫「結構」（牆、門窗、柱、樑），再切換圖層，一層一層畫出平面配置、水電、燈具、天花板、地板施工圖。": "A floor plan and construction drawing tool for tablets. Draw the \"Structure\" first (walls, doors, windows, columns, beams), then switch layers to draw the layout, electrical, lighting, ceiling and flooring plans one by one.", "還沒有任何專案。": "No projects yet.", "在上面輸入名稱後按「儲存」，目前的平面圖就會存進來。": "Type a name above and press \"Save\" to save the current plan.", "iPad 和電腦請用同一種方式登入": "Sign in the same way on iPad and computer", "（都用 Apple，或都用同一個 Google 帳戶），才會是同一個帳號、看到同一批專案和訂閱。": " (both with Apple, or both with the same Google account) so it is the same account, with the same projects and subscription.", "不登入也可以照常畫圖，專案會存在這台裝置。": "You can draw without signing in; projects are saved on this device.", "隨時可以到 iPad 的「設定」→ 你的名字 →「訂閱項目」取消。": "Cancel any time in iPad Settings → your name → Subscriptions.", "免費試用結束前取消，不會扣款。": "Cancel before the free trial ends and you won't be charged.", "價格以 App Store 結帳時顯示的為準（含稅）。": "Prices are as shown at App Store checkout (tax included).", "基本方案和專業方案之間可以隨時升級或降級。": "You can switch between Basic and Pro at any time.", "Apple 和 Google 是兩個不同的帳號，專案和訂閱不會互通。": "Apple and Google are separate accounts; projects and subscriptions don't carry over.", "放下": "Place", "抬起": "Lift", "已放下": "Placed", "已刪除這間": "Room deleted", "已放下，和旁邊房間共用的牆已合併成一道": "Placed — the wall shared with the next room is merged into one", "這間和別的房間共用牆，不能整間抬起；要移動請改單一道牆": "This room shares a wall with another room, so it can't be lifted as a whole; move single walls instead", "有別的牆接在這間的牆上，不能整間抬起": "Other walls are joined to this room's walls, so it can't be lifted", "已抬起：可以拖動整間移動；靠近別的房間會自動對齊，按「放下」就定位並合併共用的牆": "Lifted: drag to move the whole room; it snaps to rooms nearby. Press \"Place\" to fix it and merge shared walls"};
+  const I18N_KEY='planpad.lang';
+  const I18N_ATTRS=['title','placeholder','aria-label'];
+  const I18N_CJK=/[㐀-鿿]/;
+  let LANG=(function(){
+    try{ const v=localStorage.getItem(I18N_KEY); if(v==='zh'||v==='en') return v; }catch(_){ }
+    return /^zh/i.test(navigator.language||'zh') ? 'zh' : 'en';
+  })();
+  const i18nDone=new Set();          // text nodes we changed, with their original text
+  const i18nOrig=new WeakMap();
+  let i18nObs=null;
+  function _T(s){
+    if(LANG!=='en' || s==null) return s;
+    const str=String(s), k=str.trim(), v=I18N_EN[k];
+    return v===undefined ? s : str.replace(k,v);
+  }
+  // whole text first; otherwise sentence by sentence, but only when every
+  // sentence is known (a half-translated paragraph reads worse than none)
+  function i18nLookup(k){
+    let v=I18N_EN[k]; if(v!==undefined) return v;
+    const parts=k.split(/(?<=[。！？\n])/);
+    if(parts.length<2) return undefined;
+    const out=[];
+    for(const p of parts){
+      const q=p.trim(); if(!q){ out.push(p); continue; }
+      if(!I18N_CJK.test(q)){ out.push(p); continue; }
+      const w=I18N_EN[q]; if(w===undefined) return undefined;
+      out.push(p.replace(q, w+(/[。！？]$/.test(q)&&!/[.!?]$/.test(w)?'.':'')+' '));
+    }
+    return out.join('').replace(/ +\n/g,'\n').trim();
+  }
+  function i18nText(n){
+    const s=n.nodeValue; if(!s || !I18N_CJK.test(s)) return;
+    const k=s.trim(), v=i18nLookup(k); if(v===undefined) return;
+    i18nOrig.set(n,s); i18nDone.add(n); n.nodeValue=s.replace(k,v);
+  }
+  function i18nElem(el){
+    if(el.tagName==='SCRIPT' || el.tagName==='STYLE' || el.tagName==='TEXTAREA') return;
+    for(const a of I18N_ATTRS){
+      const s=el.getAttribute(a);
+      if(s && I18N_CJK.test(s)){ const v=I18N_EN[s.trim()]; if(v!==undefined){ el.setAttribute('data-zh-'+a,s); el.setAttribute(a,v); } }
+    }
+    const w=document.createTreeWalker(el, NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);
+    let n=w.nextNode();
+    while(n){
+      if(n.nodeType===3) i18nText(n);
+      else if(n.tagName==='SCRIPT' || n.tagName==='STYLE' || n.tagName==='TEXTAREA'){ /* skip its text */ }
+      else for(const a of I18N_ATTRS){
+        const s=n.getAttribute(a);
+        if(s && I18N_CJK.test(s)){ const v=I18N_EN[s.trim()]; if(v!==undefined){ n.setAttribute('data-zh-'+a,s); n.setAttribute(a,v); } }
+      }
+      n=w.nextNode();
+    }
+  }
+  function i18nApply(){
+    document.documentElement.lang = LANG==='en' ? 'en' : 'zh-Hant';
+    if(LANG==='en'){
+      i18nElem(document.body);
+      document.title=document.title.replace('平面圖工具','Floor plans');
+      if(!i18nObs){
+        i18nObs=new MutationObserver(list=>{
+          if(LANG!=='en') return;
+          for(const m of list){
+            if(m.type==='characterData'){ if(m.target.nodeType===3) i18nText(m.target); }
+            else if(m.type==='attributes'){ if(m.target.nodeType===1 && !m.attributeName.startsWith('data-zh-')) i18nElem(m.target); }
+            else for(const n of m.addedNodes){ if(n.nodeType===3) i18nText(n); else if(n.nodeType===1) i18nElem(n); }
+          }
+        });
+      }
+      i18nObs.observe(document.body,{subtree:true, childList:true, characterData:true, attributes:true, attributeFilter:I18N_ATTRS});
+    } else {
+      if(i18nObs) i18nObs.disconnect();
+      for(const n of i18nDone){ if(n.isConnected && i18nOrig.has(n)) n.nodeValue=i18nOrig.get(n); }
+      i18nDone.clear();
+      for(const a of I18N_ATTRS) document.querySelectorAll('[data-zh-'+a+']').forEach(el=>{ el.setAttribute(a, el.getAttribute('data-zh-'+a)); el.removeAttribute('data-zh-'+a); });
+      document.title=document.title.replace(/^PlanPad · Floor plans/,'PlanPad · 平面圖工具');
+    }
+    const it=document.getElementById('langMenuItem');
+    if(it){ it.firstChild.nodeValue = LANG==='en' ? '中文' : 'English'; }
+  }
+  function i18nSet(lang){
+    LANG = lang==='en' ? 'en' : 'zh';
+    try{ localStorage.setItem(I18N_KEY, LANG); }catch(_){ }
+    i18nApply();
+    try{ draw(); }catch(_){ }
+  }
+  function i18nBoot(){ if(LANG==='en') i18nApply(); }
+
   function syncLayerUI(){
     const box=document.getElementById('layerList'); if(!box) return;
     // b126 — a plan opened on a layer this subscription does not include starts on 結構
@@ -7812,6 +7964,7 @@
   // a coordinate, only to a length you have not typed.
   ui.chain=null;           // {pts:[{x,y}], hover:{x,y,how}|null}
   ui.rect=null;            // {x0,y0,x1,y1,asking}
+  ui.floatR=null;          // a room just drawn, still movable (b137)
   const ALIGN_NAME={in:'內線',mid:'中線',out:'外線'};
   const lenStep=()=> ui.snap ? ui.gridSize : 0.1;
   const curThick=()=> ui.tool==='part' ? ui.partThick[ui.partKind] : ui.thick;
@@ -8145,10 +8298,225 @@
     const r=ui.rect; if(!r) return;
     ui.rect=null; kpad.closeIf('rect');
     if(Math.abs(r.x1-r.x0)<10 || Math.abs(r.y1-r.y0)<10){ flashHint('房間太小了'); draw(); return; }
-    buildChainWalls(rectPts(r), true); pushHistory();
-    flashHint('房間 '+fmtLen(Math.abs(r.x1-r.x0))+' × '+fmtLenU(Math.abs(r.y1-r.y0))+' 已建立');
+    const made=buildChainWalls(rectPts(r), true); pushHistory();
+    floatStart(made.map(w=>w.id), '房間 '+fmtLen(Math.abs(r.x1-r.x0))+' × '+fmtLenU(Math.abs(r.y1-r.y0))+' 已建立：');
     draw();
   }
+  // ---- floating room（b137）: a room you just drew stays "lifted" so it can be
+  // dragged into place; near another room it snaps wall-centre to wall-centre,
+  // and 放下 places it and merges the walls the two rooms now share. A placed
+  // room can be lifted again (抬起) as long as it shares no wall with another room.
+  // ui.floatR = {ids:[wall ids], snapX:null|x, snapY:null|y}
+  function floatWalls(){ const F=ui.floatR; if(!F) return []; return state.walls.filter(w=>F.ids.includes(w.id)); }
+  function floatStart(ids, how, extra){
+    ui.floatR={ids:ids.slice(), snapX:null, snapY:null, rid:extra&&extra.rid||null, carry:extra&&extra.carry||null, lifted:!!(extra&&extra.rid)};
+    ui.selected=null; refreshProp();
+    flashHint((how||'')+'可以拖動整間移動；靠近別的房間會自動對齊，按「放下」就定位並合併共用的牆');
+    dbg(`  FLOAT START walls ${ids.map(i=>'#'+i).join(',')}`);
+  }
+  function floatBBox(){
+    const W=floatWalls(); if(!W.length) return null;
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    for(const w of W){ const h=(w.t||12)/2; x0=Math.min(x0,w.x1-h,w.x2-h); x1=Math.max(x1,w.x1+h,w.x2+h); y0=Math.min(y0,w.y1-h,w.y2-h); y1=Math.max(y1,w.y1+h,w.y2+h); }
+    return {x0,y0,x1,y1};
+  }
+  function floatHit(wx,wy){ const b=floatBBox(); if(!b) return false; const m=snapRadius(10,20); return wx>=b.x0-m && wx<=b.x1+m && wy>=b.y0-m && wy<=b.y1+m; }
+  function floatDown(e,px,py,wx,wy){
+    const W=floatWalls();
+    cgest={kind:'float', pid:e.pointerId, px, py, wx0:wx, wy0:wy, orig:W.map(w=>({w, x1:w.x1,y1:w.y1,x2:w.x2,y2:w.y2}))};
+    const F=ui.floatR, C=F.carry||{};
+    cgest.items=[...(state.furniture||[]).filter(v=>(C.furniture||[]).includes(v.id)), ...(state.mep||[]).filter(v=>(C.mep||[]).includes(v.id)), ...(state.texts||[]).filter(v=>(C.texts||[]).includes(v.id))].map(o=>({o,x:o.x,y:o.y}));
+    // the room's name lives on a seed point inside it: move the seed with the room
+    if(!F.rid){ const r=roomsCache.find(q=>q.edges&&q.edges.length&&q.edges.every(ed=>(ed.wids||[ed.wid]).every(id=>F.ids.includes(id)))); if(r) F.rid=r.rid; }
+    const ent=F.rid?roomById(F.rid):null; cgest.seed=ent?{e:ent,x:ent.seedX,y:ent.seedY}:null;
+    draw();
+  }
+  const isV=(w)=>Math.abs(w.x2-w.x1)<0.5 && Math.abs(w.y2-w.y1)>=0.5;
+  const isH=(w)=>Math.abs(w.y2-w.y1)<0.5 && Math.abs(w.x2-w.x1)>=0.5;
+  function floatMove(px,py,wx,wy){
+    const g=cgest; let dx=wx-g.wx0, dy=wy-g.wy0;
+    const ids=ui.floatR.ids, others=state.walls.filter(w=>!ids.includes(w.id)), R=snapRadius(22,45);
+    // wall-centre to wall-centre: per axis, the closest parallel wall that is in reach
+    let bx=null, by=null;
+    for(const o of g.orig){
+      const f={x1:o.x1+dx,y1:o.y1+dy,x2:o.x2+dx,y2:o.y2+dy};
+      for(const e of others){
+        if(isV(f) && isV(e)){
+          const d=e.x1-f.x1; if(Math.abs(d)>R) continue;
+          const a0=Math.min(f.y1,f.y2), a1=Math.max(f.y1,f.y2), b0=Math.min(e.y1,e.y2), b1=Math.max(e.y1,e.y2);
+          if(a1<b0-R || b1<a0-R) continue;
+          if(bx==null || Math.abs(d)<Math.abs(bx.d)) bx={d, x:e.x1};
+        } else if(isH(f) && isH(e)){
+          const d=e.y1-f.y1; if(Math.abs(d)>R) continue;
+          const a0=Math.min(f.x1,f.x2), a1=Math.max(f.x1,f.x2), b0=Math.min(e.x1,e.x2), b1=Math.max(e.x1,e.x2);
+          if(a1<b0-R || b1<a0-R) continue;
+          if(by==null || Math.abs(d)<Math.abs(by.d)) by={d, y:e.y1};
+        }
+      }
+    }
+    if(bx) dx+=bx.d; if(by) dy+=by.d;
+    // corners: once both axes are held, also pull the nearest corner pair together
+    // along a wall it slides on (a room beside another usually wants its ends flush)
+    if(bx || by){
+      let best=null;
+      for(const o of g.orig) for(const [ox,oy] of [[o.x1,o.y1],[o.x2,o.y2]]){
+        const fx=ox+dx, fy=oy+dy;
+        for(const e of others) for(const [ex,ey] of [[e.x1,e.y1],[e.x2,e.y2]]){
+          const ddx=ex-fx, ddy=ey-fy;
+          // only slide along the axis that is NOT already snapped
+          const sx = bx ? 0 : ddx, sy = by ? 0 : ddy;
+          if(bx && Math.abs(ddx)>0.5) continue; if(by && Math.abs(ddy)>0.5) continue;
+          const d=Math.hypot(sx,sy); if(d>R || d<0.01) continue;
+          if(!best || d<best.d) best={d, sx, sy};
+        }
+      }
+      if(best){ dx+=best.sx; dy+=best.sy; }
+    }
+    for(const o of g.orig){ o.w.x1=o.x1+dx; o.w.y1=o.y1+dy; o.w.x2=o.x2+dx; o.w.y2=o.y2+dy; }
+    for(const it of (g.items||[])){ it.o.x=it.x+dx; it.o.y=it.y+dy; }
+    if(g.seed){ g.seed.e.seedX=g.seed.x+dx; g.seed.e.seedY=g.seed.y+dy; }
+    ui.floatR.snapX=bx?bx.x:null; ui.floatR.snapY=by?by.y:null;
+    g.moved=g.moved||Math.hypot(px-g.px,py-g.py)>4;
+    recomputeRooms(); draw();
+  }
+  function floatUp(g){ ui.floatR && (ui.floatR.snapX=null, ui.floatR.snapY=null); if(g.moved) dbg('  FLOAT MOVED'); draw(); }
+  // 放下: collinear overlaps between the floating walls and the rest are removed
+  // from the floating walls (the room already there keeps its wall); doors and
+  // windows on a removed stretch move onto the wall that remains there
+  function floatDrop(){
+    const F=ui.floatR; if(!F) return;
+    ui.floatR=null;
+    const ids=F.ids, others=state.walls.filter(w=>!ids.includes(w.id));
+    let merged=0;
+    for(const id of ids){
+      const f=state.walls.find(w=>w.id===id); if(!f) continue;
+      const vert=isV(f), horz=isH(f); if(!vert && !horz) continue;
+      const lo=vert?Math.min(f.y1,f.y2):Math.min(f.x1,f.x2), hi=vert?Math.max(f.y1,f.y2):Math.max(f.x1,f.x2);
+      let parts=[[lo,hi]];
+      for(const e of others){
+        if(vert ? !(isV(e) && Math.abs(e.x1-f.x1)<0.5) : !(isH(e) && Math.abs(e.y1-f.y1)<0.5)) continue;
+        const b0=vert?Math.min(e.y1,e.y2):Math.min(e.x1,e.x2), b1=vert?Math.max(e.y1,e.y2):Math.max(e.x1,e.x2);
+        const nx=[];
+        for(const [a,b] of parts){
+          if(b1<=a+0.5 || b0>=b-0.5){ nx.push([a,b]); continue; }
+          if(b0>a+1) nx.push([a,b0]);
+          if(b1<b-1) nx.push([b1,b]);
+        }
+        parts=nx;
+      }
+      if(parts.length===1 && Math.abs(parts[0][0]-lo)<0.01 && Math.abs(parts[0][1]-hi)<0.01) continue;
+      merged++;
+      // where its doors/windows sit, in world coordinates, before the wall changes
+      const ops=state.openings.filter(o=>o.wallId===f.id).map(o=>{ const [x,y]=wallPointAt(f,o.pos); return {o,x,y}; });
+      const fwd = vert ? (f.y2>f.y1) : (f.x2>f.x1);
+      state.walls=state.walls.filter(w=>w.id!==f.id);
+      const pieces=[];
+      for(const [a,b] of parts){
+        if(b-a<1) continue;
+        const n=JSON.parse(JSON.stringify(f)); n.id=uid();
+        const s=fwd?a:b, t=fwd?b:a;
+        if(vert){ n.x1=f.x1; n.x2=f.x1; n.y1=s; n.y2=t; } else { n.y1=f.y1; n.y2=f.y1; n.x1=s; n.x2=t; }
+        state.walls.push(n); pieces.push(n);
+      }
+      for(const {o,x,y} of ops){
+        const host=[...pieces, ...others].find(w=>{ const L=wallLen(w); if(L<1) return false;
+          const u=((x-w.x1)*(w.x2-w.x1)+(y-w.y1)*(w.y2-w.y1))/(L*L); if(u<0||u>1) return false;
+          const qx=w.x1+u*(w.x2-w.x1), qy=w.y1+u*(w.y2-w.y1); return Math.hypot(qx-x,qy-y)<1; });
+        if(host){ const L=wallLen(host); o.wallId=host.id; o.pos=((x-host.x1)*(host.x2-host.x1)+(y-host.y1)*(host.y2-host.y1))/(L*L); }
+        else state.openings=state.openings.filter(v=>v!==o);
+      }
+    }
+    dbg(`  FLOAT DROP merged ${merged} wall(s)`);
+    pushHistory(); recomputeRooms(); draw();
+    flashHint(merged ? '已放下，和旁邊房間共用的牆已合併成一道' : '已放下');
+  }
+  function floatDelete(){
+    const F=ui.floatR; if(!F) return;
+    ui.floatR=null;
+    state.walls=state.walls.filter(w=>!F.ids.includes(w.id));
+    state.openings=state.openings.filter(o=>!F.ids.includes(o.wallId));
+    const C=F.carry||{};
+    if(C.furniture) state.furniture=state.furniture.filter(v=>!C.furniture.includes(v.id));
+    if(C.mep) state.mep=state.mep.filter(v=>!C.mep.includes(v.id));
+    if(C.texts) state.texts=state.texts.filter(v=>!C.texts.includes(v.id));
+    pushHistory(); recomputeRooms(); draw(); flashHint('已刪除這間');
+  }
+  // 抬起 a placed room again. A wall it shares with a neighbour stays where it is
+  // for the neighbour; the lifted room takes its own copy of that wall along, so
+  // it comes away whole. Furniture, sockets and text inside go with it.
+  function liftRoom(rid){
+    const r=roomsCache.find(v=>v.rid===rid); if(!r || !r.edges || !r.edges.length) return;
+    const onLine=(w,x,y)=>{ const L=wallLen(w); if(L<1) return null; const u=((x-w.x1)*(w.x2-w.x1)+(y-w.y1)*(w.y2-w.y1))/(L*L);
+      const qx=w.x1+u*(w.x2-w.x1), qy=w.y1+u*(w.y2-w.y1); return Math.hypot(qx-x,qy-y)<1 ? u*L : null; };
+    const span=(w,e)=>{ const a=onLine(w,e.x1,e.y1), b=onLine(w,e.x2,e.y2); return (a==null||b==null)?null:[Math.min(a,b),Math.max(a,b)]; };
+    const ids=[...new Set(r.edges.flatMap(e=>e.wids||[e.wid]).filter(v=>v!=null))];
+    const otherEdges=roomsCache.filter(q=>q!==r).flatMap(q=>q.edges||[]);
+    const subtract=(parts,cut)=>{ const nx=[]; for(const [a,b] of parts){ const [c0,c1]=cut; if(c1<=a+0.5||c0>=b-0.5){ nx.push([a,b]); continue; } if(c0>a+1) nx.push([a,c0]); if(c1<b-1) nx.push([c1,b]); } return nx; };
+    const movedOps=[];   // doors/windows on a stretch only this room used
+    for(const id of ids){
+      const w=state.walls.find(v=>v.id===id); if(!w) continue;
+      const L=wallLen(w);
+      // the stretches of this wall that are this room's alone
+      let mine=[];
+      for(const e of r.edges) if((e.wids||[e.wid]).includes(id)){ const sp=span(w,e); if(sp) mine.push(sp); }
+      for(const e of otherEdges) if((e.wids||[e.wid]).includes(id)){ const sp=span(w,e); if(sp) mine=mine.flatMap(m=>subtract([m],sp)); }
+      if(!mine.length) continue;
+      // what is left of the wall once those stretches leave with the room
+      let keep=[[0,L]]; for(const m of mine) keep=subtract(keep,m);
+      const ops=state.openings.filter(o=>o.wallId===id).map(o=>{ const [x,y]=wallPointAt(w,o.pos); return {o,x,y,d:o.pos*L}; });
+      for(const q of ops){ if(mine.some(([a,b])=>q.d>a-0.5&&q.d<b+0.5)) movedOps.push(q); }
+      state.walls=state.walls.filter(v=>v.id!==id);
+      const pieces=[];
+      for(const [a,b] of keep){ if(b-a<1) continue; const n=JSON.parse(JSON.stringify(w)); n.id=uid();
+        n.x1=w.x1+(w.x2-w.x1)*a/L; n.y1=w.y1+(w.y2-w.y1)*a/L; n.x2=w.x1+(w.x2-w.x1)*b/L; n.y2=w.y1+(w.y2-w.y1)*b/L;
+        state.walls.push(n); pieces.push(n); }
+      for(const q of ops){ if(movedOps.includes(q)) continue;
+        const host=pieces.find(v=>onLine(v,q.x,q.y)!=null && (()=>{ const d=onLine(v,q.x,q.y); return d>=-0.5 && d<=wallLen(v)+0.5; })());
+        if(host){ q.o.wallId=host.id; q.o.pos=onLine(host,q.x,q.y)/wallLen(host); } else movedOps.push(q); }
+    }
+    // the room's own outline, one wall per side, running the way the old wall ran
+    const made=[];
+    for(const e of r.edges){
+      const src=state.walls.find(v=>(e.wids||[e.wid]).includes(v.id));
+      const n={id:uid(), x1:e.x1, y1:e.y1, x2:e.x2, y2:e.y2, t:e.t, align:e.align||'mid'};
+      if(src){ for(const k of Object.keys(src)) if(!(k in n) && k!=='ref' && k!=='refIn') n[k]=JSON.parse(JSON.stringify(src[k])); }
+      state.walls.push(n); made.push(n);
+    }
+    // doors/windows that were on this room's own stretches ride on the new walls
+    for(const q of movedOps){
+      const host=made.find(v=>{ const d=onLine(v,q.x,q.y); return d!=null && d>=-0.5 && d<=wallLen(v)+0.5; });
+      if(host){ q.o.wallId=host.id; q.o.pos=onLine(host,q.x,q.y)/wallLen(host); } else state.openings=state.openings.filter(v=>v!==q.o);
+    }
+    // loose walls standing inside the room (a stub partition) go with it too
+    const inside=(x,y)=>polyContains({x,y}, r.Vout&&r.Vout.length>2 ? r.Vout : r.V);
+    const stubs=state.walls.filter(w=>!made.includes(w) && !(wallRoomCount[w.id]>0) && polyContains({x:(w.x1+w.x2)/2,y:(w.y1+w.y2)/2}, r.V));
+    const carry={
+      furniture:(state.furniture||[]).filter(f=>inside(f.x,f.y)).map(f=>f.id),
+      mep:(state.mep||[]).filter(m=>inside(m.x,m.y)).map(m=>m.id),
+      texts:(state.texts||[]).filter(t=>inside(t.x,t.y)).map(t=>t.id),
+    };
+    dbg(`  LIFT room ${rid}: ${made.length} walls, carry ${carry.furniture.length} furn ${carry.mep.length} mep ${carry.texts.length} text, ${stubs.length} stubs`);
+    // no pushHistory here: its clean-up would fold the copy straight back into the
+    // neighbour's wall. The step is recorded when the room is put down.
+    recomputeRooms();
+    floatStart([...made, ...stubs].map(w=>w.id),'已抬起：', {rid, carry});
+    draw();
+  }
+  function drawFloat(){
+    if(!ui.floatR || EXPORT_MODE) return;
+    const W=floatWalls(); if(!W.length){ ui.floatR=null; return; }
+    ctx.save();
+    ctx.strokeStyle='rgba(28,126,214,.30)'; ctx.lineCap='square';
+    for(const w of W){ const [ax,ay]=toScreen(w.x1,w.y1), [bx,by]=toScreen(w.x2,w.y2); ctx.lineWidth=Math.max(3,(w.t||12)*view.scale+6); ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke(); }
+    const b=floatBBox(); if(b){ const [x0,y0]=toScreen(b.x0,b.y0), [x1,y1]=toScreen(b.x1,b.y1);
+      ctx.setLineDash([6,5]); ctx.strokeStyle='#1C7ED6'; ctx.lineWidth=1.5; ctx.strokeRect(x0-6,y0-6,x1-x0+12,y1-y0+12); ctx.setLineDash([]); }
+    // the snap guides
+    ctx.strokeStyle='#E8590C'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+    if(ui.floatR.snapX!=null){ const [x]=toScreen(ui.floatR.snapX,0); ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,stage.clientHeight); ctx.stroke(); }
+    if(ui.floatR.snapY!=null){ const [,y]=toScreen(0,ui.floatR.snapY); ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(stage.clientWidth,y); ctx.stroke(); }
+    ctx.restore();
+  }
+
 
   // ---- pointer ----
   function chainDown(e,px,py,wx,wy){
@@ -8156,6 +8524,7 @@
     const T=chainTargets();
     if(ui.tool==='room'){
       if(ui.rect && ui.rect.asking) rectCommit();       // the next room starts: keep the last one as typed
+      if(ui.floatR) floatDrop();                         // …and the floating one is placed where it is
       const p=chainPoint(null,wx,wy,T,null);
       ui.rect={x0:p.x,y0:p.y,x1:p.x,y1:p.y,asking:false};
       cgest={kind:'rect',pid:e.pointerId,px,py,T};
@@ -8181,6 +8550,7 @@
   }
   function chainMove(px,py,wx,wy){
     const g=cgest;
+    if(g.kind==='float'){ floatMove(px,py,wx,wy); return; }
     if(g.pending){ if(Math.hypot(px-g.px,py-g.py)<8) return; chainBegin(g.pending); g.pending=null; }
     if(g.kind==='rect'){ const r=ui.rect; if(!r) return; const p=chainPoint(null,wx,wy,g.T,null); r.x1=p.x; r.y1=p.y;
       const [sx,sy]=toScreen(r.x1,r.y1); showLenBox(sx,sy,fmtLen(Math.abs(r.x1-r.x0))+' × '+fmtLenU(Math.abs(r.y1-r.y0))); draw(); return; }
@@ -8193,6 +8563,7 @@
     draw();
   }
   function chainUp(g,e){
+    if(g.kind==='float'){ floatUp(g); return; }
     hideLenBox();
     const [px,py]=evtPos(e), [wx,wy]=toWorld(px,py);
     if(g.kind==='rect'){
@@ -8291,6 +8662,7 @@
     if(t==='part') setTimeout(syncPartUI,0);
     if(ui.chain && t!==ui.tool) chainFinish(false);
     if(ui.rect && t!=='room'){ if(ui.rect.asking) rectCommit(); else ui.rect=null; }
+    if(ui.floatR && t!=='room' && t!=='select') floatDrop();
     ui.tool=t; draft=null; typedNum=''; hideLenBox();
     if(t!=='circuit') ui.cdraft=null;
     if(t!=='ceil'){ ui.ceilPick=null; ui.cpoly=null; ui.clinePending=null; }
@@ -8492,7 +8864,7 @@
       if(r && typeof r.catch==='function') r.catch(err=>reportExportError(what,err));
     }catch(err){ reportExportError(what,err); }
   }
-  const BUILD='b135';
+  const BUILD='b143';
   // A page inside another app's browser is sandboxed: the OS share sheet is
   // withheld and downloads are ignored. Nothing in JS can work around that, so
   // say it plainly instead of letting the buttons look broken.
@@ -8639,6 +9011,7 @@
 
   function doExport(act){
     if(act==='plan'){ openPlanModal(); return; }
+    if(act==='lang'){ i18nSet(LANG==='en'?'zh':'en'); return; }
     if(act==='account'){ openAcctModal(); return; }
     if((act==='pdf'||act==='dxf') && !planAtLeast('basic')){
       openPlanModal(act==='pdf' ? '匯出 PDF（含圖框）是基本方案的功能。免費版可以匯出 PNG 圖片（有浮水印）。'
@@ -13177,18 +13550,18 @@
   }
   // ---- b121 教學影片: short clips bundled with the app (tutorials/NN.mp4) ----
   const TUTORIALS=[
-    {n:1,  t:'畫房間、改尺寸',       f:'planpad-01.mp4', d:'0:51', k:['room','select']},
-    {n:2,  t:'用牆畫空間、牆厚與樓高', f:'planpad-02.mp4', d:'0:40', k:['wall','base']},
-    {n:3,  t:'隔間、門窗、柱、樑',    f:'planpad-03.mp4', d:'0:38', k:['part','door','window','column','beam','shaft','split']},
-    {n:4,  t:'平面配置：家具',        f:'planpad-04.mp4', d:'0:37', k:['plan']},
-    {n:5,  t:'水電插座與開關',        f:'planpad-05.mp4', d:'0:27', k:['elec']},
-    {n:6,  t:'燈具與迴路',            f:'planpad-06.mp4', d:'0:37', k:['light','circuit']},
-    {n:7,  t:'天花板、地板',          f:'planpad-07.mp4', d:'0:24', k:['ceil','floor']},
-    {n:8,  t:'油漆與立面',            f:'planpad-08.mp4', d:'0:52', k:['paint']},
-    {n:9,  t:'尺寸、手寫、照片、註記、文字', f:'planpad-09.mp4', d:'0:35', k:['dim','ink','photo','note','text']},
-    {n:10, t:'專案資訊與公司資料',    f:'planpad-10.mp4', d:'0:28', k:['meta']},
-    {n:11, t:'匯出 PDF 與圖框',       f:'planpad-11.mp4', d:'0:41', k:['export']},
-    {n:12, t:'專案存檔、匯入底圖',   f:'planpad-12.mp4', d:'0:40', k:['underlay','ulcalib','file']},
+    {n:1,  t:'畫房間、改尺寸',       f:'planpad-01.mp4', d:'1:26', k:['room','select']},
+    {n:2,  t:'用牆畫空間、牆厚與樓高', f:'planpad-02.mp4', d:'0:53', k:['wall','base']},
+    {n:3,  t:'隔間、門窗、柱、樑',    f:'planpad-03.mp4', d:'0:55', k:['part','door','window','column','beam','shaft','split']},
+    {n:4,  t:'平面配置：家具',        f:'planpad-04.mp4', d:'0:44', k:['plan']},
+    {n:5,  t:'水電插座與開關',        f:'planpad-05.mp4', d:'0:38', k:['elec']},
+    {n:6,  t:'燈具與迴路',            f:'planpad-06.mp4', d:'0:46', k:['light','circuit']},
+    {n:7,  t:'天花板、地板',          f:'planpad-07.mp4', d:'0:30', k:['ceil','floor']},
+    {n:8,  t:'油漆與立面',            f:'planpad-08.mp4', d:'1:03', k:['paint']},
+    {n:9,  t:'尺寸、手寫、照片、註記、文字', f:'planpad-09.mp4', d:'0:44', k:['dim','ink','photo','note','text']},
+    {n:10, t:'專案資訊與公司資料',    f:'planpad-10.mp4', d:'0:48', k:['meta']},
+    {n:11, t:'匯出 PDF 與圖框',       f:'planpad-11.mp4', d:'1:02', k:['export']},
+    {n:12, t:'專案存檔、匯入底圖',   f:'planpad-12.mp4', d:'1:03', k:['underlay','ulcalib','file']},
   ];
   function tutorialFor(k){
     const base=String(k||'').split('.')[0];
@@ -13262,7 +13635,7 @@
     document.getElementById('tourPrev').style.visibility=tourI?'visible':'hidden';
     document.getElementById('tourNext').textContent=last?'開始畫圖':'下一步';
     document.getElementById('tourSkip').style.visibility=last?'hidden':'visible';
-    if(last) document.getElementById('tourBody').insertAdjacentHTML('beforeend','<button class="chip tour-vid" id="tourVid">▶ 先看第 1 集：畫房間（0:51）</button>');
+    if(last) document.getElementById('tourBody').insertAdjacentHTML('beforeend','<button class="chip tour-vid" id="tourVid">▶ 先看第 1 集：畫房間（1:26）</button>');
     const tv=document.getElementById('tourVid'); if(tv) tv.onclick=()=>{ closeTour(); openVideo(1); };
   }
   (function wireHelp(){
@@ -15117,6 +15490,7 @@
   loadAutosave();
   planBoot();
   acctBoot();
+  i18nBoot();
   flashHint('選「牆」→ 按住拖曳畫牆（放開即完成）。兩指縮放平移，點物件可編輯尺寸');
 })();
 </script>
